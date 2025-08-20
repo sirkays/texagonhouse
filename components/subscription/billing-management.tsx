@@ -1,0 +1,398 @@
+"use client"
+
+import { useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  CreditCard,
+  Download,
+  Calendar,
+  Settings,
+  Plus,
+  Edit,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+} from "lucide-react"
+
+export function BillingManagement() {
+  const [currentPlan] = useState({
+    name: "Premium",
+    price: 19.99,
+    billingCycle: "monthly",
+    nextBilling: "2024-02-15",
+    status: "active",
+  })
+
+  const [paymentMethods] = useState([
+    {
+      id: 1,
+      type: "card",
+      brand: "Visa",
+      last4: "4242",
+      expiryMonth: 12,
+      expiryYear: 2025,
+      isDefault: true,
+    },
+    {
+      id: 2,
+      type: "card",
+      brand: "Mastercard",
+      last4: "8888",
+      expiryMonth: 8,
+      expiryYear: 2026,
+      isDefault: false,
+    },
+  ])
+
+  const [billingHistory] = useState([
+    {
+      id: "inv_001",
+      date: "2024-01-15",
+      amount: 19.99,
+      status: "paid",
+      description: "Premium Plan - Monthly",
+      downloadUrl: "#",
+    },
+    {
+      id: "inv_002",
+      date: "2023-12-15",
+      amount: 19.99,
+      status: "paid",
+      description: "Premium Plan - Monthly",
+      downloadUrl: "#",
+    },
+    {
+      id: "inv_003",
+      date: "2023-11-15",
+      amount: 19.99,
+      status: "paid",
+      description: "Premium Plan - Monthly",
+      downloadUrl: "#",
+    },
+    {
+      id: "inv_004",
+      date: "2023-10-15",
+      amount: 19.99,
+      status: "failed",
+      description: "Premium Plan - Monthly",
+      downloadUrl: "#",
+    },
+  ])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-700"
+      case "paid":
+        return "bg-green-100 text-green-700"
+      case "failed":
+        return "bg-red-100 text-red-700"
+      case "pending":
+        return "bg-yellow-100 text-yellow-700"
+      default:
+        return "bg-gray-100 text-gray-700"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "active":
+      case "paid":
+        return <CheckCircle className="h-4 w-4" />
+      case "failed":
+        return <AlertCircle className="h-4 w-4" />
+      case "pending":
+        return <Clock className="h-4 w-4" />
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Billing & Subscription</h1>
+        <p className="text-muted-foreground">Manage your subscription and billing information</p>
+      </div>
+
+      {/* Current Subscription Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Subscription</CardTitle>
+          <CardDescription>Your active plan and billing information</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Plan</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{currentPlan.name}</span>
+                  <Badge className={getStatusColor(currentPlan.status)}>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(currentPlan.status)}
+                      {currentPlan.status}
+                    </div>
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Price</span>
+                <span className="font-semibold">
+                  ${currentPlan.price}/{currentPlan.billingCycle}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Next Billing</span>
+                <span className="font-semibold">{currentPlan.nextBilling}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Button className="w-full">
+                <Settings className="mr-2 h-4 w-4" />
+                Change Plan
+              </Button>
+              <Button variant="outline" className="w-full bg-transparent">
+                <Calendar className="mr-2 h-4 w-4" />
+                Pause Subscription
+              </Button>
+              <Button variant="destructive" className="w-full">
+                Cancel Subscription
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="payment-methods" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="payment-methods">Payment Methods</TabsTrigger>
+          <TabsTrigger value="billing-history">Billing History</TabsTrigger>
+          <TabsTrigger value="usage">Usage & Limits</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="payment-methods" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Payment Methods</CardTitle>
+                  <CardDescription>Manage your payment methods</CardDescription>
+                </div>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Payment Method
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {paymentMethods.map((method) => (
+                <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center">
+                      <CreditCard className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {method.brand} •••• {method.last4}
+                        </span>
+                        {method.isDefault && <Badge variant="secondary">Default</Badge>}
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        Expires {method.expiryMonth}/{method.expiryYear}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New Payment Method</CardTitle>
+              <CardDescription>Add a credit or debit card</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="card-number">Card Number</Label>
+                  <Input id="card-number" placeholder="1234 5678 9012 3456" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="card-name">Cardholder Name</Label>
+                  <Input id="card-name" placeholder="John Doe" />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="expiry-month">Expiry Month</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1).padStart(2, "0")}>
+                          {String(i + 1).padStart(2, "0")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expiry-year">Expiry Year</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 10 }, (_, i) => (
+                        <SelectItem key={2024 + i} value={String(2024 + i)}>
+                          {2024 + i}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cvv">CVV</Label>
+                  <Input id="cvv" placeholder="123" />
+                </div>
+              </div>
+              <Button className="w-full">Add Payment Method</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="billing-history" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Billing History</CardTitle>
+              <CardDescription>View and download your invoices</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {billingHistory.map((invoice) => (
+                  <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{invoice.description}</span>
+                        <Badge className={getStatusColor(invoice.status)}>
+                          <div className="flex items-center gap-1">
+                            {getStatusIcon(invoice.status)}
+                            {invoice.status}
+                          </div>
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>{invoice.date}</span>
+                        <span>Invoice #{invoice.id}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="font-semibold">${invoice.amount}</span>
+                      <Button variant="outline" size="sm">
+                        <Download className="mr-2 h-3 w-3" />
+                        Download
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Usage</CardTitle>
+                <CardDescription>Your usage for this billing period</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Courses Accessed</span>
+                    <span>45 / 500</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: "9%" }} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Storage Used</span>
+                    <span>12.5 GB / 50 GB</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-green-600 h-2 rounded-full" style={{ width: "25%" }} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Mentorship Hours</span>
+                    <span>1.5 / 2 hours</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: "75%" }} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Plan Limits</CardTitle>
+                <CardDescription>What's included in your Premium plan</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm">Course Access</span>
+                  <span className="text-sm font-medium">500+ courses</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Storage</span>
+                  <span className="text-sm font-medium">50 GB</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Video Quality</span>
+                  <span className="text-sm font-medium">HD</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Offline Downloads</span>
+                  <span className="text-sm font-medium">✅ Included</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Mentorship</span>
+                  <span className="text-sm font-medium">2 hours/month</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Support</span>
+                  <span className="text-sm font-medium">Priority</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

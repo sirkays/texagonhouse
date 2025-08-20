@@ -1,0 +1,454 @@
+"use client"
+
+import { useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  CreditCard,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Building2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  DollarSign,
+  TrendingUp,
+} from "lucide-react"
+
+export function SubscriptionManagement() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+
+  const subscriptions = [
+    {
+      id: 1,
+      schoolName: "Lagos State Model College",
+      plan: "Premium",
+      price: "₦145,000",
+      startDate: "2023-01-15",
+      endDate: "2024-01-15",
+      status: "Active",
+      autoRenewal: true,
+      paymentMethod: "Bank Transfer",
+      lastPayment: "2023-12-15",
+      nextBilling: "2024-01-15",
+      students: 1234,
+      teachers: 67,
+    },
+    {
+      id: 2,
+      schoolName: "Federal Government College",
+      plan: "Premium",
+      price: "₦120,000",
+      startDate: "2023-02-20",
+      endDate: "2024-02-20",
+      status: "Active",
+      autoRenewal: true,
+      paymentMethod: "Card Payment",
+      lastPayment: "2024-01-20",
+      nextBilling: "2024-02-20",
+      students: 987,
+      teachers: 54,
+    },
+    {
+      id: 3,
+      schoolName: "Greenfield Academy",
+      plan: "Basic",
+      price: "₦89,000",
+      startDate: "2023-03-10",
+      endDate: "2024-03-10",
+      status: "Active",
+      autoRenewal: false,
+      paymentMethod: "Bank Transfer",
+      lastPayment: "2023-03-10",
+      nextBilling: "2024-03-10",
+      students: 756,
+      teachers: 43,
+    },
+    {
+      id: 4,
+      schoolName: "Unity High School",
+      plan: "Premium",
+      price: "₦98,000",
+      startDate: "2023-04-05",
+      endDate: "2024-04-05",
+      status: "Overdue",
+      autoRenewal: true,
+      paymentMethod: "Card Payment",
+      lastPayment: "2023-04-05",
+      nextBilling: "2024-04-05",
+      students: 654,
+      teachers: 38,
+    },
+    {
+      id: 5,
+      schoolName: "Bright Future College",
+      plan: "Basic",
+      price: "₦67,000",
+      startDate: "2024-01-12",
+      endDate: "2025-01-12",
+      status: "Trial",
+      autoRenewal: false,
+      paymentMethod: "Pending",
+      lastPayment: "N/A",
+      nextBilling: "2024-02-12",
+      students: 543,
+      teachers: 32,
+    },
+  ]
+
+  const filteredSubscriptions = subscriptions.filter(
+    (sub) =>
+      sub.schoolName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.plan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.status.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Active":
+        return (
+          <Badge className="bg-green-100 text-green-800">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Active
+          </Badge>
+        )
+      case "Overdue":
+        return (
+          <Badge className="bg-red-100 text-red-800">
+            <XCircle className="w-3 h-3 mr-1" />
+            Overdue
+          </Badge>
+        )
+      case "Trial":
+        return (
+          <Badge className="bg-blue-100 text-blue-800">
+            <Clock className="w-3 h-3 mr-1" />
+            Trial
+          </Badge>
+        )
+      case "Suspended":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Suspended
+          </Badge>
+        )
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
+  const getPlanBadge = (plan: string) => {
+    return plan === "Premium" ? (
+      <Badge className="bg-gold-100 text-gold-800">Premium</Badge>
+    ) : (
+      <Badge variant="secondary">Basic</Badge>
+    )
+  }
+
+  const getDaysUntilExpiry = (endDate: string) => {
+    const today = new Date()
+    const expiry = new Date(endDate)
+    const diffTime = expiry.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
+  const getExpiryColor = (days: number) => {
+    if (days < 0) return "text-red-600"
+    if (days <= 30) return "text-yellow-600"
+    return "text-green-600"
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Subscription Management</h1>
+          <p className="text-muted-foreground">Monitor and manage all school subscriptions</p>
+        </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Subscription
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Add New Subscription</DialogTitle>
+              <DialogDescription>Create a new subscription plan for a school</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="school-select">Select School</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose school" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lsmc">Lagos State Model College</SelectItem>
+                      <SelectItem value="fgc">Federal Government College</SelectItem>
+                      <SelectItem value="greenfield">Greenfield Academy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plan-select">Subscription Plan</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic Plan - ₦50,000/year</SelectItem>
+                      <SelectItem value="premium">Premium Plan - ₦120,000/year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start-date">Start Date</Label>
+                  <Input id="start-date" type="date" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-date">End Date</Label>
+                  <Input id="end-date" type="date" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="payment-method">Payment Method</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank">Bank Transfer</SelectItem>
+                      <SelectItem value="card">Card Payment</SelectItem>
+                      <SelectItem value="cash">Cash Payment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="auto-renewal">Auto Renewal</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Yes</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setIsAddDialogOpen(false)}>Create Subscription</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Search & Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search subscriptions by school name, plan, or status..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Select>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by plan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plans</SelectItem>
+                <SelectItem value="premium">Premium</SelectItem>
+                <SelectItem value="basic">Basic</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="trial">Trial</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Subscriptions Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Subscriptions ({filteredSubscriptions.length})</CardTitle>
+          <CardDescription>Complete list of all school subscriptions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>School</TableHead>
+                  <TableHead>Plan & Price</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Payment Info</TableHead>
+                  <TableHead>Users</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSubscriptions.map((subscription) => (
+                  <TableRow key={subscription.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium flex items-center">
+                          <Building2 className="mr-2 h-4 w-4" />
+                          {subscription.schoolName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Auto-renewal: {subscription.autoRenewal ? "Enabled" : "Disabled"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {getPlanBadge(subscription.plan)}
+                        <div className="font-medium text-green-600">{subscription.price}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="text-sm">
+                          {subscription.startDate} to {subscription.endDate}
+                        </div>
+                        <div className={`text-xs ${getExpiryColor(getDaysUntilExpiry(subscription.endDate))}`}>
+                          {getDaysUntilExpiry(subscription.endDate) > 0
+                            ? `${getDaysUntilExpiry(subscription.endDate)} days left`
+                            : `${Math.abs(getDaysUntilExpiry(subscription.endDate))} days overdue`}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="text-sm">{subscription.paymentMethod}</div>
+                        <div className="text-xs text-muted-foreground">Last: {subscription.lastPayment}</div>
+                        <div className="text-xs text-muted-foreground">Next: {subscription.nextBilling}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="text-sm">{subscription.students} students</div>
+                        <div className="text-sm">{subscription.teachers} teachers</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(subscription.status)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{subscriptions.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {subscriptions.filter((s) => s.status === "Active").length} active subscriptions
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">₦2,450,000</div>
+            <p className="text-xs text-muted-foreground">+18% from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Premium Plans</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{subscriptions.filter((s) => s.plan === "Premium").length}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.round((subscriptions.filter((s) => s.plan === "Premium").length / subscriptions.length) * 100)}% of
+              total
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue Payments</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {subscriptions.filter((s) => s.status === "Overdue").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Require immediate attention</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
