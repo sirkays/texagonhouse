@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
+  basePath: "/texagon", // 👈 your repo name
+  assetPrefix: "/texagon/",
   eslint: {
     ignoreDuringBuilds: true,
   },
