@@ -35,6 +35,9 @@ import {
 export function SubscriptionManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedSubscription, setSelectedSubscription] = useState<any>(null)
 
   const subscriptions = [
     {
@@ -176,6 +179,22 @@ export function SubscriptionManagement() {
     if (days < 0) return "text-red-600"
     if (days <= 30) return "text-yellow-600"
     return "text-green-600"
+  }
+
+  const handleEditSubscription = (subscription: any) => {
+    setSelectedSubscription(subscription)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDeleteSubscription = (subscription: any) => {
+    setSelectedSubscription(subscription)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    alert(`Subscription for ${selectedSubscription.schoolName} has been deleted successfully!`)
+    setIsDeleteDialogOpen(false)
+    setSelectedSubscription(null)
   }
 
   return (
@@ -383,10 +402,15 @@ export function SubscriptionManagement() {
                     <TableCell>{getStatusBadge(subscription.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditSubscription(subscription)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteSubscription(subscription)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -449,6 +473,109 @@ export function SubscriptionManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Subscription Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Subscription</DialogTitle>
+            <DialogDescription>Update subscription details</DialogDescription>
+          </DialogHeader>
+          {selectedSubscription && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>School Name</Label>
+                  <Input defaultValue={selectedSubscription.schoolName} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subscription Plan</Label>
+                  <Select defaultValue={selectedSubscription.plan.toLowerCase()}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic Plan</SelectItem>
+                      <SelectItem value="premium">Premium Plan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Input type="date" defaultValue={selectedSubscription.startDate} />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Input type="date" defaultValue={selectedSubscription.endDate} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  <Select defaultValue={selectedSubscription.paymentMethod.toLowerCase().replace(" ", "")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="banktransfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cardpayment">Card Payment</SelectItem>
+                      <SelectItem value="cash">Cash Payment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Auto Renewal</Label>
+                  <Select defaultValue={selectedSubscription.autoRenewal ? "yes" : "no"}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Yes</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                alert("Subscription updated successfully!")
+              }}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Subscription</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the subscription for {selectedSubscription?.schoolName}? This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete Subscription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

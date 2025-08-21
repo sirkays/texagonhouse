@@ -163,6 +163,54 @@ export function PaymentHistory() {
 
   const stats = getPaymentStats()
 
+  const handleExportHistory = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      "Payment ID,Date,Description,Amount,Method,Status,Children,Next Billing\n" +
+      filteredPayments
+        .map(
+          (payment) =>
+            `${payment.id},${payment.date},"${payment.description}",${payment.amount},${payment.method},${payment.status},"${payment.children.join("; ")}",${payment.nextBilling || "N/A"}`,
+        )
+        .join("\n")
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", "payment_history.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    alert("Payment history exported successfully!")
+  }
+
+  const handleDownloadAllReceipts = () => {
+    const completedPayments = payments.filter((p) => p.status === "Completed")
+    alert(`Downloading ${completedPayments.length} receipts. This may take a moment...`)
+
+    // Simulate downloading multiple receipts
+    completedPayments.forEach((payment, index) => {
+      setTimeout(() => {
+        const link = document.createElement("a")
+        link.setAttribute("href", "#") // In real app, this would be the actual receipt URL
+        link.setAttribute("download", `receipt_${payment.id}.pdf`)
+        if (index === completedPayments.length - 1) {
+          alert("All receipts downloaded successfully!")
+        }
+      }, index * 500)
+    })
+  }
+
+  const handleDownloadReceipt = (payment: any) => {
+    const link = document.createElement("a")
+    link.setAttribute("href", "#") // In real app, this would be the actual receipt URL
+    link.setAttribute("download", `receipt_${payment.id}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    alert(`Receipt for ${payment.id} downloaded successfully!`)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -171,11 +219,11 @@ export function PaymentHistory() {
           <p className="text-muted-foreground">View and manage all your payment transactions</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+          <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={handleExportHistory}>
             <Download className="h-4 w-4" />
             Export History
           </Button>
-          <Button className="flex items-center gap-2">
+          <Button className="flex items-center gap-2" onClick={handleDownloadAllReceipts}>
             <Receipt className="h-4 w-4" />
             Download Receipt
           </Button>
@@ -319,10 +367,10 @@ export function PaymentHistory() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadReceipt(payment)}>
                           <Receipt className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadReceipt(payment)}>
                           <Download className="h-4 w-4" />
                         </Button>
                         {payment.status === "Failed" && (

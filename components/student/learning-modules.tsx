@@ -145,6 +145,11 @@ export function LearningModules() {
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       </div>
                     )}
+                    <div className="absolute bottom-2 right-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {course.progress > 0 ? "In Progress" : "Available"}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -181,6 +186,10 @@ export function LearningModules() {
                     <div className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
                       {course.students.toLocaleString()}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      {Math.floor(course.lessons * 0.3)} quizzes
                     </div>
                   </div>
 

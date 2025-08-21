@@ -9,6 +9,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
   Users,
   Search,
   Edit,
@@ -26,6 +35,10 @@ import {
 
 export function StudentManagement() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedSchool, setSelectedSchool] = useState("all")
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
 
   const students = [
     {
@@ -105,13 +118,62 @@ export function StudentManagement() {
     },
   ]
 
-  const filteredStudents = students.filter(
-    (student) =>
+  const schools = [
+    "Lagos State Model College",
+    "Federal Government College",
+    "Greenfield Academy",
+    "Unity High School",
+    "Bright Future College",
+  ]
+
+  const filteredStudents = students.filter((student) => {
+    const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.grade.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      student.grade.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesSchool = selectedSchool === "all" || student.school === selectedSchool
+
+    return matchesSearch && matchesSchool
+  })
+
+  const handleExportStudentData = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      "Name,Email,School,Grade,Courses,Completed,Average Score,Status,Subscription\n" +
+      students
+        .map(
+          (student) =>
+            `${student.name},${student.email},${student.school},${student.grade},${student.courses},${student.completedCourses},${student.averageScore}%,${student.status},${student.subscription}`,
+        )
+        .join("\n")
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", "student_data.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    alert("Student data exported successfully!")
+  }
+
+  const handleEditStudent = (student: any) => {
+    setSelectedStudent(student)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDeleteStudent = (student: any) => {
+    setSelectedStudent(student)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    alert(`Student ${selectedStudent.name} has been deleted successfully!`)
+    setIsDeleteDialogOpen(false)
+    setSelectedStudent(null)
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -167,7 +229,7 @@ export function StudentManagement() {
           <h1 className="text-3xl font-bold">Student Management</h1>
           <p className="text-muted-foreground">Monitor and manage all students across the platform</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2" onClick={handleExportStudentData}>
           <Users className="h-4 w-4" />
           Export Student Data
         </Button>
@@ -189,16 +251,17 @@ export function StudentManagement() {
                 className="pl-8"
               />
             </div>
-            <Select>
+            <Select value={selectedSchool} onValueChange={setSelectedSchool}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by school" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Schools</SelectItem>
-                <SelectItem value="lsmc">Lagos State Model College</SelectItem>
-                <SelectItem value="fgc">Federal Government College</SelectItem>
-                <SelectItem value="greenfield">Greenfield Academy</SelectItem>
-                <SelectItem value="unity">Unity High School</SelectItem>
+                {schools.map((school) => (
+                  <SelectItem key={school} value={school}>
+                    {school}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select>
@@ -310,10 +373,15 @@ export function StudentManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditStudent(student)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteStudent(student)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -384,6 +452,93 @@ export function StudentManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+            <DialogDescription>Update student information</DialogDescription>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input defaultValue={selectedStudent.name} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <Input defaultValue={selectedStudent.email} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>School</Label>
+                  <Select defaultValue={selectedStudent.school}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schools.map((school) => (
+                        <SelectItem key={school} value={school}>
+                          {school}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Grade</Label>
+                  <Select defaultValue={selectedStudent.grade}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SS1">SS1</SelectItem>
+                      <SelectItem value="SS2">SS2</SelectItem>
+                      <SelectItem value="SS3">SS3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                alert("Student updated successfully!")
+              }}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Student</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedStudent?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete Student
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

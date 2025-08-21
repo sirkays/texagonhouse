@@ -37,7 +37,11 @@ import {
 
 export function TeacherManagement() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedSchool, setSelectedSchool] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null)
 
   const teachers = [
     {
@@ -112,13 +116,25 @@ export function TeacherManagement() {
     },
   ]
 
-  const filteredTeachers = teachers.filter(
-    (teacher) =>
+  const schools = [
+    "Lagos State Model College",
+    "Federal Government College",
+    "Greenfield Academy",
+    "Unity High School",
+    "Bright Future College",
+  ]
+
+  const filteredTeachers = teachers.filter((teacher) => {
+    const matchesSearch =
       teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       teacher.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      teacher.subjects.some((subject) => subject.toLowerCase().includes(searchTerm.toLowerCase())),
-  )
+      teacher.subjects.some((subject) => subject.toLowerCase().includes(searchTerm.toLowerCase()))
+
+    const matchesSchool = selectedSchool === "all" || teacher.school === selectedSchool
+
+    return matchesSearch && matchesSchool
+  })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -153,6 +169,22 @@ export function TeacherManagement() {
     if (performance >= 80) return "text-blue-600"
     if (performance >= 70) return "text-yellow-600"
     return "text-red-600"
+  }
+
+  const handleEditTeacher = (teacher: any) => {
+    setSelectedTeacher(teacher)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDeleteTeacher = (teacher: any) => {
+    setSelectedTeacher(teacher)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    alert(`Teacher ${selectedTeacher.name} has been deleted successfully!`)
+    setIsDeleteDialogOpen(false)
+    setSelectedTeacher(null)
   }
 
   return (
@@ -256,16 +288,17 @@ export function TeacherManagement() {
                 className="pl-8"
               />
             </div>
-            <Select>
+            <Select value={selectedSchool} onValueChange={setSelectedSchool}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by school" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Schools</SelectItem>
-                <SelectItem value="lsmc">Lagos State Model College</SelectItem>
-                <SelectItem value="fgc">Federal Government College</SelectItem>
-                <SelectItem value="greenfield">Greenfield Academy</SelectItem>
-                <SelectItem value="unity">Unity High School</SelectItem>
+                {schools.map((school) => (
+                  <SelectItem key={school} value={school}>
+                    {school}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select>
@@ -373,10 +406,15 @@ export function TeacherManagement() {
                     <TableCell>{getStatusBadge(teacher.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditTeacher(teacher)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteTeacher(teacher)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -438,6 +476,88 @@ export function TeacherManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Teacher Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Teacher</DialogTitle>
+            <DialogDescription>Update teacher information</DialogDescription>
+          </DialogHeader>
+          {selectedTeacher && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input defaultValue={selectedTeacher.name} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <Input defaultValue={selectedTeacher.email} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <Input defaultValue={selectedTeacher.phone} />
+                </div>
+                <div className="space-y-2">
+                  <Label>School</Label>
+                  <Select defaultValue={selectedTeacher.school}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schools.map((school) => (
+                        <SelectItem key={school} value={school}>
+                          {school}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Teaching Subjects</Label>
+                <Input defaultValue={selectedTeacher.subjects.join(", ")} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                alert("Teacher updated successfully!")
+              }}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Teacher</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedTeacher?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete Teacher
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
