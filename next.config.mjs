@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export",
+  output: "standalone",
   basePath: "/texagon", // 👈 your repo name
   assetPrefix: "/texagon/",
   eslint: {
