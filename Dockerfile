@@ -19,9 +19,11 @@ WORKDIR /app
 
 # Copy only what's needed at runtime
 # standalone server + static assets + public
-COPY --from=builder /app/.next/standalone ./       # includes server.js
-COPY --from=builder /app/.next/static ./.next/static
+# Copy only what's needed at runtime
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+
 
 # (Optional) Drop privileges: run as 'node' user
 # USER node
