@@ -1,16 +1,16 @@
 # ---- Build stage ------------------------------------------------------------
-# Use a Debian-based image to avoid native module issues (e.g., sharp)
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
-# Install dependencies first (better caching)
 COPY package*.json ./
 RUN npm ci
-
-# Copy source and build
 COPY . .
-# Ensure production build
-ENV NODE_ENV=production
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS="--max-old-space-size=2048" \
+    NEXT_DISABLE_SWC_THREADS=1
+
 RUN npm run build
 
 # ---- Run stage --------------------------------------------------------------
