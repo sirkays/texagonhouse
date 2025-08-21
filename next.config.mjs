@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
-  basePath: "/texagon", // 👈 your repo name
-  assetPrefix: "/texagon/",
+  // basePath: "/texagon", // 👈 your repo name
+  // assetPrefix: "/texagon/",
   eslint: {
     ignoreDuringBuilds: true,
   },
