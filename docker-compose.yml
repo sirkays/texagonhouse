@@ -40,7 +40,7 @@ services:
       - traefik.enable=true
 
       # Route HTTPS traffic for your domains to this container
-      - traefik.http.routers.next.rule=Host(`texagonui.esm.name.ng`,`www.texagonui.esm.name.ng`)
+      - traefik.http.routers.next.rule=Host(`texagonui.esm.name.ng`)
       - traefik.http.routers.next.entrypoints=websecure
       - traefik.http.routers.next.tls.certresolver=le
 
