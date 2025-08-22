@@ -192,20 +192,19 @@ export function ChildrenProgress() {
   const overallStats = getOverallStats();
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Children's Progress</h1>
-          <p className="text-muted-foreground">
-            Detailed learning analytics and performance tracking
-          </p>
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">
+              Children's Progress
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Detailed learning analytics and performance tracking
+            </p>
+          </div>
         </div>
-        {/* <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-            <Download className="h-4 w-4" />
-            Export Report
-          </Button>
-        </div> */}
       </div>
 
       {/* Filters */}
@@ -215,7 +214,7 @@ export function ChildrenProgress() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               <label className="text-sm font-medium">Select Child</label>
               <Select value={selectedChild} onValueChange={setSelectedChild}>
                 <SelectTrigger className="w-full sm:w-[200px]">
@@ -231,7 +230,7 @@ export function ChildrenProgress() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               <label className="text-sm font-medium">Time Period</label>
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
                 <SelectTrigger className="w-full sm:w-[200px]">
@@ -250,50 +249,54 @@ export function ChildrenProgress() {
       </Card>
 
       {/* Overall Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mt-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Study Hours</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overallStats.totalHours}</div>
+            <div className="text-xl sm:text-2xl font-bold">
+              {overallStats.totalHours}
+            </div>
             <p className="text-xs text-muted-foreground">This week</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
               Tests Completed
             </CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overallStats.totalTests}</div>
+            <div className="text-xl sm:text-2xl font-bold">
+              {overallStats.totalTests}
+            </div>
             <p className="text-xs text-muted-foreground">This week</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Average Score</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-xl sm:text-2xl font-bold text-green-600">
               {overallStats.avgScore}%
             </div>
             <p className="text-xs text-muted-foreground">Across all subjects</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
               Learning Streak
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-xl sm:text-2xl font-bold text-orange-600">
               {overallStats.avgStreak}
             </div>
             <p className="text-xs text-muted-foreground">Days average</p>
@@ -301,22 +304,22 @@ export function ChildrenProgress() {
         </Card>
       </div>
 
-      {/* Detailed Progress */}
-      <Tabs defaultValue="subjects" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="subjects" className="space-y-4 mt-3">
+        <TabsList className=" overflow-x-auto flex">
           <TabsTrigger value="subjects">Subject Performance</TabsTrigger>
           <TabsTrigger value="timeline">Progress Timeline</TabsTrigger>
           <TabsTrigger value="comparison">Child Comparison</TabsTrigger>
         </TabsList>
 
+        {/* Subjects */}
         <TabsContent
           value="subjects"
           className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {getSelectedChildData().map((child) => (
             <Card key={child.id}>
               <CardHeader>
-                <div className="flex items-center space-x-3">
-                  <Avatar>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                     <AvatarImage src={child.avatar || "/placeholder.svg"} />
                     <AvatarFallback>
                       {child.name
@@ -325,22 +328,26 @@ export function ChildrenProgress() {
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <CardTitle>{child.name}</CardTitle>
-                    <CardDescription>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg truncate">
+                      {child.name}
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       {child.grade} • {child.school}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent>
                 <div className="space-y-4">
                   {child.subjects.map((subject, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 border rounded-lg">
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-3">
+                      {/* Left Section */}
                       <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                           <h4 className="font-medium">{subject.name}</h4>
                           <div className="flex items-center gap-2">
                             <Badge className={getGradeColor(subject.grade)}>
@@ -349,9 +356,12 @@ export function ChildrenProgress() {
                             {getTrendIcon(subject.trend)}
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+
+                        {/* Progress + Last Score */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          {/* Progress Bar */}
                           <div className="flex-1">
-                            <div className="flex justify-between text-sm mb-1">
+                            <div className="flex justify-between text-xs sm:text-sm mb-1">
                               <span>Progress</span>
                               <span>{subject.progress}%</span>
                             </div>
@@ -360,12 +370,14 @@ export function ChildrenProgress() {
                               className="h-2"
                             />
                           </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">
+
+                          {/* Last Score */}
+                          <div className="text-left sm:text-right">
+                            <div className="text-xs sm:text-sm font-medium">
                               Last Score
                             </div>
                             <div
-                              className={`text-lg font-bold ${getGradeColor(
+                              className={`text-base sm:text-lg font-bold ${getGradeColor(
                                 subject.grade
                               )}`}>
                               {subject.lastScore}%
@@ -390,9 +402,10 @@ export function ChildrenProgress() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {getSelectedChildData().map((child) => (
-                  <div key={child.id} className="space-y-3">
+                  <div key={child.id} className="space-y-4">
+                    {/* Header with avatar */}
                     <h3 className="font-semibold flex items-center gap-2">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={child.avatar || "/placeholder.svg"} />
@@ -405,7 +418,9 @@ export function ChildrenProgress() {
                       </Avatar>
                       {child.name}
                     </h3>
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0 overflow-hidden">
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className="h-4 w-4 text-blue-600" />
@@ -420,6 +435,7 @@ export function ChildrenProgress() {
                           This week
                         </div>
                       </div>
+
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <CheckCircle className="h-4 w-4 text-green-600" />
@@ -432,6 +448,7 @@ export function ChildrenProgress() {
                           Completed
                         </div>
                       </div>
+
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <Target className="h-4 w-4 text-purple-600" />
@@ -444,6 +461,7 @@ export function ChildrenProgress() {
                           This period
                         </div>
                       </div>
+
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <TrendingUp className="h-4 w-4 text-orange-600" />
@@ -475,11 +493,13 @@ export function ChildrenProgress() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-2">
+                  {/* Responsive grid for children */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0 overflow-hidden">
                     {children.map((child) => (
                       <div
                         key={child.id}
-                        className="p-4 border rounded-lg space-y-3">
+                        className="p-4 border rounded-lg space-y-3 bg-background">
+                        {/* Child Info */}
                         <div className="flex items-center gap-3">
                           <Avatar>
                             <AvatarImage
@@ -499,6 +519,8 @@ export function ChildrenProgress() {
                             </p>
                           </div>
                         </div>
+
+                        {/* Average score + progress */}
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Average Score</span>
@@ -511,6 +533,8 @@ export function ChildrenProgress() {
                             className="h-2"
                           />
                         </div>
+
+                        {/* Stats grid */}
                         <div className="grid grid-cols-3 gap-2 text-center text-xs">
                           <div>
                             <div className="font-medium">
@@ -551,6 +575,6 @@ export function ChildrenProgress() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </>
   );
 }

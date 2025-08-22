@@ -310,16 +310,17 @@ export function Leaderboard() {
                 {schoolLeaders.map((leader) => (
                   <div
                     key={leader.rank}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
                       leader.isCurrentUser
                         ? "bg-blue-50 border-blue-200"
                         : "bg-white"
                     }`}>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8">
+                    {/* Left Section */}
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                      <div className="flex items-center justify-center w-8 shrink-0">
                         {getRankIcon(leader.rank)}
                       </div>
-                      <Avatar>
+                      <Avatar className="h-10 w-10">
                         <AvatarImage
                           src={leader.avatar || "/placeholder.svg"}
                         />
@@ -330,21 +331,27 @@ export function Leaderboard() {
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{leader.name}</h4>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-medium truncate">
+                            {leader.name}
+                          </h4>
                           {leader.isCurrentUser && (
-                            <Badge variant="secondary">You</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              You
+                            </Badge>
                           )}
                           {getRankBadge(leader.rank)}
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg">
+
+                    {/* Right Section */}
+                    <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
+                      <div className="font-bold text-base sm:text-lg">
                         {leader.points.toLocaleString()}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-xs sm:text-sm text-muted-foreground">
                         {leader.streak} day streak • {leader.badges} badges
                       </div>
                     </div>
@@ -366,16 +373,17 @@ export function Leaderboard() {
                 {weeklyLeaders.map((leader) => (
                   <div
                     key={leader.rank}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
                       leader.isCurrentUser
                         ? "bg-blue-50 border-blue-200"
                         : "bg-white"
                     }`}>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8">
+                    {/* Left Section */}
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                      <div className="flex items-center justify-center w-8 shrink-0">
                         {getRankIcon(leader.rank)}
                       </div>
-                      <Avatar>
+                      <Avatar className="h-10 w-10">
                         <AvatarImage
                           src={leader.avatar || "/placeholder.svg"}
                         />
@@ -386,19 +394,27 @@ export function Leaderboard() {
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{leader.name}</h4>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-medium truncate">
+                            {leader.name}
+                          </h4>
                           {leader.isCurrentUser && (
-                            <Badge variant="secondary">You</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              You
+                            </Badge>
                           )}
                           {getRankBadge(leader.rank)}
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg">{leader.points}</div>
-                      <div className="text-sm text-muted-foreground">
+
+                    {/* Right Section */}
+                    <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
+                      <div className="font-bold text-base sm:text-lg">
+                        {leader.points.toLocaleString()}
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
                         points this week
                       </div>
                     </div>
