@@ -1,30 +1,50 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, CheckCircle, XCircle, Play, RotateCcw, Shield, AlertTriangle } from "lucide-react"
+import {useState, useEffect} from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import {Label} from "@/components/ui/label";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Textarea} from "@/components/ui/textarea";
+import {Input} from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Play,
+  RotateCcw,
+  Shield,
+  AlertTriangle,
+} from "lucide-react";
 
 export function CBTTest() {
-  const [currentTest, setCurrentTest] = useState<string | null>(null)
-  const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [timeLeft, setTimeLeft] = useState(1800) // 30 minutes
-  const [testCompleted, setTestCompleted] = useState(false)
-  const [isSecureMode, setIsSecureMode] = useState(false)
-  const [browserLocked, setBrowserLocked] = useState(false)
-  const [suspiciousActivity, setSuspiciousActivity] = useState(0)
-  const [showSecurityWarning, setShowSecurityWarning] = useState(false)
-  const [isSubscriber, setIsSubscriber] = useState(true) // Mock subscription status
-  const [examAttempts, setExamAttempts] = useState(0)
-  const [maxAttempts] = useState(3)
+  const [currentTest, setCurrentTest] = useState<string | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes
+  const [testCompleted, setTestCompleted] = useState(false);
+  const [isSecureMode, setIsSecureMode] = useState(false);
+  const [browserLocked, setBrowserLocked] = useState(false);
+  const [suspiciousActivity, setSuspiciousActivity] = useState(0);
+  const [showSecurityWarning, setShowSecurityWarning] = useState(false);
+  const [isSubscriber, setIsSubscriber] = useState(true); // Mock subscription status
+  const [examAttempts, setExamAttempts] = useState(0);
+  const [maxAttempts] = useState(3);
 
   const availableTests = [
     {
@@ -33,7 +53,8 @@ export function CBTTest() {
       questions: 20,
       duration: "30 mins",
       difficulty: "Beginner",
-      description: "Test your knowledge of React components, props, and state management.",
+      description:
+        "Test your knowledge of React components, props, and state management.",
       type: "quiz",
       requiresSubscription: false,
     },
@@ -43,7 +64,8 @@ export function CBTTest() {
       questions: 25,
       duration: "45 mins",
       difficulty: "Advanced",
-      description: "Closures, prototypes, async/await, and modern ES6+ features.",
+      description:
+        "Closures, prototypes, async/await, and modern ES6+ features.",
       type: "quiz",
       requiresSubscription: false,
     },
@@ -53,7 +75,8 @@ export function CBTTest() {
       questions: 50,
       duration: "120 mins",
       difficulty: "Advanced",
-      description: "Comprehensive semester examination covering all mathematics topics.",
+      description:
+        "Comprehensive semester examination covering all mathematics topics.",
       type: "exam",
       requiresSubscription: true,
     },
@@ -63,11 +86,12 @@ export function CBTTest() {
       questions: 45,
       duration: "90 mins",
       difficulty: "Advanced",
-      description: "Final examination for physics covering mechanics, thermodynamics, and waves.",
+      description:
+        "Final examination for physics covering mechanics, thermodynamics, and waves.",
       type: "exam",
       requiresSubscription: true,
     },
-  ]
+  ];
 
   const sampleQuestions = [
     {
@@ -82,16 +106,19 @@ export function CBTTest() {
       ],
       correct: 3,
       points: 2,
-      explanation: "All three methods are valid ways to create React components.",
+      explanation:
+        "All three methods are valid ways to create React components.",
     },
     {
       id: 2,
       type: "multiple-choice",
-      question: "Which hook is used for managing state in functional components?",
+      question:
+        "Which hook is used for managing state in functional components?",
       options: ["useEffect", "useState", "useContext", "useReducer"],
       correct: 1,
       points: 2,
-      explanation: "useState is the primary hook for managing local state in functional components.",
+      explanation:
+        "useState is the primary hook for managing local state in functional components.",
     },
     {
       id: 3,
@@ -100,7 +127,8 @@ export function CBTTest() {
       options: ["True", "False"],
       correct: 1,
       points: 1,
-      explanation: "JSX is not mandatory but is the recommended way to write React components.",
+      explanation:
+        "JSX is not mandatory but is the recommended way to write React components.",
     },
     {
       id: 4,
@@ -108,31 +136,33 @@ export function CBTTest() {
       question: "What does the 'key' prop do in React lists?",
       correct: "helps react identify which items have changed",
       points: 3,
-      explanation: "The key prop helps React identify which items have changed, are added, or are removed.",
+      explanation:
+        "The key prop helps React identify which items have changed, are added, or are removed.",
     },
     {
       id: 5,
       type: "essay",
-      question: "Explain the concept of Virtual DOM and its benefits in React applications.",
+      question:
+        "Explain the concept of Virtual DOM and its benefits in React applications.",
       points: 5,
       explanation:
         "Virtual DOM is a programming concept where a virtual representation of UI is kept in memory and synced with the real DOM.",
     },
-  ]
+  ];
 
   useEffect(() => {
     if (isSecureMode && currentTest) {
       // Enable browser lockdown for exams
       const handleVisibilityChange = () => {
         if (document.hidden) {
-          setSuspiciousActivity((prev) => prev + 1)
-          setShowSecurityWarning(true)
+          setSuspiciousActivity((prev) => prev + 1);
+          setShowSecurityWarning(true);
           if (suspiciousActivity >= 2) {
             // Auto-submit test after 3 suspicious activities
-            submitTest()
+            submitTest();
           }
         }
-      }
+      };
 
       const handleKeyDown = (e: KeyboardEvent) => {
         // Prevent common shortcuts
@@ -141,125 +171,154 @@ export function CBTTest() {
           (e.ctrlKey && (e.key === "u" || e.key === "i" || e.key === "s")) ||
           (e.ctrlKey && e.shiftKey && e.key === "I")
         ) {
-          e.preventDefault()
-          setSuspiciousActivity((prev) => prev + 1)
-          setShowSecurityWarning(true)
+          e.preventDefault();
+          setSuspiciousActivity((prev) => prev + 1);
+          setShowSecurityWarning(true);
         }
-      }
+      };
 
       const handleContextMenu = (e: MouseEvent) => {
-        e.preventDefault()
-      }
+        e.preventDefault();
+      };
 
-      document.addEventListener("visibilitychange", handleVisibilityChange)
-      document.addEventListener("keydown", handleKeyDown)
-      document.addEventListener("contextmenu", handleContextMenu)
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("contextmenu", handleContextMenu);
 
       return () => {
-        document.removeEventListener("visibilitychange", handleVisibilityChange)
-        document.removeEventListener("keydown", handleKeyDown)
-        document.removeEventListener("contextmenu", handleContextMenu)
-      }
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("contextmenu", handleContextMenu);
+      };
     }
-  }, [isSecureMode, currentTest, suspiciousActivity])
+  }, [isSecureMode, currentTest, suspiciousActivity]);
 
   useEffect(() => {
     if (currentTest && timeLeft > 0) {
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            submitTest() // Auto-submit when time runs out
-            return 0
+            submitTest(); // Auto-submit when time runs out
+            return 0;
           }
-          return prev - 1
-        })
-      }, 1000)
+          return prev - 1;
+        });
+      }, 1000);
 
-      return () => clearInterval(timer)
+      return () => clearInterval(timer);
     }
-  }, [currentTest, timeLeft])
+  }, [currentTest, timeLeft]);
 
   const startTest = (testId: string) => {
-    const test = availableTests.find((t) => t.id === testId)
+    const test = availableTests.find((t) => t.id === testId);
 
     if (test?.requiresSubscription && !isSubscriber) {
-      alert("This exam requires an active subscription. Please upgrade your plan to access semester exams.")
-      return
+      alert(
+        "This exam requires an active subscription. Please upgrade your plan to access semester exams."
+      );
+      return;
     }
 
     if (test?.type === "exam" && examAttempts >= maxAttempts) {
-      alert(`You have reached the maximum number of attempts (${maxAttempts}) for this exam.`)
-      return
+      alert(
+        `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
+      );
+      return;
     }
 
-    setCurrentTest(testId)
-    setCurrentQuestion(0)
-    setAnswers({})
-    setTestCompleted(false)
-    setTimeLeft(test?.id === "semester-exam-math" ? 7200 : test?.id === "semester-exam-physics" ? 5400 : 1800)
+    setCurrentTest(testId);
+    setCurrentQuestion(0);
+    setAnswers({});
+    setTestCompleted(false);
+    setTimeLeft(
+      test?.id === "semester-exam-math"
+        ? 7200
+        : test?.id === "semester-exam-physics"
+        ? 5400
+        : 1800
+    );
 
     if (test?.type === "exam") {
-      setIsSecureMode(true)
-      setBrowserLocked(true)
-      setExamAttempts((prev) => prev + 1)
+      setIsSecureMode(true);
+      setBrowserLocked(true);
+      setExamAttempts((prev) => prev + 1);
     }
-  }
+  };
 
   const handleAnswerChange = (value: string) => {
     setAnswers((prev) => ({
       ...prev,
       [currentQuestion]: value,
-    }))
-  }
+    }));
+  };
 
   const nextQuestion = () => {
     if (currentQuestion < sampleQuestions.length - 1) {
-      setCurrentQuestion((prev) => prev + 1)
+      setCurrentQuestion((prev) => prev + 1);
     }
-  }
+  };
 
   const previousQuestion = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion((prev) => prev - 1)
+      setCurrentQuestion((prev) => prev - 1);
     }
-  }
+  };
 
   const submitTest = () => {
-    setTestCompleted(true)
-    setIsSecureMode(false)
-    setBrowserLocked(false)
-    setSuspiciousActivity(0)
-  }
+    setTestCompleted(true);
+    setIsSecureMode(false);
+    setBrowserLocked(false);
+    setSuspiciousActivity(0);
+  };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   if (testCompleted) {
-    const score = Object.entries(answers).reduce((total, [questionIndex, answer]) => {
-      const question = sampleQuestions[Number.parseInt(questionIndex)]
-      if (!question) return total
+    const score = Object.entries(answers).reduce(
+      (total, [questionIndex, answer]) => {
+        const question = sampleQuestions[Number.parseInt(questionIndex)];
+        if (!question) return total;
 
-      if (question.type === "multiple-choice" || question.type === "true-false") {
-        return total + (Number.parseInt(answer) === question.correct ? question.points : 0)
-      } else if (question.type === "short-answer") {
-        // Simple keyword matching for demo
-        const correctAnswer = question.correct as string
-        return total + (answer.toLowerCase().includes(correctAnswer.toLowerCase()) ? question.points : 0)
-      }
-      return total
-    }, 0)
+        if (
+          question.type === "multiple-choice" ||
+          question.type === "true-false"
+        ) {
+          return (
+            total +
+            (Number.parseInt(answer) === question.correct ? question.points : 0)
+          );
+        } else if (question.type === "short-answer") {
+          // Simple keyword matching for demo
+          const correctAnswer = question.correct as string;
+          return (
+            total +
+            (answer.toLowerCase().includes(correctAnswer.toLowerCase())
+              ? question.points
+              : 0)
+          );
+        }
+        return total;
+      },
+      0
+    );
 
-    const totalPoints = sampleQuestions.reduce((sum, q) => sum + q.points, 0)
-    const percentage = Math.round((score / totalPoints) * 100)
+    const totalPoints = sampleQuestions.reduce((sum, q) => sum + q.points, 0);
+    const percentage = Math.round((score / totalPoints) * 100);
 
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Test Results</h1>
-          <p className="text-muted-foreground">Your performance summary with detailed feedback</p>
+          <p className="text-muted-foreground">
+            Your performance summary with detailed feedback
+          </p>
         </div>
 
         <Card className="max-w-2xl mx-auto">
@@ -271,7 +330,9 @@ export function CBTTest() {
                 <XCircle className="h-16 w-16 text-red-500" />
               )}
             </div>
-            <CardTitle className="text-2xl">{percentage >= 70 ? "Congratulations!" : "Keep Learning!"}</CardTitle>
+            <CardTitle className="text-2xl">
+              {percentage >= 70 ? "Congratulations!" : "Keep Learning!"}
+            </CardTitle>
             <CardDescription>
               You scored {score} out of {totalPoints} points
             </CardDescription>
@@ -285,18 +346,28 @@ export function CBTTest() {
             <div className="grid gap-4 md:grid-cols-4 text-center">
               <div>
                 <div className="text-2xl font-bold text-green-600">{score}</div>
-                <div className="text-sm text-muted-foreground">Points Earned</div>
+                <div className="text-sm text-muted-foreground">
+                  Points Earned
+                </div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-blue-600">{totalPoints}</div>
-                <div className="text-sm text-muted-foreground">Total Points</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {totalPoints}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Total Points
+                </div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-purple-600">{Object.keys(answers).length}</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {Object.keys(answers).length}
+                </div>
                 <div className="text-sm text-muted-foreground">Answered</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{percentage >= 70 ? "PASS" : "FAIL"}</div>
+                <div className="text-2xl font-bold">
+                  {percentage >= 70 ? "PASS" : "FAIL"}
+                </div>
                 <div className="text-sm text-muted-foreground">Result</div>
               </div>
             </div>
@@ -308,7 +379,8 @@ export function CBTTest() {
                   <span className="font-medium">Security Notice</span>
                 </div>
                 <p className="text-sm text-yellow-700 mt-1">
-                  {suspiciousActivity} suspicious activities detected during the exam.
+                  {suspiciousActivity} suspicious activities detected during the
+                  exam.
                 </p>
               </div>
             )}
@@ -323,16 +395,18 @@ export function CBTTest() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (currentTest) {
-    const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100
-    const currentQ = sampleQuestions[currentQuestion]
+    const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100;
+    const currentQ = sampleQuestions[currentQuestion];
 
     return (
       <div className="space-y-6">
-        <Dialog open={showSecurityWarning} onOpenChange={setShowSecurityWarning}>
+        <Dialog
+          open={showSecurityWarning}
+          onOpenChange={setShowSecurityWarning}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -340,20 +414,25 @@ export function CBTTest() {
                 Security Warning
               </DialogTitle>
               <DialogDescription>
-                Suspicious activity detected! Switching tabs or using keyboard shortcuts is not allowed during secure
-                exams.
-                {suspiciousActivity >= 2 && " Your test will be auto-submitted if this continues."}
+                Suspicious activity detected! Switching tabs or using keyboard
+                shortcuts is not allowed during secure exams.
+                {suspiciousActivity >= 2 &&
+                  " Your test will be auto-submitted if this continues."}
               </DialogDescription>
             </DialogHeader>
             <div className="flex justify-end">
-              <Button onClick={() => setShowSecurityWarning(false)}>I Understand</Button>
+              <Button onClick={() => setShowSecurityWarning(false)}>
+                I Understand
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{availableTests.find((t) => t.id === currentTest)?.title}</h1>
+            <h1 className="text-3xl font-bold">
+              {availableTests.find((t) => t.id === currentTest)?.title}
+            </h1>
             <p className="text-muted-foreground">
               Question {currentQuestion + 1} of {sampleQuestions.length}
             </p>
@@ -367,7 +446,10 @@ export function CBTTest() {
             )}
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              <span className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>{formatTime(timeLeft)}</span>
+              <span
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
+                {formatTime(timeLeft)}
+              </span>
             </div>
             <Badge variant="outline">{Math.round(progress)}% Complete</Badge>
           </div>
@@ -387,12 +469,22 @@ export function CBTTest() {
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
 
-                {currentQ?.type === "multiple-choice" || currentQ?.type === "true-false" ? (
-                  <RadioGroup value={answers[currentQuestion] || ""} onValueChange={handleAnswerChange}>
+                {currentQ?.type === "multiple-choice" ||
+                currentQ?.type === "true-false" ? (
+                  <RadioGroup
+                    value={answers[currentQuestion] || ""}
+                    onValueChange={handleAnswerChange}>
                     {currentQ.options?.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                        <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                      <div
+                        key={index}
+                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                        <RadioGroupItem
+                          value={index.toString()}
+                          id={`option-${index}`}
+                        />
+                        <Label
+                          htmlFor={`option-${index}`}
+                          className="flex-1 cursor-pointer">
                           {option}
                         </Label>
                       </div>
@@ -422,7 +514,10 @@ export function CBTTest() {
                 ) : null}
 
                 <div className="flex justify-between">
-                  <Button variant="outline" onClick={previousQuestion} disabled={currentQuestion === 0}>
+                  <Button
+                    variant="outline"
+                    onClick={previousQuestion}
+                    disabled={currentQuestion === 0}>
                     Previous
                   </Button>
 
@@ -446,10 +541,15 @@ export function CBTTest() {
                   {sampleQuestions.map((_, index) => (
                     <Button
                       key={index}
-                      variant={currentQuestion === index ? "default" : answers[index] ? "secondary" : "outline"}
+                      variant={
+                        currentQuestion === index
+                          ? "default"
+                          : answers[index]
+                          ? "secondary"
+                          : "outline"
+                      }
                       size="sm"
-                      onClick={() => setCurrentQuestion(index)}
-                    >
+                      onClick={() => setCurrentQuestion(index)}>
                       {index + 1}
                     </Button>
                   ))}
@@ -472,7 +572,9 @@ export function CBTTest() {
                 </div>
                 <div className="flex justify-between">
                   <span>Remaining:</span>
-                  <span>{sampleQuestions.length - Object.keys(answers).length}</span>
+                  <span>
+                    {sampleQuestions.length - Object.keys(answers).length}
+                  </span>
                 </div>
                 {isSecureMode && (
                   <div className="flex justify-between text-red-600">
@@ -485,21 +587,23 @@ export function CBTTest() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
-        <p className="text-muted-foreground">Quizzes and secure semester exams with comprehensive feedback</p>
+        <p className="text-muted-foreground">
+          Quizzes and secure semester exams with comprehensive feedback
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {availableTests.map((test) => (
           <Card key={test.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="sm:flex items-center justify-between">
                 <CardTitle className="text-lg">{test.title}</CardTitle>
                 <div className="flex gap-2">
                   <Badge
@@ -507,14 +611,15 @@ export function CBTTest() {
                       test.difficulty === "Beginner"
                         ? "default"
                         : test.difficulty === "Intermediate"
-                          ? "secondary"
-                          : "destructive"
-                    }
-                  >
+                        ? "secondary"
+                        : "destructive"
+                    }>
                     {test.difficulty}
                   </Badge>
                   {test.type === "exam" && (
-                    <Badge variant="outline" className="text-red-600 border-red-200">
+                    <Badge
+                      variant="outline"
+                      className="text-red-600 border-red-200">
                       <Shield className="h-3 w-3 mr-1" />
                       Secure Exam
                     </Badge>
@@ -549,8 +654,7 @@ export function CBTTest() {
               <Button
                 onClick={() => startTest(test.id)}
                 className="w-full"
-                disabled={test.type === "exam" && examAttempts >= maxAttempts}
-              >
+                disabled={test.type === "exam" && examAttempts >= maxAttempts}>
                 <Play className="mr-2 h-4 w-4" />
                 {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
               </Button>
@@ -559,5 +663,5 @@ export function CBTTest() {
         ))}
       </div>
     </div>
-  )
+  );
 }

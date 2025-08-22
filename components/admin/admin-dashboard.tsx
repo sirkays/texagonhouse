@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import {useState} from "react";
 import {
   Users,
   School,
@@ -14,7 +14,7 @@ import {
   ChevronDown,
   Building2,
   UserCheck,
-} from "lucide-react"
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -29,9 +29,9 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/sidebar";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,15 +39,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from "@/components/ui/dropdown-menu";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
-import { AdminOverview } from "./admin-overview"
-import { SchoolManagement } from "./school-management"
-import { TeacherManagement } from "./teacher-management"
-import { StudentManagement } from "./student-management"
-import { SystemAnalytics } from "./system-analytics"
-import { SubscriptionManagement } from "./subscription-management"
+import {AdminOverview} from "./admin-overview";
+import {SchoolManagement} from "./school-management";
+import {TeacherManagement} from "./teacher-management";
+import {StudentManagement} from "./student-management";
+import {SystemAnalytics} from "./system-analytics";
+import {SubscriptionManagement} from "./subscription-management";
 
 const menuItems = [
   {
@@ -80,29 +80,29 @@ const menuItems = [
     icon: BarChart3,
     id: "analytics",
   },
-]
+];
 
 export function AdminDashboard() {
-  const [activeSection, setActiveSection] = useState("dashboard")
+  const [activeSection, setActiveSection] = useState("dashboard");
 
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
-        return <AdminOverview />
+        return <AdminOverview />;
       case "schools":
-        return <SchoolManagement />
+        return <SchoolManagement />;
       case "teachers":
-        return <TeacherManagement />
+        return <TeacherManagement />;
       case "students":
-        return <StudentManagement />
+        return <StudentManagement />;
       case "subscriptions":
-        return <SubscriptionManagement />
+        return <SubscriptionManagement />;
       case "analytics":
-        return <SystemAnalytics />
+        return <SystemAnalytics />;
       default:
-        return <AdminOverview />
+        return <AdminOverview />;
     }
-  }
+  };
 
   return (
     <SidebarProvider>
@@ -112,7 +112,9 @@ export function AdminDashboard() {
             <div className="flex items-center gap-2 px-4 py-2">
               <GraduationCap className="h-6 w-6 text-primary" />
               <span className="font-semibold text-lg">TECHXAGON</span>
-              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">Admin</span>
+              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                Admin
+              </span>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -125,8 +127,7 @@ export function AdminDashboard() {
                       <SidebarMenuButton
                         isActive={activeSection === item.id}
                         onClick={() => setActiveSection(item.id)}
-                        className="w-full"
-                      >
+                        className="w-full">
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
@@ -150,7 +151,9 @@ export function AdminDashboard() {
                       <ChevronDown className="ml-auto h-4 w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
+                  <DropdownMenuContent
+                    side="top"
+                    className="w-[--radix-popper-anchor-width]">
                     <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
@@ -177,7 +180,10 @@ export function AdminDashboard() {
               <div className="flex-1">
                 <div className="relative max-w-md">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search schools, users, analytics..." className="pl-8" />
+                  <Input
+                    placeholder="Search schools, users, analytics..."
+                    className="pl-8"
+                  />
                 </div>
               </div>
               <Button variant="ghost" size="icon">
@@ -186,9 +192,11 @@ export function AdminDashboard() {
             </div>
           </header>
 
-          <main className="flex-1 p-4 md:p-6 overflow-auto">{renderContent()}</main>
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
+            {renderContent()}
+          </main>
         </div>
       </div>
     </SidebarProvider>
-  )
+  );
 }

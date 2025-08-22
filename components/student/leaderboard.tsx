@@ -1,10 +1,24 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Medal, Crown, Star, TrendingUp, Users, School } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {
+  Trophy,
+  Medal,
+  Crown,
+  Star,
+  TrendingUp,
+  Users,
+  School,
+} from "lucide-react";
 
 export function Leaderboard() {
   const globalLeaders = [
@@ -54,7 +68,7 @@ export function Leaderboard() {
       streak: 28,
       badges: 9,
     },
-  ]
+  ];
 
   const schoolLeaders = [
     {
@@ -98,7 +112,7 @@ export function Leaderboard() {
       streak: 25,
       badges: 6,
     },
-  ]
+  ];
 
   const weeklyLeaders = [
     {
@@ -123,39 +137,51 @@ export function Leaderboard() {
       avatar: "/placeholder.svg?height=40&width=40",
       streak: 5,
     },
-  ]
+  ];
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Crown className="h-5 w-5 text-yellow-500" />
+        return <Crown className="h-5 w-5 text-yellow-500" />;
       case 2:
-        return <Medal className="h-5 w-5 text-gray-400" />
+        return <Medal className="h-5 w-5 text-gray-400" />;
       case 3:
-        return <Trophy className="h-5 w-5 text-amber-600" />
+        return <Trophy className="h-5 w-5 text-amber-600" />;
       default:
-        return <span className="text-lg font-bold text-muted-foreground">#{rank}</span>
+        return (
+          <span className="text-lg font-bold text-muted-foreground">
+            #{rank}
+          </span>
+        );
     }
-  }
+  };
 
   const getRankBadge = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Badge className="bg-yellow-100 text-yellow-700">🥇 Champion</Badge>
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700">🥇 Champion</Badge>
+        );
       case 2:
-        return <Badge className="bg-gray-100 text-gray-700">🥈 Runner-up</Badge>
+        return (
+          <Badge className="bg-gray-100 text-gray-700">🥈 Runner-up</Badge>
+        );
       case 3:
-        return <Badge className="bg-amber-100 text-amber-700">🥉 Third Place</Badge>
+        return (
+          <Badge className="bg-amber-100 text-amber-700">🥉 Third Place</Badge>
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Leaderboard</h1>
-        <p className="text-muted-foreground">See how you rank against other learners</p>
+        <p className="text-muted-foreground">
+          See how you rank against other learners
+        </p>
       </div>
 
       {/* Current User Stats */}
@@ -213,21 +239,29 @@ export function Leaderboard() {
           <Card>
             <CardHeader>
               <CardTitle>Global Leaderboard</CardTitle>
-              <CardDescription>Top performers across all schools</CardDescription>
+              <CardDescription>
+                Top performers across all schools
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {globalLeaders.map((leader) => (
                   <div
                     key={leader.rank}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      leader.isCurrentUser ? "bg-blue-50 border-blue-200" : "bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8">{getRankIcon(leader.rank)}</div>
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border ${
+                      leader.isCurrentUser
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white"
+                    }`}>
+                    {/* Left Section: Rank, Avatar, Name */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-8">
+                        {getRankIcon(leader.rank)}
+                      </div>
                       <Avatar>
-                        <AvatarImage src={leader.avatar || "/placeholder.svg"} />
+                        <AvatarImage
+                          src={leader.avatar || "/placeholder.svg"}
+                        />
                         <AvatarFallback>
                           {leader.name
                             .split(" ")
@@ -236,16 +270,24 @@ export function Leaderboard() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <h4 className="font-medium">{leader.name}</h4>
-                          {leader.isCurrentUser && <Badge variant="secondary">You</Badge>}
+                          {leader.isCurrentUser && (
+                            <Badge variant="secondary">You</Badge>
+                          )}
                           {getRankBadge(leader.rank)}
                         </div>
-                        <p className="text-sm text-muted-foreground">{leader.school}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {leader.school}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg">{leader.points.toLocaleString()}</div>
+
+                    {/* Right Section: Points + Stats */}
+                    <div className="text-left sm:text-right">
+                      <div className="font-bold text-lg">
+                        {leader.points.toLocaleString()}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {leader.streak} day streak • {leader.badges} badges
                       </div>
@@ -269,13 +311,18 @@ export function Leaderboard() {
                   <div
                     key={leader.rank}
                     className={`flex items-center justify-between p-4 rounded-lg border ${
-                      leader.isCurrentUser ? "bg-blue-50 border-blue-200" : "bg-white"
-                    }`}
-                  >
+                      leader.isCurrentUser
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white"
+                    }`}>
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8">{getRankIcon(leader.rank)}</div>
+                      <div className="flex items-center justify-center w-8">
+                        {getRankIcon(leader.rank)}
+                      </div>
                       <Avatar>
-                        <AvatarImage src={leader.avatar || "/placeholder.svg"} />
+                        <AvatarImage
+                          src={leader.avatar || "/placeholder.svg"}
+                        />
                         <AvatarFallback>
                           {leader.name
                             .split(" ")
@@ -286,13 +333,17 @@ export function Leaderboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{leader.name}</h4>
-                          {leader.isCurrentUser && <Badge variant="secondary">You</Badge>}
+                          {leader.isCurrentUser && (
+                            <Badge variant="secondary">You</Badge>
+                          )}
                           {getRankBadge(leader.rank)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg">{leader.points.toLocaleString()}</div>
+                      <div className="font-bold text-lg">
+                        {leader.points.toLocaleString()}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {leader.streak} day streak • {leader.badges} badges
                       </div>
@@ -316,13 +367,18 @@ export function Leaderboard() {
                   <div
                     key={leader.rank}
                     className={`flex items-center justify-between p-4 rounded-lg border ${
-                      leader.isCurrentUser ? "bg-blue-50 border-blue-200" : "bg-white"
-                    }`}
-                  >
+                      leader.isCurrentUser
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white"
+                    }`}>
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8">{getRankIcon(leader.rank)}</div>
+                      <div className="flex items-center justify-center w-8">
+                        {getRankIcon(leader.rank)}
+                      </div>
                       <Avatar>
-                        <AvatarImage src={leader.avatar || "/placeholder.svg"} />
+                        <AvatarImage
+                          src={leader.avatar || "/placeholder.svg"}
+                        />
                         <AvatarFallback>
                           {leader.name
                             .split(" ")
@@ -333,14 +389,18 @@ export function Leaderboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{leader.name}</h4>
-                          {leader.isCurrentUser && <Badge variant="secondary">You</Badge>}
+                          {leader.isCurrentUser && (
+                            <Badge variant="secondary">You</Badge>
+                          )}
                           {getRankBadge(leader.rank)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-lg">{leader.points}</div>
-                      <div className="text-sm text-muted-foreground">points this week</div>
+                      <div className="text-sm text-muted-foreground">
+                        points this week
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -350,5 +410,5 @@ export function Leaderboard() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

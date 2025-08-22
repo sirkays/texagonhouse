@@ -1,10 +1,28 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { BookOpen, Clock, Trophy, TrendingUp, Play, Code, TestTube, Calendar, Star, Medal, Zap } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {
+  BookOpen,
+  Clock,
+  Trophy,
+  TrendingUp,
+  Play,
+  Code,
+  TestTube,
+  Calendar,
+  Star,
+  Medal,
+  Zap,
+} from "lucide-react";
 
 export function DashboardOverview() {
   const recentCourses = [
@@ -26,7 +44,7 @@ export function DashboardOverview() {
       duration: "8 hours",
       nextLesson: "Dynamic Programming",
     },
-  ]
+  ];
 
   const upcomingTests = [
     {
@@ -39,7 +57,7 @@ export function DashboardOverview() {
       date: "Dec 28, 10:00 AM",
       duration: "45 mins",
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -52,7 +70,9 @@ export function DashboardOverview() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Courses Enrolled</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Courses Enrolled
+            </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -104,9 +124,13 @@ export function DashboardOverview() {
           <CardContent>
             <div className="space-y-2">
               <div className="text-2xl font-bold text-yellow-700">7,500 XP</div>
-              <Badge className="bg-yellow-100 text-yellow-700">Silver Scholar</Badge>
+              <Badge className="bg-yellow-100 text-yellow-700">
+                Silver Scholar
+              </Badge>
               <Progress value={75} className="h-2" />
-              <p className="text-sm text-yellow-600">2,500 XP to Gold Graduate</p>
+              <p className="text-sm text-yellow-600">
+                2,500 XP to Gold Graduate
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -171,12 +195,17 @@ export function DashboardOverview() {
                 <Progress value={course.progress} className="h-2" />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{course.progress}% complete</span>
-                  <Button variant="ghost" size="sm">
+                  <Button
+                    className="border border-slate-300 mt-2 rounded-lg"
+                    variant="ghost"
+                    size="sm">
                     <Play className="mr-2 h-3 w-3" />
                     Continue
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">Next: {course.nextLesson}</p>
+                <p className="text-sm text-muted-foreground">
+                  Next: {course.nextLesson}
+                </p>
               </div>
             ))}
           </CardContent>
@@ -186,11 +215,15 @@ export function DashboardOverview() {
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Tests</CardTitle>
-            <CardDescription>Don't miss your scheduled assessments</CardDescription>
+            <CardDescription>
+              Don't miss your scheduled assessments
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {upcomingTests.map((test, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="space-y-1">
                   <h4 className="font-medium">{test.title}</h4>
                   <div className="flex items-center text-sm text-muted-foreground">
@@ -213,7 +246,7 @@ export function DashboardOverview() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Jump into your favorite learning activities</CardDescription>
@@ -234,7 +267,7 @@ export function DashboardOverview() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
-  )
+  );
 }

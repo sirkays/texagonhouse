@@ -1,11 +1,27 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Video, Headphones, BookOpen, FileText, Clock, Users, Star, CheckCircle } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {
+  Play,
+  Video,
+  Headphones,
+  BookOpen,
+  FileText,
+  Clock,
+  Users,
+  Star,
+  CheckCircle,
+} from "lucide-react";
 
 export function LearningModules() {
   const modules = {
@@ -104,24 +120,26 @@ export function LearningModules() {
         category: "Research",
       },
     ],
-  }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Learning Modules</h1>
-        <p className="text-muted-foreground">Structured learning paths with videos, audio, tutorials, and journals</p>
+        <p className="text-muted-foreground">
+          Structured learning paths with videos, audio, tutorials, and journals
+        </p>
       </div>
 
       <Tabs defaultValue="videos" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="videos" className="flex items-center gap-2">
             <Video className="h-4 w-4" />
-            Video Courses
+            Video
           </TabsTrigger>
           <TabsTrigger value="audio" className="flex items-center gap-2">
             <Headphones className="h-4 w-4" />
-            Audio Courses
+            Audio
           </TabsTrigger>
           <TabsTrigger value="tutorials" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
@@ -137,7 +155,7 @@ export function LearningModules() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {modules.videos.map((course, index) => (
               <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
+                <CardHeader className="p-0">
                   <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative">
                     <Video className="h-8 w-8 text-muted-foreground" />
                     {course.completed && (
@@ -151,17 +169,16 @@ export function LearningModules() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 px-6">
                     <div className="flex items-center justify-between">
                       <Badge
                         variant={
                           course.level === "Beginner"
                             ? "default"
                             : course.level === "Intermediate"
-                              ? "secondary"
-                              : "destructive"
-                        }
-                      >
+                            ? "secondary"
+                            : "destructive"
+                        }>
                         {course.level}
                       </Badge>
                       <div className="flex items-center gap-1 text-sm">
@@ -262,7 +279,9 @@ export function LearningModules() {
 
                   <Button className="w-full">
                     <Headphones className="mr-2 h-4 w-4" />
-                    {course.progress > 0 ? "Continue Listening" : "Start Listening"}
+                    {course.progress > 0
+                      ? "Continue Listening"
+                      : "Start Listening"}
                   </Button>
                 </CardContent>
               </Card>
@@ -283,10 +302,9 @@ export function LearningModules() {
                           tutorial.difficulty === "Beginner"
                             ? "default"
                             : tutorial.difficulty === "Intermediate"
-                              ? "secondary"
-                              : "destructive"
-                        }
-                      >
+                            ? "secondary"
+                            : "destructive"
+                        }>
                         {tutorial.difficulty}
                       </Badge>
                     </div>
@@ -306,7 +324,10 @@ export function LearningModules() {
                     <span className="text-sm font-medium">Technologies:</span>
                     <div className="flex gap-2 flex-wrap">
                       {tutorial.technologies.map((tech, techIndex) => (
-                        <Badge key={techIndex} variant="secondary" className="text-xs">
+                        <Badge
+                          key={techIndex}
+                          variant="secondary"
+                          className="text-xs">
                           {tech}
                         </Badge>
                       ))}
@@ -323,7 +344,9 @@ export function LearningModules() {
 
                   <Button className="w-full">
                     <BookOpen className="mr-2 h-4 w-4" />
-                    {tutorial.progress > 0 ? "Continue Tutorial" : "Start Tutorial"}
+                    {tutorial.progress > 0
+                      ? "Continue Tutorial"
+                      : "Start Tutorial"}
                   </Button>
                 </CardContent>
               </Card>
@@ -339,7 +362,9 @@ export function LearningModules() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Badge variant="outline">{journal.type}</Badge>
-                      {journal.subscribed && <Badge variant="default">Subscribed</Badge>}
+                      {journal.subscribed && (
+                        <Badge variant="default">Subscribed</Badge>
+                      )}
                     </div>
                     <CardTitle className="text-lg">{journal.title}</CardTitle>
                     <CardDescription>{journal.category}</CardDescription>
@@ -348,12 +373,15 @@ export function LearningModules() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>
-                      {journal.issues || journal.papers} {journal.issues ? "issues" : "papers"}
+                      {journal.issues || journal.papers}{" "}
+                      {journal.issues ? "issues" : "papers"}
                     </div>
                     <div>{journal.readTime}</div>
                   </div>
 
-                  <Button className="w-full" variant={journal.subscribed ? "secondary" : "default"}>
+                  <Button
+                    className="w-full"
+                    variant={journal.subscribed ? "secondary" : "default"}>
                     <FileText className="mr-2 h-4 w-4" />
                     {journal.subscribed ? "Read Latest" : "Subscribe"}
                   </Button>
@@ -368,7 +396,9 @@ export function LearningModules() {
       <Card>
         <CardHeader>
           <CardTitle>Recommended Learning Paths</CardTitle>
-          <CardDescription>Curated sequences of modules for structured learning</CardDescription>
+          <CardDescription>
+            Curated sequences of modules for structured learning
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -408,7 +438,10 @@ export function LearningModules() {
                   </div>
                   <div className="flex gap-1 flex-wrap">
                     {path.technologies.map((tech, techIndex) => (
-                      <Badge key={techIndex} variant="outline" className="text-xs">
+                      <Badge
+                        key={techIndex}
+                        variant="outline"
+                        className="text-xs">
                         {tech}
                       </Badge>
                     ))}
@@ -423,5 +456,5 @@ export function LearningModules() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
