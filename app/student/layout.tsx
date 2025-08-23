@@ -187,13 +187,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6">
               <SidebarTrigger />
               <div className="flex-1 max-w-[90vw] xs:max-w-md">
-                <div className="relative">
+                {/* <div className="relative">
                   <Search className="absolute left-2 xs:left-2.5 top-2 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search courses, materials..."
                     className="pl-7 xs:pl-8 text-[0.65rem] xs:text-xs sm:text-sm"
                   />
-                </div>
+                </div> */}
               </div>
               <Button variant="ghost" size="icon" className="p-1 xs:p-2">
                 <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
