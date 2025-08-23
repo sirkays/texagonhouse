@@ -306,9 +306,9 @@ export function ChildrenProgress() {
 
       <Tabs defaultValue="subjects" className="space-y-4 mt-3">
         <TabsList className=" overflow-x-auto flex">
-          <TabsTrigger value="subjects">Subject Performance</TabsTrigger>
-          <TabsTrigger value="timeline">Progress Timeline</TabsTrigger>
-          <TabsTrigger value="comparison">Child Comparison</TabsTrigger>
+          <TabsTrigger value="subjects">Subject</TabsTrigger>
+          <TabsTrigger value="timeline">Progress</TabsTrigger>
+          <TabsTrigger value="comparison">Child</TabsTrigger>
         </TabsList>
 
         {/* Subjects */}
