@@ -153,9 +153,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     <SidebarMenuButton>
                       <Avatar className="h-5 w-5 xs:h-6 xs:w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">JD</AvatarFallback>
+                        <AvatarFallback className=" xs:text-[0.65rem] sm:text-xs">JD</AvatarFallback>
                       </Avatar>
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">John Doe</span>
+                      <span className=" xs:text-xs sm:text-sm">John Doe</span>
                       <ChevronDown className="ml-auto h-3 w-3 xs:h-4 xs:w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
