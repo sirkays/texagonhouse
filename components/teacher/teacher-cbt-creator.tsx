@@ -218,10 +218,27 @@ export function TeacherCBTCreator() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="create">Create New Test</TabsTrigger>
-          <TabsTrigger value="manage">Manage Tests</TabsTrigger>
-          <TabsTrigger value="analytics">Test Analytics</TabsTrigger>
+        <TabsList
+          className="
+    flex flex-col sm:flex-row 
+    gap-2 sm:gap-4 
+    w-full sm:w-auto
+  ">
+          <TabsTrigger
+            value="create"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Create New Test
+          </TabsTrigger>
+          <TabsTrigger
+            value="manage"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Manage Tests
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Test Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-6">

@@ -154,6 +154,16 @@ export function MyMaterials() {
     setNotes(notes.filter((n) => n.id !== noteId));
   };
 
+  function handlePlayAudio(audio: {
+    id: string;
+    title: string;
+    speaker: string;
+    duration: string;
+    progress: number;
+  }): void {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <div className="space-y-6">
       <div>

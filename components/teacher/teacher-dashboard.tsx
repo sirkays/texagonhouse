@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import {useState} from "react";
 import {
   Book,
   Upload,
@@ -15,7 +15,7 @@ import {
   BarChart3,
   Video,
   Calendar,
-} from "lucide-react"
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -30,9 +30,9 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/sidebar";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,17 +40,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from "@/components/ui/dropdown-menu";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
-import { TeacherOverview } from "./teacher-overview"
-import { TeacherCBTCreator } from "./teacher-cbt-creator"
-import { TeacherResourceManager } from "./teacher-resource-manager"
-import { TeacherLearningModules } from "./teacher-learning-modules"
-import { MaterialUploader } from "../student/material-uploader"
-import { StudentAnalytics } from "../admin/student-analytics"
-import { VideoLessonCreator } from "./video-lesson-creator"
-import { LiveSessionManager } from "./live-session-manager"
+import {TeacherOverview} from "./teacher-overview";
+import {TeacherCBTCreator} from "./teacher-cbt-creator";
+import {TeacherResourceManager} from "./teacher-resource-manager";
+import {TeacherLearningModules} from "./teacher-learning-modules";
+import {MaterialUploader} from "../student/material-uploader";
+import {StudentAnalytics} from "../admin/student-analytics";
+import {VideoLessonCreator} from "./video-lesson-creator";
+import {LiveSessionManager} from "./live-session-manager";
 
 const menuItems = [
   {
@@ -93,33 +93,33 @@ const menuItems = [
     icon: BarChart3,
     id: "analytics",
   },
-]
+];
 
 export function TeacherDashboard() {
-  const [activeSection, setActiveSection] = useState("dashboard")
+  const [activeSection, setActiveSection] = useState("dashboard");
 
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
-        return <TeacherOverview />
+        return <TeacherOverview />;
       case "cbt-creator":
-        return <TeacherCBTCreator />
+        return <TeacherCBTCreator />;
       case "video-lessons":
-        return <VideoLessonCreator />
+        return <VideoLessonCreator />;
       case "live-sessions":
-        return <LiveSessionManager />
+        return <LiveSessionManager />;
       case "uploader":
-        return <MaterialUploader />
+        return <MaterialUploader />;
       case "resources":
-        return <TeacherResourceManager />
+        return <TeacherResourceManager />;
       case "modules":
-        return <TeacherLearningModules />
+        return <TeacherLearningModules />;
       case "analytics":
-        return <StudentAnalytics />
+        return <StudentAnalytics />;
       default:
-        return <TeacherOverview />
+        return <TeacherOverview />;
     }
-  }
+  };
 
   return (
     <SidebarProvider>
@@ -129,7 +129,9 @@ export function TeacherDashboard() {
             <div className="flex items-center gap-2 px-4 py-2">
               <GraduationCap className="h-6 w-6 text-primary" />
               <span className="font-semibold text-lg">EduPlatform</span>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Teacher</span>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                Teacher
+              </span>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -139,7 +141,9 @@ export function TeacherDashboard() {
                 <SidebarMenu>
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton isActive={activeSection === item.id} onClick={() => setActiveSection(item.id)}>
+                      <SidebarMenuButton
+                        isActive={activeSection === item.id}
+                        onClick={() => setActiveSection(item.id)}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
@@ -163,7 +167,9 @@ export function TeacherDashboard() {
                       <ChevronDown className="ml-auto h-4 w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
+                  <DropdownMenuContent
+                    side="top"
+                    className="w-[--radix-popper-anchor-width]">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
@@ -184,15 +190,15 @@ export function TeacherDashboard() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col">
-          <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-14 items-center gap-4 px-6">
+          <header className="sticky top-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex h-14 items-center justify-between gap-4 px-6">
               <SidebarTrigger />
-              <div className="flex-1">
+              {/* <div className="flex-1">
                 <div className="relative max-w-md">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input placeholder="Search content, students..." className="pl-8" />
                 </div>
-              </div>
+              </div> */}
               <Button variant="ghost" size="icon">
                 <Bell className="h-4 w-4" />
               </Button>
@@ -203,5 +209,5 @@ export function TeacherDashboard() {
         </div>
       </div>
     </SidebarProvider>
-  )
+  );
 }
