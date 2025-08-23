@@ -180,7 +180,7 @@ export function TeacherLearningModules() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 xs:grid-cols-3 w-full">
+        <TabsList className="grid grid-cols-2 xs:grid-cols-3 w-full mb-14">
           <TabsTrigger value="create" className="text-[0.65rem] xs:text-xs sm:text-sm">Create Module</TabsTrigger>
           <TabsTrigger value="manage" className="text-[0.65rem] xs:text-xs sm:text-sm">Manage Modules</TabsTrigger>
           <TabsTrigger value="analytics" className="text-[0.65rem] xs:text-xs sm:text-sm">Module Analytics</TabsTrigger>

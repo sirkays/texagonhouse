@@ -401,7 +401,7 @@ export function StudentAnalytics() {
       </div>
 
       <Tabs defaultValue="courses" className="w-full">
-        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full mb-14">
           <TabsTrigger value="courses" className="text-[0.65rem] xs:text-xs sm:text-sm">Course Performance</TabsTrigger>
           <TabsTrigger value="students" className="text-[0.65rem] xs:text-xs sm:text-sm">Top Students</TabsTrigger>
           <TabsTrigger value="tests" className="text-[0.65rem] xs:text-xs sm:text-sm">Test Analytics</TabsTrigger>

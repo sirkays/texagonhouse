@@ -321,7 +321,7 @@ export function LiveSessionManager() {
       </div>
 
       <Tabs defaultValue="sessions" className="space-y-4 xs:space-y-6">
-        <TabsList className="grid grid-cols-2 xs:grid-cols-3 w-full">
+        <TabsList className="grid grid-cols-2 xs:grid-cols-3 w-full mb-14">
           <TabsTrigger value="sessions" className="text-xs xs:text-sm sm:text-base">My Sessions</TabsTrigger>
           <TabsTrigger value="schedule" className="text-xs xs:text-sm sm:text-base">Schedule Now</TabsTrigger>
           <TabsTrigger value="live" className="text-xs xs:text-sm sm:text-base">Live Control</TabsTrigger>

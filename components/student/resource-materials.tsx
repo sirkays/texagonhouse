@@ -1,30 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Video, Headphones, BookOpen, Download, Search, Filter, Star, Clock, Eye } from "lucide-react"
-import { PDFViewer } from "./pdf-viewer"
-import { VideoModal } from "./video-modal"
-import { AudioPlayer } from "./audio-player"
+import {useState} from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {
+  FileText,
+  Video,
+  Headphones,
+  BookOpen,
+  Download,
+  Search,
+  Filter,
+  Star,
+  Clock,
+  Eye,
+} from "lucide-react";
+import {PDFViewer} from "./pdf-viewer";
+import {VideoModal} from "./video-modal";
+import {AudioPlayer} from "./audio-player";
 
 export function ResourceMaterials() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
-  const [selectedPdf, setSelectedPdf] = useState<any>(null)
-  const [videoModalOpen, setVideoModalOpen] = useState(false)
-  const [selectedVideo, setSelectedVideo] = useState<any>(null)
-  const [audioPlayerOpen, setAudioPlayerOpen] = useState(false)
-  const [selectedAudio, setSelectedAudio] = useState<any>(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [selectedPdf, setSelectedPdf] = useState<any>(null);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
+  const [selectedAudio, setSelectedAudio] = useState<any>(null);
 
   const resources = {
     pdfs: [
       {
         id: "1",
-        title: "React Complete Guide 2024",
+        title: "React Complete Guide 2024 gjn;gjgn;ogkn;jn;oj",
         author: "John Smith",
         pages: 245,
         size: "12.5 MB",
@@ -59,7 +76,7 @@ export function ResourceMaterials() {
     videos: [
       {
         id: "1",
-        title: "Advanced React Patterns",
+        title: "Advanced React Patterns falgjn;jn;sgkjfdn;kjnsd;fjknsdgf",
         instructor: "Sarah Johnson",
         duration: "2h 45m",
         views: 15600,
@@ -91,7 +108,8 @@ export function ResourceMaterials() {
     audio: [
       {
         id: "1",
-        title: "Tech Talk: Future of Web Development",
+        title:
+          "Tech Talk: Future of Web Development gwugn;gjn;pggjobwgrjergbgjiwbeg;pijb",
         speaker: "Industry Panel",
         duration: "45m",
         listens: 5600,
@@ -123,13 +141,15 @@ export function ResourceMaterials() {
     journals: [
       {
         id: "1",
-        title: "Modern JavaScript Development Practices",
+        title:
+          "Modern JavaScript Development Practices  agubp;guqbgqgu bjgpji qgpjiq gp;eqigu reqp;giqueg p; ",
         journal: "Web Dev Quarterly",
         date: "Dec 2024",
         pages: 15,
         citations: 45,
         category: "Research",
-        content: "This comprehensive study examines the latest trends in JavaScript development...",
+        content:
+          "This comprehensive study examines the latest trends in JavaScript development...",
       },
       {
         id: "2",
@@ -139,7 +159,8 @@ export function ResourceMaterials() {
         pages: 22,
         citations: 78,
         category: "AI/ML",
-        content: "Artificial Intelligence is revolutionizing software engineering practices...",
+        content:
+          "Artificial Intelligence is revolutionizing software engineering practices...",
       },
       {
         id: "3",
@@ -149,56 +170,67 @@ export function ResourceMaterials() {
         pages: 18,
         citations: 32,
         category: "Security",
-        content: "An analysis of emerging cybersecurity threats and defense strategies...",
+        content:
+          "An analysis of emerging cybersecurity threats and defense strategies...",
       },
     ],
-  }
+  };
 
-  const categories = ["All", "Frontend", "Backend", "AI/ML", "Database", "Security", "Career"]
+  const categories = [
+    "All",
+    "Frontend",
+    "Backend",
+    "AI/ML",
+    "Database",
+    "Security",
+    "Career",
+  ];
 
   const handlePreviewPdf = (pdf: any) => {
-    setSelectedPdf(pdf)
-    setPdfViewerOpen(true)
-  }
+    setSelectedPdf(pdf);
+    setPdfViewerOpen(true);
+  };
 
   const handleDownloadPdf = (pdf: any) => {
-    const link = document.createElement("a")
-    link.href = pdf.pdfUrl || "#"
-    link.download = pdf.title
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+    const link = document.createElement("a");
+    link.href = pdf.pdfUrl || "#";
+    link.download = pdf.title;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleWatchVideo = (video: any) => {
-    setSelectedVideo(video)
-    setVideoModalOpen(true)
-  }
+    setSelectedVideo(video);
+    setVideoModalOpen(true);
+  };
 
   const handlePlayAudio = (audio: any) => {
-    setSelectedAudio(audio)
-    setAudioPlayerOpen(true)
-  }
+    setSelectedAudio(audio);
+    setAudioPlayerOpen(true);
+  };
 
   const handleReadJournal = (journal: any) => {
     // Open journal in a new tab or modal
-    window.open(`/journal/${journal.id}`, "_blank")
-  }
+    window.open(`/journal/${journal.id}`, "_blank");
+  };
 
   const handleDownloadJournal = (journal: any) => {
-    const link = document.createElement("a")
-    link.href = `#` // Mock download URL
-    link.download = `${journal.title}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+    const link = document.createElement("a");
+    link.href = `#`; // Mock download URL
+    link.download = `${journal.title}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Resource Materials</h1>
-        <p className="text-muted-foreground">Access a comprehensive library of learning resources</p>
+        <p className="text-muted-foreground">
+          Access a comprehensive library of learning resources
+        </p>
       </div>
 
       {/* Search and Filter */}
@@ -224,8 +256,7 @@ export function ResourceMaterials() {
           <Badge
             key={category}
             variant="outline"
-            className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-          >
+            className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
             {category}
           </Badge>
         ))}
@@ -254,7 +285,10 @@ export function ResourceMaterials() {
         <TabsContent value="pdfs" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {resources.pdfs.map((pdf, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                {/* Header */}
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -264,7 +298,10 @@ export function ResourceMaterials() {
                     <Badge variant="secondary">{pdf.category}</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                {/* Body + Footer */}
+                <CardContent className="flex flex-col flex-1">
+                  {/* Body */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>Pages: {pdf.pages}</div>
                     <div>Size: {pdf.size}</div>
@@ -274,12 +311,20 @@ export function ResourceMaterials() {
                     </div>
                     <div>{pdf.downloads} downloads</div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => handlePreviewPdf(pdf)}>
+
+                  {/* Footer — sticks to bottom */}
+                  <div className="mt-auto pt-4 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handlePreviewPdf(pdf)}>
                       <Eye className="mr-2 h-3 w-3" />
                       Preview
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleDownloadPdf(pdf)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownloadPdf(pdf)}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
                     </Button>
@@ -293,11 +338,17 @@ export function ResourceMaterials() {
         <TabsContent value="videos" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {resources.videos.map((video, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                {/* Header */}
                 <CardHeader>
+                  {/* Thumbnail placeholder */}
                   <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center">
                     <Video className="h-8 w-8 text-muted-foreground" />
                   </div>
+
+                  {/* Title + Category */}
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-lg">{video.title}</CardTitle>
@@ -306,7 +357,10 @@ export function ResourceMaterials() {
                     <Badge variant="secondary">{video.category}</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                {/* Body + Footer */}
+                <CardContent className="flex flex-col flex-1">
+                  {/* Body */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -321,10 +375,17 @@ export function ResourceMaterials() {
                       {video.rating}
                     </div>
                   </div>
-                  <Button size="sm" className="w-full" onClick={() => handleWatchVideo(video)}>
-                    <Video className="mr-2 h-3 w-3" />
-                    Watch Now
-                  </Button>
+
+                  {/* Footer — pinned at bottom */}
+                  <div className="mt-auto pt-4">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleWatchVideo(video)}>
+                      <Video className="mr-2 h-3 w-3" />
+                      Watch Now
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -334,7 +395,10 @@ export function ResourceMaterials() {
         <TabsContent value="audio" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {resources.audio.map((audio, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                {/* Header */}
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -344,7 +408,10 @@ export function ResourceMaterials() {
                     <Badge variant="secondary">{audio.category}</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                {/* Body + Footer */}
+                <CardContent className="flex flex-col flex-1">
+                  {/* Body */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -359,10 +426,17 @@ export function ResourceMaterials() {
                       {audio.rating}
                     </div>
                   </div>
-                  <Button size="sm" className="w-full" onClick={() => handlePlayAudio(audio)}>
-                    <Headphones className="mr-2 h-3 w-3" />
-                    Listen Now
-                  </Button>
+
+                  {/* Footer — pinned at bottom */}
+                  <div className="mt-auto pt-4">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handlePlayAudio(audio)}>
+                      <Headphones className="mr-2 h-3 w-3" />
+                      Listen Now
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -372,7 +446,10 @@ export function ResourceMaterials() {
         <TabsContent value="journals" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {resources.journals.map((journal, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                {/* Header */}
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -382,19 +459,33 @@ export function ResourceMaterials() {
                     <Badge variant="secondary">{journal.category}</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-muted-foreground line-clamp-3">{journal.content}</div>
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+
+                {/* Body + Footer */}
+                <CardContent className="flex flex-col flex-1">
+                  {/* Body */}
+                  <div className="text-sm text-muted-foreground line-clamp-3">
+                    {journal.content}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mt-3">
                     <div>Published: {journal.date}</div>
                     <div>Pages: {journal.pages}</div>
                     <div>Citations: {journal.citations}</div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => handleReadJournal(journal)}>
+
+                  {/* Footer — pinned at bottom */}
+                  <div className="mt-auto pt-4 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleReadJournal(journal)}>
                       <BookOpen className="mr-2 h-3 w-3" />
                       Read
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleDownloadJournal(journal)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownloadJournal(journal)}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
                     </Button>
@@ -429,5 +520,5 @@ export function ResourceMaterials() {
         duration={selectedAudio?.duration}
       />
     </div>
-  )
+  );
 }

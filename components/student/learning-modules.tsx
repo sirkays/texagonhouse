@@ -88,18 +88,20 @@ export function LearningModules() {
         type: "Project Tutorial",
         steps: 12,
         duration: "8h",
-        progress: 50,
         difficulty: "Advanced",
         technologies: ["React", "Node.js", "MongoDB"],
+        sessionCategory: "Private",
+        isActive: true,
       },
       {
         title: "Create a REST API with Express",
         type: "Step-by-step Guide",
         steps: 8,
         duration: "3h",
-        progress: 100,
         difficulty: "Intermediate",
         technologies: ["Node.js", "Express", "PostgreSQL"],
+        sessionCategory: "General",
+        isActive: false,
       },
     ],
     journals: [
@@ -143,7 +145,7 @@ export function LearningModules() {
           </TabsTrigger>
           <TabsTrigger value="tutorials" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            Tutorials
+            Live Session
           </TabsTrigger>
           <TabsTrigger value="journals" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -154,21 +156,27 @@ export function LearningModules() {
         <TabsContent value="videos" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {modules.videos.map((course, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                {/* Header */}
                 <CardHeader className="p-0">
                   <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative">
                     <Video className="h-8 w-8 text-muted-foreground" />
+
                     {course.completed && (
                       <div className="absolute top-2 right-2">
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       </div>
                     )}
+
                     <div className="absolute bottom-2 right-2">
                       <Badge variant="secondary" className="text-xs">
                         {course.progress > 0 ? "In Progress" : "Available"}
                       </Badge>
                     </div>
                   </div>
+
                   <div className="space-y-2 px-6">
                     <div className="flex items-center justify-between">
                       <Badge
@@ -181,16 +189,21 @@ export function LearningModules() {
                         }>
                         {course.level}
                       </Badge>
+
                       <div className="flex items-center gap-1 text-sm">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         {course.rating}
                       </div>
                     </div>
+
                     <CardTitle className="text-lg">{course.title}</CardTitle>
                     <CardDescription>by {course.instructor}</CardDescription>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                {/* Body + Footer */}
+                <CardContent className="flex flex-col flex-1 space-y-4">
+                  {/* Body */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -218,24 +231,27 @@ export function LearningModules() {
                     <Progress value={course.progress} className="h-2" />
                   </div>
 
-                  <Button className="w-full">
-                    {course.completed ? (
-                      <>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Review Course
-                      </>
-                    ) : course.progress > 0 ? (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Continue Learning
-                      </>
-                    ) : (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Start Course
-                      </>
-                    )}
-                  </Button>
+                  {/* Footer — pinned button */}
+                  <div className="mt-auto">
+                    <Button className="w-full">
+                      {course.completed ? (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Review Course
+                        </>
+                      ) : course.progress > 0 ? (
+                        <>
+                          <Play className="mr-2 h-4 w-4" />
+                          Continue Learning
+                        </>
+                      ) : (
+                        <>
+                          <Play className="mr-2 h-4 w-4" />
+                          Start Course
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -245,7 +261,9 @@ export function LearningModules() {
         <TabsContent value="audio" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {modules.audio.map((course, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -258,7 +276,8 @@ export function LearningModules() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                <CardContent className="flex flex-col justify-between flex-1 space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>{course.episodes} episodes</div>
                     <div>{course.duration}</div>
@@ -277,7 +296,7 @@ export function LearningModules() {
                     <Progress value={course.progress} className="h-2" />
                   </div>
 
-                  <Button className="w-full">
+                  <Button className="w-full mt-auto">
                     <Headphones className="mr-2 h-4 w-4" />
                     {course.progress > 0
                       ? "Continue Listening"
@@ -292,10 +311,12 @@ export function LearningModules() {
         <TabsContent value="tutorials" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {modules.tutorials.map((tutorial, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <Badge variant="outline">{tutorial.type}</Badge>
                       <Badge
                         variant={
@@ -307,11 +328,16 @@ export function LearningModules() {
                         }>
                         {tutorial.difficulty}
                       </Badge>
+
+                      <Badge variant="outline">
+                        {/* {tutorial.sessionCategory} */}
+                      </Badge>
                     </div>
                     <CardTitle className="text-lg">{tutorial.title}</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                <CardContent className="flex flex-col justify-between flex-1 space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>{tutorial.steps} steps</div>
                     <div className="flex items-center gap-1">
@@ -334,19 +360,12 @@ export function LearningModules() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{tutorial.progress}%</span>
-                    </div>
-                    <Progress value={tutorial.progress} className="h-2" />
-                  </div>
-
-                  <Button className="w-full">
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    {tutorial.progress > 0
-                      ? "Continue Tutorial"
-                      : "Start Tutorial"}
+                  <Button className="w-full mt-auto">
+                    {tutorial.isActive ? (
+                      "Join Session"
+                    ) : (
+                      <div>01-12-2025 / 10:00 AM</div>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
@@ -357,7 +376,9 @@ export function LearningModules() {
         <TabsContent value="journals" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {modules.journals.map((journal, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -370,7 +391,8 @@ export function LearningModules() {
                     <CardDescription>{journal.category}</CardDescription>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                <CardContent className="flex flex-col justify-between flex-1 space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>
                       {journal.issues || journal.papers}{" "}
@@ -380,7 +402,7 @@ export function LearningModules() {
                   </div>
 
                   <Button
-                    className="w-full"
+                    className="w-full mt-auto"
                     variant={journal.subscribed ? "secondary" : "default"}>
                     <FileText className="mr-2 h-4 w-4" />
                     {journal.subscribed ? "Read Latest" : "Subscribe"}
@@ -400,6 +422,7 @@ export function LearningModules() {
             Curated sequences of modules for structured learning
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
@@ -425,17 +448,19 @@ export function LearningModules() {
                 technologies: ["React Native", "Flutter", "Firebase"],
               },
             ].map((path, index) => (
-              <Card key={index} className="border-dashed">
+              <Card
+                key={index}
+                className="border-dashed flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <CardTitle className="text-base">{path.title}</CardTitle>
                   <CardDescription>{path.level}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+
+                <CardContent className="flex flex-col flex-1 justify-between space-y-3">
                   <div className="text-sm text-muted-foreground">
-                    <div>
-                      {path.modules} modules • {path.duration}
-                    </div>
+                    {path.modules} modules • {path.duration}
                   </div>
+
                   <div className="flex gap-1 flex-wrap">
                     {path.technologies.map((tech, techIndex) => (
                       <Badge
@@ -446,7 +471,8 @@ export function LearningModules() {
                       </Badge>
                     ))}
                   </div>
-                  <Button size="sm" className="w-full">
+
+                  <Button size="sm" className="w-full mt-auto">
                     Start Learning Path
                   </Button>
                 </CardContent>

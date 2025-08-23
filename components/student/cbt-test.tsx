@@ -601,7 +601,9 @@ export function CBTTest() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {availableTests.map((test) => (
-          <Card key={test.id} className="hover:shadow-lg transition-shadow">
+          <Card
+            key={test.id}
+            className="hover:shadow-lg transition-shadow flex flex-col h-full">
             <CardHeader>
               <div className="sm:flex items-center justify-between">
                 <CardTitle className="text-lg">{test.title}</CardTitle>
@@ -616,6 +618,7 @@ export function CBTTest() {
                     }>
                     {test.difficulty}
                   </Badge>
+
                   {test.type === "exam" && (
                     <Badge
                       variant="outline"
@@ -628,7 +631,9 @@ export function CBTTest() {
               </div>
               <CardDescription>{test.description}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+
+            {/* Make content stretch to push footer button down */}
+            <CardContent className="flex-1 flex flex-col gap-4">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{test.questions} questions</span>
                 <span>{test.duration}</span>
@@ -651,13 +656,18 @@ export function CBTTest() {
                 </div>
               )}
 
-              <Button
-                onClick={() => startTest(test.id)}
-                className="w-full"
-                disabled={test.type === "exam" && examAttempts >= maxAttempts}>
-                <Play className="mr-2 h-4 w-4" />
-                {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
-              </Button>
+              {/* Simulated footer */}
+              <div className="mt-auto">
+                <Button
+                  onClick={() => startTest(test.id)}
+                  className="w-full h-11" // same height everywhere
+                  disabled={
+                    test.type === "exam" && examAttempts >= maxAttempts
+                  }>
+                  <Play className="mr-2 h-4 w-4" />
+                  {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}

@@ -99,7 +99,7 @@ export function VideoLessonCreator() {
       </div>
 
       <Tabs defaultValue="basic" className="space-y-4 xs:space-y-6">
-        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full mb-14">
           <TabsTrigger value="basic" className="text-xs xs:text-sm sm:text-base">Basic Info</TabsTrigger>
           <TabsTrigger value="video" className="text-xs xs:text-sm sm:text-base">Video Upload</TabsTrigger>
           <TabsTrigger value="chapters" className="text-xs xs:text-sm sm:text-base">Chapters</TabsTrigger>
