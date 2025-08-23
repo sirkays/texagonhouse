@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useCallback, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,8 +50,8 @@ interface UploadedFile {
   progress: number
   description?: string
   tags: string[]
-  fileUrl?: string // Add this
-  originalFile?: File // Add this
+  fileUrl?: string
+  originalFile?: File
 }
 
 interface Category {
@@ -159,7 +158,6 @@ export function MaterialUploader() {
     tags: "",
   })
 
-  // Filter files based on search and category
   const filteredFiles = useMemo(() => {
     return uploadedFiles.filter((file) => {
       const matchesSearch =
@@ -196,7 +194,6 @@ export function MaterialUploader() {
 
   const handleFiles = (files: FileList) => {
     Array.from(files).forEach((file) => {
-      // Create object URL for preview
       const fileUrl = URL.createObjectURL(file)
 
       const newFile: UploadedFile = {
@@ -213,8 +210,8 @@ export function MaterialUploader() {
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
-        fileUrl: fileUrl, // Store the object URL
-        originalFile: file, // Store the original file
+        fileUrl: fileUrl,
+        originalFile: file,
       }
 
       setUploadedFiles((prev) => [...prev, newFile])
@@ -313,30 +310,30 @@ export function MaterialUploader() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Material Uploader</h1>
-        <p className="text-muted-foreground">Upload and manage your teaching materials</p>
+        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">Material Uploader</h1>
+        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">Upload and manage your teaching materials</p>
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList>
-          <TabsTrigger value="upload">Upload Materials</TabsTrigger>
-          <TabsTrigger value="library">Materials Library</TabsTrigger>
-          <TabsTrigger value="organize">Organize & Tag</TabsTrigger>
+        <TabsList className="grid grid-cols-2 xs:grid-cols-3 w-full">
+          <TabsTrigger value="upload" className="text-[0.65rem] xs:text-xs sm:text-sm">Upload Materials</TabsTrigger>
+          <TabsTrigger value="library" className="text-[0.65rem] xs:text-xs sm:text-sm">Materials Library</TabsTrigger>
+          <TabsTrigger value="organize" className="text-[0.65rem] xs:text-xs sm:text-sm">Organize & Tag</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upload" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+        <TabsContent value="upload" className="space-y-3 xs:space-y-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 lg:grid-cols-2">
             {/* Upload Area */}
             <Card>
               <CardHeader>
-                <CardTitle>Upload Files</CardTitle>
-                <CardDescription>Drag and drop files or click to browse</CardDescription>
+                <CardTitle className="text-sm xs:text-base sm:text-lg">Upload Files</CardTitle>
+                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Drag and drop files or click to browse</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 xs:p-4 sm:p-6">
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  className={`border-2 border-dashed rounded-lg p-4 xs:p-6 sm:p-8 text-center transition-colors ${
                     dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"
                   }`}
                   onDragEnter={handleDrag}
@@ -344,12 +341,14 @@ export function MaterialUploader() {
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Drop files here</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <Upload className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 text-muted-foreground mb-2 xs:mb-3 sm:mb-4" />
+                  <h3 className="text-[0.65rem] xs:text-xs sm:text-sm font-medium mb-1 xs:mb-2">Drop files here</h3>
+                  <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mb-2 xs:mb-3 sm:mb-4">
                     Support for PDF, images, videos, audio files, and documents
                   </p>
-                  <Button onClick={() => document.getElementById("file-upload")?.click()}>Browse Files</Button>
+                  <Button size="sm" className="text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => document.getElementById("file-upload")?.click()}>
+                    Browse Files
+                  </Button>
                   <input
                     id="file-upload"
                     type="file"
@@ -360,43 +359,45 @@ export function MaterialUploader() {
                   />
                 </div>
 
-                <div className="mt-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
+                <div className="mt-3 xs:mt-4 sm:mt-6 space-y-3 xs:space-y-4">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
+                    <div className="space-y-1 xs:space-y-2">
+                      <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Category</Label>
                       <Select
                         value={currentUpload.category}
                         onValueChange={(value) => setCurrentUpload((prev) => ({ ...prev, category: value }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="text-[0.65rem] xs:text-xs sm:text-sm">
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
                           {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.name}>
+                            <SelectItem key={category.id} value={category.name} className="text-[0.65rem] xs:text-xs sm:text-sm">
                               {category.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Tags</Label>
+                    <div className="space-y-1 xs:space-y-2">
+                      <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Tags</Label>
                       <Input
                         value={currentUpload.tags}
                         onChange={(e) => setCurrentUpload((prev) => ({ ...prev, tags: e.target.value }))}
                         placeholder="react, tutorial, beginner"
+                        className="text-[0.65rem] xs:text-xs sm:text-sm"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Description</Label>
+                  <div className="space-y-1 xs:space-y-2">
+                    <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Description</Label>
                     <Textarea
                       value={currentUpload.description}
                       onChange={(e) => setCurrentUpload((prev) => ({ ...prev, description: e.target.value }))}
                       placeholder="Describe this material..."
                       rows={3}
+                      className="text-[0.65rem] xs:text-xs sm:text-sm"
                     />
                   </div>
                 </div>
@@ -406,36 +407,36 @@ export function MaterialUploader() {
             {/* Upload Progress */}
             <Card>
               <CardHeader>
-                <CardTitle>Upload Progress</CardTitle>
-                <CardDescription>Track your file uploads</CardDescription>
+                <CardTitle className="text-sm xs:text-base sm:text-lg">Upload Progress</CardTitle>
+                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Track your file uploads</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 xs:p-4 sm:p-6">
                 {uploadedFiles.filter((f) => f.status === "uploading").length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Folder className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>No active uploads</p>
-                    <p className="text-sm">Upload files to see progress here</p>
+                  <div className="text-center py-6 xs:py-8 sm:py-10 text-muted-foreground">
+                    <Folder className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 mb-2 xs:mb-3 sm:mb-4 opacity-50" />
+                    <p className="text-[0.65rem] xs:text-xs sm:text-sm">No active uploads</p>
+                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">Upload files to see progress here</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 xs:space-y-4">
                     {uploadedFiles
                       .filter((f) => f.status === "uploading")
                       .map((file) => {
                         const Icon = getFileIcon(file.type)
                         return (
-                          <div key={file.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-                            <Icon className="h-8 w-8 text-muted-foreground" />
+                          <div key={file.id} className="flex items-center space-x-2 xs:space-x-3 p-2 xs:p-3 border rounded-lg">
+                            <Icon className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 text-muted-foreground" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{file.name}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-[0.65rem] xs:text-xs sm:text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                                 {formatFileSize(file.size)} • {file.category}
                               </p>
-                              <Progress value={file.progress} className="h-1 mt-2" />
+                              <Progress value={file.progress} className="h-1 xs:h-1.5 sm:h-2 mt-1 xs:mt-2" />
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <div className="text-xs text-muted-foreground">{Math.round(file.progress)}%</div>
-                              <Button variant="ghost" size="sm" onClick={() => removeFile(file.id)}>
-                                <X className="h-3 w-3" />
+                            <div className="flex items-center space-x-1 xs:space-x-2">
+                              <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">{Math.round(file.progress)}%</div>
+                              <Button variant="ghost" size="sm" className="p-1" onClick={() => removeFile(file.id)}>
+                                <X className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                               </Button>
                             </div>
                           </div>
@@ -448,45 +449,45 @@ export function MaterialUploader() {
           </div>
         </TabsContent>
 
-        <TabsContent value="library" className="space-y-6">
-          <div className="flex items-center justify-between">
+        <TabsContent value="library" className="space-y-3 xs:space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Materials Library</h2>
-              <p className="text-muted-foreground">Browse and manage all your uploaded materials</p>
+              <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">Materials Library</h2>
+              <p className="text-muted-foreground text-[0.65rem] xs:text-xs sm:text-sm">Browse and manage all your uploaded materials</p>
             </div>
           </div>
 
           {/* Search and Filter Controls */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-col sm:flex-row gap-3 xs:gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2 top-2 xs:left-2.5 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
               <Input
                 placeholder="Search materials..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
+                className="pl-7 xs:pl-8 text-[0.65rem] xs:text-xs sm:text-sm"
               />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-[160px] xs:w-[180px] sm:w-[200px] text-[0.65rem] xs:text-xs sm:text-sm">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">All Categories</SelectItem>
+                <SelectItem value="All" className="text-[0.65rem] xs:text-xs sm:text-sm">All Categories</SelectItem>
                 {uniqueCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
+                  <SelectItem key={category} value={category} className="text-[0.65rem] xs:text-xs sm:text-sm">
                     {category}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-[120px] xs:w-[140px] sm:w-[160px] text-[0.65rem] xs:text-xs sm:text-sm">
                 <SelectValue placeholder="File type" />
               </SelectTrigger>
               <SelectContent>
                 {fileTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
+                  <SelectItem key={type} value={type} className="text-[0.65rem] xs:text-xs sm:text-sm">
                     {type === "All" ? "All Types" : type.charAt(0).toUpperCase() + type.slice(1)}
                   </SelectItem>
                 ))}
@@ -495,60 +496,60 @@ export function MaterialUploader() {
           </div>
 
           {/* Results count */}
-          <div className="text-sm text-muted-foreground">
+          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
             Showing {filteredFiles.length} of {uploadedFiles.length} materials
           </div>
 
           {/* Materials Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredFiles.map((file) => {
               const Icon = getFileIcon(file.type)
               return (
                 <Card key={file.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2 xs:pb-3">
                     <div className="flex items-center justify-between">
-                      <Icon className="h-8 w-8 text-muted-foreground" />
-                      <Badge variant="outline">{file.category}</Badge>
+                      <Icon className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 text-muted-foreground" />
+                      <Badge variant="outline" className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">{file.category}</Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-2 xs:space-y-3">
                     <div>
-                      <h4 className="font-medium text-sm line-clamp-2">{file.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">{file.name}</h4>
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mt-0.5 xs:mt-1">
                         {formatFileSize(file.size)} • {file.uploadDate.toLocaleDateString()}
                       </p>
                     </div>
 
                     {file.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{file.description}</p>
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground line-clamp-2">{file.description}</p>
                     )}
 
                     {file.tags.length > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {file.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
+                          <Badge key={index} variant="secondary" className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                             {tag}
                           </Badge>
                         ))}
                         {file.tags.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                             +{file.tags.length - 3}
                           </Badge>
                         )}
                       </div>
                     )}
 
-                    <div className="flex gap-2">
-                      <Button size="sm" className="flex-1" onClick={() => handleViewMaterial(file)}>
-                        <Eye className="mr-1 h-3 w-3" />
+                    <div className="flex gap-1 xs:gap-2">
+                      <Button size="sm" className="flex-1 text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => handleViewMaterial(file)}>
+                        <Eye className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleEditFile(file)}>
-                        <Edit className="mr-1 h-3 w-3" />
+                      <Button size="sm" variant="outline" className="px-2 xs:px-3 text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => handleEditFile(file)}>
+                        <Edit className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => removeFile(file.id)}>
-                        <Trash2 className="h-3 w-3" />
+                      <Button size="sm" variant="outline" className="px-2 xs:px-3 text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => removeFile(file.id)}>
+                        <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       </Button>
                     </div>
                   </CardContent>
@@ -558,61 +559,62 @@ export function MaterialUploader() {
           </div>
 
           {filteredFiles.length === 0 && (
-            <div className="text-center py-12">
-              <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No materials found</h3>
-              <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
+            <div className="text-center py-8 xs:py-10 sm:py-12">
+              <Search className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 text-muted-foreground mb-2 xs:mb-3 sm:mb-4" />
+              <h3 className="text-[0.65rem] xs:text-xs sm:text-sm font-medium mb-1 xs:mb-2">No materials found</h3>
+              <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Try adjusting your search or filter criteria</p>
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="organize" className="space-y-6">
+        <TabsContent value="organize" className="space-y-3 xs:space-y-4">
           <div>
-            <h2 className="text-2xl font-bold">Organize & Tag</h2>
-            <p className="text-muted-foreground">Organize your materials with categories and tags</p>
+            <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">Organize & Tag</h2>
+            <p className="text-muted-foreground text-[0.65rem] xs:text-xs sm:text-sm">Organize your materials with categories and tags</p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Categories</CardTitle>
-                <CardDescription>Manage your material categories</CardDescription>
+                <CardTitle className="text-sm xs:text-base sm:text-lg">Categories</CardTitle>
+                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Manage your material categories</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 xs:space-y-4">
                 {categories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${category.color}`} />
-                      <span className="font-medium">{category.name}</span>
+                  <div key={category.id} className="flex items-center justify-between p-2 xs:p-3 border rounded-lg">
+                    <div className="flex items-center gap-2 xs:gap-3">
+                      <div className={`w-2 h-2 xs:w-3 xs:h-3 rounded-full ${category.color}`} />
+                      <span className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{category.name}</span>
                     </div>
-                    <Badge variant="secondary">{category.count}</Badge>
+                    <Badge variant="secondary" className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">{category.count}</Badge>
                   </div>
                 ))}
 
                 <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full mt-4">
-                      <Plus className="mr-2 h-4 w-4" />
+                    <Button className="w-full mt-3 xs:mt-4 text-[0.65rem] xs:text-xs sm:text-sm">
+                      <Plus className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Add Category
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>Add New Category</DialogTitle>
-                      <DialogDescription>Create a new category to organize your materials</DialogDescription>
+                      <DialogTitle className="text-sm xs:text-base sm:text-lg">Add New Category</DialogTitle>
+                      <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Create a new category to organize your materials</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Category Name</Label>
+                    <div className="space-y-3 xs:space-y-4">
+                      <div className="space-y-1 xs:space-y-2">
+                        <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Category Name</Label>
                         <Input
                           value={newCategoryName}
                           onChange={(e) => setNewCategoryName(e.target.value)}
                           placeholder="Enter category name"
+                          className="text-[0.65rem] xs:text-xs sm:text-sm"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Color</Label>
-                        <div className="flex gap-2">
+                      <div className="space-y-1 xs:space-y-2">
+                        <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Color</Label>
+                        <div className="flex gap-1 xs:gap-2 flex-wrap">
                           {[
                             "bg-blue-500",
                             "bg-green-500",
@@ -625,7 +627,7 @@ export function MaterialUploader() {
                           ].map((color) => (
                             <button
                               key={color}
-                              className={`w-6 h-6 rounded-full ${color} ${
+                              className={`w-5 h-5 xs:w-6 xs:h-6 rounded-full ${color} ${
                                 newCategoryColor === color ? "ring-2 ring-offset-2 ring-primary" : ""
                               }`}
                               onClick={() => setNewCategoryColor(color)}
@@ -635,10 +637,10 @@ export function MaterialUploader() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAddCategoryOpen(false)}>
+                      <Button variant="outline" className="text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => setIsAddCategoryOpen(false)}>
                         Cancel
                       </Button>
-                      <Button onClick={handleAddCategory}>Add Category</Button>
+                      <Button className="text-[0.65rem] xs:text-xs sm:text-sm" onClick={handleAddCategory}>Add Category</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -647,18 +649,18 @@ export function MaterialUploader() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Popular Tags</CardTitle>
-                <CardDescription>Most used tags in your materials</CardDescription>
+                <CardTitle className="text-sm xs:text-base sm:text-lg">Popular Tags</CardTitle>
+                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Most used tags in your materials</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1 xs:gap-2">
                   {Array.from(new Set(uploadedFiles.flatMap((file) => file.tags)))
                     .slice(0, 15)
                     .map((tag, index) => (
                       <Badge
                         key={index}
                         variant="outline"
-                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
                         onClick={() => setSearchQuery(tag)}
                       >
                         {tag}
@@ -673,37 +675,37 @@ export function MaterialUploader() {
 
       {/* View Material Modal */}
       <Dialog open={isViewMaterialOpen} onOpenChange={setIsViewMaterialOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-sm xs:text-base sm:text-lg">
               {viewingMaterial &&
                 (() => {
                   const Icon = getFileIcon(viewingMaterial.type)
-                  return <Icon className="h-5 w-5" />
+                  return <Icon className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
                 })()}
               {viewingMaterial?.name}
             </DialogTitle>
-            <DialogDescription>{viewingMaterial?.description}</DialogDescription>
+            <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">{viewingMaterial?.description}</DialogDescription>
           </DialogHeader>
 
           {viewingMaterial && (
-            <div className="space-y-4">
+            <div className="space-y-3 xs:space-y-4">
               {/* PDF Viewer */}
               {viewingMaterial.type === "document" && (
-                <div className="space-y-4">
+                <div className="space-y-3 xs:space-y-4">
                   <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
                     <div className="text-center">
-                      <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg font-medium">PDF Document</p>
-                      <p className="text-sm text-muted-foreground">
+                      <FileText className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-2 xs:mb-3 sm:mb-4" />
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">PDF Document</p>
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                         {formatFileSize(viewingMaterial.size)} • {viewingMaterial.category}
                       </p>
-                      <Button className="mt-4" onClick={() => window.open("#", "_blank")}>
+                      <Button className="mt-2 xs:mt-3 sm:mt-4 text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => window.open("#", "_blank")}>
                         Open in New Tab
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm">
                     <div>
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
@@ -722,19 +724,19 @@ export function MaterialUploader() {
 
               {/* Video Player */}
               {viewingMaterial.type === "video" && (
-                <div className="space-y-4">
+                <div className="space-y-3 xs:space-y-4">
                   <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
                     <div className="text-center text-white">
-                      <Video className="h-16 w-16 mx-auto mb-4" />
-                      <p className="text-lg font-medium">Video Player</p>
-                      <p className="text-sm opacity-75">{viewingMaterial.name}</p>
-                      <Button className="mt-4" variant="secondary">
-                        <Play className="mr-2 h-4 w-4" />
+                      <Video className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 mx-auto mb-2 xs:mb-3 sm:mb-4" />
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">Video Player</p>
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs opacity-75">{viewingMaterial.name}</p>
+                      <Button className="mt-2 xs:mt-3 sm:mt-4 text-[0.65rem] xs:text-xs sm:text-sm" variant="secondary">
+                        <Play className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         Play Video
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm">
                     <div>
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
@@ -753,44 +755,44 @@ export function MaterialUploader() {
 
               {/* Audio Player */}
               {viewingMaterial.type === "audio" && (
-                <div className="space-y-4">
-                  <div className="bg-muted rounded-lg p-8">
-                    <div className="text-center mb-6">
-                      <Headphones className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg font-medium">{viewingMaterial.name}</p>
-                      <p className="text-sm text-muted-foreground">{viewingMaterial.category}</p>
+                <div className="space-y-3 xs:space-y-4">
+                  <div className="bg-muted rounded-lg p-4 xs:p-6 sm:p-8">
+                    <div className="text-center mb-4 xs:mb-5 sm:mb-6">
+                      <Headphones className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-2 xs:mb-3 sm:mb-4" />
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">{viewingMaterial.name}</p>
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">{viewingMaterial.category}</p>
                     </div>
 
                     {/* Audio Controls */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-center gap-4">
-                        <Button size="sm" variant="outline">
-                          <Play className="h-4 w-4" />
+                    <div className="space-y-3 xs:space-y-4">
+                      <div className="flex items-center justify-center gap-2 xs:gap-3 sm:gap-4">
+                        <Button size="sm" variant="outline" className="p-1 xs:p-2 text-[0.65rem] xs:text-xs sm:text-sm">
+                          <Play className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <Pause className="h-4 w-4" />
+                        <Button size="sm" variant="outline" className="p-1 xs:p-2 text-[0.65rem] xs:text-xs sm:text-sm">
+                          <Pause className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         </Button>
-                        <div className="flex items-center gap-2">
-                          <Volume2 className="h-4 w-4" />
-                          <div className="w-20 h-2 bg-muted-foreground/20 rounded-full">
+                        <div className="flex items-center gap-1 xs:gap-2">
+                          <Volume2 className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                          <div className="w-16 xs:w-20 sm:w-24 h-1.5 xs:h-2 bg-muted-foreground/20 rounded-full">
                             <div className="w-3/4 h-full bg-primary rounded-full" />
                           </div>
                         </div>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="space-y-2">
-                        <div className="w-full h-2 bg-muted-foreground/20 rounded-full">
+                      <div className="space-y-1 xs:space-y-2">
+                        <div className="w-full h-1.5 xs:h-2 bg-muted-foreground/20 rounded-full">
                           <div className="w-1/3 h-full bg-primary rounded-full" />
                         </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
+                        <div className="flex justify-between text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                           <span>1:23</span>
                           <span>3:45</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm">
                     <div>
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
@@ -809,15 +811,15 @@ export function MaterialUploader() {
 
               {/* Image Viewer */}
               {viewingMaterial.type === "image" && (
-                <div className="space-y-4">
+                <div className="space-y-3 xs:space-y-4">
                   <div className="aspect-video bg-muted rounded-lg flex items-center justify-center border">
                     <div className="text-center">
-                      <ImageIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg font-medium">Image Preview</p>
-                      <p className="text-sm text-muted-foreground">{viewingMaterial.name}</p>
+                      <ImageIcon className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-2 xs:mb-3 sm:mb-4" />
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">Image Preview</p>
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">{viewingMaterial.name}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm">
                     <div>
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
@@ -836,11 +838,11 @@ export function MaterialUploader() {
 
               {/* Tags */}
               {viewingMaterial.tags.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Tags</Label>
-                  <div className="flex gap-2 flex-wrap">
+                <div className="space-y-1 xs:space-y-2">
+                  <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Tags</Label>
+                  <div className="flex gap-1 xs:gap-2 flex-wrap">
                     {viewingMaterial.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={index} variant="secondary" className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                         {tag}
                       </Badge>
                     ))}
@@ -851,16 +853,17 @@ export function MaterialUploader() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewMaterialOpen(false)}>
+            <Button variant="outline" className="text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => setIsViewMaterialOpen(false)}>
               Close
             </Button>
             <Button
+              className="text-[0.65rem] xs:text-xs sm:text-sm"
               onClick={() => {
                 setIsViewMaterialOpen(false)
                 if (viewingMaterial) handleEditFile(viewingMaterial)
               }}
             >
-              <Edit className="mr-2 h-4 w-4" />
+              <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
               Edit
             </Button>
           </DialogFooter>
@@ -869,48 +872,50 @@ export function MaterialUploader() {
 
       {/* Edit Material Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Material</DialogTitle>
-            <DialogDescription>Update the details of your material</DialogDescription>
+            <DialogTitle className="text-sm xs:text-base sm:text-lg">Edit Material</DialogTitle>
+            <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Update the details of your material</DialogDescription>
           </DialogHeader>
           {editingFile && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
+            <div className="space-y-3 xs:space-y-4">
+              <div className="space-y-1 xs:space-y-2">
+                <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Name</Label>
                 <Input
                   value={editingFile.name}
                   onChange={(e) => setEditingFile({ ...editingFile, name: e.target.value })}
+                  className="text-[0.65rem] xs:text-xs sm:text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
+              <div className="space-y-1 xs:space-y-2">
+                <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Category</Label>
                 <Select
                   value={editingFile.category}
                   onValueChange={(value) => setEditingFile({ ...editingFile, category: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-[0.65rem] xs:text-xs sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
+                      <SelectItem key={category.id} value={category.name} className="text-[0.65rem] xs:text-xs sm:text-sm">
                         {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
+              <div className="space-y-1 xs:space-y-2">
+                <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Description</Label>
                 <Textarea
                   value={editingFile.description || ""}
                   onChange={(e) => setEditingFile({ ...editingFile, description: e.target.value })}
                   rows={3}
+                  className="text-[0.65rem] xs:text-xs sm:text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Tags</Label>
+              <div className="space-y-1 xs:space-y-2">
+                <Label className="text-[0.65rem] xs:text-xs sm:text-sm">Tags</Label>
                 <Input
                   value={editingFile.tags.join(", ")}
                   onChange={(e) =>
@@ -923,15 +928,16 @@ export function MaterialUploader() {
                     })
                   }
                   placeholder="react, tutorial, beginner"
+                  className="text-[0.65rem] xs:text-xs sm:text-sm"
                 />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" className="text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button className="text-[0.65rem] xs:text-xs sm:text-sm" onClick={handleSaveEdit}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
