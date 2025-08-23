@@ -147,7 +147,7 @@ export function ChildrenProgress() {
     return children.filter((child) => child.id.toString() === selectedChild);
   };
 
-  const getTrendIcon = (trend: string) => {
+  const getTrendIcon = (trend: any) => {
     switch (trend) {
       case "up":
         return <TrendingUp className="h-3 w-3 text-green-600" />;
@@ -158,7 +158,7 @@ export function ChildrenProgress() {
     }
   };
 
-  const getGradeColor = (grade: string) => {
+  const getGradeColor = (grade: any) => {
     if (grade.startsWith("A")) return "text-green-600";
     if (grade.startsWith("B")) return "text-blue-600";
     if (grade.startsWith("C")) return "text-yellow-600";
@@ -192,32 +192,34 @@ export function ChildrenProgress() {
   const overallStats = getOverallStats();
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">
-              Children's Progress
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Detailed learning analytics and performance tracking
-            </p>
-          </div>
+    <div className="container mx-auto sm:p-6">
+      {/* Header */}
+      <div className="space-y-4 mb-6">
+        <div className="flex flex-col items-start gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+            Children's Progress
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Detailed learning analytics and performance tracking
+          </p>
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Filter & View Options</CardTitle>
+          <CardTitle className="text-base sm:text-lg">
+            Filter & View Options
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="space-y-2 flex-1">
-              <label className="text-sm font-medium">Select Child</label>
+            <div className="flex-1 space-y-2">
+              <label className="text-xs sm:text-sm font-medium">
+                Select Child
+              </label>
               <Select value={selectedChild} onValueChange={setSelectedChild}>
-                <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose child" />
                 </SelectTrigger>
                 <SelectContent>
@@ -230,10 +232,12 @@ export function ChildrenProgress() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 flex-1">
-              <label className="text-sm font-medium">Time Period</label>
+            <div className="flex-1 space-y-2">
+              <label className="text-xs sm:text-sm font-medium">
+                Time Period
+              </label>
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -249,14 +253,16 @@ export function ChildrenProgress() {
       </Card>
 
       {/* Overall Stats */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mt-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Study Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Study Hours
+            </CardTitle>
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">
+            <div className="text-lg sm:text-xl font-bold">
               {overallStats.totalHours}
             </div>
             <p className="text-xs text-muted-foreground">This week</p>
@@ -264,13 +270,13 @@ export function ChildrenProgress() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs sm:text-sm font-medium">
               Tests Completed
             </CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">
+            <div className="text-lg sm:text-xl font-bold">
               {overallStats.totalTests}
             </div>
             <p className="text-xs text-muted-foreground">This week</p>
@@ -278,11 +284,13 @@ export function ChildrenProgress() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Average Score
+            </CardTitle>
+            <Target className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-green-600">
+            <div className="text-lg sm:text-xl font-bold text-green-600">
               {overallStats.avgScore}%
             </div>
             <p className="text-xs text-muted-foreground">Across all subjects</p>
@@ -290,13 +298,13 @@ export function ChildrenProgress() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs sm:text-sm font-medium">
               Learning Streak
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600">
+            <div className="text-lg sm:text-xl font-bold text-orange-600">
               {overallStats.avgStreak}
             </div>
             <p className="text-xs text-muted-foreground">Days average</p>
@@ -304,24 +312,30 @@ export function ChildrenProgress() {
         </Card>
       </div>
 
-      <Tabs defaultValue="subjects" className="space-y-4 mt-3">
-        <TabsList className=" overflow-x-auto flex">
-          <TabsTrigger value="subjects">Subject</TabsTrigger>
-          <TabsTrigger value="timeline">Progress</TabsTrigger>
-          <TabsTrigger value="comparison">Child</TabsTrigger>
+      <Tabs defaultValue="subjects" className="space-y-4">
+        <TabsList className="flex flex-col sm:flex-row gap-2">
+          <TabsTrigger className="flex-1 text-xs sm:text-sm" value="subjects">
+            Subject Performance
+          </TabsTrigger>
+          <TabsTrigger className="flex-1 text-xs sm:text-sm" value="timeline">
+            Progress Timeline
+          </TabsTrigger>
+          <TabsTrigger className="flex-1 text-xs sm:text-sm" value="comparison">
+            Child Comparison
+          </TabsTrigger>
         </TabsList>
 
         {/* Subjects */}
         <TabsContent
           value="subjects"
-          className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          className="grid gap-4 grid-cols-1 md:grid-cols-2">
           {getSelectedChildData().map((child) => (
             <Card key={child.id}>
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+                  <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                     <AvatarImage src={child.avatar || "/placeholder.svg"} />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-xs">
                       {child.name
                         .split(" ")
                         .map((n) => n[0])
@@ -329,59 +343,49 @@ export function ChildrenProgress() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <CardTitle className="text-base sm:text-lg truncate">
+                    <CardTitle className="text-sm sm:text-base truncate">
                       {child.name}
                     </CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">
+                    <CardDescription className="text-xs sm:text-sm truncate">
                       {child.grade} • {child.school}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {child.subjects.map((subject, index) => (
                     <div
                       key={index}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-3">
-                      {/* Left Section */}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <h4 className="font-medium">{subject.name}</h4>
-                          <div className="flex items-center gap-2">
-                            <Badge className={getGradeColor(subject.grade)}>
-                              {subject.grade}
-                            </Badge>
-                            {getTrendIcon(subject.trend)}
-                          </div>
+                      className="flex flex-col gap-3 p-3 border rounded-lg">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <h4 className="font-medium text-sm sm:text-base">
+                          {subject.name}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getGradeColor(subject.grade)}>
+                            {subject.grade}
+                          </Badge>
+                          {getTrendIcon(subject.trend)}
                         </div>
-
-                        {/* Progress + Last Score */}
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                          {/* Progress Bar */}
-                          <div className="flex-1">
-                            <div className="flex justify-between text-xs sm:text-sm mb-1">
-                              <span>Progress</span>
-                              <span>{subject.progress}%</span>
-                            </div>
-                            <Progress
-                              value={subject.progress}
-                              className="h-2"
-                            />
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex justify-between text-xs sm:text-sm mb-1">
+                            <span>Progress</span>
+                            <span>{subject.progress}%</span>
                           </div>
-
-                          {/* Last Score */}
-                          <div className="text-left sm:text-right">
-                            <div className="text-xs sm:text-sm font-medium">
-                              Last Score
-                            </div>
-                            <div
-                              className={`text-base sm:text-lg font-bold ${getGradeColor(
-                                subject.grade
-                              )}`}>
-                              {subject.lastScore}%
-                            </div>
+                          <Progress value={subject.progress} className="h-2" />
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <div className="text-xs sm:text-sm font-medium">
+                            Last Score
+                          </div>
+                          <div
+                            className={`text-sm sm:text-base font-bold ${getGradeColor(
+                              subject.grade
+                            )}`}>
+                            {subject.lastScore}%
                           </div>
                         </div>
                       </div>
@@ -393,11 +397,14 @@ export function ChildrenProgress() {
           ))}
         </TabsContent>
 
+        {/* Timeline */}
         <TabsContent value="timeline" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Learning Timeline</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-base sm:text-lg">
+                Learning Timeline
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Progress over time for selected period
               </CardDescription>
             </CardHeader>
@@ -405,8 +412,7 @@ export function ChildrenProgress() {
               <div className="space-y-6">
                 {getSelectedChildData().map((child) => (
                   <div key={child.id} className="space-y-4">
-                    {/* Header with avatar */}
-                    <h3 className="font-semibold flex items-center gap-2">
+                    <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={child.avatar || "/placeholder.svg"} />
                         <AvatarFallback className="text-xs">
@@ -418,56 +424,57 @@ export function ChildrenProgress() {
                       </Avatar>
                       {child.name}
                     </h3>
-
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0 overflow-hidden">
+                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-4">
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
-                          <Clock className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium">
+                          <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                          <span className="text-xs sm:text-sm font-medium">
                             Study Hours
                           </span>
                         </div>
-                        <div className="text-lg font-bold">
+                        <div className="text-base sm:text-lg font-bold">
                           {child.weeklyStats.hoursStudied}h
                         </div>
                         <div className="text-xs text-muted-foreground">
                           This week
                         </div>
                       </div>
-
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium">Tests</span>
+                          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                          <span className="text-xs sm:text-sm font-medium">
+                            Tests
+                          </span>
                         </div>
-                        <div className="text-lg font-bold">
+                        <div className="text-base sm:text-lg font-bold">
                           {child.weeklyStats.testsCompleted}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Completed
                         </div>
                       </div>
-
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
-                          <Target className="h-4 w-4 text-purple-600" />
-                          <span className="text-sm font-medium">Avg Score</span>
+                          <Target className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
+                          <span className="text-xs sm:text-sm font-medium">
+                            Avg Score
+                          </span>
                         </div>
-                        <div className="text-lg font-bold">
+                        <div className="text-base sm:text-lg font-bold">
                           {child.weeklyStats.averageScore}%
                         </div>
                         <div className="text-xs text-muted-foreground">
                           This period
                         </div>
                       </div>
-
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
-                          <TrendingUp className="h-4 w-4 text-orange-600" />
-                          <span className="text-sm font-medium">Streak</span>
+                          <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
+                          <span className="text-xs sm:text-sm font-medium">
+                            Streak
+                          </span>
                         </div>
-                        <div className="text-lg font-bold">
+                        <div className="text-base sm:text-lg font-bold">
                           {child.weeklyStats.streak}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -482,30 +489,31 @@ export function ChildrenProgress() {
           </Card>
         </TabsContent>
 
+        {/* Comparison */}
         <TabsContent value="comparison" className="space-y-4">
           {selectedChild === "all" && children.length > 1 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Child Comparison</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-base sm:text-lg">
+                  Child Comparison
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Compare performance across your children
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {/* Responsive grid for children */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0 overflow-hidden">
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                     {children.map((child) => (
                       <div
                         key={child.id}
                         className="p-4 border rounded-lg space-y-3 bg-background">
-                        {/* Child Info */}
                         <div className="flex items-center gap-3">
-                          <Avatar>
+                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                             <AvatarImage
                               src={child.avatar || "/placeholder.svg"}
                             />
-                            <AvatarFallback>
+                            <AvatarFallback className="text-xs">
                               {child.name
                                 .split(" ")
                                 .map((n) => n[0])
@@ -513,16 +521,16 @@ export function ChildrenProgress() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h3 className="font-semibold">{child.name}</h3>
-                            <p className="text-sm text-muted-foreground">
+                            <h3 className="font-semibold text-sm sm:text-base">
+                              {child.name}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {child.grade}
                             </p>
                           </div>
                         </div>
-
-                        {/* Average score + progress */}
                         <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-xs sm:text-sm">
                             <span>Average Score</span>
                             <span className="font-medium">
                               {child.weeklyStats.averageScore}%
@@ -533,9 +541,7 @@ export function ChildrenProgress() {
                             className="h-2"
                           />
                         </div>
-
-                        {/* Stats grid */}
-                        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
                           <div>
                             <div className="font-medium">
                               {child.weeklyStats.hoursStudied}h
@@ -567,14 +573,16 @@ export function ChildrenProgress() {
             <Card>
               <CardContent className="flex items-center justify-center h-32">
                 <div className="text-center text-muted-foreground">
-                  <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-                  <p>Select "All Children" to compare performance</p>
+                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2" />
+                  <p className="text-xs sm:text-sm">
+                    Select "All Children" to compare performance
+                  </p>
                 </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 }
