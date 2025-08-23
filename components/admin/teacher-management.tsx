@@ -41,7 +41,7 @@ export function TeacherManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedTeacher, setSelectedTeacher] = useState<any>(null)
+  const [selectedTeacher, setSelectedTeacher] = useState(null)
 
   const teachers = [
     {
@@ -136,47 +136,47 @@ export function TeacherManagement() {
     return matchesSearch && matchesSchool
   })
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status) => {
     switch (status) {
       case "Active":
         return (
-          <Badge className="bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
+          <Badge className="bg-green-100 text-green-800 flex items-center text-xs xs:text-sm">
+            <CheckCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 mr-1" />
             Active
           </Badge>
         )
       case "Suspended":
         return (
-          <Badge className="bg-red-100 text-red-800">
-            <XCircle className="w-3 h-3 mr-1" />
+          <Badge className="bg-red-100 text-red-800 flex items-center text-xs xs:text-sm">
+            <XCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 mr-1" />
             Suspended
           </Badge>
         )
       case "Pending":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800">
-            <Clock className="w-3 h-3 mr-1" />
+          <Badge className="bg-yellow-100 text-yellow-800 flex items-center text-xs xs:text-sm">
+            <Clock className="w-2.5 h-2.5 xs:w-3 xs:h-3 mr-1" />
             Pending
           </Badge>
         )
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary" className="text-xs xs:text-sm">{status}</Badge>
     }
   }
 
-  const getPerformanceColor = (performance: number) => {
+  const getPerformanceColor = (performance) => {
     if (performance >= 90) return "text-green-600"
     if (performance >= 80) return "text-blue-600"
     if (performance >= 70) return "text-yellow-600"
     return "text-red-600"
   }
 
-  const handleEditTeacher = (teacher: any) => {
+  const handleEditTeacher = (teacher) => {
     setSelectedTeacher(teacher)
     setIsEditDialogOpen(true)
   }
 
-  const handleDeleteTeacher = (teacher: any) => {
+  const handleDeleteTeacher = (teacher) => {
     setSelectedTeacher(teacher)
     setIsDeleteDialogOpen(true)
   }
@@ -188,85 +188,85 @@ export function TeacherManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 xs:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Teacher Management</h1>
-          <p className="text-muted-foreground">Manage all teachers across registered schools</p>
+          <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">Teacher Management</h1>
+          <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">Manage all teachers across registered schools</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+            <Button className="flex items-center gap-2 text-xs xs:text-sm sm:text-base">
+              <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
               Add New Teacher
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="w-[95vw] max-w-[500px] xs:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Add New Teacher</DialogTitle>
-              <DialogDescription>Register a new teacher to the platform</DialogDescription>
+              <DialogTitle className="text-base xs:text-lg sm:text-xl">Add New Teacher</DialogTitle>
+              <DialogDescription className="text-xs xs:text-sm sm:text-base">Register a new teacher to the platform</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-3 xs:gap-4 py-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="teacher-name">Full Name</Label>
-                  <Input id="teacher-name" placeholder="Enter teacher's full name" />
+                  <Label htmlFor="teacher-name" className="text-xs xs:text-sm sm:text-base">Full Name</Label>
+                  <Input id="teacher-name" placeholder="Enter teacher's full name" className="text-xs xs:text-sm sm:text-base" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="teacher-email">Email Address</Label>
-                  <Input id="teacher-email" type="email" placeholder="teacher@school.edu.ng" />
+                  <Label htmlFor="teacher-email" className="text-xs xs:text-sm sm:text-base">Email Address</Label>
+                  <Input id="teacher-email" type="email" placeholder="teacher@school.edu.ng" className="text-xs xs:text-sm sm:text-base" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="teacher-phone">Phone Number</Label>
-                  <Input id="teacher-phone" placeholder="+234 xxx xxx xxxx" />
+                  <Label htmlFor="teacher-phone" className="text-xs xs:text-sm sm:text-base">Phone Number</Label>
+                  <Input id="teacher-phone" placeholder="+234 xxx xxx xxxx" className="text-xs xs:text-sm sm:text-base" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="teacher-school">Assign to School</Label>
+                  <Label htmlFor="teacher-school" className="text-xs xs:text-sm sm:text-base">Assign to School</Label>
                   <Select>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                       <SelectValue placeholder="Select school" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="lsmc">Lagos State Model College</SelectItem>
-                      <SelectItem value="fgc">Federal Government College</SelectItem>
-                      <SelectItem value="greenfield">Greenfield Academy</SelectItem>
-                      <SelectItem value="unity">Unity High School</SelectItem>
+                      <SelectItem value="lsmc" className="text-xs xs:text-sm sm:text-base">Lagos State Model College</SelectItem>
+                      <SelectItem value="fgc" className="text-xs xs:text-sm sm:text-base">Federal Government College</SelectItem>
+                      <SelectItem value="greenfield" className="text-xs xs:text-sm sm:text-base">Greenfield Academy</SelectItem>
+                      <SelectItem value="unity" className="text-xs xs:text-sm sm:text-base">Unity High School</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="teacher-subjects">Teaching Subjects</Label>
-                <Input id="teacher-subjects" placeholder="e.g., Mathematics, Physics (comma separated)" />
+                <Label htmlFor="teacher-subjects" className="text-xs xs:text-sm sm:text-base">Teaching Subjects</Label>
+                <Input id="teacher-subjects" placeholder="e.g., Mathematics, Physics (comma separated)" className="text-xs xs:text-sm sm:text-base" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="teacher-qualification">Qualification</Label>
+                  <Label htmlFor="teacher-qualification" className="text-xs xs:text-sm sm:text-base">Qualification</Label>
                   <Select>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                       <SelectValue placeholder="Select qualification" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bsc">Bachelor's Degree</SelectItem>
-                      <SelectItem value="msc">Master's Degree</SelectItem>
-                      <SelectItem value="phd">PhD</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="bsc" className="text-xs xs:text-sm sm:text-base">Bachelor's Degree</SelectItem>
+                      <SelectItem value="msc" className="text-xs xs:text-sm sm:text-base">Master's Degree</SelectItem>
+                      <SelectItem value="phd" className="text-xs xs:text-sm sm:text-base">PhD</SelectItem>
+                      <SelectItem value="other" className="text-xs xs:text-sm sm:text-base">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="teacher-experience">Years of Experience</Label>
-                  <Input id="teacher-experience" type="number" placeholder="0" />
+                  <Label htmlFor="teacher-experience" className="text-xs xs:text-sm sm:text-base">Years of Experience</Label>
+                  <Input id="teacher-experience" type="number" placeholder="0" className="text-xs xs:text-sm sm:text-base" />
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <DialogFooter className="flex flex-col xs:flex-row gap-2 xs:gap-4">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
                 Cancel
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>Add Teacher</Button>
+              <Button onClick={() => setIsAddDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">Add Teacher</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -275,43 +275,45 @@ export function TeacherManagement() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
+          <CardTitle className="text-base xs:text-lg sm:text-xl">Search & Filter</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-3 xs:gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-2 xs:left-2.5 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
               <Input
                 placeholder="Search teachers by name, email, school, or subject..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className="pl-7 xs:pl-8 text-xs xs:text-sm sm:text-base"
               />
             </div>
-            <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by school" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Schools</SelectItem>
-                {schools.map((school) => (
-                  <SelectItem key={school} value={school}>
-                    {school}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col xs:flex-row gap-3 xs:gap-4">
+              <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="Filter by school" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">All Schools</SelectItem>
+                  {schools.map((school) => (
+                    <SelectItem key={school} value={school} className="text-xs xs:text-sm sm:text-base">
+                      {school}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select>
+                <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">All Status</SelectItem>
+                  <SelectItem value="active" className="text-xs xs:text-sm sm:text-base">Active</SelectItem>
+                  <SelectItem value="suspended" className="text-xs xs:text-sm sm:text-base">Suspended</SelectItem>
+                  <SelectItem value="pending" className="text-xs xs:text-sm sm:text-base">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -319,29 +321,29 @@ export function TeacherManagement() {
       {/* Teachers Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Teachers ({filteredTeachers.length})</CardTitle>
-          <CardDescription>Complete list of all teachers registered on the platform</CardDescription>
+          <CardTitle className="text-base xs:text-lg sm:text-xl">All Teachers ({filteredTeachers.length})</CardTitle>
+          <CardDescription className="text-xs xs:text-sm sm:text-base">Complete list of all teachers registered on the platform</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Teacher</TableHead>
-                  <TableHead>Contact Info</TableHead>
-                  <TableHead>School & Subjects</TableHead>
-                  <TableHead>Teaching Stats</TableHead>
-                  <TableHead>Performance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-xs xs:text-sm sm:text-base">Teacher</TableHead>
+                  <TableHead className="hidden md:table-cell text-xs xs:text-sm sm:text-base">Contact Info</TableHead>
+                  <TableHead className="hidden lg:table-cell text-xs xs:text-sm sm:text-base">School & Subjects</TableHead>
+                  <TableHead className="hidden md:table-cell text-xs xs:text-sm sm:text-base">Teaching Stats</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs xs:text-sm sm:text-base">Performance</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs xs:text-sm sm:text-base">Status</TableHead>
+                  <TableHead className="text-xs xs:text-sm sm:text-base w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTeachers.map((teacher) => (
                   <TableRow key={teacher.id} className="hover:bg-muted/50">
                     <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Avatar>
+                      <div className="flex items-center space-x-2 xs:space-x-3">
+                        <Avatar className="h-8 w-8 xs:h-9 xs:w-9">
                           <AvatarImage src={teacher.avatar || "/placeholder.svg"} />
                           <AvatarFallback>
                             {teacher.name
@@ -351,71 +353,106 @@ export function TeacherManagement() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{teacher.name}</div>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Calendar className="mr-1 h-3 w-3" />
+                          <div className="font-medium text-xs xs:text-sm sm:text-base">{teacher.name}</div>
+                          <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                            <Calendar className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Joined {teacher.joinDate}
+                          </div>
+                          <div className="sm:hidden space-y-1 mt-2">
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm">
+                              <Mail className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {teacher.email}
+                            </div>
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm">
+                              <Phone className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {teacher.phone}
+                            </div>
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                              <Building2 className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {teacher.school}
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {teacher.subjects.map((subject, index) => (
+                                <Badge key={index} variant="secondary" className="text-[0.65rem] xs:text-xs">
+                                  {subject}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm">
+                              <Users className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {teacher.students} students
+                            </div>
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm">
+                              <BookOpen className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {teacher.courses} courses
+                            </div>
+                            <div className={`text-[0.65rem] xs:text-xs sm:text-sm font-medium ${getPerformanceColor(teacher.performance)}`}>
+                              {teacher.performance}%
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {getStatusBadge(teacher.status)}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm">
-                          <Mail className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm">
+                          <Mail className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {teacher.email}
                         </div>
-                        <div className="flex items-center text-sm">
-                          <Phone className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm">
+                          <Phone className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {teacher.phone}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm font-medium">
-                          <Building2 className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm font-medium">
+                          <Building2 className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {teacher.school}
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {teacher.subjects.map((subject, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
+                            <Badge key={index} variant="secondary" className="text-xs xs:text-sm">
                               {subject}
                             </Badge>
                           ))}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm">
-                          <Users className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm">
+                          <Users className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {teacher.students} students
                         </div>
-                        <div className="flex items-center text-sm">
-                          <BookOpen className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm">
+                          <BookOpen className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {teacher.courses} courses
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className={`text-sm font-medium ${getPerformanceColor(teacher.performance)}`}>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className={`text-xs xs:text-sm font-medium ${getPerformanceColor(teacher.performance)}`}>
                         {teacher.performance}%
                       </div>
                     </TableCell>
-                    <TableCell>{getStatusBadge(teacher.status)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{getStatusBadge(teacher.status)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditTeacher(teacher)}>
-                          <Edit className="h-4 w-4" />
+                      <div className="flex items-center gap-1 xs:gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditTeacher(teacher)} className="p-1 xs:p-2">
+                          <Edit className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700"
+                          className="p-1 xs:p-2 text-red-600 hover:text-red-700"
                           onClick={() => handleDeleteTeacher(teacher)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -428,88 +465,88 @@ export function TeacherManagement() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
-            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Total Teachers</CardTitle>
+            <GraduationCap className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.length}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold">{teachers.length}</div>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
               {teachers.filter((t) => t.status === "Active").length} active teachers
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Total Students</CardTitle>
+            <Users className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold">
               {teachers.reduce((sum, teacher) => sum + teacher.students, 0).toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">Students being taught</p>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Students being taught</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Courses</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Total Courses</CardTitle>
+            <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.reduce((sum, teacher) => sum + teacher.courses, 0)}</div>
-            <p className="text-xs text-muted-foreground">Active courses</p>
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold">{teachers.reduce((sum, teacher) => sum + teacher.courses, 0)}</div>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Active courses</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Performance</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Avg Performance</CardTitle>
+            <CheckCircle className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">
               {Math.round(teachers.reduce((sum, teacher) => sum + teacher.performance, 0) / teachers.length)}%
             </div>
-            <p className="text-xs text-muted-foreground">Platform average</p>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Platform average</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Edit Teacher Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-[500px] xs:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Edit Teacher</DialogTitle>
-            <DialogDescription>Update teacher information</DialogDescription>
+            <DialogTitle className="text-base xs:text-lg sm:text-xl">Edit Teacher</DialogTitle>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">Update teacher information</DialogDescription>
           </DialogHeader>
           {selectedTeacher && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-3 xs:gap-4 py-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label>Full Name</Label>
-                  <Input defaultValue={selectedTeacher.name} />
+                  <Label className="text-xs xs:text-sm sm:text-base">Full Name</Label>
+                  <Input defaultValue={selectedTeacher.name} className="text-xs xs:text-sm sm:text-base" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email Address</Label>
-                  <Input defaultValue={selectedTeacher.email} />
+                  <Label className="text-xs xs:text-sm sm:text-base">Email Address</Label>
+                  <Input defaultValue={selectedTeacher.email} className="text-xs xs:text-sm sm:text-base" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input defaultValue={selectedTeacher.phone} />
+                  <Label className="text-xs xs:text-sm sm:text-base">Phone Number</Label>
+                  <Input defaultValue={selectedTeacher.phone} className="text-xs xs:text-sm sm:text-base" />
                 </div>
                 <div className="space-y-2">
-                  <Label>School</Label>
+                  <Label className="text-xs xs:text-sm sm:text-base">School</Label>
                   <Select defaultValue={selectedTeacher.school}>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {schools.map((school) => (
-                        <SelectItem key={school} value={school}>
+                        <SelectItem key={school} value={school} className="text-xs xs:text-sm sm:text-base">
                           {school}
                         </SelectItem>
                       ))}
@@ -518,13 +555,13 @@ export function TeacherManagement() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Teaching Subjects</Label>
-                <Input defaultValue={selectedTeacher.subjects.join(", ")} />
+                <Label className="text-xs xs:text-sm sm:text-base">Teaching Subjects</Label>
+                <Input defaultValue={selectedTeacher.subjects.join(", ")} className="text-xs xs:text-sm sm:text-base" />
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+          <DialogFooter className="flex flex-col xs:flex-row gap-2 xs:gap-4">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
               Cancel
             </Button>
             <Button
@@ -532,6 +569,7 @@ export function TeacherManagement() {
                 setIsEditDialogOpen(false)
                 alert("Teacher updated successfully!")
               }}
+              className="text-xs xs:text-sm sm:text-base"
             >
               Save Changes
             </Button>
@@ -541,18 +579,18 @@ export function TeacherManagement() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-[500px] xs:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Delete Teacher</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base xs:text-lg sm:text-xl">Delete Teacher</DialogTitle>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">
               Are you sure you want to delete {selectedTeacher?.name}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="flex flex-col xs:flex-row gap-2 xs:gap-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button variant="destructive" onClick={confirmDelete} className="text-xs xs:text-sm sm:text-base">
               Delete Teacher
             </Button>
           </DialogFooter>

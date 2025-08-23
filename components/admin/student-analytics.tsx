@@ -365,34 +365,34 @@ export function StudentAnalytics() {
     },
   ]
 
-  const handleViewCourseDetails = (course: any) => {
+  const handleViewCourseDetails = (course: CourseDetail) => {
     setSelectedCourse(course)
     setIsCourseModalOpen(true)
   }
 
-  const handleViewTestDetails = (test: any) => {
+  const handleViewTestDetails = (test: TestDetail) => {
     setSelectedTest(test)
     setIsTestModalOpen(true)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Student Analytics</h1>
-        <p className="text-muted-foreground">Monitor student progress and performance across all courses</p>
+        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">Student Analytics</h1>
+        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">Monitor student progress and performance across all courses</p>
       </div>
 
       {/* Overall Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {overallStats.map((stat, index) => (
           <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
+              <CardTitle className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">{stat.title}</CardTitle>
+              <stat.icon className={`h-3 w-3 xs:h-4 xs:w-4 ${stat.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-lg xs:text-xl sm:text-2xl font-bold">{stat.value}</div>
+              <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                 <span className="text-green-600">{stat.change}</span> from last month
               </p>
             </CardContent>
@@ -401,64 +401,64 @@ export function StudentAnalytics() {
       </div>
 
       <Tabs defaultValue="courses" className="w-full">
-        <TabsList>
-          <TabsTrigger value="courses">Course Performance</TabsTrigger>
-          <TabsTrigger value="students">Top Students</TabsTrigger>
-          <TabsTrigger value="tests">Test Analytics</TabsTrigger>
-          <TabsTrigger value="engagement">Engagement</TabsTrigger>
+        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full">
+          <TabsTrigger value="courses" className="text-[0.65rem] xs:text-xs sm:text-sm">Course Performance</TabsTrigger>
+          <TabsTrigger value="students" className="text-[0.65rem] xs:text-xs sm:text-sm">Top Students</TabsTrigger>
+          <TabsTrigger value="tests" className="text-[0.65rem] xs:text-xs sm:text-sm">Test Analytics</TabsTrigger>
+          <TabsTrigger value="engagement" className="text-[0.65rem] xs:text-xs sm:text-sm">Engagement</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="courses" className="space-y-6">
+        <TabsContent value="courses" className="space-y-3 xs:space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Course Performance Overview</CardTitle>
-              <CardDescription>Detailed analytics for each course</CardDescription>
+              <CardTitle className="text-sm xs:text-base sm:text-lg">Course Performance Overview</CardTitle>
+              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Detailed analytics for each course</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 xs:space-y-4">
                 {coursePerformance.map((course, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
+                  <div key={index} className="p-2 xs:p-3 sm:p-4 border rounded-lg">
+                    <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
                       <div>
-                        <h4 className="font-medium">{course.name}</h4>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{course.name}</h4>
+                        <div className="flex items-center flex-wrap gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
+                            <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             {course.students} students
                           </div>
                           <div className="flex items-center gap-1">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
                             {course.rating}
                           </div>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => handleViewCourseDetails(course)}>
-                        <Eye className="mr-2 h-3 w-3" />
+                      <Button variant="outline" size="sm" className="mt-2 xs:mt-0 text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => handleViewCourseDetails(course)}>
+                        <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 xs:gap-4">
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
                           <span>Avg Progress</span>
                           <span>{course.avgProgress}%</span>
                         </div>
-                        <Progress value={course.avgProgress} className="h-2" />
+                        <Progress value={course.avgProgress} className="h-1.5 xs:h-2" />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
                           <span>Avg Score</span>
                           <span>{course.avgScore}%</span>
                         </div>
-                        <Progress value={course.avgScore} className="h-2" />
+                        <Progress value={course.avgScore} className="h-1.5 xs:h-2" />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
                           <span>Completion Rate</span>
                           <span>{course.completionRate}%</span>
                         </div>
-                        <Progress value={course.completionRate} className="h-2" />
+                        <Progress value={course.completionRate} className="h-1.5 xs:h-2" />
                       </div>
                     </div>
                   </div>
@@ -468,27 +468,27 @@ export function StudentAnalytics() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="students" className="space-y-6">
+        <TabsContent value="students" className="space-y-3 xs:space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Top Performing Students</CardTitle>
-              <CardDescription>Students with highest engagement and performance</CardDescription>
+              <CardTitle className="text-sm xs:text-base sm:text-lg">Top Performing Students</CardTitle>
+              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Students with highest engagement and performance</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 xs:space-y-4">
                 {topStudents.map((student, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="font-medium text-primary">#{index + 1}</span>
+                  <div key={index} className="flex flex-col xs:flex-row items-start xs:items-center justify-between p-2 xs:p-3 sm:p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 xs:gap-3">
+                      <div className="w-8 h-8 xs:w-10 xs:h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="font-medium text-primary text-[0.65rem] xs:text-xs sm:text-sm">#{index + 1}</span>
                       </div>
                       <div>
-                        <h4 className="font-medium">{student.name}</h4>
-                        <p className="text-sm text-muted-foreground">Last active: {student.lastActive}</p>
+                        <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{student.name}</h4>
+                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Last active: {student.lastActive}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="mt-2 xs:mt-0 text-right">
+                      <div className="grid grid-cols-3 gap-2 xs:gap-3 sm:gap-4 text-[0.65rem] xs:text-xs sm:text-sm">
                         <div>
                           <div className="font-medium">{student.coursesCompleted}</div>
                           <div className="text-muted-foreground">Courses</div>
@@ -510,20 +510,20 @@ export function StudentAnalytics() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="tests" className="space-y-6">
+        <TabsContent value="tests" className="space-y-3 xs:space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Test Performance Analytics</CardTitle>
-              <CardDescription>Detailed breakdown of test results and difficulty analysis</CardDescription>
+              <CardTitle className="text-sm xs:text-base sm:text-lg">Test Performance Analytics</CardTitle>
+              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Detailed breakdown of test results and difficulty analysis</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 xs:space-y-4">
                 {testAnalytics.map((test, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
+                  <div key={index} className="p-2 xs:p-3 sm:p-4 border rounded-lg">
+                    <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
                       <div>
-                        <h4 className="font-medium">{test.name}</h4>
-                        <div className="flex items-center gap-2 mt-1">
+                        <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{test.name}</h4>
+                        <div className="flex items-center flex-wrap gap-1 xs:gap-2 mt-0.5 xs:mt-1">
                           <Badge
                             variant={
                               test.difficulty === "Easy"
@@ -532,32 +532,33 @@ export function StudentAnalytics() {
                                   ? "secondary"
                                   : "destructive"
                             }
+                            className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
                           >
                             {test.difficulty}
                           </Badge>
-                          <span className="text-sm text-muted-foreground">{test.attempts} attempts</span>
+                          <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">{test.attempts} attempts</span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => handleViewTestDetails(test)}>
-                        <BarChart3 className="mr-2 h-3 w-3" />
+                      <Button variant="outline" size="sm" className="mt-2 xs:mt-0 text-[0.65rem] xs:text-xs sm:text-sm" onClick={() => handleViewTestDetails(test)}>
+                        <BarChart3 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
                           <span>Average Score</span>
                           <span>{test.avgScore}%</span>
                         </div>
-                        <Progress value={test.avgScore} className="h-2" />
+                        <Progress value={test.avgScore} className="h-1.5 xs:h-2" />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
                           <span>Pass Rate</span>
                           <span>{test.passRate}%</span>
                         </div>
-                        <Progress value={test.passRate} className="h-2" />
+                        <Progress value={test.passRate} className="h-1.5 xs:h-2" />
                       </div>
                     </div>
                   </div>
@@ -567,15 +568,15 @@ export function StudentAnalytics() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="engagement" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
+        <TabsContent value="engagement" className="space-y-3 xs:space-y-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Weekly Activity</CardTitle>
-                <CardDescription>Student engagement over the past week</CardDescription>
+                <CardTitle className="text-sm xs:text-base sm:text-lg">Weekly Activity</CardTitle>
+                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Student engagement over the past week</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-2 xs:space-y-3">
                   {[
                     { day: "Monday", active: 234, hours: "2.3h" },
                     { day: "Tuesday", active: 189, hours: "1.8h" },
@@ -586,11 +587,11 @@ export function StudentAnalytics() {
                     { day: "Sunday", active: 123, hours: "1.2h" },
                   ].map((day, index) => (
                     <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-primary rounded-full" />
-                        <span className="text-sm font-medium">{day.day}</span>
+                      <div className="flex items-center gap-2 xs:gap-3">
+                        <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-primary rounded-full" />
+                        <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">{day.day}</span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 xs:gap-3 sm:gap-4 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                         <span>{day.active} active students</span>
                         <span>{day.hours} avg study time</span>
                       </div>
@@ -602,11 +603,11 @@ export function StudentAnalytics() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Popular Content</CardTitle>
-                <CardDescription>Most accessed materials this month</CardDescription>
+                <CardTitle className="text-sm xs:text-base sm:text-lg">Popular Content</CardTitle>
+                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Most accessed materials this month</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-2 xs:space-y-3">
                   {[
                     { title: "React Hooks Tutorial", views: 1234, type: "Video" },
                     { title: "Python Cheat Sheet", downloads: 890, type: "PDF" },
@@ -614,20 +615,20 @@ export function StudentAnalytics() {
                     { title: "CSS Grid Guide", views: 645, type: "Tutorial" },
                     { title: "Database Design Principles", views: 523, type: "Video" },
                   ].map((content, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-2 xs:p-3 border rounded-lg">
                       <div>
-                        <h5 className="font-medium text-sm">{content.title}</h5>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
+                        <h5 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{content.title}</h5>
+                        <div className="flex items-center gap-1 xs:gap-2 mt-0.5 xs:mt-1">
+                          <Badge variant="outline" className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                             {content.type}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                             {content.views ? `${content.views} views` : `${content.downloads} downloads`}
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">#{index + 1}</div>
+                        <div className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">#{index + 1}</div>
                       </div>
                     </div>
                   ))}
@@ -638,22 +639,22 @@ export function StudentAnalytics() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Learning Patterns</CardTitle>
-              <CardDescription>Insights into how students learn best</CardDescription>
+              <CardTitle className="text-sm xs:text-base sm:text-lg">Learning Patterns</CardTitle>
+              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Insights into how students learn best</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-6 md:grid-cols-3">
+              <div className="grid gap-3 xs:gap-4 grid-cols-1 xs:grid-cols-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">68%</div>
-                  <p className="text-sm text-muted-foreground">Prefer video content</p>
+                  <div className="text-lg xs:text-xl sm:text-2xl font-bold text-blue-600">68%</div>
+                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Prefer video content</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">4.2h</div>
-                  <p className="text-sm text-muted-foreground">Average session length</p>
+                  <div className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">4.2h</div>
+                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Average session length</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">Evening</div>
-                  <p className="text-sm text-muted-foreground">Peak learning time</p>
+                  <div className="text-lg xs:text-xl sm:text-2xl font-bold text-purple-600">Evening</div>
+                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Peak learning time</p>
                 </div>
               </div>
             </CardContent>
@@ -663,59 +664,59 @@ export function StudentAnalytics() {
 
       {/* Course Details Modal */}
       <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-sm xs:text-base sm:text-lg">
+              <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
               {selectedCourse?.name} - Detailed Analytics
             </DialogTitle>
-            <DialogDescription>Comprehensive performance analysis and student insights</DialogDescription>
+            <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Comprehensive performance analysis and student insights</DialogDescription>
           </DialogHeader>
 
           {selectedCourse && (
-            <div className="space-y-6">
+            <div className="space-y-3 xs:space-y-4">
               {/* Course Overview */}
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-blue-500" />
+                      <Users className="h-3 w-3 xs:h-4 xs:w-4 text-blue-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedCourse.students}</div>
-                        <div className="text-xs text-muted-foreground">Total Students</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedCourse.students}</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Total Students</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 text-green-500" />
+                      <Target className="h-3 w-3 xs:h-4 xs:w-4 text-green-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedCourse.avgProgress}%</div>
-                        <div className="text-xs text-muted-foreground">Avg Progress</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedCourse.avgProgress}%</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Avg Progress</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-yellow-500" />
+                      <Star className="h-3 w-3 xs:h-4 xs:w-4 text-yellow-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedCourse.avgScore}%</div>
-                        <div className="text-xs text-muted-foreground">Avg Score</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedCourse.avgScore}%</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Avg Score</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-purple-500" />
+                      <CheckCircle className="h-3 w-3 xs:h-4 xs:w-4 text-purple-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedCourse.completionRate}%</div>
-                        <div className="text-xs text-muted-foreground">Completion Rate</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedCourse.completionRate}%</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Completion Rate</div>
                       </div>
                     </div>
                   </CardContent>
@@ -725,23 +726,23 @@ export function StudentAnalytics() {
               {/* Weekly Activity */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Weekly Activity Pattern</CardTitle>
+                  <CardTitle className="text-sm xs:text-base sm:text-lg">Weekly Activity Pattern</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-2 xs:space-y-3">
                     {selectedCourse.weeklyActivity.map((day, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded">
-                        <div className="flex items-center gap-3">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{day.day}</span>
+                      <div key={index} className="flex items-center justify-between p-2 xs:p-3 border rounded">
+                        <div className="flex items-center gap-2 xs:gap-3">
+                          <Calendar className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
+                          <span className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{day.day}</span>
                         </div>
-                        <div className="flex items-center gap-6 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-3 w-3" />
+                        <div className="flex items-center gap-3 xs:gap-4 sm:gap-6 text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                          <div className="flex items-center gap-1 xs:gap-2">
+                            <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             <span>{day.active} active</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
+                          <div className="flex items-center gap-1 xs:gap-2">
+                            <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             <span>{day.hours} avg time</span>
                           </div>
                         </div>
@@ -752,22 +753,22 @@ export function StudentAnalytics() {
               </Card>
 
               {/* Top Performers and Struggling Students */}
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-green-600">Top Performers</CardTitle>
+                    <CardTitle className="text-sm xs:text-base sm:text-lg text-green-600">Top Performers</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="space-y-2 xs:space-y-3">
                       {selectedCourse.topPerformers.map((student, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-medium text-green-700">#{index + 1}</span>
+                        <div key={index} className="flex items-center justify-between p-2 xs:p-3 bg-green-50 rounded">
+                          <div className="flex items-center gap-2 xs:gap-3">
+                            <div className="w-6 h-6 xs:w-8 xs:h-8 bg-green-100 rounded-full flex items-center justify-center">
+                              <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs font-medium text-green-700">#{index + 1}</span>
                             </div>
-                            <span className="font-medium">{student.name}</span>
+                            <span className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{student.name}</span>
                           </div>
-                          <div className="text-right text-sm">
+                          <div className="text-right text-[0.65rem] xs:text-xs sm:text-sm">
                             <div className="font-medium text-green-600">{student.score}% score</div>
                             <div className="text-muted-foreground">{student.progress}% progress</div>
                           </div>
@@ -779,17 +780,17 @@ export function StudentAnalytics() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-red-600">Students Needing Help</CardTitle>
+                    <CardTitle className="text-sm xs:text-base sm:text-lg text-red-600">Students Needing Help</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="space-y-2 xs:space-y-3">
                       {selectedCourse.strugglingStudents.map((student, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded">
+                        <div key={index} className="flex items-center justify-between p-2 xs:p-3 bg-red-50 rounded">
                           <div>
-                            <div className="font-medium">{student.name}</div>
-                            <div className="text-xs text-muted-foreground">Last active: {student.lastActive}</div>
+                            <div className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">{student.name}</div>
+                            <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Last active: {student.lastActive}</div>
                           </div>
-                          <div className="text-right text-sm">
+                          <div className="text-right text-[0.65rem] xs:text-xs sm:text-sm">
                             <div className="font-medium text-red-600">{student.score}% score</div>
                             <div className="text-muted-foreground">{student.progress}% progress</div>
                           </div>
@@ -806,59 +807,59 @@ export function StudentAnalytics() {
 
       {/* Test Details Modal */}
       <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-sm xs:text-base sm:text-lg">
+              <BarChart3 className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
               {selectedTest?.name} - Test Analytics
             </DialogTitle>
-            <DialogDescription>Detailed analysis of test performance and student responses</DialogDescription>
+            <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">Detailed analysis of test performance and student responses</DialogDescription>
           </DialogHeader>
 
           {selectedTest && (
-            <div className="space-y-6">
+            <div className="space-y-3 xs:space-y-4">
               {/* Test Overview */}
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-blue-500" />
+                      <Users className="h-3 w-3 xs:h-4 xs:w-4 text-blue-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedTest.attempts}</div>
-                        <div className="text-xs text-muted-foreground">Total Attempts</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedTest.attempts}</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Total Attempts</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 text-green-500" />
+                      <Target className="h-3 w-3 xs:h-4 xs:w-4 text-green-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedTest.avgScore}%</div>
-                        <div className="text-xs text-muted-foreground">Average Score</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedTest.avgScore}%</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Average Score</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-purple-500" />
+                      <CheckCircle className="h-3 w-3 xs:h-4 xs:w-4 text-purple-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedTest.passRate}%</div>
-                        <div className="text-xs text-muted-foreground">Pass Rate</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedTest.passRate}%</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Pass Rate</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 xs:p-4">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-orange-500" />
+                      <Clock className="h-3 w-3 xs:h-4 xs:w-4 text-orange-500" />
                       <div>
-                        <div className="text-2xl font-bold">{selectedTest.questions}</div>
-                        <div className="text-xs text-muted-foreground">Questions</div>
+                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">{selectedTest.questions}</div>
+                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">Questions</div>
                       </div>
                     </div>
                   </CardContent>
@@ -868,10 +869,10 @@ export function StudentAnalytics() {
               {/* Test Details */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Test Configuration</CardTitle>
+                  <CardTitle className="text-sm xs:text-base sm:text-lg">Test Configuration</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-3 xs:gap-4 grid-cols-1 xs:grid-cols-3">
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={
@@ -881,18 +882,19 @@ export function StudentAnalytics() {
                               ? "secondary"
                               : "destructive"
                         }
+                        className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
                       >
                         {selectedTest.difficulty}
                       </Badge>
-                      <span className="text-sm">Difficulty Level</span>
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">Difficulty Level</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-sm">{selectedTest.timeLimit}</span>
+                      <Clock className="h-3 w-3 xs:h-4 xs:w-4" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{selectedTest.timeLimit}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <BookOpen className="h-4 w-4" />
-                      <span className="text-sm">{selectedTest.questions} Questions</span>
+                      <BookOpen className="h-3 w-3 xs:h-4 xs:w-4" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{selectedTest.questions} Questions</span>
                     </div>
                   </div>
                 </CardContent>
@@ -901,21 +903,21 @@ export function StudentAnalytics() {
               {/* Score Distribution */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Score Distribution</CardTitle>
+                  <CardTitle className="text-sm xs:text-base sm:text-lg">Score Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-2 xs:space-y-3">
                     {selectedTest.scoreDistribution.map((range, index) => (
                       <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{range.range}%</span>
-                        <div className="flex items-center gap-3 flex-1 ml-4">
-                          <div className="flex-1 bg-muted rounded-full h-2">
+                        <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">{range.range}%</span>
+                        <div className="flex items-center gap-2 xs:gap-3 flex-1 ml-2 xs:ml-4">
+                          <div className="flex-1 bg-muted rounded-full h-1.5 xs:h-2">
                             <div
-                              className="bg-primary h-2 rounded-full"
+                              className="bg-primary h-1.5 xs:h-2 rounded-full"
                               style={{ width: `${(range.count / selectedTest.attempts) * 100}%` }}
                             />
                           </div>
-                          <span className="text-sm text-muted-foreground w-12 text-right">{range.count}</span>
+                          <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground w-10 xs:w-12 text-right">{range.count}</span>
                         </div>
                       </div>
                     ))}
@@ -924,20 +926,20 @@ export function StudentAnalytics() {
               </Card>
 
               {/* Common Mistakes and Performance by Time */}
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-red-600">Common Mistakes</CardTitle>
+                    <CardTitle className="text-sm xs:text-base sm:text-lg text-red-600">Common Mistakes</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="space-y-2 xs:space-y-3">
                       {selectedTest.commonMistakes.map((mistake, index) => (
                         <div key={index} className="space-y-2">
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
                             <span className="font-medium">{mistake.question}</span>
                             <span className="text-red-600">{mistake.incorrectRate}%</span>
                           </div>
-                          <Progress value={mistake.incorrectRate} className="h-2" />
+                          <Progress value={mistake.incorrectRate} className="h-1.5 xs:h-2" />
                         </div>
                       ))}
                     </div>
@@ -946,17 +948,17 @@ export function StudentAnalytics() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Performance by Time</CardTitle>
+                    <CardTitle className="text-sm xs:text-base sm:text-lg">Performance by Time</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="space-y-2 xs:space-y-3">
                       {selectedTest.performanceByTime.map((time, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 border rounded">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
-                            <span className="text-sm font-medium">{time.hour}</span>
+                        <div key={index} className="flex items-center justify-between p-1 xs:p-2 border rounded">
+                          <div className="flex items-center gap-1 xs:gap-2">
+                            <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">{time.hour}</span>
                           </div>
-                          <div className="text-right text-sm">
+                          <div className="text-right text-[0.65rem] xs:text-xs sm:text-sm">
                             <div className="font-medium">{time.avgScore}% avg</div>
                             <div className="text-muted-foreground">{time.attempts} attempts</div>
                           </div>

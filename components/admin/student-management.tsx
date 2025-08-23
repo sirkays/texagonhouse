@@ -38,7 +38,7 @@ export function StudentManagement() {
   const [selectedSchool, setSelectedSchool] = useState("all")
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [selectedStudent, setSelectedStudent] = useState(null)
 
   const students = [
     {
@@ -159,12 +159,12 @@ export function StudentManagement() {
     alert("Student data exported successfully!")
   }
 
-  const handleEditStudent = (student: any) => {
+  const handleEditStudent = (student) => {
     setSelectedStudent(student)
     setIsEditDialogOpen(true)
   }
 
-  const handleDeleteStudent = (student: any) => {
+  const handleDeleteStudent = (student) => {
     setSelectedStudent(student)
     setIsDeleteDialogOpen(true)
   }
@@ -175,62 +175,62 @@ export function StudentManagement() {
     setSelectedStudent(null)
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status) => {
     switch (status) {
       case "Active":
         return (
-          <Badge className="bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
+          <Badge className="bg-green-100 text-green-800 flex items-center text-xs xs:text-sm">
+            <CheckCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 mr-1" />
             Active
           </Badge>
         )
       case "Suspended":
         return (
-          <Badge className="bg-red-100 text-red-800">
-            <XCircle className="w-3 h-3 mr-1" />
+          <Badge className="bg-red-100 text-red-800 flex items-center text-xs xs:text-sm">
+            <XCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 mr-1" />
             Suspended
           </Badge>
         )
       case "Inactive":
         return (
-          <Badge className="bg-gray-100 text-gray-800">
-            <Clock className="w-3 h-3 mr-1" />
+          <Badge className="bg-gray-100 text-gray-800 flex items-center text-xs xs:text-sm">
+            <Clock className="w-2.5 h-2.5 xs:w-3 xs:h-3 mr-1" />
             Inactive
           </Badge>
         )
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary" className="text-xs xs:text-sm">{status}</Badge>
     }
   }
 
-  const getSubscriptionBadge = (subscription: string) => {
+  const getSubscriptionBadge = (subscription) => {
     return subscription === "Premium" ? (
-      <Badge className="bg-gold-100 text-gold-800">Premium</Badge>
+      <Badge className="bg-yellow-100 text-yellow-800 text-xs xs:text-sm">Premium</Badge>
     ) : (
-      <Badge variant="secondary">Basic</Badge>
+      <Badge variant="secondary" className="text-xs xs:text-sm">Basic</Badge>
     )
   }
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score) => {
     if (score >= 90) return "text-green-600"
     if (score >= 80) return "text-blue-600"
     if (score >= 70) return "text-yellow-600"
     return "text-red-600"
   }
 
-  const getProgressPercentage = (completed: number, total: number) => {
+  const getProgressPercentage = (completed, total) => {
     return Math.round((completed / total) * 100)
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 xs:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Student Management</h1>
-          <p className="text-muted-foreground">Monitor and manage all students across the platform</p>
+          <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">Student Management</h1>
+          <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">Monitor and manage all students across the platform</p>
         </div>
-        <Button className="flex items-center gap-2" onClick={handleExportStudentData}>
-          <Users className="h-4 w-4" />
+        <Button className="flex items-center gap-2 text-xs xs:text-sm sm:text-base" onClick={handleExportStudentData}>
+          <Users className="h-3 w-3 xs:h-4 xs:w-4" />
           Export Student Data
         </Button>
       </div>
@@ -238,54 +238,56 @@ export function StudentManagement() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
+          <CardTitle className="text-base xs:text-lg sm:text-xl">Search & Filter</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-3 xs:gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-2 xs:left-2.5 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
               <Input
                 placeholder="Search students by name, email, school, or grade..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className="pl-7 xs:pl-8 text-xs xs:text-sm sm:text-base"
               />
             </div>
-            <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by school" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Schools</SelectItem>
-                {schools.map((school) => (
-                  <SelectItem key={school} value={school}>
-                    {school}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by grade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Grades</SelectItem>
-                <SelectItem value="ss1">SS1</SelectItem>
-                <SelectItem value="ss2">SS2</SelectItem>
-                <SelectItem value="ss3">SS3</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col xs:flex-row gap-3 xs:gap-4">
+              <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="Filter by school" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">All Schools</SelectItem>
+                  {schools.map((school) => (
+                    <SelectItem key={school} value={school} className="text-xs xs:text-sm sm:text-base">
+                      {school}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select>
+                <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="Filter by grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">All Grades</SelectItem>
+                  <SelectItem value="ss1" className="text-xs xs:text-sm sm:text-base">SS1</SelectItem>
+                  <SelectItem value="ss2" className="text-xs xs:text-sm sm:text-base">SS2</SelectItem>
+                  <SelectItem value="ss3" className="text-xs xs:text-sm sm:text-base">SS3</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select>
+                <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">All Status</SelectItem>
+                  <SelectItem value="active" className="text-xs xs:text-sm sm:text-base">Active</SelectItem>
+                  <SelectItem value="suspended" className="text-xs xs:text-sm sm:text-base">Suspended</SelectItem>
+                  <SelectItem value="inactive" className="text-xs xs:text-sm sm:text-base">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -293,30 +295,30 @@ export function StudentManagement() {
       {/* Students Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Students ({filteredStudents.length})</CardTitle>
-          <CardDescription>Complete list of all students registered on the platform</CardDescription>
+          <CardTitle className="text-base xs:text-lg sm:text-xl">All Students ({filteredStudents.length})</CardTitle>
+          <CardDescription className="text-xs xs:text-sm sm:text-base">Complete list of all students registered on the platform</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>School & Grade</TableHead>
-                  <TableHead>Learning Progress</TableHead>
-                  <TableHead>Performance</TableHead>
-                  <TableHead>Subscription</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-xs xs:text-sm sm:text-base">Student</TableHead>
+                  <TableHead className="hidden md:table-cell text-xs xs:text-sm sm:text-base">School & Grade</TableHead>
+                  <TableHead className="hidden lg:table-cell text-xs xs:text-sm sm:text-base">Learning Progress</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs xs:text-sm sm:text-base">Performance</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs xs:text-sm sm:text-base">Subscription</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs xs:text-sm sm:text-base">Status</TableHead>
+                  <TableHead className="hidden md:table-cell text-xs xs:text-sm sm:text-base">Last Active</TableHead>
+                  <TableHead className="text-xs xs:text-sm sm:text-base w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudents.map((student) => (
                   <TableRow key={student.id} className="hover:bg-muted/50">
                     <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Avatar>
+                      <div className="flex items-center space-x-2 xs:space-x-3">
+                        <Avatar className="h-8 w-8 xs:h-9 xs:w-9">
                           <AvatarImage src={student.avatar || "/placeholder.svg"} />
                           <AvatarFallback>
                             {student.name
@@ -326,63 +328,91 @@ export function StudentManagement() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{student.name}</div>
-                          <div className="text-sm text-muted-foreground">{student.email}</div>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Calendar className="mr-1 h-3 w-3" />
+                          <div className="font-medium text-xs xs:text-sm sm:text-base">{student.name}</div>
+                          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">{student.email}</div>
+                          <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                            <Calendar className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Joined {student.joinDate}
+                          </div>
+                          <div className="sm:hidden space-y-1 mt-2">
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                              <Building2 className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {student.school}
+                            </div>
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm">
+                              <GraduationCap className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              Grade {student.grade}
+                            </div>
+                            <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm">
+                              <BookOpen className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {student.completedCourses}/{student.courses} courses
+                            </div>
+                            <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                              {getProgressPercentage(student.completedCourses, student.courses)}% complete
+                            </div>
+                            <div className="flex items-center gap-1 text-[0.65rem] xs:text-xs sm:text-sm">
+                              <Trophy className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              <span className={`font-medium ${getScoreColor(student.averageScore)}`}>
+                                {student.averageScore}%
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {getSubscriptionBadge(student.subscription)}
+                              {getStatusBadge(student.status)}
+                            </div>
+                            <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">{student.lastActive}</div>
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm font-medium">
-                          <Building2 className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm font-medium">
+                          <Building2 className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {student.school}
                         </div>
-                        <div className="flex items-center text-sm">
-                          <GraduationCap className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm">
+                          <GraduationCap className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           Grade {student.grade}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm">
-                          <BookOpen className="mr-1 h-3 w-3" />
+                        <div className="flex items-center text-xs xs:text-sm">
+                          <BookOpen className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {student.completedCourses}/{student.courses} courses
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs xs:text-sm text-muted-foreground">
                           {getProgressPercentage(student.completedCourses, student.courses)}% complete
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Trophy className="h-3 w-3" />
-                        <span className={`text-sm font-medium ${getScoreColor(student.averageScore)}`}>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="flex items-center gap-1 xs:gap-2 text-xs xs:text-sm">
+                        <Trophy className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        <span className={`font-medium ${getScoreColor(student.averageScore)}`}>
                           {student.averageScore}%
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{getSubscriptionBadge(student.subscription)}</TableCell>
-                    <TableCell>{getStatusBadge(student.status)}</TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground">{student.lastActive}</div>
+                    <TableCell className="hidden sm:table-cell">{getSubscriptionBadge(student.subscription)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{getStatusBadge(student.status)}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <div className="text-xs xs:text-sm text-muted-foreground">{student.lastActive}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditStudent(student)}>
-                          <Edit className="h-4 w-4" />
+                      <div className="flex items-center gap-1 xs:gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditStudent(student)} className="p-1 xs:p-2">
+                          <Edit className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700"
+                          className="p-1 xs:p-2 text-red-600 hover:text-red-700"
                           onClick={() => handleDeleteStudent(student)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -395,38 +425,38 @@ export function StudentManagement() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Total Students</CardTitle>
+            <Users className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.length}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold">{students.length}</div>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
               {students.filter((s) => s.status === "Active").length} active students
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Performance</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Avg Performance</CardTitle>
+            <Trophy className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">
               {Math.round(students.reduce((sum, student) => sum + student.averageScore, 0) / students.length)}%
             </div>
-            <p className="text-xs text-muted-foreground">Platform average</p>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Platform average</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Course Completion</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Course Completion</CardTitle>
+            <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold">
               {Math.round(
                 students.reduce(
                   (sum, student) => sum + getProgressPercentage(student.completedCourses, student.courses),
@@ -435,17 +465,17 @@ export function StudentManagement() {
               )}
               %
             </div>
-            <p className="text-xs text-muted-foreground">Average completion rate</p>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Average completion rate</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Premium Students</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs xs:text-sm font-medium">Premium Students</CardTitle>
+            <TrendingUp className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.filter((s) => s.subscription === "Premium").length}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold">{students.filter((s) => s.subscription === "Premium").length}</div>
+            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
               {Math.round((students.filter((s) => s.subscription === "Premium").length / students.length) * 100)}% of
               total
             </p>
@@ -455,33 +485,33 @@ export function StudentManagement() {
 
       {/* Edit Student Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-[500px] xs:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Edit Student</DialogTitle>
-            <DialogDescription>Update student information</DialogDescription>
+            <DialogTitle className="text-base xs:text-lg sm:text-xl">Edit Student</DialogTitle>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">Update student information</DialogDescription>
           </DialogHeader>
           {selectedStudent && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-3 xs:gap-4 py-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label>Full Name</Label>
-                  <Input defaultValue={selectedStudent.name} />
+                  <Label className="text-xs xs:text-sm sm:text-base">Full Name</Label>
+                  <Input defaultValue={selectedStudent.name} className="text-xs xs:text-sm sm:text-base" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email Address</Label>
-                  <Input defaultValue={selectedStudent.email} />
+                  <Label className="text-xs xs:text-sm sm:text-base">Email Address</Label>
+                  <Input defaultValue={selectedStudent.email} className="text-xs xs:text-sm sm:text-base" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                 <div className="space-y-2">
-                  <Label>School</Label>
+                  <Label className="text-xs xs:text-sm sm:text-base">School</Label>
                   <Select defaultValue={selectedStudent.school}>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {schools.map((school) => (
-                        <SelectItem key={school} value={school}>
+                        <SelectItem key={school} value={school} className="text-xs xs:text-sm sm:text-base">
                           {school}
                         </SelectItem>
                       ))}
@@ -489,23 +519,23 @@ export function StudentManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Grade</Label>
+                  <Label className="text-xs xs:text-sm sm:text-base">Grade</Label>
                   <Select defaultValue={selectedStudent.grade}>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SS1">SS1</SelectItem>
-                      <SelectItem value="SS2">SS2</SelectItem>
-                      <SelectItem value="SS3">SS3</SelectItem>
+                      <SelectItem value="SS1" className="text-xs xs:text-sm sm:text-base">SS1</SelectItem>
+                      <SelectItem value="SS2" className="text-xs xs:text-sm sm:text-base">SS2</SelectItem>
+                      <SelectItem value="SS3" className="text-xs xs:text-sm sm:text-base">SS3</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+          <DialogFooter className="flex flex-col xs:flex-row gap-2 xs:gap-4">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
               Cancel
             </Button>
             <Button
@@ -513,6 +543,7 @@ export function StudentManagement() {
                 setIsEditDialogOpen(false)
                 alert("Student updated successfully!")
               }}
+              className="text-xs xs:text-sm sm:text-base"
             >
               Save Changes
             </Button>
@@ -522,18 +553,18 @@ export function StudentManagement() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-[500px] xs:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Delete Student</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base xs:text-lg sm:text-xl">Delete Student</DialogTitle>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">
               Are you sure you want to delete {selectedStudent?.name}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="flex flex-col xs:flex-row gap-2 xs:gap-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button variant="destructive" onClick={confirmDelete} className="text-xs xs:text-sm sm:text-base">
               Delete Student
             </Button>
           </DialogFooter>

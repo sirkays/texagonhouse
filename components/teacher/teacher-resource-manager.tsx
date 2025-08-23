@@ -371,30 +371,30 @@ export function TeacherResourceManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Resource Manager</h1>
-        <p className="text-muted-foreground">Manage and organize all your teaching resources</p>
+        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">Resource Manager</h1>
+        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">Manage and organize all your teaching resources</p>
       </div>
 
       {/* Search and Filter */}
-      <div className="flex gap-4">
+      <div className="flex flex-col xs:flex-row gap-2 xs:gap-3 sm:gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2 xs:left-2.5 top-2 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
           <Input
             placeholder="Search resources..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
+            className="pl-7 xs:pl-8 text-xs xs:text-sm sm:text-base"
           />
         </div>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full xs:w-40 sm:w-48 text-xs xs:text-sm sm:text-base">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
             {categories.map((category) => (
-              <SelectItem key={category} value={category}>
+              <SelectItem key={category} value={category} className="text-xs xs:text-sm sm:text-base">
                 {category}
               </SelectItem>
             ))}
@@ -402,38 +402,38 @@ export function TeacherResourceManager() {
         </Select>
         <Dialog open={isAddResourceOpen} onOpenChange={setIsAddResourceOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="text-xs xs:text-sm sm:text-base">
+              <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Add Resource
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[90vw] sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Add New Resource</DialogTitle>
-              <DialogDescription>Upload a new resource for your students</DialogDescription>
+              <DialogTitle className="text-base xs:text-lg sm:text-xl">Add New Resource</DialogTitle>
+              <DialogDescription className="text-xs xs:text-sm sm:text-base">Upload a new resource for your students</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-3 xs:space-y-4">
               <div className="space-y-2">
-                <Label>Resource Type</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Resource Type</Label>
                 <Select
                   value={newResource.type}
                   onValueChange={(value) => setNewResource({ ...newResource, type: value, file: null })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pdf">PDF Document</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="audio">Audio</SelectItem>
-                    <SelectItem value="journal">Journal</SelectItem>
+                    <SelectItem value="pdf" className="text-xs xs:text-sm sm:text-base">PDF Document</SelectItem>
+                    <SelectItem value="video" className="text-xs xs:text-sm sm:text-base">Video</SelectItem>
+                    <SelectItem value="audio" className="text-xs xs:text-sm sm:text-base">Audio</SelectItem>
+                    <SelectItem value="journal" className="text-xs xs:text-sm sm:text-base">Journal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Upload File</Label>
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                <Label className="text-xs xs:text-sm sm:text-base">Upload File</Label>
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 xs:p-6 text-center">
                   <input
                     type="file"
                     id="resource-file"
@@ -455,9 +455,9 @@ export function TeacherResourceManager() {
                     }}
                   />
                   <label htmlFor="resource-file" className="cursor-pointer">
-                    <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                    <p className="text-xs text-muted-foreground">
+                    <Upload className="mx-auto h-6 w-6 xs:h-8 xs:w-8 text-muted-foreground mb-2" />
+                    <p className="text-xs xs:text-sm sm:text-base font-medium">Click to upload or drag and drop</p>
+                    <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                       {newResource.type === "pdf" && "PDF files only"}
                       {newResource.type === "video" && "MP4, MOV, AVI, MKV files"}
                       {newResource.type === "audio" && "MP3, WAV, M4A files"}
@@ -466,10 +466,10 @@ export function TeacherResourceManager() {
                   </label>
                   {newResource.file && (
                     <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
-                      <File className="h-4 w-4" />
-                      <span className="text-sm">{newResource.file.name}</span>
-                      <Button variant="ghost" size="sm" onClick={() => setNewResource({ ...newResource, file: null })}>
-                        <X className="h-3 w-3" />
+                      <File className="h-3 w-3 xs:h-4 xs:w-4" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{newResource.file.name}</span>
+                      <Button variant="ghost" size="sm" onClick={() => setNewResource({ ...newResource, file: null })} className="p-1 xs:p-2">
+                        <X className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       </Button>
                     </div>
                   )}
@@ -477,27 +477,28 @@ export function TeacherResourceManager() {
               </div>
 
               <div className="space-y-2">
-                <Label>Title</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Title</Label>
                 <Input
                   value={newResource.title}
                   onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
                   placeholder="Enter resource title"
+                  className="text-xs xs:text-sm sm:text-base"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Category</Label>
                 <Select
                   value={newResource.category}
                   onValueChange={(value) => setNewResource({ ...newResource, category: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories
                       .filter((c) => c !== "All")
                       .map((category) => (
-                        <SelectItem key={category} value={category}>
+                        <SelectItem key={category} value={category} className="text-xs xs:text-sm sm:text-base">
                           {category}
                         </SelectItem>
                       ))}
@@ -505,20 +506,21 @@ export function TeacherResourceManager() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Description</Label>
                 <Textarea
                   value={newResource.description}
                   onChange={(e) => setNewResource({ ...newResource, description: e.target.value })}
                   placeholder="Describe the resource"
                   rows={3}
+                  className="text-xs xs:text-sm sm:text-base"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddResourceOpen(false)}>
+              <Button variant="outline" onClick={() => setIsAddResourceOpen(false)} className="text-xs xs:text-sm sm:text-base">
                 Cancel
               </Button>
-              <Button onClick={handleAddResource} disabled={!newResource.file || !newResource.title}>
+              <Button onClick={handleAddResource} disabled={!newResource.file || !newResource.title} className="text-xs xs:text-sm sm:text-base">
                 Upload Resource
               </Button>
             </DialogFooter>
@@ -527,93 +529,95 @@ export function TeacherResourceManager() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="pdfs" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
+        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full">
+          <TabsTrigger value="pdfs" className="flex items-center gap-1 xs:gap-2 text-[0.65rem] xs:text-xs sm:text-sm">
+            <FileText className="h-3 w-3 xs:h-4 xs:w-4" />
             PDFs ({getFilteredResources(resources.pdfs).length})
           </TabsTrigger>
-          <TabsTrigger value="videos" className="flex items-center gap-2">
-            <Video className="h-4 w-4" />
+          <TabsTrigger value="videos" className="flex items-center gap-1 xs:gap-2 text-[0.65rem] xs:text-xs sm:text-sm">
+            <Video className="h-3 w-3 xs:h-4 xs:w-4" />
             Videos ({getFilteredResources(resources.videos).length})
           </TabsTrigger>
-          <TabsTrigger value="audio" className="flex items-center gap-2">
-            <Headphones className="h-4 w-4" />
+          <TabsTrigger value="audio" className="flex items-center gap-1 xs:gap-2 text-[0.65rem] xs:text-xs sm:text-sm">
+            <Headphones className="h-3 w-3 xs:h-4 xs:w-4" />
             Audio ({getFilteredResources(resources.audio).length})
           </TabsTrigger>
-          <TabsTrigger value="journals" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
+          <TabsTrigger value="journals" className="flex items-center gap-1 xs:gap-2 text-[0.65rem] xs:text-xs sm:text-sm">
+            <BookOpen className="h-3 w-3 xs:h-4 xs:w-4" />
             Journals ({getFilteredResources(resources.journals).length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pdfs" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="pdfs" className="space-y-3 xs:space-y-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {getFilteredResources(resources.pdfs).map((pdf) => (
               <Card key={pdf.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
-                      <CardTitle className="text-lg line-clamp-2">{pdf.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{pdf.description}</CardDescription>
+                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">{pdf.title}</CardTitle>
+                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">{pdf.description}</CardDescription>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="p-1 xs:p-2">
+                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEdit("pdf", pdf)}>
-                          <Edit className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleEdit("pdf", pdf)} className="text-xs xs:text-sm sm:text-base">
+                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleShare("pdf", pdf.id)}>
-                          <Share className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleShare("pdf", pdf.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Share
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => togglePublic("pdf", pdf.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => togglePublic("pdf", pdf.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           {pdf.isPublic ? "Make Private" : "Make Public"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete("pdf", pdf.id)} className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleDelete("pdf", pdf.id)} className="text-red-600 text-xs xs:text-sm sm:text-base">
+                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{pdf.category}</Badge>
-                    <Badge variant={pdf.isPublic ? "default" : "outline"}>{pdf.isPublic ? "Public" : "Private"}</Badge>
+                    <Badge variant="secondary" className="text-[0.65rem] xs:text-xs sm:text-sm">{pdf.category}</Badge>
+                    <Badge variant={pdf.isPublic ? "default" : "outline"} className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      {pdf.isPublic ? "Public" : "Private"}
+                    </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <CardContent className="space-y-3 xs:space-y-4">
+                  <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                     <div>Pages: {pdf.pages}</div>
                     <div>Size: {pdf.size}</div>
                     <div className="flex items-center gap-1">
-                      <Download className="h-3 w-3" />
+                      <Download className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {pdf.downloads}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
+                      <Eye className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {pdf.views}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm">{pdf.rating}</span>
+                      <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{pdf.rating}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{pdf.uploadDate}</span>
+                    <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">{pdf.uploadDate}</span>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => handleView("pdf", pdf)}>
-                      <Eye className="mr-2 h-3 w-3" />
+                    <Button size="sm" className="flex-1 text-xs xs:text-sm sm:text-base" onClick={() => handleView("pdf", pdf)}>
+                      <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       View
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit("pdf", pdf)}>
-                      <Edit className="mr-2 h-3 w-3" />
+                    <Button size="sm" variant="outline" className="text-xs xs:text-sm sm:text-base" onClick={() => handleEdit("pdf", pdf)}>
+                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Edit
                     </Button>
                   </div>
@@ -623,75 +627,75 @@ export function TeacherResourceManager() {
           </div>
         </TabsContent>
 
-        <TabsContent value="videos" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="videos" className="space-y-3 xs:space-y-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {getFilteredResources(resources.videos).map((video) => (
               <Card key={video.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center">
-                    <Video className="h-8 w-8 text-muted-foreground" />
+                  <div className="aspect-video bg-muted rounded-md mb-2 xs:mb-3 flex items-center justify-center">
+                    <Video className="h-6 w-6 xs:h-8 xs:w-8 text-muted-foreground" />
                   </div>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
-                      <CardTitle className="text-lg line-clamp-2">{video.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{video.description}</CardDescription>
+                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">{video.title}</CardTitle>
+                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">{video.description}</CardDescription>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="p-1 xs:p-2">
+                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEdit("video", video)}>
-                          <Edit className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleEdit("video", video)} className="text-xs xs:text-sm sm:text-base">
+                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleShare("video", video.id)}>
-                          <Share className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleShare("video", video.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Share
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => togglePublic("video", video.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => togglePublic("video", video.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           {video.isPublic ? "Make Private" : "Make Public"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete("video", video.id)} className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleDelete("video", video.id)} className="text-red-600 text-xs xs:text-sm sm:text-base">
+                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{video.category}</Badge>
-                    <Badge variant={video.isPublic ? "default" : "outline"}>
+                    <Badge variant="secondary" className="text-[0.65rem] xs:text-xs sm:text-sm">{video.category}</Badge>
+                    <Badge variant={video.isPublic ? "default" : "outline"} className="text-[0.65rem] xs:text-xs sm:text-sm">
                       {video.isPublic ? "Public" : "Private"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <CardContent className="space-y-3 xs:space-y-4">
+                  <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
+                      <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {video.duration}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
+                      <Eye className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {video.views} views
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
                       {video.rating}
                     </div>
                     <div>{video.likes} likes</div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => handleView("video", video)}>
-                      <Video className="mr-2 h-3 w-3" />
+                    <Button size="sm" className="flex-1 text-xs xs:text-sm sm:text-base" onClick={() => handleView("video", video)}>
+                      <Video className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Watch
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit("video", video)}>
-                      <Edit className="mr-2 h-3 w-3" />
+                    <Button size="sm" variant="outline" className="text-xs xs:text-sm sm:text-base" onClick={() => handleEdit("video", video)}>
+                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Edit
                     </Button>
                   </div>
@@ -701,71 +705,71 @@ export function TeacherResourceManager() {
           </div>
         </TabsContent>
 
-        <TabsContent value="audio" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="audio" className="space-y-3 xs:space-y-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {getFilteredResources(resources.audio).map((audio) => (
               <Card key={audio.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
-                      <CardTitle className="text-lg line-clamp-2">{audio.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{audio.description}</CardDescription>
+                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">{audio.title}</CardTitle>
+                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">{audio.description}</CardDescription>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="p-1 xs:p-2">
+                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEdit("audio", audio)}>
-                          <Edit className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleEdit("audio", audio)} className="text-xs xs:text-sm sm:text-base">
+                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleShare("audio", audio.id)}>
-                          <Share className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleShare("audio", audio.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Share
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => togglePublic("audio", audio.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => togglePublic("audio", audio.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           {audio.isPublic ? "Make Private" : "Make Public"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete("audio", audio.id)} className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleDelete("audio", audio.id)} className="text-red-600 text-xs xs:text-sm sm:text-base">
+                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{audio.category}</Badge>
-                    <Badge variant={audio.isPublic ? "default" : "outline"}>
+                    <Badge variant="secondary" className="text-[0.65rem] xs:text-xs sm:text-sm">{audio.category}</Badge>
+                    <Badge variant={audio.isPublic ? "default" : "outline"} className="text-[0.65rem] xs:text-xs sm:text-sm">
                       {audio.isPublic ? "Public" : "Private"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <CardContent className="space-y-3 xs:space-y-4">
+                  <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
+                      <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {audio.duration}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Headphones className="h-3 w-3" />
+                      <Headphones className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {audio.listens} listens
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
                       {audio.rating}
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => handleView("audio", audio)}>
-                      <Headphones className="mr-2 h-3 w-3" />
+                    <Button size="sm" className="flex-1 text-xs xs:text-sm sm:text-base" onClick={() => handleView("audio", audio)}>
+                      <Headphones className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Listen
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit("audio", audio)}>
-                      <Edit className="mr-2 h-3 w-3" />
+                    <Button size="sm" variant="outline" className="text-xs xs:text-sm sm:text-base" onClick={() => handleEdit("audio", audio)}>
+                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Edit
                     </Button>
                   </div>
@@ -775,71 +779,63 @@ export function TeacherResourceManager() {
           </div>
         </TabsContent>
 
-        <TabsContent value="journals" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="journals" className="space-y-3 xs:space-y-4">
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {getFilteredResources(resources.journals).map((journal) => (
               <Card key={journal.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
-                      <CardTitle className="text-lg line-clamp-2">{journal.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{journal.description}</CardDescription>
+                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">{journal.title}</CardTitle>
+                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">{journal.description}</CardDescription>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="p-1 xs:p-2">
+                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEdit("journal", journal)}>
-                          <Edit className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleEdit("journal", journal)} className="text-xs xs:text-sm sm:text-base">
+                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleShare("journal", journal.id)}>
-                          <Share className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleShare("journal", journal.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Share
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => togglePublic("journal", journal.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => togglePublic("journal", journal.id)} className="text-xs xs:text-sm sm:text-base">
+                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           {journal.isPublic ? "Make Private" : "Make Public"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete("journal", journal.id)} className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleDelete("journal", journal.id)} className="text-red-600 text-xs xs:text-sm sm:text-base">
+                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{journal.category}</Badge>
-                    <Badge variant={journal.isPublic ? "default" : "outline"}>
+                    <Badge variant="secondary" className="text-[0.65rem] xs:text-xs sm:text-sm">{journal.category}</Badge>
+                    <Badge variant={journal.isPublic ? "default" : "outline"} className="text-[0.65rem] xs:text-xs sm:text-sm">
                       {journal.isPublic ? "Public" : "Private"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    <p>
-                      <strong>Journal:</strong> {journal.journal}
-                    </p>
-                    <p>
-                      <strong>Published:</strong> {journal.date}
-                    </p>
-                    <p>
-                      <strong>Pages:</strong> {journal.pages}
-                    </p>
-                    <p>
-                      <strong>Citations:</strong> {journal.citations}
-                    </p>
+                <CardContent className="space-y-3 xs:space-y-4">
+                  <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <p><strong>Journal:</strong> {journal.journal}</p>
+                    <p><strong>Published:</strong> {journal.date}</p>
+                    <p><strong>Pages:</strong> {journal.pages}</p>
+                    <p><strong>Citations:</strong> {journal.citations}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => handleView("journal", journal)}>
-                      <BookOpen className="mr-2 h-3 w-3" />
+                    <Button size="sm" className="flex-1 text-xs xs:text-sm sm:text-base" onClick={() => handleView("journal", journal)}>
+                      <BookOpen className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Read
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit("journal", journal)}>
-                      <Edit className="mr-2 h-3 w-3" />
+                    <Button size="sm" variant="outline" className="text-xs xs:text-sm sm:text-base" onClick={() => handleEdit("journal", journal)}>
+                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       Edit
                     </Button>
                   </div>
@@ -852,41 +848,41 @@ export function TeacherResourceManager() {
 
       {/* View Resource Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {viewingResource?.type === "pdf" && <FileText className="h-5 w-5" />}
-              {viewingResource?.type === "video" && <Video className="h-5 w-5" />}
-              {viewingResource?.type === "audio" && <Headphones className="h-5 w-5" />}
-              {viewingResource?.type === "journal" && <BookOpen className="h-5 w-5" />}
+            <DialogTitle className="flex items-center gap-2 text-base xs:text-lg sm:text-xl">
+              {viewingResource?.type === "pdf" && <FileText className="h-4 w-4 xs:h-5 xs:w-5" />}
+              {viewingResource?.type === "video" && <Video className="h-4 w-4 xs:h-5 xs:w-5" />}
+              {viewingResource?.type === "audio" && <Headphones className="h-4 w-4 xs:h-5 xs:w-5" />}
+              {viewingResource?.type === "journal" && <BookOpen className="h-4 w-4 xs:h-5 xs:w-5" />}
               {viewingResource?.title}
             </DialogTitle>
-            <DialogDescription>{viewingResource?.description}</DialogDescription>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">{viewingResource?.description}</DialogDescription>
           </DialogHeader>
 
           {viewingResource && (
-            <div className="space-y-4">
+            <div className="space-y-3 xs:space-y-4">
               {/* PDF Viewer */}
               {viewingResource.type === "pdf" && (
-                <div className="space-y-4">
+                <div className="space-y-3 xs:space-y-4">
                   <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center">
                     <div className="text-center">
-                      <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg font-medium">PDF Viewer</p>
-                      <p className="text-sm text-muted-foreground">
+                      <FileText className="h-12 w-12 xs:h-16 xs:w-16 text-muted-foreground mx-auto mb-3 xs:mb-4" />
+                      <p className="text-base xs:text-lg sm:text-xl font-medium">PDF Viewer</p>
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                         {viewingResource.pages} pages • {viewingResource.size}
                       </p>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 xs:gap-3">
+                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <span>Author: {viewingResource.author}</span>
                       <span>Downloads: {viewingResource.downloads}</span>
                       <span>Views: {viewingResource.views}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span>{viewingResource.rating}</span>
+                      <Star className="h-3 w-3 xs:h-4 xs:w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{viewingResource.rating}</span>
                     </div>
                   </div>
                 </div>
@@ -894,23 +890,23 @@ export function TeacherResourceManager() {
 
               {/* Video Player */}
               {viewingResource.type === "video" && (
-                <div className="space-y-4">
+                <div className="space-y-3 xs:space-y-4">
                   <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
                     <div className="text-center text-white">
-                      <Video className="h-16 w-16 mx-auto mb-4" />
-                      <p className="text-lg font-medium">Video Player</p>
-                      <p className="text-sm opacity-75">Duration: {viewingResource.duration}</p>
+                      <Video className="h-12 w-12 xs:h-16 xs:w-16 mx-auto mb-3 xs:mb-4" />
+                      <p className="text-base xs:text-lg sm:text-xl font-medium">Video Player</p>
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm opacity-75">Duration: {viewingResource.duration}</p>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 xs:gap-3">
+                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <span>Instructor: {viewingResource.instructor}</span>
                       <span>Views: {viewingResource.views}</span>
                       <span>Likes: {viewingResource.likes}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span>{viewingResource.rating}</span>
+                      <Star className="h-3 w-3 xs:h-4 xs:w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{viewingResource.rating}</span>
                     </div>
                   </div>
                 </div>
@@ -918,23 +914,23 @@ export function TeacherResourceManager() {
 
               {/* Audio Player */}
               {viewingResource.type === "audio" && (
-                <div className="space-y-4">
-                  <div className="bg-muted rounded-lg p-8">
-                    <div className="text-center mb-6">
-                      <Headphones className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg font-medium">{viewingResource.title}</p>
-                      <p className="text-sm text-muted-foreground">Duration: {viewingResource.duration}</p>
+                <div className="space-y-3 xs:space-y-4">
+                  <div className="bg-muted rounded-lg p-4 xs:p-6 sm:p-8">
+                    <div className="text-center mb-4 xs:mb-6">
+                      <Headphones className="h-12 w-12 xs:h-16 xs:w-16 text-muted-foreground mx-auto mb-3 xs:mb-4" />
+                      <p className="text-base xs:text-lg sm:text-xl font-medium">{viewingResource.title}</p>
+                      <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">Duration: {viewingResource.duration}</p>
                     </div>
 
                     {/* Audio Controls */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-center gap-4">
-                        <Button size="sm" variant="outline" onClick={togglePlayPause}>
-                          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    <div className="space-y-3 xs:space-y-4">
+                      <div className="flex items-center justify-center gap-2 xs:gap-4">
+                        <Button size="sm" variant="outline" onClick={togglePlayPause} className="p-1 xs:p-2">
+                          {isPlaying ? <Pause className="h-3 w-3 xs:h-4 xs:w-4" /> : <Play className="h-3 w-3 xs:h-4 xs:w-4" />}
                         </Button>
-                        <div className="flex items-center gap-2">
-                          <Volume2 className="h-4 w-4" />
-                          <div className="w-20 h-2 bg-muted-foreground/20 rounded-full">
+                        <div className="flex items-center gap-1 xs:gap-2">
+                          <Volume2 className="h-3 w-3 xs:h-4 xs:w-4" />
+                          <div className="w-16 xs:w-20 h-1.5 xs:h-2 bg-muted-foreground/20 rounded-full">
                             <div className="w-3/4 h-full bg-primary rounded-full" />
                           </div>
                         </div>
@@ -942,27 +938,27 @@ export function TeacherResourceManager() {
 
                       {/* Progress Bar */}
                       <div className="space-y-2">
-                        <div className="w-full h-2 bg-muted-foreground/20 rounded-full">
+                        <div className="w-full h-1.5 xs:h-2 bg-muted-foreground/20 rounded-full">
                           <div
                             className="h-full bg-primary rounded-full transition-all duration-300"
                             style={{ width: `${(currentTime / duration) * 100}%` }}
                           />
                         </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
+                        <div className="flex justify-between text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                           <span>{formatTime(currentTime)}</span>
                           <span>{formatTime(duration)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 xs:gap-3">
+                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <span>Speaker: {viewingResource.speaker}</span>
                       <span>Listens: {viewingResource.listens}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span>{viewingResource.rating}</span>
+                      <Star className="h-3 w-3 xs:h-4 xs:w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">{viewingResource.rating}</span>
                     </div>
                   </div>
                 </div>
@@ -970,11 +966,11 @@ export function TeacherResourceManager() {
 
               {/* Journal Reader */}
               {viewingResource.type === "journal" && (
-                <div className="space-y-4">
-                  <div className="bg-muted rounded-lg p-6">
+                <div className="space-y-3 xs:space-y-4">
+                  <div className="bg-muted rounded-lg p-4 xs:p-6">
                     <div className="prose max-w-none">
-                      <h3 className="text-xl font-bold mb-4">{viewingResource.title}</h3>
-                      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                      <h3 className="text-base xs:text-lg sm:text-xl font-bold mb-3 xs:mb-4"> {viewingResource.title}</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4 mb-4 xs:mb-6 text-[0.65rem] xs:text-xs sm:text-sm">
                         <div>
                           <strong>Journal:</strong> {viewingResource.journal}
                         </div>
@@ -988,7 +984,7 @@ export function TeacherResourceManager() {
                           <strong>Citations:</strong> {viewingResource.citations}
                         </div>
                       </div>
-                      <div className="space-y-4 text-sm leading-relaxed">
+                      <div className="space-y-3 xs:space-y-4 text-[0.65rem] xs:text-xs sm:text-sm leading-relaxed">
                         <p>
                           <strong>Abstract:</strong>
                         </p>
@@ -1033,7 +1029,7 @@ export function TeacherResourceManager() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
               Close
             </Button>
             <Button
@@ -1041,8 +1037,9 @@ export function TeacherResourceManager() {
                 setIsViewDialogOpen(false)
                 handleEdit(viewingResource?.type, viewingResource)
               }}
+              className="text-xs xs:text-sm sm:text-base"
             >
-              <Edit className="mr-2 h-4 w-4" />
+              <Edit className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Edit
             </Button>
           </DialogFooter>
@@ -1051,34 +1048,35 @@ export function TeacherResourceManager() {
 
       {/* Edit Resource Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-[90vw] sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Resource</DialogTitle>
-            <DialogDescription>Update the details of your resource</DialogDescription>
+            <DialogTitle className="text-base xs:text-lg sm:text-xl">Edit Resource</DialogTitle>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">Update the details of your resource</DialogDescription>
           </DialogHeader>
           {editingResource && (
-            <div className="space-y-4">
+            <div className="space-y-3 xs:space-y-4">
               <div className="space-y-2">
-                <Label>Title</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Title</Label>
                 <Input
                   value={editingResource.title}
                   onChange={(e) => setEditingResource({ ...editingResource, title: e.target.value })}
+                  className="text-xs xs:text-sm sm:text-base"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Category</Label>
                 <Select
                   value={editingResource.category}
-                  onChange={(value) => setEditingResource({ ...editingResource, category: value })}
+                  onValueChange={(value) => setEditingResource({ ...editingResource, category: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {categories
                       .filter((c) => c !== "All")
                       .map((category) => (
-                        <SelectItem key={category} value={category}>
+                        <SelectItem key={category} value={category} className="text-xs xs:text-sm sm:text-base">
                           {category}
                         </SelectItem>
                       ))}
@@ -1086,109 +1084,120 @@ export function TeacherResourceManager() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label className="text-xs xs:text-sm sm:text-base">Description</Label>
                 <Textarea
                   value={editingResource.description}
                   onChange={(e) => setEditingResource({ ...editingResource, description: e.target.value })}
                   rows={3}
+                  className="text-xs xs:text-sm sm:text-base"
                 />
               </div>
 
               {/* Type-specific fields */}
               {editingResource.type === "pdf" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4">
                   <div className="space-y-2">
-                    <Label>Author</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Author</Label>
                     <Input
                       value={editingResource.author || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, author: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Pages</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Pages</Label>
                     <Input
                       type="number"
                       value={editingResource.pages || ""}
                       onChange={(e) =>
                         setEditingResource({ ...editingResource, pages: Number.parseInt(e.target.value) })
                       }
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                 </div>
               )}
 
               {editingResource.type === "video" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4">
                   <div className="space-y-2">
-                    <Label>Instructor</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Instructor</Label>
                     <Input
                       value={editingResource.instructor || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, instructor: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Duration</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Duration</Label>
                     <Input
                       value={editingResource.duration || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, duration: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                 </div>
               )}
 
               {editingResource.type === "audio" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4">
                   <div className="space-y-2">
-                    <Label>Speaker</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Speaker</Label>
                     <Input
                       value={editingResource.speaker || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, speaker: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Duration</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Duration</Label>
                     <Input
                       value={editingResource.duration || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, duration: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                 </div>
               )}
 
               {editingResource.type === "journal" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4">
                   <div className="space-y-2">
-                    <Label>Journal Name</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Journal Name</Label>
                     <Input
                       value={editingResource.journal || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, journal: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Publication Date</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Publication Date</Label>
                     <Input
                       value={editingResource.date || ""}
                       onChange={(e) => setEditingResource({ ...editingResource, date: e.target.value })}
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Pages</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Pages</Label>
                     <Input
                       type="number"
                       value={editingResource.pages || ""}
                       onChange={(e) =>
                         setEditingResource({ ...editingResource, pages: Number.parseInt(e.target.value) })
                       }
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Citations</Label>
+                    <Label className="text-xs xs:text-sm sm:text-base">Citations</Label>
                     <Input
                       type="number"
                       value={editingResource.citations || ""}
                       onChange={(e) =>
                         setEditingResource({ ...editingResource, citations: Number.parseInt(e.target.value) })
                       }
+                      className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
                 </div>
@@ -1196,10 +1205,10 @@ export function TeacherResourceManager() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="text-xs xs:text-sm sm:text-base">
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button onClick={handleSaveEdit} className="text-xs xs:text-sm sm:text-base">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
