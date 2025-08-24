@@ -205,7 +205,7 @@ export function SchoolManagement() {
             </DialogHeader>
 
             {/* Scrollable Content */}
-            <div className="grid gap-4 py-2 flex-1 overflow-y-auto">
+            <div className="grid gap-4 py-2 flex- p-2 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="school-name" className="text-sm font-medium">
@@ -407,17 +407,6 @@ export function SchoolManagement() {
                         <span className="truncate">{school.address}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <Button variant="ghost" size="sm" className="p-1">
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-1 text-red-600">
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-xs">
@@ -456,6 +445,18 @@ export function SchoolManagement() {
                       {getStatusBadge(school.status)}
                     </div>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-1 ml-2 mt-3">
+                  <Button variant="ghost" size="sm" className="p-1">
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="p-1 text-red-600">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </Card>
             ))}

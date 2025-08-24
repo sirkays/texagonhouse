@@ -107,32 +107,27 @@ export function AdminDashboard() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <Sidebar className="border-r w-[200px] xs:w-[220px] sm:w-[250px] lg:w-[280px] hidden sm:flex">
+        <Sidebar>
           <SidebarHeader>
-            <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
-              <GraduationCap className="h-5 w-5 xs:h-6 xs:w-6 text-primary" />
-              <span className="font-semibold text-base xs:text-lg">
-                TECHXAGON
-              </span>
-              <span className="text-[0.65rem] xs:text-xs bg-red-100 text-red-800 px-1.5 xs:px-2 py-0.5 xs:py-1 rounded-full">
-                Admin
+            <div className="flex items-center gap-2 px-4 py-2">
+              <GraduationCap className="h-6 w-6 text-primary" />
+              <span className="font-semibold text-lg">EduPlatform</span>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                Teacher
               </span>
             </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-xs xs:text-sm">
-                Administration
-              </SidebarGroupLabel>
+              <SidebarGroupLabel>Content Creation</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         isActive={activeSection === item.id}
-                        onClick={() => setActiveSection(item.id)}
-                        className="w-full text-xs xs:text-sm">
-                        <item.icon className="h-3 w-3 xs:h-4 xs:w-4" />
+                        onClick={() => setActiveSection(item.id)}>
+                        <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -146,27 +141,27 @@ export function AdminDashboard() {
               <SidebarMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton className="text-xs xs:text-sm">
-                      <Avatar className="h-5 w-5 xs:h-6 xs:w-6">
+                    <SidebarMenuButton>
+                      <Avatar className="h-6 w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback>AD</AvatarFallback>
+                        <AvatarFallback>DR</AvatarFallback>
                       </Avatar>
-                      <span>Admin User</span>
-                      <ChevronDown className="ml-auto h-3 w-3 xs:h-4 xs:w-4" />
+                      <span>Dr. Sarah Wilson</span>
+                      <ChevronDown className="ml-auto h-4 w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
-                    className="w-[--radix-popper-anchor-width] text-xs xs:text-sm">
-                    <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
+                    className="w-[--radix-popper-anchor-width]">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
-                      <User className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      <User className="mr-2 h-4 w-4" />
                       Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem>
-                      <Settings className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                      System Settings
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>Log out</DropdownMenuItem>
@@ -176,11 +171,10 @@ export function AdminDashboard() {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
-
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex h-12 xs:h-14 items-center justify-between gap-2 xs:gap-4 px-3 xs:px-4 sm:px-6">
-              <SidebarTrigger className="sm:hidden" />
+              <SidebarTrigger className="" />
               {/* <div className="flex-1 max-w-[90vw] xs:max-w-md">
                 <div className="relative">
                   <Search className="absolute left-2 top-1.5 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
