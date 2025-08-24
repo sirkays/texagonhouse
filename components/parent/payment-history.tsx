@@ -38,10 +38,21 @@ import {
   Receipt,
   RefreshCw,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 export function PaymentHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
 
   const payments = [
     {
@@ -135,34 +146,38 @@ export function PaymentHistory() {
     switch (status) {
       case "Completed":
         return (
-          <Badge className="bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
+          <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
+            <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Completed
           </Badge>
         );
       case "Failed":
         return (
-          <Badge className="bg-red-100 text-red-800">
-            <XCircle className="w-3 h-3 mr-1" />
+          <Badge className="bg-red-100 text-red-800 text-xs sm:text-sm">
+            <XCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Failed
           </Badge>
         );
       case "Pending":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800">
-            <Clock className="w-3 h-3 mr-1" />
+          <Badge className="bg-yellow-100 text-yellow-800 text-xs sm:text-sm">
+            <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Pending
           </Badge>
         );
       case "Refunded":
         return (
-          <Badge className="bg-blue-100 text-blue-800">
-            <RefreshCw className="w-3 h-3 mr-1" />
+          <Badge className="bg-blue-100 text-blue-800 text-xs sm:text-sm">
+            <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             Refunded
           </Badge>
         );
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return (
+          <Badge variant="secondary" className="text-xs sm:text-sm">
+            {status}
+          </Badge>
+        );
     }
   };
 
@@ -221,11 +236,10 @@ export function PaymentHistory() {
       `Downloading ${completedPayments.length} receipts. This may take a moment...`
     );
 
-    // Simulate downloading multiple receipts
     completedPayments.forEach((payment, index) => {
       setTimeout(() => {
         const link = document.createElement("a");
-        link.setAttribute("href", "#"); // In real app, this would be the actual receipt URL
+        link.setAttribute("href", "#");
         link.setAttribute("download", `receipt_${payment.id}.pdf`);
         if (index === completedPayments.length - 1) {
           alert("All receipts downloaded successfully!");
@@ -236,7 +250,7 @@ export function PaymentHistory() {
 
   const handleDownloadReceipt = (payment: any) => {
     const link = document.createElement("a");
-    link.setAttribute("href", "#"); // In real app, this would be the actual receipt URL
+    link.setAttribute("href", "#");
     link.setAttribute("download", `receipt_${payment.id}.pdf`);
     document.body.appendChild(link);
     link.click();
@@ -244,41 +258,92 @@ export function PaymentHistory() {
     alert(`Receipt for ${payment.id} downloaded successfully!`);
   };
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+  const paginatedPayments = filteredPayments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Pagination navigation handler
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // Generate page numbers with ellipsis
+  const renderPageNumbers = () => {
+    const pages: React.ReactNode[] = [];
+    const maxVisiblePages = 5;
+    const startPage = Math.max(
+      1,
+      currentPage - Math.floor(maxVisiblePages / 2)
+    );
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (startPage > 1) {
+      pages.push(<PaginationEllipsis key="start-ellipsis" />);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            isActive={i === currentPage}
+            onClick={() => handlePageChange(i)}>
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    if (endPage < totalPages) {
+      pages.push(<PaginationEllipsis key="end-ellipsis" />);
+    }
+
+    return pages;
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Payment History</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+            Payment History
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             View and manage all your payment transactions
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
-            className="flex items-center gap-2 bg-transparent"
+            className="flex items-center gap-2 bg-transparent w-full sm:w-auto"
             onClick={handleExportHistory}>
-            <Download className="h-4 w-4" />
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
             Export History
           </Button>
           <Button
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full sm:w-auto"
             onClick={handleDownloadAllReceipts}>
-            <Receipt className="h-4 w-4" />
+            <Receipt className="h-3 w-3 sm:h-4 sm:w-4" />
             Download Receipt
           </Button>
         </div>
       </div>
 
       {/* Payment Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Total Spent
+            </CardTitle>
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg sm:text-2xl font-bold text-green-600">
               ₦{getTotalAmount()}
             </div>
             <p className="text-xs text-muted-foreground">Completed payments</p>
@@ -286,11 +351,13 @@ export function PaymentHistory() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Successful</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Successful
+            </CardTitle>
+            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg sm:text-2xl font-bold text-green-600">
               {stats.completed}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -300,11 +367,13 @@ export function PaymentHistory() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed</CardTitle>
-            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Failed
+            </CardTitle>
+            <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-lg sm:text-2xl font-bold text-red-600">
               {stats.failed}
             </div>
             <p className="text-xs text-muted-foreground">Failed transactions</p>
@@ -312,11 +381,13 @@ export function PaymentHistory() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Pending
+            </CardTitle>
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
+            <div className="text-lg sm:text-2xl font-bold text-yellow-600">
               {stats.pending}
             </div>
             <p className="text-xs text-muted-foreground">Awaiting processing</p>
@@ -332,21 +403,21 @@ export function PaymentHistory() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4">
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-2.5 top-2.5 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by description, payment ID, or method..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 text-sm sm:text-base"
+                className="pl-8 text-xs sm:text-sm"
               />
             </div>
 
             {/* Period Filter */}
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
+              <SelectTrigger className="w-full sm:w-[180px] text-xs sm:text-sm">
                 <SelectValue placeholder="Filter by period" />
               </SelectTrigger>
               <SelectContent>
@@ -366,7 +437,7 @@ export function PaymentHistory() {
           <CardTitle className="text-base sm:text-lg md:text-xl">
             Transaction History ({filteredPayments.length})
           </CardTitle>
-          <CardDescription className="text-sm sm:text-base">
+          <CardDescription className="text-xs sm:text-sm">
             Complete record of all your payments and transactions
           </CardDescription>
         </CardHeader>
@@ -386,13 +457,15 @@ export function PaymentHistory() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.map((payment) => (
+                {paginatedPayments.map((payment) => (
                   <TableRow key={payment.id} className="hover:bg-muted/50">
                     {/* Transaction Details */}
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium">{payment.description}</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="font-medium text-xs sm:text-sm">
+                          {payment.description}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
                           ID: {payment.id}
                         </div>
                         <div className="flex items-center text-xs text-muted-foreground">
@@ -405,10 +478,10 @@ export function PaymentHistory() {
                     {/* Amount & Method */}
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium text-green-600">
+                        <div className="font-medium text-green-600 text-xs sm:text-sm">
                           {payment.amount}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                           {payment.method}
                         </div>
                       </div>
@@ -421,7 +494,7 @@ export function PaymentHistory() {
                           <Badge
                             key={index}
                             variant="outline"
-                            className="text-xs">
+                            className="text-[10px] sm:text-xs">
                             {child}
                           </Badge>
                         ))}
@@ -434,12 +507,12 @@ export function PaymentHistory() {
                     {/* Next Billing */}
                     <TableCell>
                       {payment.nextBilling ? (
-                        <div className="flex items-center text-muted-foreground text-sm">
+                        <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
                           <Calendar className="mr-1 h-3 w-3" />
                           {payment.nextBilling}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">
+                        <span className="text-muted-foreground text-xs sm:text-sm">
                           One-time
                         </span>
                       )}
@@ -447,25 +520,25 @@ export function PaymentHistory() {
 
                     {/* Actions */}
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDownloadReceipt(payment)}>
-                          <Receipt className="h-4 w-4" />
+                          <Receipt className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDownloadReceipt(payment)}>
-                          <Download className="h-4 w-4" />
+                          <Download className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                         {payment.status === "Failed" && (
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-blue-600 hover:text-blue-700">
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         )}
                       </div>
@@ -478,23 +551,25 @@ export function PaymentHistory() {
 
           {/* Mobile Card Layout */}
           <div className="md:hidden space-y-4">
-            {filteredPayments.map((payment) => (
+            {paginatedPayments.map((payment) => (
               <div
                 key={payment.id}
-                className="p-4 border rounded-lg space-y-3 shadow-sm">
+                className="p-2 sm:p-4 rounded-lg space-y-3 shadow-sm">
                 {/* Title + Status */}
-                <div className="flex justify-between items-center">
-                  <div className="font-medium">{payment.description}</div>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="font-medium text-xs sm:text-sm truncate">
+                    {payment.description}
+                  </div>
                   {getStatusBadge(payment.status)}
                 </div>
 
                 {/* ID & Date */}
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground truncate">
                   ID: {payment.id} • {payment.date}
                 </div>
 
                 {/* Amount & Method */}
-                <div className="flex justify-between text-sm">
+                <div className="flex flex-col sm:flex-row justify-between text-xs sm:text-sm gap-2">
                   <span className="font-medium text-green-600">
                     {payment.amount}
                   </span>
@@ -507,7 +582,10 @@ export function PaymentHistory() {
                 {payment.children.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {payment.children.map((child, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
+                      <Badge
+                        key={index}
+                        variant="outline"
+                        className="text-[10px] sm:text-xs">
                         {child}
                       </Badge>
                     ))}
@@ -515,7 +593,7 @@ export function PaymentHistory() {
                 )}
 
                 {/* Next Billing */}
-                <div className="text-sm text-muted-foreground">
+                <div className="text-xs sm:text-sm text-muted-foreground">
                   {payment.nextBilling ? (
                     <div className="flex items-center">
                       <Calendar className="mr-1 h-3 w-3" />
@@ -532,26 +610,53 @@ export function PaymentHistory() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDownloadReceipt(payment)}>
-                    <Receipt className="h-4 w-4" />
+                    <Receipt className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDownloadReceipt(payment)}>
-                    <Download className="h-4 w-4" />
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   {payment.status === "Failed" && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="text-blue-600 hover:text-blue-700">
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   )}
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                </PaginationItem>
+                {renderPageNumbers()}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    className={
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </CardContent>
       </Card>
 
@@ -561,45 +666,45 @@ export function PaymentHistory() {
           <CardTitle className="text-base sm:text-lg md:text-xl">
             Payment Methods
           </CardTitle>
-          <CardDescription className="text-sm sm:text-base">
+          <CardDescription className="text-xs sm:text-sm">
             Manage your saved payment methods
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           {/* Responsive Layout */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             {/* Visa Card */}
-            <div className="p-4 border rounded-lg shadow-sm flex flex-col justify-between">
+            <div className="p-3 sm:p-4 border rounded-lg shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  <span className="font-medium text-sm sm:text-base">
+                  <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="font-medium text-xs sm:text-sm">
                     •••• •••• •••• 1234
                   </span>
                 </div>
-                <Badge className="text-xs sm:text-sm">Primary</Badge>
+                <Badge className="text-[10px] sm:text-xs">Primary</Badge>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 <div>Visa ending in 1234</div>
                 <div>Expires 12/26</div>
               </div>
             </div>
 
             {/* Bank Transfer */}
-            <div className="p-4 border rounded-lg shadow-sm flex flex-col justify-between">
+            <div className="p-3 sm:p-4 border rounded-lg shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  <span className="font-medium text-sm sm:text-base">
+                  <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="font-medium text-xs sm:text-sm">
                     Bank Transfer
                   </span>
                 </div>
-                <Badge variant="secondary" className="text-xs sm:text-sm">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
                   Active
                 </Badge>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 <div>First Bank Nigeria</div>
                 <div>Account: •••••••••1234</div>
               </div>
@@ -610,8 +715,8 @@ export function PaymentHistory() {
           <div className="mt-4">
             <Button
               variant="outline"
-              className="w-full sm:w-auto bg-transparent flex justify-center">
-              <CreditCard className="h-4 w-4 mr-2" />
+              className="w-full flex justify-center text-xs sm:text-sm">
+              <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
               Add Payment Method
             </Button>
           </div>
@@ -624,7 +729,7 @@ export function PaymentHistory() {
           <CardTitle className="text-base sm:text-lg md:text-xl">
             Upcoming Payments
           </CardTitle>
-          <CardDescription className="text-sm sm:text-base">
+          <CardDescription className="text-xs sm:text-sm">
             Scheduled payments and renewals
           </CardDescription>
         </CardHeader>
@@ -632,10 +737,10 @@ export function PaymentHistory() {
         <CardContent>
           <div className="space-y-4">
             {/* Payment Item */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
+            <div className="flex flex-col gap-3 p-3 border rounded-lg">
               {/* Left side */}
               <div className="space-y-1">
-                <h4 className="font-medium text-sm sm:text-base">
+                <h4 className="font-medium text-xs sm:text-sm">
                   Monthly Subscription Renewal
                 </h4>
                 <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
@@ -648,21 +753,21 @@ export function PaymentHistory() {
               </div>
 
               {/* Right side */}
-              <div className="text-left sm:text-right">
-                <div className="font-medium text-green-600 text-sm sm:text-base">
+              <div className="flex flex-col gap-2">
+                <div className="font-medium text-green-600 text-xs sm:text-sm">
                   ₦25,000
                 </div>
-                <Badge className="bg-blue-100 text-blue-800 text-xs sm:text-sm mt-1 sm:mt-0">
+                <Badge className="bg-blue-100 text-blue-800 text-[10px] sm:text-xs">
                   Auto-pay enabled
                 </Badge>
               </div>
             </div>
 
             {/* Payment Item */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
+            <div className="flex flex-col gap-3 p-3 border rounded-lg">
               {/* Left side */}
               <div className="space-y-1">
-                <h4 className="font-medium text-sm sm:text-base">
+                <h4 className="font-medium text-xs sm:text-sm">
                   BNPL Installment
                 </h4>
                 <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
@@ -675,11 +780,11 @@ export function PaymentHistory() {
               </div>
 
               {/* Right side */}
-              <div className="text-left sm:text-right">
-                <div className="font-medium text-orange-600 text-sm sm:text-base">
+              <div className="flex flex-col gap-2">
+                <div className="font-medium text-orange-600 text-xs sm:text-sm">
                   ₦5,167
                 </div>
-                <Badge className="bg-yellow-100 text-yellow-800 text-xs sm:text-sm mt-1 sm:mt-0">
+                <Badge className="bg-yellow-100 text-yellow-800 text-[10px] sm:text-xs">
                   Manual payment
                 </Badge>
               </div>

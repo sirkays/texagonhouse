@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -20,8 +21,23 @@ import {
   Award,
   Zap,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 export function RewardsTracking() {
+  // State for pagination
+  const [leaderboardPage, setLeaderboardPage] = React.useState(1);
+  const [rewardsPage, setRewardsPage] = React.useState(1);
+  const itemsPerPageLeaderboard = 5;
+  const itemsPerPageRewards = 2;
+
   const children = [
     {
       id: 1,
@@ -210,42 +226,162 @@ export function RewardsTracking() {
   const getRewardStatusBadge = (status: string) => {
     switch (status) {
       case "Available":
-        return <Badge className="bg-green-100 text-green-800">Available</Badge>;
+        return (
+          <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
+            Available
+          </Badge>
+        );
       case "In Progress":
-        return <Badge className="bg-blue-100 text-blue-800">In Progress</Badge>;
+        return (
+          <Badge className="bg-blue-100 text-blue-800 text-xs sm:text-sm">
+            In Progress
+          </Badge>
+        );
       case "On Track":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800">On Track</Badge>
+          <Badge className="bg-yellow-100 text-yellow-800 text-xs sm:text-sm">
+            On Track
+          </Badge>
         );
       case "Achieved":
         return (
-          <Badge className="bg-purple-100 text-purple-800">Achieved</Badge>
+          <Badge className="bg-purple-100 text-purple-800 text-xs sm:text-sm">
+            Achieved
+          </Badge>
         );
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return (
+          <Badge variant="secondary" className="text-xs sm:text-sm">
+            {status}
+          </Badge>
+        );
     }
   };
 
+  // Pagination calculations
+  const totalLeaderboardPages = Math.ceil(
+    leaderboard.length / itemsPerPageLeaderboard
+  );
+  const totalRewardsPages = Math.ceil(
+    upcomingRewards.length / itemsPerPageRewards
+  );
+
+  const paginatedLeaderboard = leaderboard.slice(
+    (leaderboardPage - 1) * itemsPerPageLeaderboard,
+    leaderboardPage * itemsPerPageLeaderboard
+  );
+
+  const paginatedRewards = upcomingRewards.slice(
+    (rewardsPage - 1) * itemsPerPageRewards,
+    rewardsPage * itemsPerPageRewards
+  );
+
+  // Pagination navigation handlers
+  const handleLeaderboardPageChange = (page: number) => {
+    if (page >= 1 && page <= totalLeaderboardPages) {
+      setLeaderboardPage(page);
+    }
+  };
+
+  const handleRewardsPageChange = (page: number) => {
+    if (page >= 1 && page <= totalRewardsPages) {
+      setRewardsPage(page);
+    }
+  };
+
+  // Generate page numbers with ellipsis
+  const renderLeaderboardPageNumbers = (): React.ReactNode[] => {
+    const pages: React.ReactNode[] = [];
+    const maxVisiblePages = 5;
+    const startPage = Math.max(
+      1,
+      leaderboardPage - Math.floor(maxVisiblePages / 2)
+    );
+    const endPage = Math.min(
+      totalLeaderboardPages,
+      startPage + maxVisiblePages - 1
+    );
+
+    if (startPage > 1) {
+      pages.push(<PaginationEllipsis key="start-ellipsis" />);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            isActive={i === leaderboardPage}
+            onClick={() => handleLeaderboardPageChange(i)}>
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    if (endPage < totalLeaderboardPages) {
+      pages.push(<PaginationEllipsis key="end-ellipsis" />);
+    }
+
+    return pages;
+  };
+
+  const renderRewardsPageNumbers = (): React.ReactNode[] => {
+    const pages: React.ReactNode[] = [];
+    const maxVisiblePages = 5;
+    const startPage = Math.max(
+      1,
+      rewardsPage - Math.floor(maxVisiblePages / 2)
+    );
+    const endPage = Math.min(
+      totalRewardsPages,
+      startPage + maxVisiblePages - 1
+    );
+
+    if (startPage > 1) {
+      pages.push(<PaginationEllipsis key="start-ellipsis" />);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            isActive={i === rewardsPage}
+            onClick={() => handleRewardsPageChange(i)}>
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    if (endPage < totalRewardsPages) {
+      pages.push(<PaginationEllipsis key="end-ellipsis" />);
+    }
+
+    return pages;
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Rewards & Achievements</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+          Rewards & Achievements
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Track your children's progress and celebrate their achievements
         </p>
       </div>
 
       {/* Children Overview */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
         {children.map((child) => (
           <Card
             key={child.id}
             className="hover:shadow-md transition-shadow w-full max-w-full overflow-hidden">
-            <CardHeader>
-              <div className="flex items-center space-x-4 overflow-hidden">
-                <Avatar className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4 overflow-hidden">
+                <Avatar className="h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
                   <AvatarImage src={child.avatar || "/placeholder.svg"} />
-                  <AvatarFallback className="text-base sm:text-lg">
+                  <AvatarFallback className="text-sm sm:text-base">
                     {child.name
                       .split(" ")
                       .map((n) => n[0])
@@ -253,23 +389,26 @@ export function RewardsTracking() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg sm:text-xl truncate">
+                  <CardTitle className="text-base sm:text-lg md:text-xl truncate">
                     {child.name}
                   </CardTitle>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge className={getLevelColor(child.level)}>
+                    <Badge
+                      className={`${getLevelColor(
+                        child.level
+                      )} text-xs sm:text-sm`}>
                       {child.level}
                     </Badge>
                     <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
-                      <Trophy className="h-3 w-3" />
-                      {child.totalPoints} points
+                      <Trophy className="h-3 w-3 sm:h-4 sm:w-4" />
+                      {child.totalPoints.toLocaleString()} points
                     </div>
                   </div>
                 </div>
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4 sm:p-6">
               {/* Level Progress */}
               <div className="space-y-2">
                 <div className="flex justify-between text-xs sm:text-sm">
@@ -286,20 +425,22 @@ export function RewardsTracking() {
               </div>
 
               {/* Current Streak */}
-              <div className="flex items-center justify-between p-3 bg-muted rounded-lg text-sm sm:text-base">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-orange-500" />
+                  <Zap className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
                   <span className="font-medium">Current Streak</span>
                 </div>
-                <div className="text-base sm:text-lg font-bold text-orange-600">
+                <div className="font-bold text-orange-600">
                   {child.currentStreak} days
                 </div>
               </div>
 
               {/* Badges */}
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Badges & Achievements</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <h4 className="font-semibold text-xs sm:text-sm">
+                  Badges & Achievements
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {child.badges.map((badge, index) => (
                     <div
                       key={index}
@@ -308,7 +449,9 @@ export function RewardsTracking() {
                           ? "bg-green-50 border-green-200"
                           : "bg-gray-50 border-gray-200"
                       }`}>
-                      <div className="text-lg mb-1">{badge.icon}</div>
+                      <div className="text-base sm:text-lg mb-1">
+                        {badge.icon}
+                      </div>
                       <div className="text-xs font-medium truncate">
                         {badge.name}
                       </div>
@@ -331,8 +474,10 @@ export function RewardsTracking() {
 
               {/* Recent Achievements */}
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Recent Achievements</h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide">
+                <h4 className="font-semibold text-xs sm:text-sm">
+                  Recent Achievements
+                </h4>
+                <div className="space-y-2 max-h-40 scrollbar-thin">
                   {child.recentAchievements
                     .slice(0, 3)
                     .map((achievement, index) => (
@@ -361,28 +506,27 @@ export function RewardsTracking() {
 
       {/* Platform Leaderboard */}
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg md:text-xl">
             Platform Leaderboard
           </CardTitle>
-          <CardDescription className="text-sm sm:text-base">
+          <CardDescription className="text-xs sm:text-sm">
             Top performers across all schools this term
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {leaderboard.map((student) => (
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-2 sm:space-y-3">
+            {paginatedLeaderboard.map((student) => (
               <div
                 key={student.rank}
-                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-lg overflow-hidden ${
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-lg overflow-hidden ${
                   student.isChild
                     ? "bg-blue-50 border border-blue-200"
                     : "bg-muted"
                 }`}>
-                {/* Left side: Rank + Name */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                   <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm ${
+                    className={`flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm ${
                       student.rank <= 3
                         ? student.rank === 1
                           ? "bg-yellow-500 text-white"
@@ -393,29 +537,25 @@ export function RewardsTracking() {
                     }`}>
                     {student.rank}
                   </div>
-
                   <div className="min-w-0">
                     <div
-                      className={`font-medium truncate ${
+                      className={`font-medium truncate text-xs sm:text-sm ${
                         student.isChild ? "text-blue-700" : ""
                       }`}>
                       {student.name}
                     </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {student.school}
                     </div>
                   </div>
-
                   {student.isChild && (
                     <Badge className="bg-blue-100 text-blue-800 text-[10px] sm:text-xs whitespace-nowrap">
                       Your Child
                     </Badge>
                   )}
                 </div>
-
-                {/* Right side: Points */}
-                <div className="flex items-center gap-1 font-medium text-sm sm:text-base flex-shrink-0">
-                  <Trophy className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+                <div className="flex items-center gap-1 font-medium text-xs sm:text-sm flex-shrink-0">
+                  <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                   <span className="truncate">
                     {student.points.toLocaleString()}
                   </span>
@@ -423,38 +563,67 @@ export function RewardsTracking() {
               </div>
             ))}
           </div>
+          {/* Leaderboard Pagination */}
+          {totalLeaderboardPages > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() =>
+                      handleLeaderboardPageChange(leaderboardPage - 1)
+                    }
+                    className={
+                      leaderboardPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+                {renderLeaderboardPageNumbers()}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      handleLeaderboardPageChange(leaderboardPage + 1)
+                    }
+                    className={
+                      leaderboardPage === totalLeaderboardPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </CardContent>
       </Card>
 
       {/* Upcoming Rewards */}
       <Card className="w-full">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg md:text-xl">
             Upcoming Rewards
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm md:text-base">
+          <CardDescription className="text-xs sm:text-sm">
             Major prizes and incentives your children can earn
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
           <div className="space-y-4">
-            {upcomingRewards.map((reward, index) => (
+            {paginatedRewards.map((reward, index) => (
               <div
                 key={index}
-                className="p-4 border rounded-lg space-y-3 bg-background">
-                {/* Top Row: Title + Badge */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                className="p-3 sm:p-4 border rounded-lg space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
                   <div className="space-y-1 flex-1 min-w-0">
-                    <h4 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-                      <Gift className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <h4 className="font-semibold flex items-center gap-2 text-xs sm:text-sm md:text-base">
+                      <Gift className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
                       <span className="truncate">{reward.title}</span>
                     </h4>
                     <p className="text-xs sm:text-sm text-muted-foreground">
                       {reward.description}
                     </p>
-
-                    {/* Requirement + Deadline */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <Target className="h-3 w-3" />
                         <span>{reward.requirement}</span>
@@ -465,14 +634,10 @@ export function RewardsTracking() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Status Badge (floats right on large, stacks on small) */}
                   <div className="flex-shrink-0">
                     {getRewardStatusBadge(reward.status)}
                   </div>
                 </div>
-
-                {/* Eligible Children */}
                 <div className="space-y-2">
                   <h5 className="text-xs sm:text-sm font-medium">
                     Eligible Children:
@@ -483,8 +648,6 @@ export function RewardsTracking() {
                         key={childIndex}
                         className="flex items-center gap-2 p-2 bg-muted rounded text-xs sm:text-sm min-w-[100px]">
                         <span className="truncate">{childName}</span>
-
-                        {/* Ranking Badge */}
                         {reward.currentRanking && (
                           <Badge
                             variant="outline"
@@ -494,8 +657,6 @@ export function RewardsTracking() {
                               : `Rank #${reward.currentRanking.mary}`}
                           </Badge>
                         )}
-
-                        {/* Average Badge */}
                         {reward.currentAverage && (
                           <Badge
                             variant="outline"
@@ -512,62 +673,82 @@ export function RewardsTracking() {
               </div>
             ))}
           </div>
+          {/* Rewards Pagination */}
+          {totalRewardsPages > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => handleRewardsPageChange(rewardsPage - 1)}
+                    className={
+                      rewardsPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                </PaginationItem>
+                {renderRewardsPageNumbers()}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => handleRewardsPageChange(rewardsPage + 1)}
+                    className={
+                      rewardsPage === totalRewardsPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </CardContent>
       </Card>
 
       {/* Reward History */}
       <Card className="w-full">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg md:text-xl">
             Reward History
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm md:text-base">
+          <CardDescription className="text-xs sm:text-sm">
             Previously earned rewards and achievements
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Example History Item */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg bg-background">
-              {/* Left: Icon + Info */}
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 border rounded-lg">
+              <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
                 <div className="p-2 bg-green-100 rounded-full flex-shrink-0">
-                  <Award className="h-4 w-4 text-green-600" />
+                  <Award className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
                 </div>
                 <div className="min-w-0">
-                  <h4 className="font-medium text-sm sm:text-base truncate">
+                  <h4 className="font-medium text-xs sm:text-sm md:text-base truncate">
                     Term 1 Excellence Award
                   </h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     Mary Adebayo • December 2023
                   </p>
                 </div>
               </div>
-
-              {/* Right: Badge */}
-              <Badge className="bg-green-100 text-green-800 flex items-center gap-1 flex-shrink-0 text-xs sm:text-sm whitespace-nowrap">
-                <CheckCircle className="w-3 h-3" />
+              <Badge className="bg-green-100 text-green-800 flex items-center gap-1 flex-shrink-0 text-[10px] sm:text-xs whitespace-nowrap">
+                <CheckCircle className="h-3 w-3" />
                 Received
               </Badge>
             </div>
-
-            {/* Example History Item */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg bg-background">
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 border rounded-lg">
+              <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
                 <div className="p-2 bg-blue-100 rounded-full flex-shrink-0">
-                  <Trophy className="h-4 w-4 text-blue-600" />
+                  <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                 </div>
                 <div className="min-w-0">
-                  <h4 className="font-medium text-sm sm:text-base truncate">
+                  <h4 className="font-medium text-xs sm:text-sm md:text-base truncate">
                     Mathematics Competition Winner
                   </h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     John Adebayo • November 2023
                   </p>
                 </div>
               </div>
-              <Badge className="bg-green-100 text-green-800 flex items-center gap-1 flex-shrink-0 text-xs sm:text-sm whitespace-nowrap">
-                <CheckCircle className="w-3 h-3" />
+              <Badge className="bg-green-100 text-green-800 flex items-center gap-1 flex-shrink-0 text-[10px] sm:text-xs whitespace-nowrap">
+                <CheckCircle className="h-3 w-3" />
                 Received
               </Badge>
             </div>

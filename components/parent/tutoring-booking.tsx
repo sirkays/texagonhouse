@@ -168,7 +168,7 @@ export function TutoringBooking() {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
   const [tutorsPage, setTutorsPage] = useState(1);
-  const itemsPerPage = 5; // Adjust this value as needed
+  const itemsPerPage = 3; // Changed to 3 as per request
 
   const upcomingSessions = [
     {
@@ -688,111 +688,112 @@ export function TutoringBooking() {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="upcoming">Upcoming Sessions</TabsTrigger>
-          <TabsTrigger value="past">Past Sessions</TabsTrigger>
-          <TabsTrigger value="tutors">Find Tutors</TabsTrigger>
+        className="space-y-4 xs:space-y-6">
+        <TabsList
+          className="
+    grid grid-cols-2 xs:grid-cols-4 gap-2
+    sm:flex sm:justify-start sm:gap-4
+    w-full mb-14">
+          <TabsTrigger
+            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base"
+            value="upcoming">
+            Upcoming Sessions
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base"
+            value="past">
+            Past Sessions
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base"
+            value="tutors">
+            Find Tutors
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upcoming" className="space-y-6">
+        <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
                 Upcoming Sessions ({upcomingSessions.length})
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Your scheduled tutoring sessions
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3">
               <div className="space-y-4">
                 {paginatedUpcoming.map((session) => (
                   <div
                     key={session.id}
-                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="flex items-start space-x-4 min-w-0">
-                        <Avatar className="h-12 w-12 flex-shrink-0">
-                          <AvatarImage
-                            src={session.tutorAvatar || "/placeholder.svg"}
-                          />
-                          <AvatarFallback>
-                            {session.tutor
-                              .split(" ")
-                              .map((n: any) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-2 flex-1 min-w-0">
-                          <div>
-                            <h4 className="font-semibold text-lg truncate">
-                              {session.subject} Tutoring
-                            </h4>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {session.tutor} • {session.child}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3 flex-shrink-0" />
-                              <span>{session.date}</span>
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex flex-col gap-3 sm:gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                        <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                            <AvatarImage
+                              src={session.tutorAvatar || "/placeholder.svg"}
+                            />
+                            <AvatarFallback>
+                              {session.tutor
+                                .split(" ")
+                                .map((n: any) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div>
+                              <h4 className="font-semibold text-base sm:text-lg truncate">
+                                {session.subject} Tutoring
+                              </h4>
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                {session.tutor} • {session.child}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 flex-shrink-0" />
-                              <span>
-                                {session.time} ({session.duration}min)
-                              </span>
-                            </div>
-                            <Badge variant="outline">{session.type}</Badge>
-                            <Badge
-                              className={
-                                session.sessionType === "Premium"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }>
-                              {session.sessionType}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground break-words">
-                            {session.notes}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {session.reminderSent && (
-                              <Badge variant="outline" className="text-xs">
-                                <Bell className="h-3 w-3 mr-1" />
-                                Reminder sent
+                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                              <div className="flex items-center gap-1">
+                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <span>{session.date}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <span>
+                                  {session.time} ({session.duration}min)
+                                </span>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="text-xs sm:text-sm">
+                                {session.type}
                               </Badge>
-                            )}
-                            {getPaymentStatusBadge(session.paymentStatus)}
+                              <Badge
+                                className={
+                                  session.sessionType === "Premium"
+                                    ? "bg-yellow-100 text-yellow-800 text-xs sm:text-sm"
+                                    : "bg-gray-100 text-gray-800 text-xs sm:text-sm"
+                                }>
+                                {session.sessionType}
+                              </Badge>
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground break-words">
+                              {session.notes}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {session.reminderSent && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Bell className="h-3 w-3 mr-1" />
+                                  Reminder sent
+                                </Badge>
+                              )}
+                              {getPaymentStatusBadge(session.paymentStatus)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right space-y-2 flex-shrink-0">
-                        <div className="font-medium text-green-600 text-lg">
-                          {session.cost}
-                        </div>
-                        {getStatusBadge(session.status)}
-                        <div className="flex flex-wrap justify-end gap-2">
-                          {session.meetingLink && (
-                            <Button
-                              size="sm"
-                              className="flex items-center gap-1">
-                              <Video className="h-3 w-3" />
-                              Join
-                            </Button>
-                          )}
-                          {session.canReschedule && (
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 bg-transparent">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="text-right space-y-2 flex-shrink-0">
+                          <div className="font-medium text-green-600 text-base sm:text-lg">
+                            {session.cost}
+                          </div>
+                          {getStatusBadge(session.status)}
                         </div>
                       </div>
                     </div>
@@ -800,7 +801,7 @@ export function TutoringBooking() {
                 ))}
               </div>
               {upcomingSessions.length > itemsPerPage && (
-                <Pagination className="mt-6">
+                <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
@@ -863,102 +864,101 @@ export function TutoringBooking() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="past" className="space-y-6">
+        <TabsContent value="past" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Past Sessions ({pastSessions.length})</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg sm:text-xl">
+                Past Sessions ({pastSessions.length})
+              </CardTitle>
+              <CardDescription className="text-sm">
                 History of completed tutoring sessions with recordings and
                 materials
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3">
               <div className="space-y-4">
                 {paginatedPast.map((session) => (
                   <div
                     key={session.id}
-                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <Avatar className="h-12 w-12 shrink-0">
-                          <AvatarImage
-                            src={session.tutorAvatar || "/placeholder.svg"}
-                          />
-                          <AvatarFallback>
-                            {session.tutor
-                              .split(" ")
-                              .map((n: any) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-2 flex-1 min-w-0">
-                          <div>
-                            <h4 className="font-semibold text-lg truncate">
-                              {session.subject} Tutoring
-                            </h4>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {session.tutor} • {session.child}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3 text-sm">
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3" />
-                              {session.date}
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex flex-col gap-3 sm:gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+                            <AvatarImage
+                              src={session.tutorAvatar || "/placeholder.svg"}
+                            />
+                            <AvatarFallback>
+                              {session.tutor
+                                .split(" ")
+                                .map((n: any) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div>
+                              <h4 className="font-semibold text-base sm:text-lg truncate">
+                                {session.subject} Tutoring
+                              </h4>
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                {session.tutor} • {session.child}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                              <div className="flex items-center gap-1">
+                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                                {session.date}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                                {session.time} ({session.actualDuration}min)
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="text-xs sm:text-sm">
+                                {session.type}
+                              </Badge>
+                              <Badge
+                                className={
+                                  session.sessionType === "Premium"
+                                    ? "bg-yellow-100 text-yellow-800 text-xs sm:text-sm"
+                                    : "bg-gray-100 text-gray-800 text-xs sm:text-sm"
+                                }>
+                                {session.sessionType}
+                              </Badge>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {session.time} ({session.actualDuration}min)
+                              {renderStars(session.rating)}
+                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">
+                                ({session.rating}/5)
+                              </span>
                             </div>
-                            <Badge variant="outline">{session.type}</Badge>
-                            <Badge
-                              className={
-                                session.sessionType === "Premium"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }>
-                              {session.sessionType}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {renderStars(session.rating)}
-                            <span className="text-sm text-muted-foreground ml-1">
-                              ({session.rating}/5)
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground italic break-words">
-                            "{session.feedback}"
-                          </div>
-                          {(session.hasRecording || session.materials) && (
-                            <div className="flex flex-wrap items-center gap-2 pt-2">
-                              {session.materials &&
-                                session.materials.length > 0 && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex items-center gap-1 bg-transparent">
-                                    <Download className="h-3 w-3" />
-                                    Materials ({session.materials.length})
-                                  </Button>
-                                )}
+                            <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
+                              "{session.feedback}"
                             </div>
-                          )}
+                            {(session.hasRecording || session.materials) && (
+                              <div className="flex flex-wrap items-center gap-2 pt-2">
+                                {session.materials &&
+                                  session.materials.length > 0 && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex items-center gap-1 bg-transparent text-xs sm:text-sm">
+                                      <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                                      Materials ({session.materials.length})
+                                    </Button>
+                                  )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col items-start md:items-end gap-2 text-left md:text-right shrink-0">
-                        <div className="font-medium text-green-600 text-lg">
-                          {session.cost}
-                        </div>
-                        {getStatusBadge(session.status)}
-                        <Button variant="outline" size="sm">
-                          Book Again
-                        </Button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
               {pastSessions.length > itemsPerPage && (
-                <Pagination className="mt-6">
+                <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
@@ -1020,22 +1020,24 @@ export function TutoringBooking() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="tutors" className="space-y-6">
+        <TabsContent value="tutors" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Expert Tutors ({availableTutors.length})</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg sm:text-xl">
+                Expert Tutors ({availableTutors.length})
+              </CardTitle>
+              <CardDescription className="text-sm">
                 Browse and select from our verified expert educators
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            <CardContent className="p-3 sm:border">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {paginatedTutors.map((tutor) => (
                   <div
                     key={tutor.id}
-                    className="flex flex-col p-4 border rounded-lg space-y-4 hover:shadow-md transition-shadow w-full overflow-hidden">
+                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full overflow-hidden">
                     <div className="flex items-center space-x-3">
-                      <Avatar className="h-12 w-12 shrink-0">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
                         <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
                         <AvatarFallback>
                           {tutor.name
@@ -1046,7 +1048,7 @@ export function TutoringBooking() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold truncate">
+                          <h4 className="font-semibold text-base sm:text-lg truncate">
                             {tutor.name}
                           </h4>
                           {tutor.verified && (
@@ -1056,7 +1058,7 @@ export function TutoringBooking() {
                             <Zap className="h-4 w-4 text-yellow-500" />
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-sm">
+                        <div className="flex items-center gap-1 text-xs sm:text-sm">
                           {renderStars(Math.floor(tutor.rating))}
                           <span className="text-muted-foreground ml-1 truncate">
                             {tutor.rating} ({tutor.totalSessions} sessions)
@@ -1064,7 +1066,7 @@ export function TutoringBooking() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-3 text-sm">
+                    <div className="space-y-3 text-xs sm:text-sm">
                       <div>
                         <span className="font-medium">Subjects:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -1078,7 +1080,7 @@ export function TutoringBooking() {
                           ))}
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <span className="font-medium">Experience:</span>
                           <div className="truncate">{tutor.experience}</div>
@@ -1124,8 +1126,10 @@ export function TutoringBooking() {
                       </div>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      <Button className="flex-1 min-w-[120px]" size="sm">
-                        <Video className="h-3 w-3 mr-1" />
+                      <Button
+                        className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm"
+                        size="sm">
+                        <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Book Session
                       </Button>
                     </div>
@@ -1133,7 +1137,7 @@ export function TutoringBooking() {
                 ))}
               </div>
               {availableTutors.length > itemsPerPage && (
-                <Pagination className="mt-6">
+                <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
