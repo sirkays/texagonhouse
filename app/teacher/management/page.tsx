@@ -1,3 +1,4 @@
+'use client'
 import React from 'react'
 import { TeacherManagement } from '@/components/admin/teacher-management'
 

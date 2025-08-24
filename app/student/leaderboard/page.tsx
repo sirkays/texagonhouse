@@ -1,3 +1,4 @@
+'use client'
 import React from 'react'
 import { Leaderboard } from '@/components/student/leaderboard'
 

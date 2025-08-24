@@ -1,3 +1,4 @@
+'use client'
 import React from 'react'
 import { TeacherCBTCreator } from '@/components/teacher/teacher-cbt-creator'
 

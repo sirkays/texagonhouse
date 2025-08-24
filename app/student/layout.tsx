@@ -44,6 +44,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
+import { SessionProvider, useSession } from "next-auth/react";
+import { Session } from "inspector/promises";
 
 const menuItems = [
   {
@@ -136,6 +138,7 @@ function SidebarMenuContent() {
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
+      <SessionProvider>
       <div className="flex min-h-screen w-full">
         <Sidebar>
           <SidebarHeader>
@@ -204,6 +207,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <main className="flex-1 p-3 xs:p-4 sm:p-6">{children}</main>
         </div>
       </div>
+      </SessionProvider>
     </SidebarProvider>
   );
 }

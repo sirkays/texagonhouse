@@ -1,3 +1,4 @@
+'use client'
 import React from 'react'
 import { LiveSessionManager } from '@/components/teacher/live-session-manager'
 

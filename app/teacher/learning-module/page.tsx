@@ -1,3 +1,4 @@
+'use client'
 import React from 'react'
 import { TeacherLearningModules } from '@/components/teacher/teacher-learning-modules'
 

@@ -1,3 +1,4 @@
+'use client'
 import React from 'react'
 import { TeacherResourceManager } from '@/components/teacher/teacher-resource-manager'
 
