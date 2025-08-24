@@ -3,11 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 const BASE_URL = "https://texagonbackend.esm.name.ng";
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
-const SESSION_TOKEN = "m6wNWkxq8KIECxr8kFsCFlk_I_0LXuSDGFH1uYXhIqZ3Qnm1jRbZIF_WuC3DPn8E";
 
-const headers = () => ({
+const headers = (sessionToken) => ({
   "Authorization": `Api-Key ${API_KEY}`,
-  "X-Session-Token": SESSION_TOKEN,
+  "Content-Type": "application/json",
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
 export const authOptions = {
@@ -20,55 +20,93 @@ export const authOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.error("[Auth] Missing email or password");
           throw new Error("Email and password are required");
         }
 
         try {
+          // Step 1: Authenticate with /api/auth/login
+          const loginResponse = await fetch(`${BASE_URL}/api/auth/login/`, {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          });
+
+          console.log("[Auth] Login API response status:", loginResponse.status);
+          console.log("[Auth] Login API response headers:", Object.fromEntries(loginResponse.headers));
+
+          const loginRawResponse = await loginResponse.text();
+          console.log("[Auth] Raw response from login API:", loginRawResponse);
+
+          let loginData;
+          try {
+            loginData = JSON.parse(loginRawResponse);
+          } catch (parseError) {
+            console.error("[Auth] Failed to parse login JSON:", parseError);
+            throw new Error(`Invalid login response format: ${loginRawResponse.slice(0, 100)}...`);
+          }
+
+          if (!loginResponse.ok) {
+            console.error("[Auth] Login failed:", loginResponse.status, loginData);
+            throw new Error(loginData.detail || `HTTP error: ${loginResponse.status}`);
+          }
+
+          const sessionToken = loginData.sessionToken;
+          if (!sessionToken) {
+            console.error("[Auth] No session token in login response");
+            throw new Error("No session token provided by login API");
+          }
+
+          // Step 2: Use session token for /accounts/api/post-login/
           const url = new URL(`${BASE_URL}/accounts/api/post-login/`);
           url.searchParams.append("email", credentials.email);
           url.searchParams.append("password", credentials.password);
 
           const response = await fetch(url, {
             method: "GET",
-            headers: headers(),
+            headers: headers(sessionToken),
           });
 
-          // Log response details for debugging
-          console.log("Login API response status:", response.status);
-          console.log("Login API response headers:", Object.fromEntries(response.headers));
+          console.log("[Auth] Post-login API response status:", response.status);
+          console.log("[Auth] Post-login API response headers:", Object.fromEntries(response.headers));
 
-          // Get raw response text
           const rawResponse = await response.text();
-          console.log("Raw response from login API:", rawResponse);
+          console.log("[Auth] Raw response from post-login API:", rawResponse);
 
-          // Attempt to parse JSON
           let data;
           try {
             data = JSON.parse(rawResponse);
           } catch (parseError) {
-            console.error("Failed to parse JSON:", parseError);
-            throw new Error(`Invalid response format: ${rawResponse.slice(0, 100)}...`);
+            console.error("[Auth] Failed to parse post-login JSON:", parseError);
+            throw new Error(`Invalid post-login response format: ${rawResponse.slice(0, 100)}...`);
           }
 
           if (!response.ok) {
-            console.error("Login failed:", response.status, data);
-            throw new Error(data.message || `HTTP error: ${response.status}`);
+            console.error("[Auth] Post-login failed:", response.status, data);
+            throw new Error(data.detail || `HTTP error: ${response.status}`);
           }
 
-          // Extract role and other data from API response
           if (data.detail === "User access granted" && data.role) {
-            return {
-              id: data.org_membership_pk || credentials.email, // Use org_membership_pk as id
+            const user = {
+              id: data.org_membership_pk || credentials.email,
               email: credentials.email,
-              name: credentials.email.split("@")[0], // Fallback name from email
-              role: data.role, // e.g., "admin", "student"
+              name: credentials.email.split("@")[0],
+              role: data.role,
+              sessionToken,
+              expiresAt: loginData.expiresAt,
             };
+            console.log("[Auth] User authorized:", user);
+            return user;
           }
 
-          throw new Error("Invalid response: User access not granted or role missing");
+          console.error("[Auth] Invalid post-login response: User access not granted or role missing");
+          throw new Error("Invalid post-login response: User access not granted or role missing");
         } catch (error) {
-          console.error("Authorize error:", error);
-          const errorMessage = typeof error === "object" && error !== null && "message" in error ? (error as { message?: string }).message : undefined;
+          console.error("[Auth] Authorize error:", error);
+          const errorMessage = typeof error === "object" && error !== null && "message" in error ? error.message : undefined;
           throw new Error(errorMessage || "Authentication failed");
         }
       },
@@ -78,22 +116,36 @@ export const authOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }: { token: any; user?: any }) {
+    async jwt({ token, user }) {
+      console.log("[Auth] JWT callback:", { token, user });
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.sessionToken = user.sessionToken;
+        token.expiresAt = user.expiresAt;
       }
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token }) {
+      console.log("[Auth] Session callback:", { session, token });
       if (session.user) {
-        if (token.id) (session.user as any).id = token.id;
-        if (token.role) (session.user as any).role = token.role;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.sessionToken = token.sessionToken;
+        session.user.expiresAt = token.expiresAt;
       }
       return session;
     },
+    async signOut({ token }) {
+      console.log("[Auth] SignOut callback triggered, token:", { sessionToken: token.sessionToken });
+      return true; // Handled by /api/auth/logout
+    },
   },
-  secret: "your-secret-here", // Hardcoded as requested; use a secure secret in production
+  secret: process.env.NEXTAUTH_SECRET || "your-secret-here",
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
 };
 
 const handler = NextAuth(authOptions);

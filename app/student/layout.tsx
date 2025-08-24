@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Trophy,
   Medal,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,8 +45,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
-import { SessionProvider, useSession } from "next-auth/react";
-import { Session } from "inspector/promises";
+import { useSession, signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 const menuItems = [
   {
@@ -101,7 +102,7 @@ const menuItems = [
 function SidebarMenuContent() {
   const pathname = usePathname();
   const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
-  const isMobile = useMediaQuery({ maxWidth: 639 }); // Matches Tailwind's `sm` breakpoint (640px)
+  const isMobile = useMediaQuery({ maxWidth: 639 });
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -136,10 +137,35 @@ function SidebarMenuContent() {
 }
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+
+  console.log("[StudentLayout] Session status:", status);
+  console.log("[StudentLayout] Session data:", session);
+
+  if (status === "loading") {
+    console.log("[StudentLayout] Session is loading");
+    return null; // Wait for session to load
+  }
+  if (!session) {
+    console.log("[StudentLayout] Redirecting to /login: unauthenticated");
+    redirect("/login");
+  }
+  // Optional: Redirect admin to /admin
+  if (session.user?.role === "admin") {
+    console.log("[StudentLayout] Redirecting to /admin: role =", session.user.role);
+    redirect("/admin");
+  }
+
+  const handleLogout = async () => {
+    console.log("[StudentLayout] Initiating logout");
+    await signOut({ redirect: false });
+    console.log("[StudentLayout] signOut completed, redirecting to /login");
+    window.location.href = "/login"; // Force client-side redirect
+  };
+
   return (
     <SidebarProvider>
-      <SessionProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full font-sans">
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
@@ -156,9 +182,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     <SidebarMenuButton>
                       <Avatar className="h-5 w-5 xs:h-6 xs:w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback className=" xs:text-[0.65rem] sm:text-xs">JD</AvatarFallback>
+                        <AvatarFallback className="xs:text-[0.65rem] sm:text-xs">
+                          {session?.user?.name?.[0] || "JD"}
+                        </AvatarFallback>
                       </Avatar>
-                      <span className=" xs:text-xs sm:text-sm">John Doe</span>
+                      <span className="xs:text-xs sm:text-sm">
+                        {session?.user?.name || "John Doe"}
+                      </span>
                       <ChevronDown className="ml-auto h-3 w-3 xs:h-4 xs:w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
@@ -177,7 +207,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-[0.65rem] xs:text-xs sm:text-sm">Log out</DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-[0.65rem] xs:text-xs sm:text-sm"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      Log out
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </SidebarMenuItem>
@@ -207,7 +243,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <main className="flex-1 p-3 xs:p-4 sm:p-6">{children}</main>
         </div>
       </div>
-      </SessionProvider>
     </SidebarProvider>
   );
 }
