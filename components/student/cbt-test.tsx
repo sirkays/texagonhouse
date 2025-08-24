@@ -31,6 +31,15 @@ import {
   Shield,
   AlertTriangle,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export function CBTTest() {
   const [currentTest, setCurrentTest] = useState<string | null>(null);
@@ -45,6 +54,8 @@ export function CBTTest() {
   const [isSubscriber, setIsSubscriber] = useState(true); // Mock subscription status
   const [examAttempts, setExamAttempts] = useState(0);
   const [maxAttempts] = useState(3);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [testsPerPage] = useState(3); // Show 3 tests per page
 
   const availableTests = [
     {
@@ -149,6 +160,12 @@ export function CBTTest() {
         "Virtual DOM is a programming concept where a virtual representation of UI is kept in memory and synced with the real DOM.",
     },
   ];
+
+  // Pagination logic
+  const indexOfLastTest = currentPage * testsPerPage;
+  const indexOfFirstTest = indexOfLastTest - testsPerPage;
+  const currentTests = availableTests.slice(indexOfFirstTest, indexOfLastTest);
+  const totalPages = Math.ceil(availableTests.length / testsPerPage);
 
   useEffect(() => {
     if (isSecureMode && currentTest) {
@@ -278,6 +295,10 @@ export function CBTTest() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   if (testCompleted) {
@@ -600,7 +621,7 @@ export function CBTTest() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {availableTests.map((test) => (
+        {currentTests.map((test) => (
           <Card
             key={test.id}
             className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -632,7 +653,6 @@ export function CBTTest() {
               <CardDescription>{test.description}</CardDescription>
             </CardHeader>
 
-            {/* Make content stretch to push footer button down */}
             <CardContent className="flex-1 flex flex-col gap-4">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{test.questions} questions</span>
@@ -656,11 +676,10 @@ export function CBTTest() {
                 </div>
               )}
 
-              {/* Simulated footer */}
               <div className="mt-auto">
                 <Button
                   onClick={() => startTest(test.id)}
-                  className="w-full h-11" // same height everywhere
+                  className="w-full h-11"
                   disabled={
                     test.type === "exam" && examAttempts >= maxAttempts
                   }>
@@ -672,6 +691,36 @@ export function CBTTest() {
           </Card>
         ))}
       </div>
+
+      <Pagination>
+        <PaginationContent>
+          <PaginationPrevious
+            onClick={() => handlePageChange(currentPage - 1)}
+            className={
+              currentPage === 1 ? "pointer-events-none opacity-50" : ""
+            }
+          />
+          {[...Array(totalPages)].map((_, index) => {
+            const page = index + 1;
+            return (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  isActive={currentPage === page}
+                  onClick={() => handlePageChange(page)}>
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            );
+          })}
+          {totalPages > 5 && <PaginationEllipsis />}
+          <PaginationNext
+            onClick={() => handlePageChange(currentPage + 1)}
+            className={
+              currentPage === totalPages ? "pointer-events-none opacity-50" : ""
+            }
+          />
+        </PaginationContent>
+      </Pagination>
     </div>
   );
 }
