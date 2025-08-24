@@ -51,6 +51,15 @@ import {
   GraduationCap,
   TrendingUp,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 // Define Student interface
 interface Student {
@@ -75,6 +84,8 @@ export function StudentManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 5;
 
   const students: Student[] = [
     {
@@ -175,6 +186,15 @@ export function StudentManagement() {
     return matchesSearch && matchesSchool;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const indexOfLastStudent = currentPage * studentsPerPage;
+  const indexOfFirstStudent = indexOfLastStudent - studentsPerPage;
+  const currentStudents = filteredStudents.slice(
+    indexOfFirstStudent,
+    indexOfLastStudent
+  );
+
   const handleExportStudentData = () => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -219,21 +239,21 @@ export function StudentManagement() {
       case "Active":
         return (
           <Badge className="bg-green-100 text-green-800 flex items-center text-xs sm:text-sm">
-            <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+            <CheckCircle className="w-2.5 h-2 sm:w-3 sm:h-3 mr-1" />
             Active
           </Badge>
         );
       case "Suspended":
         return (
-          <Badge className="bg-red-100 text-red-800 flex items-center text-xs sm:text-sm">
-            <XCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+          <Badge className="bg-red-100 text-red-800 flex items-center text-xs xs:text-sm">
+            <XCircle className="w-2.5 h-2 sm:w-3 sm:h-3 mr-1" />
             Suspended
           </Badge>
         );
       case "Inactive":
         return (
           <Badge className="bg-gray-100 text-gray-800 flex items-center text-xs sm:text-sm">
-            <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+            <Clock className="w-2.5 h-2 sm:w-3 sm:h-3 mr-1" />
             Inactive
           </Badge>
         );
@@ -248,11 +268,11 @@ export function StudentManagement() {
 
   const getSubscriptionBadge = (subscription: "Premium" | "Basic") => {
     return subscription === "Premium" ? (
-      <Badge className="bg-yellow-100 px-0 text-yellow-800 text-xs sm:text-sm">
+      <Badge className="bg-yellow-100 px-2 text-yellow-800 text-xs xs:text-sm">
         Premium
       </Badge>
     ) : (
-      <Badge variant="secondary" className="text-xs sm:text-sm">
+      <Badge variant="secondary" className="text-xs xs:text-sm">
         Basic
       </Badge>
     );
@@ -281,7 +301,7 @@ export function StudentManagement() {
           </p>
         </div>
         <Button
-          className="flex items-center gap-2 text-xs sm:text-sm md:text-base w-full sm:w-auto"
+          className="flex items-center gap-2 text-xs sm:text-sm md:text-xs w-full sm:w-auto"
           onClick={handleExportStudentData}>
           <Users className="h-3 w-3 sm:h-4 sm:w-4" />
           Export Student Data
@@ -303,80 +323,80 @@ export function StudentManagement() {
                 placeholder="Search students by name, email, school, or grade..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 xs:pl-8 text-xs sm:text-sm md:text-base w-full"
+                className="pl-7 xs:pl-8 text-xs sm:text-sm md:text-xs w-full"
               />
             </div>
             <div className="flex flex-col xs:flex-row gap-3 xs:gap-4">
               <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                <SelectTrigger className="w-full text-xs sm:text-sm md:text-base">
+                <SelectTrigger className="w-full text-xs sm:text-sm md:text-xs">
                   <SelectValue placeholder="Filter by school" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
                     value="all"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     All Schools
                   </SelectItem>
                   {schools.map((school) => (
                     <SelectItem
                       key={school}
                       value={school}
-                      className="text-xs sm:text-sm md:text-base">
+                      className="text-xs sm:text-sm md:text-xs">
                       {school}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select>
-                <SelectTrigger className="w-full text-xs sm:text-sm md:text-base">
+                <SelectTrigger className="w-full text-xs sm:text-sm md:text-xs">
                   <SelectValue placeholder="Filter by grade" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
                     value="all"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     All Grades
                   </SelectItem>
                   <SelectItem
                     value="ss1"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     SS1
                   </SelectItem>
                   <SelectItem
                     value="ss2"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     SS2
                   </SelectItem>
                   <SelectItem
                     value="ss3"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     SS3
                   </SelectItem>
                 </SelectContent>
               </Select>
               <Select>
-                <SelectTrigger className="w-full text-xs sm:text-sm md:text-base">
+                <SelectTrigger className="w-full text-xs sm:text-sm md:text-xs">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
                     value="all"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     All Status
                   </SelectItem>
                   <SelectItem
                     value="active"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     Active
                   </SelectItem>
                   <SelectItem
                     value="suspended"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     Suspended
                   </SelectItem>
                   <SelectItem
                     value="inactive"
-                    className="text-xs sm:text-sm md:text-base">
+                    className="text-xs sm:text-sm md:text-xs">
                     Inactive
                   </SelectItem>
                 </SelectContent>
@@ -401,34 +421,34 @@ export function StudentManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs sm:text-sm md:text-base">
+                  <TableHead className="text-xs sm:text-sm md:text-xs">
                     Student
                   </TableHead>
-                  <TableHead className="text-xs sm:text-sm md:text-base">
+                  <TableHead className="text-xs sm:text-sm md:text-xs">
                     School & Grade
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell text-xs sm:text-sm md:text-base">
+                  <TableHead className="hidden lg:table-cell text-xs sm:text-sm md:text-xs">
                     Learning Progress
                   </TableHead>
-                  <TableHead className="text-xs sm:text-sm md:text-base">
+                  <TableHead className="text-xs sm:text-sm md:text-xs">
                     Performance
                   </TableHead>
-                  <TableHead className="text-xs sm:text-sm md:text-base">
+                  <TableHead className="text-xs sm:text-sm md:text-xs">
                     Subscription
                   </TableHead>
-                  <TableHead className="text-xs sm:text-sm md:text-base">
+                  <TableHead className="text-xs sm:text-sm md:text-xs">
                     Status
                   </TableHead>
-                  <TableHead className="text-xs sm:text-sm md:text-base">
+                  <TableHead className="text-xs sm:text-sm md:text-xs">
                     Last Active
                   </TableHead>
-                  <TableHead className="text-xs sm:text-sm md:text-base w-[80px]">
+                  <TableHead className="text-xs sm:text-sm md:text-xs w-[80px]">
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStudents.map((student) => (
+                {currentStudents.map((student) => (
                   <TableRow key={student.id} className="hover:bg-muted/50">
                     <TableCell>
                       <div className="flex items-center space-x-2 sm:space-x-3">
@@ -444,7 +464,7 @@ export function StudentManagement() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium text-xs sm:text-sm md:text-base">
+                          <div className="font-medium text-xs sm:text-sm md:text-xs">
                             {student.name}
                           </div>
                           <div className="text-[0.65rem] sm:text-xs md:text-sm text-muted-foreground">
@@ -459,11 +479,11 @@ export function StudentManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="flex items-center text-xs sm:text-sm md:text-base font-medium">
+                        <div className="flex items-center text-xs sm:text-sm md:text-xs font-medium">
                           <Building2 className="mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           {student.school}
                         </div>
-                        <div className="flex items-center text-xs sm:text-sm md:text-base">
+                        <div className="flex items-center text-xs sm:text-sm md:text-xs">
                           <GraduationCap className="mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           Grade {student.grade}
                         </div>
@@ -471,11 +491,11 @@ export function StudentManagement() {
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center text-xs sm:text-sm md:text-base">
+                        <div className="flex items-center text-xs sm:text-sm md:text-xs">
                           <BookOpen className="mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           {student.completedCourses}/{student.courses} courses
                         </div>
-                        <div className="text-xs sm:text-sm md:text-base text-muted-foreground">
+                        <div className="text-xs sm:text-sm md:text-xs text-muted-foreground">
                           {getProgressPercentage(
                             student.completedCourses,
                             student.courses
@@ -485,7 +505,7 @@ export function StudentManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm md:text-base">
+                      <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm md:text-xs">
                         <Trophy className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         <span
                           className={`font-medium ${getScoreColor(
@@ -500,7 +520,7 @@ export function StudentManagement() {
                     </TableCell>
                     <TableCell>{getStatusBadge(student.status)}</TableCell>
                     <TableCell>
-                      <div className="text-xs sm:text-sm md:text-base text-muted-foreground">
+                      <div className="text-xs sm:text-sm md:text-xs text-muted-foreground">
                         {student.lastActive}
                       </div>
                     </TableCell>
@@ -530,7 +550,7 @@ export function StudentManagement() {
 
           {/* Mobile Card View */}
           <div className="md:hidden grid gap-4">
-            {filteredStudents.map((student) => (
+            {currentStudents.map((student) => (
               <Card key={student.id} className="border-none">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
@@ -611,6 +631,44 @@ export function StudentManagement() {
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          <Pagination className="mt-4">
+            <PaginationContent>
+              <PaginationPrevious
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
+              />
+              {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                (page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              {totalPages > 5 && <PaginationEllipsis />}
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </PaginationContent>
+          </Pagination>
         </CardContent>
       </Card>
 
@@ -618,7 +676,7 @@ export function StudentManagement() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm md:text-base font-medium">
+            <CardTitle className="text-xs sm:text-sm md:text-xs font-medium">
               Total Students
             </CardTitle>
             <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -635,7 +693,7 @@ export function StudentManagement() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm md:text-base font-medium">
+            <CardTitle className="text-xs sm:text-sm md:text-xs font-medium">
               Avg Performance
             </CardTitle>
             <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -657,7 +715,7 @@ export function StudentManagement() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm md:text-base font-medium">
+            <CardTitle className="text-xs sm:text-sm md:text-xs font-medium">
               Course Completion
             </CardTitle>
             <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -684,7 +742,7 @@ export function StudentManagement() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm md:text-base font-medium">
+            <CardTitle className="text-xs sm:text-sm md:text-xs font-medium">
               Premium Students
             </CardTitle>
             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -712,7 +770,7 @@ export function StudentManagement() {
             <DialogTitle className="text-base sm:text-lg md:text-xl">
               Edit Student
             </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm md:text-base">
+            <DialogDescription className="text-xs sm:text-sm md:text-xs">
               Update student information
             </DialogDescription>
           </DialogHeader>
@@ -721,31 +779,31 @@ export function StudentManagement() {
               <div className="grid gap-2 sm:gap-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs sm:text-sm md:text-base">
+                    <Label className="text-xs sm:text-sm md:text-xs">
                       Full Name
                     </Label>
                     <Input
                       defaultValue={selectedStudent.name}
-                      className="text-xs sm:text-sm md:text-base h-9 sm:h-10"
+                      className="text-xs sm:text-sm md:text-xs h-9 sm:h-10"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs sm:text-sm md:text-base">
+                    <Label className="text-xs sm:text-sm md:text-xs">
                       Email Address
                     </Label>
                     <Input
                       defaultValue={selectedStudent.email}
-                      className="text-xs sm:text-sm md:text-base h-9 sm:h-10"
+                      className="text-xs sm:text-sm md:text-xs h-9 sm:h-10"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs sm:text-sm md:text-base">
+                    <Label className="text-xs sm:text-sm md:text-xs">
                       School
                     </Label>
                     <Select defaultValue={selectedStudent.school}>
-                      <SelectTrigger className="text-xs sm:text-sm md:text-base h-9 sm:h-10">
+                      <SelectTrigger className="text-xs sm:text-sm md:text-xs h-9 sm:h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -753,7 +811,7 @@ export function StudentManagement() {
                           <SelectItem
                             key={school}
                             value={school}
-                            className="text-xs sm:text-sm md:text-base">
+                            className="text-xs sm:text-sm md:text-xs">
                             {school}
                           </SelectItem>
                         ))}
@@ -761,27 +819,27 @@ export function StudentManagement() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs sm:text-sm md:text-base">
+                    <Label className="text-xs sm:text-sm md:text-xs">
                       Grade
                     </Label>
                     <Select defaultValue={selectedStudent.grade}>
-                      <SelectTrigger className="text-xs sm:text-sm md:text-base h-9 sm:h-10">
+                      <SelectTrigger className="text-xs sm:text-sm md:text-xs h-9 sm:h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="SS1"
-                          className="text-xs sm:text-sm md:text-base">
+                          className="text-xs sm:text-sm md:text-xs">
                           SS1
                         </SelectItem>
                         <SelectItem
                           value="SS2"
-                          className="text-xs sm:text-sm md:text-base">
+                          className="text-xs sm:text-sm md:text-xs">
                           SS2
                         </SelectItem>
                         <SelectItem
                           value="SS3"
-                          className="text-xs sm:text-sm md:text-base">
+                          className="text-xs sm:text-sm md:text-xs">
                           SS3
                         </SelectItem>
                       </SelectContent>
@@ -795,7 +853,7 @@ export function StudentManagement() {
             <Button
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
-              className="text-xs sm:text-sm md:text-base h-9 sm:h-10 w-full sm:w-auto">
+              className="text-xs sm:text-sm md:text-xs h-9 sm:h-10 w-full sm:w-auto">
               Cancel
             </Button>
             <Button
@@ -803,7 +861,7 @@ export function StudentManagement() {
                 setIsEditDialogOpen(false);
                 alert("Student updated successfully!");
               }}
-              className="text-xs sm:text-sm md:text-base h-9 sm:h-10 w-full sm:w-auto">
+              className="text-xs sm:text-sm md:text-xs h-9 sm:h-10 w-full sm:w-auto">
               Save Changes
             </Button>
           </DialogFooter>
@@ -817,7 +875,7 @@ export function StudentManagement() {
             <DialogTitle className="text-base sm:text-lg md:text-xl">
               Delete Student
             </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm md:text-base">
+            <DialogDescription className="text-xs sm:text-sm md:text-xs">
               Are you sure you want to delete{" "}
               {selectedStudent?.name ?? "this student"}? This action cannot be
               undone.
@@ -827,13 +885,13 @@ export function StudentManagement() {
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
-              className="text-xs sm:text-sm md:text-base h-9 sm:h-10 w-full sm:w-auto">
+              className="text-xs sm:text-sm md:text-xs h-9 sm:h-10 w-full sm:w-auto">
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={confirmDelete}
-              className="text-xs sm:text-sm md:text-base h-9 sm:h-10 w-full sm:w-auto">
+              className="text-xs sm:text-sm md:text-xs h-9 sm:h-10 w-full sm:w-auto">
               Delete Student
             </Button>
           </DialogFooter>

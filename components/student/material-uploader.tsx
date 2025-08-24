@@ -34,6 +34,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Upload,
   File,
   ImageIcon,
@@ -63,8 +72,8 @@ interface UploadedFile {
   progress: number;
   description?: string;
   tags: string[];
-  fileUrl?: string; // Add this
-  originalFile?: File; // Add this
+  fileUrl?: string;
+  originalFile?: File;
 }
 
 interface Category {
@@ -88,6 +97,8 @@ export function MaterialUploader() {
     null
   );
   const [isViewMaterialOpen, setIsViewMaterialOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const filesPerPage = 4;
 
   const [categories, setCategories] = useState<Category[]>([
     {id: "1", name: "Frontend Development", color: "bg-blue-500", count: 45},
@@ -193,6 +204,12 @@ export function MaterialUploader() {
     });
   }, [uploadedFiles, searchQuery, selectedCategory, selectedType]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
+  const indexOfLastFile = currentPage * filesPerPage;
+  const indexOfFirstFile = indexOfLastFile - filesPerPage;
+  const currentFiles = filteredFiles.slice(indexOfFirstFile, indexOfLastFile);
+
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -215,7 +232,6 @@ export function MaterialUploader() {
 
   const handleFiles = (files: FileList) => {
     Array.from(files).forEach((file) => {
-      // Create object URL for preview
       const fileUrl = URL.createObjectURL(file);
 
       const newFile: UploadedFile = {
@@ -232,8 +248,8 @@ export function MaterialUploader() {
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
-        fileUrl: fileUrl, // Store the object URL
-        originalFile: file, // Store the original file
+        fileUrl: fileUrl,
+        originalFile: file,
       };
 
       setUploadedFiles((prev) => [...prev, newFile]);
@@ -587,12 +603,12 @@ export function MaterialUploader() {
 
           {/* Results count */}
           <div className="text-sm text-muted-foreground">
-            Showing {filteredFiles.length} of {uploadedFiles.length} materials
+            Showing {currentFiles.length} of {filteredFiles.length} materials
           </div>
 
           {/* Materials Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredFiles.map((file) => {
+            {currentFiles.map((file) => {
               const Icon = getFileIcon(file.type);
               return (
                 <Card
@@ -667,7 +683,7 @@ export function MaterialUploader() {
             })}
           </div>
 
-          {filteredFiles.length === 0 && (
+          {filteredFiles.length === 0 ? (
             <div className="text-center py-12">
               <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No materials found</h3>
@@ -675,6 +691,45 @@ export function MaterialUploader() {
                 Try adjusting your search or filter criteria
               </p>
             </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                  (page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}>
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+                {totalPages > 5 && <PaginationEllipsis />}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
           )}
         </TabsContent>
 

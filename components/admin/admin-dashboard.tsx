@@ -113,7 +113,7 @@ export function AdminDashboard() {
               <GraduationCap className="h-6 w-6 text-primary" />
               <span className="font-semibold text-lg">EduPlatform</span>
               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                Teacher
+                Admin
               </span>
             </div>
           </SidebarHeader>

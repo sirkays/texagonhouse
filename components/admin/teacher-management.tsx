@@ -53,6 +53,15 @@ import {
   Clock,
   Building2,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 // Define Teacher interface
 interface Teacher {
@@ -77,6 +86,8 @@ export function TeacherManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const teachersPerPage = 5;
 
   const teachers: Teacher[] = [
     {
@@ -173,6 +184,15 @@ export function TeacherManagement() {
 
     return matchesSearch && matchesSchool;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+  const indexOfLastTeacher = currentPage * teachersPerPage;
+  const indexOfFirstTeacher = indexOfLastTeacher - teachersPerPage;
+  const currentTeachers = filteredTeachers.slice(
+    indexOfFirstTeacher,
+    indexOfLastTeacher
+  );
 
   const getStatusBadge = (status: "Active" | "Suspended" | "Pending") => {
     switch (status) {
@@ -527,7 +547,7 @@ export function TeacherManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTeachers.map((teacher) => (
+                {currentTeachers.map((teacher) => (
                   <TableRow key={teacher.id} className="hover:bg-muted/50">
                     <TableCell>
                       <div className="flex items-center space-x-2 xs:space-x-3">
@@ -630,7 +650,7 @@ export function TeacherManagement() {
 
           {/* Mobile Card View */}
           <div className="md:hidden grid gap-4">
-            {filteredTeachers.map((teacher) => (
+            {currentTeachers.map((teacher) => (
               <Card key={teacher.id} className="p-4">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
@@ -712,6 +732,44 @@ export function TeacherManagement() {
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          <Pagination className="mt-4">
+            <PaginationContent>
+              <PaginationPrevious
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
+              />
+              {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                (page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              {totalPages > 5 && <PaginationEllipsis />}
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </PaginationContent>
+          </Pagination>
         </CardContent>
       </Card>
 

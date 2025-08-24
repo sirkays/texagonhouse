@@ -168,12 +168,12 @@ export function ChildAccountManager() {
             parent-child linking
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 bg-transparent">
+                className="flex w-full sm:w-auto items-center gap-2 bg-transparent">
                 <Link className="h-4 w-4" />
                 Link Existing Account
               </Button>
@@ -237,7 +237,7 @@ export function ChildAccountManager() {
 
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
+              <Button className="flex w-full sm:w-auto items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Add Child Account
               </Button>

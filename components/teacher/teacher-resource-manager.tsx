@@ -58,6 +58,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Resource {
   id: string;
@@ -111,6 +120,8 @@ export function TeacherResourceManager() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(180); // 3 minutes for demo
+  const [currentPage, setCurrentPage] = useState(1);
+  const resourcesPerPage = 3;
 
   const [newResource, setNewResource] = useState({
     title: "",
@@ -294,6 +305,22 @@ export function TeacherResourceManager() {
 
       return matchesSearch && matchesCategory;
     });
+  };
+
+  // Pagination logic for each tab
+  const getPaginatedResources = (resourceList: any[]) => {
+    const filteredResources = getFilteredResources(resourceList);
+    const totalPages = Math.ceil(filteredResources.length / resourcesPerPage);
+    const indexOfLastResource = currentPage * resourcesPerPage;
+    const indexOfFirstResource = indexOfLastResource - resourcesPerPage;
+    return {
+      paginatedResources: filteredResources.slice(
+        indexOfFirstResource,
+        indexOfLastResource
+      ),
+      totalPages,
+      filteredCount: filteredResources.length,
+    };
   };
 
   const handleEdit = (resourceType: string, resource: any) => {
@@ -641,7 +668,13 @@ export function TeacherResourceManager() {
         </Dialog>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          setCurrentPage(1);
+        }}
+        className="w-full">
         <TabsList
           className="
     grid grid-cols-2 xs:grid-cols-4 gap-2
@@ -682,430 +715,703 @@ export function TeacherResourceManager() {
         </TabsList>
 
         <TabsContent value="pdfs" className="space-y-3 xs:space-y-4">
+          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            Showing{" "}
+            {getPaginatedResources(resources.pdfs).paginatedResources.length} of{" "}
+            {getPaginatedResources(resources.pdfs).filteredCount} PDFs
+          </div>
           <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {getFilteredResources(resources.pdfs).map((pdf) => (
-              <Card key={pdf.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                        {pdf.title}
-                      </CardTitle>
-                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
-                        {pdf.description}
-                      </CardDescription>
+            {getPaginatedResources(resources.pdfs).paginatedResources.map(
+              (pdf) => (
+                <Card
+                  key={pdf.id}
+                  className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                          {pdf.title}
+                        </CardTitle>
+                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                          {pdf.description}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 xs:p-2">
+                            <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit("pdf", pdf)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleShare("pdf", pdf.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => togglePublic("pdf", pdf.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            {pdf.isPublic ? "Make Private" : "Make Public"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete("pdf", pdf.id)}
+                            className="text-red-600 text-xs xs:text-sm sm:text-base">
+                            <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="p-1 xs:p-2">
-                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleEdit("pdf", pdf)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleShare("pdf", pdf.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => togglePublic("pdf", pdf.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          {pdf.isPublic ? "Make Private" : "Make Public"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete("pdf", pdf.id)}
-                          className="text-red-600 text-xs xs:text-sm sm:text-base">
-                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {pdf.category}
-                    </Badge>
-                    <Badge
-                      variant={pdf.isPublic ? "default" : "outline"}
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {pdf.isPublic ? "Public" : "Private"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 xs:space-y-4">
-                  <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    <div>Pages: {pdf.pages}</div>
-                    <div>Size: {pdf.size}</div>
-                    <div className="flex items-center gap-1">
-                      <Download className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      {pdf.downloads}
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {pdf.category}
+                      </Badge>
+                      <Badge
+                        variant={pdf.isPublic ? "default" : "outline"}
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {pdf.isPublic ? "Public" : "Private"}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      {pdf.views}
+                  </CardHeader>
+                  <CardContent className="space-y-3 xs:space-y-4">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <div>Pages: {pdf.pages}</div>
+                      <div>Size: {pdf.size}</div>
+                      <div className="flex items-center gap-1">
+                        <Download className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        {pdf.downloads}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        {pdf.views}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
-                        {pdf.rating}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
+                        <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                          {pdf.rating}
+                        </span>
+                      </div>
+                      <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
+                        {pdf.uploadDate}
                       </span>
                     </div>
-                    <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                      {pdf.uploadDate}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleView("pdf", pdf)}>
-                      <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleEdit("pdf", pdf)}>
-                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Edit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleView("pdf", pdf)}>
+                        <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleEdit("pdf", pdf)}>
+                        <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            )}
           </div>
+          {getPaginatedResources(resources.pdfs).filteredCount === 0 ? (
+            <div className="text-center py-8 xs:py-12">
+              <Search className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+              <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+                No PDFs found
+              </h3>
+              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                Try adjusting your search or filter criteria
+              </p>
+            </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from(
+                  {length: getPaginatedResources(resources.pdfs).totalPages},
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {getPaginatedResources(resources.pdfs).totalPages > 5 && (
+                  <PaginationEllipsis />
+                )}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(
+                        prev + 1,
+                        getPaginatedResources(resources.pdfs).totalPages
+                      )
+                    )
+                  }
+                  className={
+                    currentPage ===
+                    getPaginatedResources(resources.pdfs).totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
 
         <TabsContent value="videos" className="space-y-3 xs:space-y-4">
-          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {getFilteredResources(resources.videos).map((video) => (
-              <Card
-                key={video.id}
-                className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="aspect-video bg-muted rounded-md mb-2 xs:mb-3 flex items-center justify-center">
-                    <Video className="h-6 w-6 xs:h-8 xs:w-8 text-muted-foreground" />
-                  </div>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                        {video.title}
-                      </CardTitle>
-                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
-                        {video.description}
-                      </CardDescription>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="p-1 xs:p-2">
-                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleEdit("video", video)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleShare("video", video.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => togglePublic("video", video.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          {video.isPublic ? "Make Private" : "Make Public"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete("video", video.id)}
-                          className="text-red-600 text-xs xs:text-sm sm:text-base">
-                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {video.category}
-                    </Badge>
-                    <Badge
-                      variant={video.isPublic ? "default" : "outline"}
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {video.isPublic ? "Public" : "Private"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 xs:space-y-4">
-                  <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      {video.duration}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      {video.views} views
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                      {video.rating}
-                    </div>
-                    <div>{video.likes} likes</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleView("video", video)}>
-                      <Video className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Watch
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleEdit("video", video)}>
-                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Edit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            Showing{" "}
+            {getPaginatedResources(resources.videos).paginatedResources.length}{" "}
+            of {getPaginatedResources(resources.videos).filteredCount} Videos
           </div>
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {getPaginatedResources(resources.videos).paginatedResources.map(
+              (video) => (
+                <Card
+                  key={video.id}
+                  className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="aspect-video bg-muted rounded-md mb-2 xs:mb-3 flex items-center justify-center">
+                      <Video className="h-6 w-6 xs:h-8 xs:w-8 text-muted-foreground" />
+                    </div>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                          {video.title}
+                        </CardTitle>
+                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                          {video.description}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 xs:p-2">
+                            <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit("video", video)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleShare("video", video.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => togglePublic("video", video.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            {video.isPublic ? "Make Private" : "Make Public"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete("video", video.id)}
+                            className="text-red-600 text-xs xs:text-sm sm:text-base">
+                            <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {video.category}
+                      </Badge>
+                      <Badge
+                        variant={video.isPublic ? "default" : "outline"}
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {video.isPublic ? "Public" : "Private"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 xs:space-y-4">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        {video.duration}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        {video.views} views
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
+                        {video.rating}
+                      </div>
+                      <div>{video.likes} likes</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleView("video", video)}>
+                        <Video className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Watch
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleEdit("video", video)}>
+                        <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            )}
+          </div>
+          {getPaginatedResources(resources.videos).filteredCount === 0 ? (
+            <div className="text-center py-8 xs:py-12">
+              <Search className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+              <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+                No Videos found
+              </h3>
+              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                Try adjusting your search or filter criteria
+              </p>
+            </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from(
+                  {length: getPaginatedResources(resources.videos).totalPages},
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {getPaginatedResources(resources.videos).totalPages > 5 && (
+                  <PaginationEllipsis />
+                )}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(
+                        prev + 1,
+                        getPaginatedResources(resources.videos).totalPages
+                      )
+                    )
+                  }
+                  className={
+                    currentPage ===
+                    getPaginatedResources(resources.videos).totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
 
         <TabsContent value="audio" className="space-y-3 xs:space-y-4">
-          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {getFilteredResources(resources.audio).map((audio) => (
-              <Card
-                key={audio.id}
-                className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                        {audio.title}
-                      </CardTitle>
-                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
-                        {audio.description}
-                      </CardDescription>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="p-1 xs:p-2">
-                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleEdit("audio", audio)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleShare("audio", audio.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => togglePublic("audio", audio.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          {audio.isPublic ? "Make Private" : "Make Public"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete("audio", audio.id)}
-                          className="text-red-600 text-xs xs:text-sm sm:text-base">
-                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {audio.category}
-                    </Badge>
-                    <Badge
-                      variant={audio.isPublic ? "default" : "outline"}
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {audio.isPublic ? "Public" : "Private"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 xs:space-y-4">
-                  <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      {audio.duration}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Headphones className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      {audio.listens} listens
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                      {audio.rating}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleView("audio", audio)}>
-                      <Headphones className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Listen
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleEdit("audio", audio)}>
-                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Edit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            Showing{" "}
+            {getPaginatedResources(resources.audio).paginatedResources.length}{" "}
+            of {getPaginatedResources(resources.audio).filteredCount} Audio
           </div>
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {getPaginatedResources(resources.audio).paginatedResources.map(
+              (audio) => (
+                <Card
+                  key={audio.id}
+                  className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                          {audio.title}
+                        </CardTitle>
+                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                          {audio.description}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 xs:p-2">
+                            <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit("audio", audio)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleShare("audio", audio.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => togglePublic("audio", audio.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            {audio.isPublic ? "Make Private" : "Make Public"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete("audio", audio.id)}
+                            className="text-red-600 text-xs xs:text-sm sm:text-base">
+                            <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {audio.category}
+                      </Badge>
+                      <Badge
+                        variant={audio.isPublic ? "default" : "outline"}
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {audio.isPublic ? "Public" : "Private"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 xs:space-y-4">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        {audio.duration}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Headphones className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        {audio.listens} listens
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
+                        {audio.rating}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleView("audio", audio)}>
+                        <Headphones className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Listen
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleEdit("audio", audio)}>
+                        <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            )}
+          </div>
+          {getPaginatedResources(resources.audio).filteredCount === 0 ? (
+            <div className="text-center py-8 xs:py-12">
+              <Search className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+              <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+                No Audio found
+              </h3>
+              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                Try adjusting your search or filter criteria
+              </p>
+            </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from(
+                  {length: getPaginatedResources(resources.audio).totalPages},
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {getPaginatedResources(resources.audio).totalPages > 5 && (
+                  <PaginationEllipsis />
+                )}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(
+                        prev + 1,
+                        getPaginatedResources(resources.audio).totalPages
+                      )
+                    )
+                  }
+                  className={
+                    currentPage ===
+                    getPaginatedResources(resources.audio).totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
 
         <TabsContent value="journals" className="space-y-3 xs:space-y-4">
-          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {getFilteredResources(resources.journals).map((journal) => (
-              <Card
-                key={journal.id}
-                className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                        {journal.title}
-                      </CardTitle>
-                      <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
-                        {journal.description}
-                      </CardDescription>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="p-1 xs:p-2">
-                          <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleEdit("journal", journal)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleShare("journal", journal.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => togglePublic("journal", journal.id)}
-                          className="text-xs xs:text-sm sm:text-base">
-                          <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          {journal.isPublic ? "Make Private" : "Make Public"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete("journal", journal.id)}
-                          className="text-red-600 text-xs xs:text-sm sm:text-base">
-                          <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {journal.category}
-                    </Badge>
-                    <Badge
-                      variant={journal.isPublic ? "default" : "outline"}
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
-                      {journal.isPublic ? "Public" : "Private"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 xs:space-y-4">
-                  <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    <p>
-                      <strong>Journal:</strong> {journal.journal}
-                    </p>
-                    <p>
-                      <strong>Published:</strong> {journal.date}
-                    </p>
-                    <p>
-                      <strong>Pages:</strong> {journal.pages}
-                    </p>
-                    <p>
-                      <strong>Citations:</strong> {journal.citations}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleView("journal", journal)}>
-                      <BookOpen className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Read
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs xs:text-sm sm:text-base"
-                      onClick={() => handleEdit("journal", journal)}>
-                      <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                      Edit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            Showing{" "}
+            {
+              getPaginatedResources(resources.journals).paginatedResources
+                .length
+            }{" "}
+            of {getPaginatedResources(resources.journals).filteredCount}{" "}
+            Journals
           </div>
+          <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {getPaginatedResources(resources.journals).paginatedResources.map(
+              (journal) => (
+                <Card
+                  key={journal.id}
+                  className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                          {journal.title}
+                        </CardTitle>
+                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                          {journal.description}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 xs:p-2">
+                            <MoreHorizontal className="h-3 w-3 xs:h-4 xs:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit("journal", journal)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Edit className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleShare("journal", journal.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Share className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => togglePublic("journal", journal.id)}
+                            className="text-xs xs:text-sm sm:text-base">
+                            <Eye className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            {journal.isPublic ? "Make Private" : "Make Public"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete("journal", journal.id)}
+                            className="text-red-600 text-xs xs:text-sm sm:text-base">
+                            <Trash2 className="mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {journal.category}
+                      </Badge>
+                      <Badge
+                        variant={journal.isPublic ? "default" : "outline"}
+                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        {journal.isPublic ? "Public" : "Private"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 xs:space-y-4">
+                    <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <p>
+                        <strong>Journal:</strong> {journal.journal}
+                      </p>
+                      <p>
+                        <strong>Published:</strong> {journal.date}
+                      </p>
+                      <p>
+                        <strong>Pages:</strong> {journal.pages}
+                      </p>
+                      <p>
+                        <strong>Citations:</strong> {journal.citations}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleView("journal", journal)}>
+                        <BookOpen className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Read
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs xs:text-sm sm:text-base"
+                        onClick={() => handleEdit("journal", journal)}>
+                        <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            )}
+          </div>
+          {getPaginatedResources(resources.journals).filteredCount === 0 ? (
+            <div className="text-center py-8 xs:py-12">
+              <Search className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+              <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+                No Journals found
+              </h3>
+              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                Try adjusting your search or filter criteria
+              </p>
+            </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from(
+                  {
+                    length: getPaginatedResources(resources.journals)
+                      .totalPages,
+                  },
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {getPaginatedResources(resources.journals).totalPages > 5 && (
+                  <PaginationEllipsis />
+                )}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(
+                        prev + 1,
+                        getPaginatedResources(resources.journals).totalPages
+                      )
+                    )
+                  }
+                  className={
+                    currentPage ===
+                    getPaginatedResources(resources.journals).totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -36,6 +36,15 @@ import {
   Save,
   Upload,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Module {
   id: string;
@@ -79,6 +88,9 @@ export function TeacherLearningModules() {
     lessons: [],
   });
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [currentPageManage, setCurrentPageManage] = useState(1);
+  const [currentPageAnalytics, setCurrentPageAnalytics] = useState(1);
+  const modulesPerPage = 3;
 
   const existingModules: Module[] = [
     {
@@ -125,6 +137,18 @@ export function TeacherLearningModules() {
       lessons: [],
     },
   ];
+
+  // Pagination logic
+  const getPaginatedModules = (modules: Module[], currentPage: number) => {
+    const totalPages = Math.ceil(modules.length / modulesPerPage);
+    const indexOfLastModule = currentPage * modulesPerPage;
+    const indexOfFirstModule = indexOfLastModule - modulesPerPage;
+    return {
+      paginatedModules: modules.slice(indexOfFirstModule, indexOfLastModule),
+      totalPages,
+      totalCount: modules.length,
+    };
+  };
 
   const addLesson = () => {
     const newLesson: Lesson = {
@@ -198,7 +222,14 @@ export function TeacherLearningModules() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          setCurrentPageManage(1);
+          setCurrentPageAnalytics(1);
+        }}
+        className="w-full">
         <TabsList
           className="
     grid grid-cols-2 xs:grid-cols-3 gap-2
@@ -707,8 +738,22 @@ export function TeacherLearningModules() {
             </Button>
           </div>
 
+          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            Showing{" "}
+            {
+              getPaginatedModules(existingModules, currentPageManage)
+                .paginatedModules.length
+            }{" "}
+            of{" "}
+            {getPaginatedModules(existingModules, currentPageManage).totalCount}{" "}
+            Modules
+          </div>
+
           <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {existingModules.map((module) => {
+            {getPaginatedModules(
+              existingModules,
+              currentPageManage
+            ).paginatedModules.map((module) => {
               const Icon = getTypeIcon(module.type);
               return (
                 <Card
@@ -782,6 +827,75 @@ export function TeacherLearningModules() {
               );
             })}
           </div>
+
+          {getPaginatedModules(existingModules, currentPageManage)
+            .totalCount === 0 ? (
+            <div className="text-center py-8 xs:py-12">
+              <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+              <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+                No Modules found
+              </h3>
+              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                Create a new module to get started
+              </p>
+            </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPageManage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPageManage === 1
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+                {Array.from(
+                  {
+                    length: getPaginatedModules(
+                      existingModules,
+                      currentPageManage
+                    ).totalPages,
+                  },
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPageManage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPageManage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {getPaginatedModules(existingModules, currentPageManage)
+                  .totalPages > 5 && <PaginationEllipsis />}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPageManage((prev) =>
+                      Math.min(
+                        prev + 1,
+                        getPaginatedModules(existingModules, currentPageManage)
+                          .totalPages
+                      )
+                    )
+                  }
+                  className={
+                    currentPageManage ===
+                    getPaginatedModules(existingModules, currentPageManage)
+                      .totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-3 xs:space-y-4">
@@ -867,8 +981,24 @@ export function TeacherLearningModules() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
+                Showing{" "}
+                {
+                  getPaginatedModules(existingModules, currentPageAnalytics)
+                    .paginatedModules.length
+                }{" "}
+                of{" "}
+                {
+                  getPaginatedModules(existingModules, currentPageAnalytics)
+                    .totalCount
+                }{" "}
+                Modules
+              </div>
               <div className="space-y-2 xs:space-y-3">
-                {existingModules.map((module, index) => (
+                {getPaginatedModules(
+                  existingModules,
+                  currentPageAnalytics
+                ).paginatedModules.map((module) => (
                   <div
                     key={module.id}
                     className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg">
@@ -905,6 +1035,78 @@ export function TeacherLearningModules() {
                   </div>
                 ))}
               </div>
+              {getPaginatedModules(existingModules, currentPageAnalytics)
+                .totalCount === 0 ? (
+                <div className="text-center py-8 xs:py-12">
+                  <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+                  <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+                    No Modules found
+                  </h3>
+                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    Create a new module to view analytics
+                  </p>
+                </div>
+              ) : (
+                <Pagination className="mt-4">
+                  <PaginationContent>
+                    <PaginationPrevious
+                      onClick={() =>
+                        setCurrentPageAnalytics((prev) => Math.max(prev - 1, 1))
+                      }
+                      className={
+                        currentPageAnalytics === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                    {Array.from(
+                      {
+                        length: getPaginatedModules(
+                          existingModules,
+                          currentPageAnalytics
+                        ).totalPages,
+                      },
+                      (_, index) => index + 1
+                    ).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={currentPageAnalytics === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentPageAnalytics(page);
+                          }}>
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    {getPaginatedModules(existingModules, currentPageAnalytics)
+                      .totalPages > 5 && <PaginationEllipsis />}
+                    <PaginationNext
+                      onClick={() =>
+                        setCurrentPageAnalytics((prev) =>
+                          Math.min(
+                            prev + 1,
+                            getPaginatedModules(
+                              existingModules,
+                              currentPageAnalytics
+                            ).totalPages
+                          )
+                        )
+                      }
+                      className={
+                        currentPageAnalytics ===
+                        getPaginatedModules(
+                          existingModules,
+                          currentPageAnalytics
+                        ).totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                  </PaginationContent>
+                </Pagination>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

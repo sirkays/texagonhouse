@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {useState} from "react";
 import {
   Card,
@@ -50,12 +51,124 @@ import {
   MessageSquare,
   Shield,
   Zap,
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
 } from "lucide-react";
+import {cn} from "@/lib/utils";
+import {ButtonProps, buttonVariants} from "@/components/ui/button";
 
+// Pagination Components
+const Pagination = ({className, ...props}: React.ComponentProps<"nav">) => (
+  <nav
+    role="navigation"
+    aria-label="pagination"
+    className={cn("mx-auto flex w-full justify-center", className)}
+    {...props}
+  />
+);
+Pagination.displayName = "Pagination";
+
+const PaginationContent = React.forwardRef<
+  HTMLUListElement,
+  React.ComponentProps<"ul">
+>(({className, ...props}, ref) => (
+  <ul
+    ref={ref}
+    className={cn("flex flex-row items-center gap-1", className)}
+    {...props}
+  />
+));
+PaginationContent.displayName = "PaginationContent";
+
+const PaginationItem = React.forwardRef<
+  HTMLLIElement,
+  React.ComponentProps<"li">
+>(({className, ...props}, ref) => (
+  <li ref={ref} className={cn("", className)} {...props} />
+));
+PaginationItem.displayName = "PaginationItem";
+
+type PaginationLinkProps = {
+  isActive?: boolean;
+} & Pick<ButtonProps, "size"> &
+  React.ComponentProps<"a">;
+
+const PaginationLink = ({
+  className,
+  isActive,
+  size = "icon",
+  ...props
+}: PaginationLinkProps) => (
+  <a
+    aria-current={isActive ? "page" : undefined}
+    className={cn(
+      buttonVariants({
+        variant: isActive ? "outline" : "ghost",
+        size,
+      }),
+      className
+    )}
+    {...props}
+  />
+);
+PaginationLink.displayName = "PaginationLink";
+
+const PaginationPrevious = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof PaginationLink>) => (
+  <PaginationLink
+    aria-label="Go to previous page"
+    size="default"
+    className={cn("gap-1 pl-2.5", className)}
+    {...props}>
+    <ChevronLeft className="h-4 w-4" />
+    <span>Previous</span>
+  </PaginationLink>
+);
+PaginationPrevious.displayName = "PaginationPrevious";
+
+const PaginationNext = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof PaginationLink>) => (
+  <PaginationLink
+    aria-label="Go to next page"
+    size="default"
+    className={cn("gap-1 pr-2.5", className)}
+    {...props}>
+    <span>Next</span>
+    <ChevronRight className="h-4 w-4" />
+  </PaginationLink>
+);
+PaginationNext.displayName = "PaginationNext";
+
+const PaginationEllipsis = ({
+  className,
+  ...props
+}: React.ComponentProps<"span">) => (
+  <span
+    aria-hidden
+    className={cn("flex h-9 w-9 items-center justify-center", className)}
+    {...props}>
+    <MoreHorizontal className="h-4 w-4" />
+    <span className="sr-only">More pages</span>
+  </span>
+);
+PaginationEllipsis.displayName = "PaginationEllipsis";
+
+// TutoringBooking Component
 export function TutoringBooking() {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedTutor, setSelectedTutor] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
+
+  // Pagination state for each tab
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [pastPage, setPastPage] = useState(1);
+  const [tutorsPage, setTutorsPage] = useState(1);
+  const itemsPerPage = 5; // Adjust this value as needed
 
   const upcomingSessions = [
     {
@@ -222,6 +335,36 @@ export function TutoringBooking() {
     },
   ];
 
+  // Pagination calculations
+  const paginate = (items: any[], page: number, itemsPerPage: number) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return items.slice(startIndex, endIndex);
+  };
+
+  const totalPages = (items: any[], itemsPerPage: number) =>
+    Math.ceil(items.length / itemsPerPage);
+
+  // Paginated data
+  const paginatedUpcoming = paginate(
+    upcomingSessions,
+    upcomingPage,
+    itemsPerPage
+  );
+  const paginatedPast = paginate(pastSessions, pastPage, itemsPerPage);
+  const paginatedTutors = paginate(availableTutors, tutorsPage, itemsPerPage);
+
+  // Pagination navigation handlers
+  const handlePageChange = (
+    setPage: React.Dispatch<React.SetStateAction<number>>,
+    totalPages: number,
+    newPage: number
+  ) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Confirmed":
@@ -301,7 +444,6 @@ export function TutoringBooking() {
               </Button>
             </DialogTrigger>
             <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
-              {/* Sticky Header */}
               <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
                 <DialogTitle>Book Premium Tutoring Session</DialogTitle>
                 <DialogDescription>
@@ -309,11 +451,8 @@ export function TutoringBooking() {
                   educators
                 </DialogDescription>
               </DialogHeader>
-
-              {/* Scrollable Body */}
               <div className="px-4 sm:px-6 py-4 overflow-y-auto">
                 <div className="grid gap-4">
-                  {/* Child + Subject */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="select-child">Select Child</Label>
@@ -331,7 +470,6 @@ export function TutoringBooking() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="select-subject">Subject</Label>
                       <Select>
@@ -351,8 +489,6 @@ export function TutoringBooking() {
                       </Select>
                     </div>
                   </div>
-
-                  {/* Tutor */}
                   <div className="space-y-2">
                     <Label htmlFor="select-tutor">Select Tutor</Label>
                     <Select
@@ -380,7 +516,6 @@ export function TutoringBooking() {
                         ))}
                       </SelectContent>
                     </Select>
-
                     {selectedTutor && (
                       <div className="p-3 bg-muted rounded-lg text-sm">
                         {(() => {
@@ -421,8 +556,6 @@ export function TutoringBooking() {
                       </div>
                     )}
                   </div>
-
-                  {/* Date / Time / Duration */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="session-date">Preferred Date</Label>
@@ -446,7 +579,6 @@ export function TutoringBooking() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="session-time">Preferred Time</Label>
                       <Select>
@@ -461,7 +593,6 @@ export function TutoringBooking() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="session-duration">Duration</Label>
                       <Select>
@@ -476,8 +607,6 @@ export function TutoringBooking() {
                       </Select>
                     </div>
                   </div>
-
-                  {/* Session Type */}
                   <div className="space-y-2">
                     <Label htmlFor="session-type">Session Type</Label>
                     <Select>
@@ -497,8 +626,6 @@ export function TutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Notes */}
                   <div className="space-y-2">
                     <Label htmlFor="session-notes">
                       Learning Objectives & Notes
@@ -510,8 +637,6 @@ export function TutoringBooking() {
                       className="w-full"
                     />
                   </div>
-
-                  {/* Payment */}
                   <div className="space-y-2">
                     <Label htmlFor="payment-method">Payment Method</Label>
                     <Select>
@@ -526,8 +651,6 @@ export function TutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Features */}
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <h4 className="font-medium text-blue-800 mb-2">
                       Session Features:
@@ -543,8 +666,6 @@ export function TutoringBooking() {
                   </div>
                 </div>
               </div>
-
-              {/* Sticky Footer */}
               <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
                 <Button
                   variant="outline"
@@ -586,13 +707,11 @@ export function TutoringBooking() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingSessions.map((session) => (
+                {paginatedUpcoming.map((session) => (
                   <div
                     key={session.id}
                     className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    {/* Make parent responsive */}
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      {/* LEFT SIDE */}
                       <div className="flex items-start space-x-4 min-w-0">
                         <Avatar className="h-12 w-12 flex-shrink-0">
                           <AvatarImage
@@ -601,11 +720,10 @@ export function TutoringBooking() {
                           <AvatarFallback>
                             {session.tutor
                               .split(" ")
-                              .map((n) => n[0])
+                              .map((n: any) => n[0])
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
-
                         <div className="space-y-2 flex-1 min-w-0">
                           <div>
                             <h4 className="font-semibold text-lg truncate">
@@ -615,8 +733,6 @@ export function TutoringBooking() {
                               {session.tutor} • {session.child}
                             </p>
                           </div>
-
-                          {/* Make badges/wrap properly */}
                           <div className="flex flex-wrap items-center gap-2 text-sm">
                             <div className="flex items-center gap-1">
                               <CalendarIcon className="h-3 w-3 flex-shrink-0" />
@@ -638,11 +754,9 @@ export function TutoringBooking() {
                               {session.sessionType}
                             </Badge>
                           </div>
-
                           <div className="text-sm text-muted-foreground break-words">
                             {session.notes}
                           </div>
-
                           <div className="flex flex-wrap items-center gap-2">
                             {session.reminderSent && (
                               <Badge variant="outline" className="text-xs">
@@ -654,14 +768,12 @@ export function TutoringBooking() {
                           </div>
                         </div>
                       </div>
-
-                      {/* RIGHT SIDE */}
                       <div className="text-right space-y-2 flex-shrink-0">
                         <div className="font-medium text-green-600 text-lg">
                           {session.cost}
                         </div>
-                        {/* {getStatusBadge(session.status)} */}
-                        {/* <div className="flex flex-wrap justify-end gap-2">
+                        {getStatusBadge(session.status)}
+                        <div className="flex flex-wrap justify-end gap-2">
                           {session.meetingLink && (
                             <Button
                               size="sm"
@@ -681,12 +793,72 @@ export function TutoringBooking() {
                             className="text-red-600 hover:text-red-700 bg-transparent">
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div> */}
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              {upcomingSessions.length > itemsPerPage && (
+                <Pagination className="mt-6">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() =>
+                          handlePageChange(
+                            setUpcomingPage,
+                            totalPages(upcomingSessions, itemsPerPage),
+                            upcomingPage - 1
+                          )
+                        }
+                      />
+                    </PaginationItem>
+                    {Array.from({
+                      length: totalPages(upcomingSessions, itemsPerPage),
+                    }).map((_, index) => {
+                      const page = index + 1;
+                      if (
+                        page === 1 ||
+                        page === totalPages(upcomingSessions, itemsPerPage) ||
+                        (page >= upcomingPage - 1 && page <= upcomingPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={upcomingPage === page}
+                              onClick={() => setUpcomingPage(page)}>
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (
+                        (page === upcomingPage - 2 && upcomingPage > 3) ||
+                        (page === upcomingPage + 2 &&
+                          upcomingPage <
+                            totalPages(upcomingSessions, itemsPerPage) - 2)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    })}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() =>
+                          handlePageChange(
+                            setUpcomingPage,
+                            totalPages(upcomingSessions, itemsPerPage),
+                            upcomingPage + 1
+                          )
+                        }
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -702,13 +874,11 @@ export function TutoringBooking() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {pastSessions.map((session) => (
+                {paginatedPast.map((session) => (
                   <div
                     key={session.id}
                     className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    {/* Responsive container */}
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                      {/* LEFT: Avatar + Info */}
                       <div className="flex items-start gap-4 flex-1 min-w-0">
                         <Avatar className="h-12 w-12 shrink-0">
                           <AvatarImage
@@ -717,7 +887,7 @@ export function TutoringBooking() {
                           <AvatarFallback>
                             {session.tutor
                               .split(" ")
-                              .map((n) => n[0])
+                              .map((n: any) => n[0])
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
@@ -730,8 +900,6 @@ export function TutoringBooking() {
                               {session.tutor} • {session.child}
                             </p>
                           </div>
-
-                          {/* Date / Time / Type */}
                           <div className="flex flex-wrap items-center gap-3 text-sm">
                             <div className="flex items-center gap-1">
                               <CalendarIcon className="h-3 w-3" />
@@ -751,21 +919,15 @@ export function TutoringBooking() {
                               {session.sessionType}
                             </Badge>
                           </div>
-
-                          {/* Rating */}
                           <div className="flex items-center gap-1">
                             {renderStars(session.rating)}
                             <span className="text-sm text-muted-foreground ml-1">
                               ({session.rating}/5)
                             </span>
                           </div>
-
-                          {/* Feedback */}
                           <div className="text-sm text-muted-foreground italic break-words">
                             "{session.feedback}"
                           </div>
-
-                          {/* Recording & Materials */}
                           {(session.hasRecording || session.materials) && (
                             <div className="flex flex-wrap items-center gap-2 pt-2">
                               {session.materials &&
@@ -782,21 +944,78 @@ export function TutoringBooking() {
                           )}
                         </div>
                       </div>
-
-                      {/* RIGHT: Cost + Actions */}
                       <div className="flex flex-col items-start md:items-end gap-2 text-left md:text-right shrink-0">
                         <div className="font-medium text-green-600 text-lg">
                           {session.cost}
                         </div>
                         {getStatusBadge(session.status)}
-                        {/* <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm">
                           Book Again
-                        </Button> */}
+                        </Button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              {pastSessions.length > itemsPerPage && (
+                <Pagination className="mt-6">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() =>
+                          handlePageChange(
+                            setPastPage,
+                            totalPages(pastSessions, itemsPerPage),
+                            pastPage - 1
+                          )
+                        }
+                      />
+                    </PaginationItem>
+                    {Array.from({
+                      length: totalPages(pastSessions, itemsPerPage),
+                    }).map((_, index) => {
+                      const page = index + 1;
+                      if (
+                        page === 1 ||
+                        page === totalPages(pastSessions, itemsPerPage) ||
+                        (page >= pastPage - 1 && page <= pastPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={pastPage === page}
+                              onClick={() => setPastPage(page)}>
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (
+                        (page === pastPage - 2 && pastPage > 3) ||
+                        (page === pastPage + 2 &&
+                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    })}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() =>
+                          handlePageChange(
+                            setPastPage,
+                            totalPages(pastSessions, itemsPerPage),
+                            pastPage + 1
+                          )
+                        }
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -810,20 +1029,18 @@ export function TutoringBooking() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Ensure container does not overflow */}
               <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {availableTutors.map((tutor) => (
+                {paginatedTutors.map((tutor) => (
                   <div
                     key={tutor.id}
                     className="flex flex-col p-4 border rounded-lg space-y-4 hover:shadow-md transition-shadow w-full overflow-hidden">
-                    {/* Tutor Header */}
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-12 w-12 shrink-0">
                         <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
                         <AvatarFallback>
                           {tutor.name
                             .split(" ")
-                            .map((n) => n[0])
+                            .map((n: any) => n[0])
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
@@ -847,13 +1064,11 @@ export function TutoringBooking() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Tutor Details */}
                     <div className="space-y-3 text-sm">
                       <div>
                         <span className="font-medium">Subjects:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {tutor.subjects.map((subject, index) => (
+                          {tutor.subjects.map((subject: any, index: any) => (
                             <Badge
                               key={index}
                               variant="secondary"
@@ -863,7 +1078,6 @@ export function TutoringBooking() {
                           ))}
                         </div>
                       </div>
-
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <span className="font-medium">Experience:</span>
@@ -876,26 +1090,22 @@ export function TutoringBooking() {
                           </div>
                         </div>
                       </div>
-
                       <div>
                         <span className="font-medium">Response time:</span>{" "}
                         {tutor.responseTime}
                       </div>
-
                       <div>
                         <span className="font-medium">Languages:</span>{" "}
                         {tutor.languages.join(", ")}
                       </div>
-
                       <div>
                         <span className="font-medium">Available:</span>
                         <div>{tutor.availability}</div>
                       </div>
-
                       <div>
                         <span className="font-medium">Session Types:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {tutor.sessionTypes.map((type, index) => (
+                          {tutor.sessionTypes.map((type: any, index: any) => (
                             <Badge
                               key={index}
                               variant="outline"
@@ -905,18 +1115,14 @@ export function TutoringBooking() {
                           ))}
                         </div>
                       </div>
-
                       <div className="text-xs text-muted-foreground break-words">
                         <span className="font-medium">Technologies:</span>{" "}
                         {tutor.technologies.join(", ")}
                       </div>
-
                       <div className="text-xs text-muted-foreground break-words">
                         {tutor.specialization}
                       </div>
                     </div>
-
-                    {/* Actions */}
                     <div className="flex gap-2 flex-wrap">
                       <Button className="flex-1 min-w-[120px]" size="sm">
                         <Video className="h-3 w-3 mr-1" />
@@ -926,6 +1132,66 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
+              {availableTutors.length > itemsPerPage && (
+                <Pagination className="mt-6">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() =>
+                          handlePageChange(
+                            setTutorsPage,
+                            totalPages(availableTutors, itemsPerPage),
+                            tutorsPage - 1
+                          )
+                        }
+                      />
+                    </PaginationItem>
+                    {Array.from({
+                      length: totalPages(availableTutors, itemsPerPage),
+                    }).map((_, index) => {
+                      const page = index + 1;
+                      if (
+                        page === 1 ||
+                        page === totalPages(availableTutors, itemsPerPage) ||
+                        (page >= tutorsPage - 1 && page <= tutorsPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={tutorsPage === page}
+                              onClick={() => setTutorsPage(page)}>
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (
+                        (page === tutorsPage - 2 && tutorsPage > 3) ||
+                        (page === tutorsPage + 2 &&
+                          tutorsPage <
+                            totalPages(availableTutors, itemsPerPage) - 2)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    })}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() =>
+                          handlePageChange(
+                            setTutorsPage,
+                            totalPages(availableTutors, itemsPerPage),
+                            tutorsPage + 1
+                          )
+                        }
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -948,7 +1214,6 @@ export function TutoringBooking() {
             </p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -967,7 +1232,6 @@ export function TutoringBooking() {
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -987,7 +1251,6 @@ export function TutoringBooking() {
             </p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Tutors</CardTitle>

@@ -53,10 +53,21 @@ import {
   XCircle,
   Clock,
 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export function SchoolManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const schoolsPerPage = 5;
 
   const schools = [
     {
@@ -133,6 +144,15 @@ export function SchoolManagement() {
       school.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredSchools.length / schoolsPerPage);
+  const indexOfLastSchool = currentPage * schoolsPerPage;
+  const indexOfFirstSchool = indexOfLastSchool - schoolsPerPage;
+  const currentSchools = filteredSchools.slice(
+    indexOfFirstSchool,
+    indexOfLastSchool
+  );
+
   const getStatusBadge = (status: any) => {
     switch (status) {
       case "Active":
@@ -205,7 +225,7 @@ export function SchoolManagement() {
             </DialogHeader>
 
             {/* Scrollable Content */}
-            <div className="grid gap-4 py-2 flex- p-2 overflow-y-auto">
+            <div className="grid gap-4 py-2 flex-1 p-2 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="school-name" className="text-sm font-medium">
@@ -394,7 +414,7 @@ export function SchoolManagement() {
         </CardHeader>
         <CardContent>
           <div className="block sm:hidden space-y-4">
-            {filteredSchools.map((school) => (
+            {currentSchools.map((school) => (
               <Card key={school.id} className="p-4">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
@@ -482,7 +502,7 @@ export function SchoolManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSchools.map((school) => (
+                {currentSchools.map((school) => (
                   <TableRow key={school.id} className="hover:bg-muted/50">
                     <TableCell className="min-w-0">
                       <div className="space-y-1">
@@ -555,6 +575,44 @@ export function SchoolManagement() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          <Pagination className="mt-4">
+            <PaginationContent>
+              <PaginationPrevious
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
+              />
+              {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                (page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              {totalPages > 5 && <PaginationEllipsis />}
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </PaginationContent>
+          </Pagination>
         </CardContent>
       </Card>
 
