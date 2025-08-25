@@ -1,19 +1,17 @@
 "use client";
 
 import {
-  Book,
-  Upload,
+  CreditCard,
   GraduationCap,
   Home,
   Settings,
-  TestTube,
+  BarChart3,
   User,
-  Search,
   Bell,
   ChevronDown,
-  BarChart3,
-  Video,
+  Baby,
   Calendar,
+  Trophy,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,7 +29,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,51 +41,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
+import { useSession } from "next-auth/react";
 
 const menuItems = [
-  { title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher" },
-  {
-    title: "Create CBT",
-    icon: TestTube,
-    id: "cbt-creator",
-    path: "/teacher/create-cbt",
-  },
-  {
-    title: "Video Lessons",
-    icon: Video,
-    id: "video-lessons",
-    path: "/teacher/video-lessons",
-  },
-  {
-    title: "Live Sessions",
-    icon: Calendar,
-    id: "live-sessions",
-    path: "/teacher/live-session-manager",
-  },
-  {
-    title: "Upload Materials",
-    icon: Upload,
-    id: "uploader",
-    path: "/teacher/uploader",
-  },
-  {
-    title: "Resource Manager",
-    icon: Book,
-    id: "resources",
-    path: "/teacher/resource-manager",
-  },
-  {
-    title: "Learning Modules",
-    icon: GraduationCap,
-    id: "modules",
-    path: "/teacher/learning-module",
-  },
-  {
-    title: "Student Analytics",
-    icon: BarChart3,
-    id: "analytics",
-    path: "/teacher/student-analytics",
-  },
+  { title: "Dashboard", icon: Home, id: "dashboard", path: "/parent" },
+  { title: "Children Progress", icon: BarChart3, id: "progress", path: "/parent/progress" },
+  { title: "Manage Children", icon: Baby, id: "children", path: "/parent/children" },
+  { title: "Tutoring Sessions", icon: Calendar, id: "tutoring", path: "/parent/tutoring" },
+  { title: "Rewards & Achievements", icon: Trophy, id: "rewards", path: "/parent/rewards" },
+  { title: "Payment History", icon: CreditCard, id: "payments", path: "/parent/payments" },
 ];
 
 function SidebarMenuContent() {
@@ -105,12 +66,12 @@ function SidebarMenuContent() {
   return (
     <SidebarContent>
       <SidebarGroup>
-        <SidebarGroupLabel>Content Creation</SidebarGroupLabel>
+        <SidebarGroupLabel>Parent Portal</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton asChild isActive={pathname === item.path}>
+                <SidebarMenuButton asChild isActive={pathname === item.path} className="w-full">
                   <Link href={item.path} onClick={handleLinkClick}>
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>
@@ -125,21 +86,61 @@ function SidebarMenuContent() {
   );
 }
 
-export default function TeacherLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ParentLayout({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+
+  console.log("[ParentLayout] Session status:", status);
+  console.log("[ParentLayout] Session data:", session);
+
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+
+  if (status !== "authenticated" || session?.user?.role !== "parent") {
+    console.log("[ParentLayout] Unauthorized, redirecting to /login");
+    window.location.href = "/login";
+    return null;
+  }
+
+  const handleLogout = async () => {
+    console.log("[ParentLayout] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      console.log("[ParentLayout] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[ParentLayout] Logout API response:", data);
+
+      if (!response.ok) {
+        console.error("[ParentLayout] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
+      }
+
+      console.log("[ParentLayout] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[ParentLayout] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <Sidebar>
+        <Sidebar className="border-r">
           <SidebarHeader>
             <div className="flex items-center gap-2 px-4 py-2">
               <GraduationCap className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">EduPlatform</span>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                Teacher
+              <span className="font-semibold text-lg">TECHXAGON</span>
+              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                Parent
               </span>
             </div>
           </SidebarHeader>
@@ -152,17 +153,14 @@ export default function TeacherLayout({
                     <SidebarMenuButton>
                       <Avatar className="h-6 w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback>DR</AvatarFallback>
+                        <AvatarFallback>PT</AvatarFallback>
                       </Avatar>
-                      <span>Dr. Sarah Wilson</span>
+                      <span>Parent User</span>
                       <ChevronDown className="ml-auto h-4 w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="top"
-                    className="w-[--radix-popper-anchor-width]"
-                  >
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
+                    <DropdownMenuLabel>Parent Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
                       <User className="mr-2 h-4 w-4" />
@@ -173,16 +171,15 @@ export default function TeacherLayout({
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Log out</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
-
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <header className="sticky top-0 z-50 bg-white shadow-md border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex h-14 items-center justify-between gap-4 px-6">
               <SidebarTrigger />
               <div className="flex-1"></div>
@@ -191,7 +188,7 @@ export default function TeacherLayout({
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
         </div>
       </div>
     </SidebarProvider>
