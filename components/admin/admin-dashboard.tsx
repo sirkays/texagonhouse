@@ -45,7 +45,7 @@ import { TeacherManagement } from "./teacher-management";
 import { StudentManagement } from "./student-management";
 import { SubscriptionManagement } from "./subscription-management";
 import { SystemAnalytics } from "./system-analytics";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 const menuItems = [
   {
@@ -97,7 +97,7 @@ export function AdminDashboard() {
   const handleLogout = async () => {
     console.log("[AdminDashboard] Initiating logout, sessionToken:", session?.user?.sessionToken);
     try {
-      const response = await fetch("/api/logout-route", {
+      const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
