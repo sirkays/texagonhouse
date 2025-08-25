@@ -44,8 +44,20 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!session?.user?.sessionToken) {
       console.error("[LogoutRoute] No session or session token");
       const res: NextResponse = NextResponse.json({ message: "Logged out (no session)" }, { status: 200 });
-      res.cookies.set("next-auth.session-token", "", { maxAge: 0 });
-      res.cookies.set("next-auth.csrf-token", "", { maxAge: 0 });
+      res.cookies.set("next-auth.session-token", "", {
+        maxAge: 0,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax"
+      });
+      res.cookies.set("next-auth.csrf-token", "", {
+        maxAge: 0,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax"
+      });
       return res;
     }
 
@@ -76,21 +88,57 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!response.ok) {
       console.error("[LogoutRoute] Logout failed:", response.status, data);
       const res: NextResponse = NextResponse.json({ message: "Logged out (API error)" }, { status: 200 });
-      res.cookies.set("next-auth.session-token", "", { maxAge: 0 });
-      res.cookies.set("next-auth.csrf-token", "", { maxAge: 0 });
+      res.cookies.set("next-auth.session-token", "", {
+        maxAge: 0,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax"
+      });
+      res.cookies.set("next-auth.csrf-token", "", {
+        maxAge: 0,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax"
+      });
       return res;
     }
 
     console.log("[LogoutRoute] Logout successful:", data);
     const res: NextResponse = NextResponse.json({ message: "Logged out successfully", detail: data.detail }, { status: 200 });
-    res.cookies.set("next-auth.session-token", "", { maxAge: 0 });
-    res.cookies.set("next-auth.csrf-token", "", { maxAge: 0 });
+    res.cookies.set("next-auth.session-token", "", {
+      maxAge: 0,
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax"
+    });
+    res.cookies.set("next-auth.csrf-token", "", {
+      maxAge: 0,
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax"
+    });
     return res;
   } catch (error) {
     console.error("[LogoutRoute] Error:", error);
     const res: NextResponse = NextResponse.json({ message: "Logged out (error)" }, { status: 200 });
-    res.cookies.set("next-auth.session-token", "", { maxAge: 0 });
-    res.cookies.set("next-auth.csrf-token", "", { maxAge: 0 });
+    res.cookies.set("next-auth.session-token", "", {
+      maxAge: 0,
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax"
+    });
+    res.cookies.set("next-auth.csrf-token", "", {
+      maxAge: 0,
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax"
+    });
     return res;
   }
 }

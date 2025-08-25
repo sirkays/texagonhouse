@@ -45,7 +45,7 @@ import { TeacherManagement } from "./teacher-management";
 import { StudentManagement } from "./student-management";
 import { SubscriptionManagement } from "./subscription-management";
 import { SystemAnalytics } from "./system-analytics";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 const menuItems = [
   {
@@ -112,10 +112,14 @@ export function AdminDashboard() {
       }
 
       console.log("[AdminDashboard] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
     } catch (error) {
       console.error("[AdminDashboard] Logout error:", error);
-      window.location.href = "/login"; // Redirect even on error
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
     }
   };
 

@@ -138,13 +138,33 @@ export const authOptions = {
     },
     async signOut({ token }) {
       console.log("[Auth] SignOut callback triggered, token:", { sessionToken: token.sessionToken });
-      return true; // Handled by /api/auth/logout
+      return true; // Handled by /api/auth/logout-route
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "your-secret-here",
+  secret: "aVeryStrongSecretKeyAtLeast32Chars",
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true
+      }
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true
+      }
+    }
   },
 };
 
