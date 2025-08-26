@@ -44,6 +44,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
+import { useSession, signOut } from "next-auth/react";
 
 const menuItems = [
   { title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher" },
@@ -130,6 +131,53 @@ export default function TeacherLayout({
 }: {
   children: React.ReactNode;
 }) {
+
+    const { data: session, status } = useSession();
+  
+    console.log("[TeacherLayout] Session status:", status);
+    console.log("[TeacherLayout] Session data:", session);
+  
+    if (status === "loading") {
+      return <div>Loading...</div>;
+    }
+  
+    if (status !== "authenticated" || session?.user?.role !== "teacher") {
+      console.log("[TeacherLayout] Unauthorized, redirecting to /login");
+      window.location.href = "/login";
+      return null;
+    }
+  
+    const handleLogout = async () => {
+      console.log(
+        "[TeacherLayout] Initiating logout, sessionToken:",
+        session?.user?.sessionToken
+      );
+      try {
+        const response = await fetch("/api/auth/logout-route", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+  
+        console.log("[TeacherLayout] Logout API response status:", response.status);
+        const data = await response.json();
+        console.log("[TeacherLayout] Logout API response:", data);
+  
+        if (!response.ok) {
+          console.error("[TeacherLayout] Logout failed:", data);
+          throw new Error(data.error || "Logout failed");
+        }
+  
+        console.log("[TeacherLayout] Logout successful, redirecting to /login");
+        document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+        document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+        window.location.href = "/login";
+      } catch (error) {
+        console.error("[TeacherLayout] Logout error:", error);
+        document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+        document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+        window.location.href = "/login";
+      }
+    };
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">

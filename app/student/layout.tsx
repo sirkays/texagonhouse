@@ -143,24 +143,45 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   console.log("[StudentLayout] Session data:", session);
 
   if (status === "loading") {
-    console.log("[StudentLayout] Session is loading");
-    return null; // Wait for session to load
+    return <div>Loading...</div>;
   }
-  if (!session) {
-    console.log("[StudentLayout] Redirecting to /login: unauthenticated");
-    redirect("/login");
-  }
-  // Optional: Redirect admin to /admin
-  if (session.user?.role === "admin") {
-    console.log("[StudentLayout] Redirecting to /admin: role =", session.user.role);
-    redirect("/admin");
+
+  if (status !== "authenticated" || session?.user?.role !== "student") {
+    console.log("[StudentLayout] Unauthorized, redirecting to /login");
+    window.location.href = "/login";
+    return null;
   }
 
   const handleLogout = async () => {
-    console.log("[StudentLayout] Initiating logout");
-    await signOut({ redirect: false });
-    console.log("[StudentLayout] signOut completed, redirecting to /login");
-    window.location.href = "/login"; // Force client-side redirect
+    console.log(
+      "[StudentLayout] Initiating logout, sessionToken:",
+      session?.user?.sessionToken
+    );
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      console.log("[StudentLayout] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[StudentLayout] Logout API response:", data);
+
+      if (!response.ok) {
+        console.error("[StudentLayout] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
+      }
+
+      console.log("[StudentLayout] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[StudentLayout] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
   };
 
   return (
