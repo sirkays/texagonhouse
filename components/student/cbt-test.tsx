@@ -21,6 +21,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Clock,
@@ -56,6 +57,9 @@ export function CBTTest() {
   const [maxAttempts] = useState(3);
   const [currentPage, setCurrentPage] = useState(1);
   const [testsPerPage] = useState(3); // Show 3 tests per page
+  const [showStartDialog, setShowStartDialog] = useState(false);
+  const [pendingTestId, setPendingTestId] = useState<string | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   const availableTests = [
     {
@@ -168,24 +172,35 @@ export function CBTTest() {
   const totalPages = Math.ceil(availableTests.length / testsPerPage);
 
   useEffect(() => {
-    if (isSecureMode && currentTest) {
-      // Enable browser lockdown for exams
+    if (currentTest) {
+      // Secure mode for all tests (quizzes and exams)
       const handleVisibilityChange = () => {
         if (document.hidden) {
           setSuspiciousActivity((prev) => prev + 1);
           setShowSecurityWarning(true);
           if (suspiciousActivity >= 2) {
-            // Auto-submit test after 3 suspicious activities
             submitTest();
           }
         }
       };
 
+      const handleBlur = () => {
+        setSuspiciousActivity((prev) => prev + 1);
+        setShowSecurityWarning(true);
+        if (suspiciousActivity >= 2) {
+          submitTest();
+        }
+      };
+
       const handleKeyDown = (e: KeyboardEvent) => {
-        // Prevent common shortcuts
+        // Prevent common shortcuts including new tab (Ctrl+T)
         if (
           e.key === "F12" ||
-          (e.ctrlKey && (e.key === "u" || e.key === "i" || e.key === "s")) ||
+          (e.ctrlKey &&
+            (e.key === "u" ||
+              e.key === "i" ||
+              e.key === "s" ||
+              e.key === "t")) ||
           (e.ctrlKey && e.shiftKey && e.key === "I")
         ) {
           e.preventDefault();
@@ -199,6 +214,7 @@ export function CBTTest() {
       };
 
       document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("blur", handleBlur);
       document.addEventListener("keydown", handleKeyDown);
       document.addEventListener("contextmenu", handleContextMenu);
 
@@ -207,11 +223,12 @@ export function CBTTest() {
           "visibilitychange",
           handleVisibilityChange
         );
+        window.removeEventListener("blur", handleBlur);
         document.removeEventListener("keydown", handleKeyDown);
         document.removeEventListener("contextmenu", handleContextMenu);
       };
     }
-  }, [isSecureMode, currentTest, suspiciousActivity]);
+  }, [currentTest, suspiciousActivity]);
 
   useEffect(() => {
     if (currentTest && timeLeft > 0) {
@@ -233,16 +250,14 @@ export function CBTTest() {
     const test = availableTests.find((t) => t.id === testId);
 
     if (test?.requiresSubscription && !isSubscriber) {
-      alert(
-        "This exam requires an active subscription. Please upgrade your plan to access semester exams."
-      );
+      setShowStartDialog(true);
+      setPendingTestId(null);
       return;
     }
 
     if (test?.type === "exam" && examAttempts >= maxAttempts) {
-      alert(
-        `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
-      );
+      setShowStartDialog(true);
+      setPendingTestId(null);
       return;
     }
 
@@ -258,11 +273,38 @@ export function CBTTest() {
         : 1800
     );
 
+    setIsSecureMode(true); // Enable secure mode for all tests
+    setBrowserLocked(true);
     if (test?.type === "exam") {
-      setIsSecureMode(true);
-      setBrowserLocked(true);
       setExamAttempts((prev) => prev + 1);
     }
+  };
+
+  const handleStartTest = (testId: string) => {
+    setPendingTestId(testId);
+    setShowStartDialog(true);
+  };
+
+  const confirmStartTest = () => {
+    if (pendingTestId) {
+      startTest(pendingTestId);
+    }
+    setShowStartDialog(false);
+    setPendingTestId(null);
+  };
+
+  const handleLeaveTest = () => {
+    setShowLeaveDialog(true);
+  };
+
+  const confirmLeaveTest = () => {
+    setShowLeaveDialog(false);
+    setCurrentTest(null);
+    setIsSecureMode(false);
+    setBrowserLocked(false);
+    setSuspiciousActivity(0);
+    setCurrentQuestion(0);
+    setAnswers({});
   };
 
   const handleAnswerChange = (value: string) => {
@@ -316,7 +358,6 @@ export function CBTTest() {
             (Number.parseInt(answer) === question.correct ? question.points : 0)
           );
         } else if (question.type === "short-answer") {
-          // Simple keyword matching for demo
           const correctAnswer = question.correct as string;
           return (
             total +
@@ -401,7 +442,7 @@ export function CBTTest() {
                 </div>
                 <p className="text-sm text-yellow-700 mt-1">
                   {suspiciousActivity} suspicious activities detected during the
-                  exam.
+                  test.
                 </p>
               </div>
             )}
@@ -422,6 +463,7 @@ export function CBTTest() {
   if (currentTest) {
     const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100;
     const currentQ = sampleQuestions[currentQuestion];
+    const test = availableTests.find((t) => t.id === currentTest);
 
     return (
       <div className="space-y-6">
@@ -435,25 +477,47 @@ export function CBTTest() {
                 Security Warning
               </DialogTitle>
               <DialogDescription>
-                Suspicious activity detected! Switching tabs or using keyboard
-                shortcuts is not allowed during secure exams.
+                Suspicious activity detected! Switching tabs, opening new tabs,
+                or using keyboard shortcuts is not allowed during the test.
                 {suspiciousActivity >= 2 &&
                   " Your test will be auto-submitted if this continues."}
               </DialogDescription>
             </DialogHeader>
-            <div className="flex justify-end">
+            <DialogFooter>
               <Button onClick={() => setShowSecurityWarning(false)}>
                 I Understand
               </Button>
-            </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Leave Test
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to leave? Your test progress will be lost.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowLeaveDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmLeaveTest}>
+                Leave Test
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">
-              {availableTests.find((t) => t.id === currentTest)?.title}
-            </h1>
+            <h1 className="text-3xl font-bold">{test?.title}</h1>
             <p className="text-muted-foreground">
               Question {currentQuestion + 1} of {sampleQuestions.length}
             </p>
@@ -541,12 +605,16 @@ export function CBTTest() {
                     disabled={currentQuestion === 0}>
                     Previous
                   </Button>
-
-                  {currentQuestion === sampleQuestions.length - 1 ? (
-                    <Button onClick={submitTest}>Submit Test</Button>
-                  ) : (
-                    <Button onClick={nextQuestion}>Next</Button>
-                  )}
+                  <div className="flex gap-2">
+                    {currentQuestion === sampleQuestions.length - 1 ? (
+                      <Button onClick={submitTest}>Submit Test</Button>
+                    ) : (
+                      <Button onClick={nextQuestion}>Next</Button>
+                    )}
+                    <Button variant="destructive" onClick={handleLeaveTest}>
+                      Leave Test
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -613,6 +681,46 @@ export function CBTTest() {
 
   return (
     <div className="space-y-6">
+      <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              {pendingTestId
+                ? `Start ${
+                    availableTests.find((t) => t.id === pendingTestId)?.type ===
+                    "exam"
+                      ? "Secure Exam"
+                      : "Quiz"
+                  }`
+                : "Cannot Start Test"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingTestId
+                ? `Are you ready to start the ${
+                    availableTests.find((t) => t.id === pendingTestId)?.title
+                  }? During the test, you must remain on this tab. Switching tabs or opening new tabs will be flagged as suspicious activity.`
+                : examAttempts >= maxAttempts
+                ? `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
+                : "This exam requires an active subscription. Please upgrade your plan to access semester exams."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowStartDialog(false);
+                setPendingTestId(null);
+              }}>
+              Cancel
+            </Button>
+            {pendingTestId && (
+              <Button onClick={confirmStartTest}>Start Test</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div>
         <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
         <p className="text-muted-foreground">
@@ -678,10 +786,11 @@ export function CBTTest() {
 
               <div className="mt-auto">
                 <Button
-                  onClick={() => startTest(test.id)}
+                  onClick={() => handleStartTest(test.id)}
                   className="w-full h-11"
                   disabled={
-                    test.type === "exam" && examAttempts >= maxAttempts
+                    (test.type === "exam" && examAttempts >= maxAttempts) ||
+                    (test.requiresSubscription && !isSubscriber)
                   }>
                   <Play className="mr-2 h-4 w-4" />
                   {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
