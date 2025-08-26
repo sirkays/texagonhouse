@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {Tabs, TabsList, TabsTrigger, TabsContent} from "@/components/ui/tabs";
 import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
 import {
   Plus,
@@ -47,6 +47,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Question {
   id: string;
@@ -85,7 +94,6 @@ export function TeacherCBTCreator() {
     isPublished: false,
   });
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
-
   const [isEditTestOpen, setIsEditTestOpen] = useState(false);
   const [isPreviewTestOpen, setIsPreviewTestOpen] = useState(false);
   const [selectedTestForEdit, setSelectedTestForEdit] =
@@ -95,6 +103,8 @@ export function TeacherCBTCreator() {
   const [selectedTestForAnalytics, setSelectedTestForAnalytics] =
     useState<CBTTest | null>(null);
   const [isAnalyticsDetailOpen, setIsAnalyticsDetailOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const testsPerPage = 3;
 
   const existingTests: CBTTest[] = [
     {
@@ -120,6 +130,12 @@ export function TeacherCBTCreator() {
       isPublished: false,
     },
   ];
+
+  // Pagination logic
+  const totalPages = Math.ceil(existingTests.length / testsPerPage);
+  const indexOfLastTest = currentPage * testsPerPage;
+  const indexOfFirstTest = indexOfLastTest - testsPerPage;
+  const currentTests = existingTests.slice(indexOfFirstTest, indexOfLastTest);
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -164,7 +180,6 @@ export function TeacherCBTCreator() {
   };
 
   const saveTest = () => {
-    // Save test logic here
     console.log("Saving test:", currentTest);
     alert("Test saved successfully!");
   };
@@ -218,10 +233,27 @@ export function TeacherCBTCreator() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="create">Create New Test</TabsTrigger>
-          <TabsTrigger value="manage">Manage Tests</TabsTrigger>
-          <TabsTrigger value="analytics">Test Analytics</TabsTrigger>
+        <TabsList
+          className="
+    flex flex-col sm:flex-row 
+    gap-2 sm:gap-4 
+    w-full sm:w-auto
+  ">
+          <TabsTrigger
+            value="create"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Create New Test
+          </TabsTrigger>
+          <TabsTrigger
+            value="manage"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Manage Tests
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Test Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-6">
@@ -570,21 +602,21 @@ export function TeacherCBTCreator() {
         </TabsContent>
 
         <TabsContent value="manage" className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="sm:flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">Manage Tests</h2>
               <p className="text-muted-foreground">
                 View and manage all your created tests
               </p>
             </div>
-            <Button onClick={() => setActiveTab("create")}>
+            <Button className="mt-2" onClick={() => setActiveTab("create")}>
               <Plus className="mr-2 h-4 w-4" />
               Create New Test
             </Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {existingTests.map((test) => (
+            {currentTests.map((test) => (
               <Card key={test.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -665,6 +697,44 @@ export function TeacherCBTCreator() {
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          <Pagination className="mt-4">
+            <PaginationContent>
+              <PaginationPrevious
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
+              />
+              {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                (page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              {totalPages > 5 && <PaginationEllipsis />}
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </PaginationContent>
+          </Pagination>
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
@@ -1068,7 +1138,6 @@ export function TeacherCBTCreator() {
                                     updateQuestion(question.id, {
                                       points: newPoints,
                                     });
-                                    // Update total points
                                     setCurrentTest((prev) => ({
                                       ...prev,
                                       totalPoints:

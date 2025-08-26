@@ -1,9 +1,24 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Users, BookOpen, TestTube, Upload, Star, Eye, Download, Play } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Progress} from "@/components/ui/progress";
+import {
+  Users,
+  BookOpen,
+  TestTube,
+  Upload,
+  Star,
+  Eye,
+  Download,
+  Play,
+} from "lucide-react";
 
 export function TeacherOverview() {
   const stats = [
@@ -35,7 +50,7 @@ export function TeacherOverview() {
       icon: Upload,
       color: "text-orange-600",
     },
-  ]
+  ];
 
   const recentActivity = [
     {
@@ -59,7 +74,7 @@ export function TeacherOverview() {
       time: "6 hours ago",
       icon: BookOpen,
     },
-  ]
+  ];
 
   const topCourses = [
     {
@@ -83,13 +98,15 @@ export function TeacherOverview() {
       revenue: "$1,560",
       progress: 78,
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here's what's happening with your courses.</p>
+        <p className="text-muted-foreground">
+          Welcome back! Here's what's happening with your courses.
+        </p>
       </div>
 
       {/* Stats Cards */}
@@ -97,13 +114,16 @@ export function TeacherOverview() {
         {stats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {stat.title}
+              </CardTitle>
               <stat.icon className={`h-4 w-4 ${stat.color}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">{stat.change}</span> from last month
+                <span className="text-green-600">{stat.change}</span> from last
+                month
               </p>
             </CardContent>
           </Card>
@@ -122,15 +142,21 @@ export function TeacherOverview() {
               <TestTube className="mr-2 h-4 w-4" />
               Create New CBT Test
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button
+              variant="outline"
+              className="w-full justify-start bg-transparent">
               <Upload className="mr-2 h-4 w-4" />
               Upload Learning Material
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button
+              variant="outline"
+              className="w-full justify-start bg-transparent">
               <BookOpen className="mr-2 h-4 w-4" />
               Create Learning Module
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button
+              variant="outline"
+              className="w-full justify-start bg-transparent">
               <Users className="mr-2 h-4 w-4" />
               View Student Analytics
             </Button>
@@ -151,8 +177,12 @@ export function TeacherOverview() {
                 </div>
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium">{activity.title}</p>
-                  <p className="text-xs text-muted-foreground">{activity.action}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {activity.action}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {activity.time}
+                  </p>
                 </div>
               </div>
             ))}
@@ -195,29 +225,43 @@ export function TeacherOverview() {
       <Card>
         <CardHeader>
           <CardTitle>Top Performing Courses</CardTitle>
-          <CardDescription>Your most successful courses this month</CardDescription>
+          <CardDescription>
+            Your most successful courses this month
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {topCourses.map((course, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-1">
-                  <h4 className="font-medium">{course.title}</h4>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div
+                key={index}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg">
+                {/* Course Details */}
+                <div className="space-y-1 flex-1">
+                  <h4 className="font-medium text-base">{course.title}</h4>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {course.students} students
+                      <Users className="h-4 w-4" />
+                      <span>{course.students} students</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      {course.rating}
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span>{course.rating}</span>
                     </div>
-                    <div className="font-medium text-green-600">{course.revenue}</div>
+                    <div className="font-medium text-green-600">
+                      {course.revenue}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right space-y-2">
-                  <div className="text-sm font-medium">{course.progress}% Complete</div>
-                  <Progress value={course.progress} className="w-20 h-2" />
+
+                {/* Progress Section */}
+                <div className="sm:text-right space-y-2">
+                  <div className="text-sm font-medium">
+                    {course.progress}% Complete
+                  </div>
+                  <Progress
+                    value={course.progress}
+                    className="w-full sm:w-24 h-2"
+                  />
                 </div>
               </div>
             ))}
@@ -270,7 +314,8 @@ export function TeacherOverview() {
                 </div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Eye className="h-3 w-3" />
-                  {material.views || material.downloads} {material.views ? "views" : "downloads"}
+                  {material.views || material.downloads}{" "}
+                  {material.views ? "views" : "downloads"}
                 </div>
               </div>
             ))}
@@ -278,5 +323,5 @@ export function TeacherOverview() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

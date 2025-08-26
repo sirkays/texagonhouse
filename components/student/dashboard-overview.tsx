@@ -1,63 +1,126 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { BookOpen, Clock, Trophy, TrendingUp, Play, Code, TestTube, Calendar, Star, Medal, Zap } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  Clock,
+  Trophy,
+  TrendingUp,
+  Play,
+  Code,
+  TestTube,
+  Calendar,
+  Star,
+  Medal,
+  Zap,
+} from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export function DashboardOverview() {
-  const recentCourses = [
-    {
-      title: "Advanced React Development",
-      progress: 75,
-      duration: "12 hours",
-      nextLesson: "State Management with Redux",
-    },
-    {
-      title: "Python for Data Science",
-      progress: 45,
-      duration: "18 hours",
-      nextLesson: "Pandas DataFrames",
-    },
-    {
-      title: "JavaScript Algorithms",
-      progress: 90,
-      duration: "8 hours",
-      nextLesson: "Dynamic Programming",
-    },
-  ]
+  const { data: session } = useSession();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const upcomingTests = [
+  // Helper function to capitalize first letters of each word
+  const capitalizeName = (name) => {
+    if (!name) return "User";
+    return name
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log("[DashboardOverview] Initiating fetch for /api/student/dashboard-overview");
+      if (!session?.user?.sessionToken) {
+        console.log("[DashboardOverview] No session token found");
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log("[DashboardOverview] Fetching from /api/student/dashboard-overview with token:", session.user.sessionToken);
+        const res = await fetch("/api/student/dashboard-overview", {
+          headers: {
+            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[DashboardOverview] Fetch response status:", res.status);
+        if (!res.ok) {
+          console.error("[DashboardOverview] Fetch failed with status:", res.status);
+          throw new Error("Fetch failed");
+        }
+        const json = await res.json();
+        console.log("[DashboardOverview] Fetch response data:", json);
+        setData(json);
+      } catch (e) {
+        console.error("[DashboardOverview] Fetch error:", e);
+        setError("Failed to fetch data");
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, [session]);
+
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (error && !data) return <div className="p-6">Error: {error}</div>;
+
+  const recentCourses = data?.recent_courses ?? [
     {
-      title: "React Fundamentals Quiz",
-      date: "Tomorrow, 2:00 PM",
-      duration: "30 mins",
+      title: "No Courses",
+      progress: 0,
+      duration: "N/A",
+      nextLesson: "N/A",
     },
+  ];
+
+  const upcomingTests = data?.upcoming_tests?.map((test) => ({
+    title: test.title,
+    date: new Date(test.date).toLocaleString(),
+    duration: test.duration,
+  })) ?? [
     {
-      title: "Python Basics Assessment",
-      date: "Dec 28, 10:00 AM",
-      duration: "45 mins",
+      title: "No Upcoming Tests",
+      date: "N/A",
+      duration: "N/A",
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Welcome back, John!</h1>
+        <h1 className="text-3xl font-bold">Welcome back, {capitalizeName(data?.user?.display_name)}!</h1>
         <p className="text-muted-foreground">Continue your learning journey</p>
+        {error && <p className="text-yellow-600 text-sm">{error}</p>}
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Courses Enrolled</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Courses Enrolled
+            </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
+            <div className="text-2xl font-bold">{data?.stats?.courses_enrolled ?? 0}</div>
+            <p className="text-xs text-muted-foreground">+{data?.stats?.courses_enrolled ?? 0} from last month</p>
           </CardContent>
         </Card>
         <Card>
@@ -66,8 +129,8 @@ export function DashboardOverview() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">47.5</div>
-            <p className="text-xs text-muted-foreground">+12.3 this week</p>
+            <div className="text-2xl font-bold">{data?.stats?.hours_learned ?? 0}</div>
+            <p className="text-xs text-muted-foreground">+{data?.stats?.hours_learned ?? 0} this week</p>
           </CardContent>
         </Card>
         <Card>
@@ -76,8 +139,8 @@ export function DashboardOverview() {
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">2 in progress</p>
+            <div className="text-2xl font-bold">{data?.stats?.certificates ?? 0}</div>
+            <p className="text-xs text-muted-foreground">{data?.stats?.certificates ?? 0} in progress</p>
           </CardContent>
         </Card>
         <Card>
@@ -86,7 +149,7 @@ export function DashboardOverview() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15 days</div>
+            <div className="text-2xl font-bold">{data?.stats?.streak_days ?? 0} days</div>
             <p className="text-xs text-muted-foreground">Keep it up!</p>
           </CardContent>
         </Card>
@@ -103,10 +166,14 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-2xl font-bold text-yellow-700">7,500 XP</div>
-              <Badge className="bg-yellow-100 text-yellow-700">Silver Scholar</Badge>
-              <Progress value={75} className="h-2" />
-              <p className="text-sm text-yellow-600">2,500 XP to Gold Graduate</p>
+              <div className="text-2xl font-bold text-yellow-700">{data?.gamification?.xp ?? 0} XP</div>
+              <Badge className="bg-yellow-100 text-yellow-700">
+                {data?.gamification?.level_name ?? "N/A"}
+              </Badge>
+              <Progress value={data?.gamification?.progress_to_next_pct ?? 0} className="h-2" />
+              <p className="text-sm text-yellow-600">
+                {data?.gamification?.xp_to_next ?? 0} XP to next level
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -120,15 +187,15 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-2xl font-bold text-blue-700">3 / 6</div>
-              <p className="text-sm text-blue-600">Recent: Code Warrior</p>
+              <div className="text-2xl font-bold text-blue-700">{data?.gamification?.achievements?.unlocked ?? 0} / {data?.gamification?.achievements?.total ?? 0}</div>
+              <p className="text-sm text-blue-600">Recent: {data?.gamification?.achievements?.recent ?? "None"}</p>
               <div className="flex gap-1">
-                <Medal className="h-4 w-4 text-yellow-500" />
-                <Medal className="h-4 w-4 text-yellow-500" />
-                <Medal className="h-4 w-4 text-yellow-500" />
-                <Medal className="h-4 w-4 text-gray-300" />
-                <Medal className="h-4 w-4 text-gray-300" />
-                <Medal className="h-4 w-4 text-gray-300" />
+                {Array.from({ length: data?.gamification?.achievements?.unlocked ?? 0 }, (_, i) => (
+                  <Medal key={i} className="h-4 w-4 text-yellow-500" />
+                ))}
+                {Array.from({ length: (data?.gamification?.achievements?.total ?? 0) - (data?.gamification?.achievements?.unlocked ?? 0) }, (_, i) => (
+                  <Medal key={i + (data?.gamification?.achievements?.unlocked ?? 0)} className="h-4 w-4 text-gray-300" />
+                ))}
               </div>
             </div>
           </CardContent>
@@ -143,11 +210,11 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-2xl font-bold text-green-700">#1</div>
+              <div className="text-2xl font-bold text-green-700">#{data?.gamification?.leaderboard?.org_rank ?? "N/A"}</div>
               <p className="text-sm text-green-600">in your school</p>
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <Zap className="h-3 w-3" />
-                <span>Global rank: #4</span>
+                <span>Global rank: N/A</span>
               </div>
             </div>
           </CardContent>
@@ -171,12 +238,18 @@ export function DashboardOverview() {
                 <Progress value={course.progress} className="h-2" />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{course.progress}% complete</span>
-                  <Button variant="ghost" size="sm">
+                  <Button
+                    className="border border-slate-300 mt-2 rounded-lg"
+                    variant="ghost"
+                    size="sm"
+                  >
                     <Play className="mr-2 h-3 w-3" />
                     Continue
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">Next: {course.nextLesson}</p>
+                <p className="text-sm text-muted-foreground">
+                  Next: {course.nextLesson}
+                </p>
               </div>
             ))}
           </CardContent>
@@ -186,11 +259,16 @@ export function DashboardOverview() {
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Tests</CardTitle>
-            <CardDescription>Don't miss your scheduled assessments</CardDescription>
+            <CardDescription>
+              Don't miss your scheduled assessments
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {upcomingTests.map((test, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 border rounded-lg"
+              >
                 <div className="space-y-1">
                   <h4 className="font-medium">{test.title}</h4>
                   <div className="flex items-center text-sm text-muted-foreground">
@@ -213,7 +291,7 @@ export function DashboardOverview() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Jump into your favorite learning activities</CardDescription>
@@ -234,7 +312,7 @@ export function DashboardOverview() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
-  )
+  );
 }

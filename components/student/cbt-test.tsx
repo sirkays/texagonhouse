@@ -1,20 +1,61 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Clock, CheckCircle, XCircle, Play, RotateCcw } from "lucide-react"
+import {useState, useEffect} from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import {Label} from "@/components/ui/label";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Textarea} from "@/components/ui/textarea";
+import {Input} from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Play,
+  RotateCcw,
+  Shield,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export function CBTTest() {
-  const [currentTest, setCurrentTest] = useState<string | null>(null)
-  const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [timeLeft, setTimeLeft] = useState(1800) // 30 minutes
-  const [testCompleted, setTestCompleted] = useState(false)
+  const [currentTest, setCurrentTest] = useState<string | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes
+  const [testCompleted, setTestCompleted] = useState(false);
+  const [isSecureMode, setIsSecureMode] = useState(false);
+  const [browserLocked, setBrowserLocked] = useState(false);
+  const [suspiciousActivity, setSuspiciousActivity] = useState(0);
+  const [showSecurityWarning, setShowSecurityWarning] = useState(false);
+  const [isSubscriber, setIsSubscriber] = useState(true); // Mock subscription status
+  const [examAttempts, setExamAttempts] = useState(0);
+  const [maxAttempts] = useState(3);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [testsPerPage] = useState(3); // Show 3 tests per page
 
   const availableTests = [
     {
@@ -23,7 +64,10 @@ export function CBTTest() {
       questions: 20,
       duration: "30 mins",
       difficulty: "Beginner",
-      description: "Test your knowledge of React components, props, and state management.",
+      description:
+        "Test your knowledge of React components, props, and state management.",
+      type: "quiz",
+      requiresSubscription: false,
     },
     {
       id: "javascript-advanced",
@@ -31,20 +75,39 @@ export function CBTTest() {
       questions: 25,
       duration: "45 mins",
       difficulty: "Advanced",
-      description: "Closures, prototypes, async/await, and modern ES6+ features.",
+      description:
+        "Closures, prototypes, async/await, and modern ES6+ features.",
+      type: "quiz",
+      requiresSubscription: false,
     },
     {
-      id: "python-data",
-      title: "Python for Data Science",
-      questions: 30,
-      duration: "60 mins",
-      difficulty: "Intermediate",
-      description: "Pandas, NumPy, data manipulation, and basic machine learning.",
+      id: "semester-exam-math",
+      title: "Mathematics Semester Exam",
+      questions: 50,
+      duration: "120 mins",
+      difficulty: "Advanced",
+      description:
+        "Comprehensive semester examination covering all mathematics topics.",
+      type: "exam",
+      requiresSubscription: true,
     },
-  ]
+    {
+      id: "semester-exam-physics",
+      title: "Physics Semester Exam",
+      questions: 45,
+      duration: "90 mins",
+      difficulty: "Advanced",
+      description:
+        "Final examination for physics covering mechanics, thermodynamics, and waves.",
+      type: "exam",
+      requiresSubscription: true,
+    },
+  ];
 
   const sampleQuestions = [
     {
+      id: 1,
+      type: "multiple-choice",
       question: "What is the correct way to create a React component?",
       options: [
         "function MyComponent() { return <div>Hello</div>; }",
@@ -53,67 +116,230 @@ export function CBTTest() {
         "All of the above",
       ],
       correct: 3,
+      points: 2,
+      explanation:
+        "All three methods are valid ways to create React components.",
     },
     {
-      question: "Which hook is used for managing state in functional components?",
+      id: 2,
+      type: "multiple-choice",
+      question:
+        "Which hook is used for managing state in functional components?",
       options: ["useEffect", "useState", "useContext", "useReducer"],
       correct: 1,
+      points: 2,
+      explanation:
+        "useState is the primary hook for managing local state in functional components.",
     },
     {
-      question: "What does JSX stand for?",
-      options: ["JavaScript XML", "Java Syntax Extension", "JavaScript Extension", "JSON XML"],
-      correct: 0,
+      id: 3,
+      type: "true-false",
+      question: "JSX is mandatory for React development.",
+      options: ["True", "False"],
+      correct: 1,
+      points: 1,
+      explanation:
+        "JSX is not mandatory but is the recommended way to write React components.",
     },
-  ]
+    {
+      id: 4,
+      type: "short-answer",
+      question: "What does the 'key' prop do in React lists?",
+      correct: "helps react identify which items have changed",
+      points: 3,
+      explanation:
+        "The key prop helps React identify which items have changed, are added, or are removed.",
+    },
+    {
+      id: 5,
+      type: "essay",
+      question:
+        "Explain the concept of Virtual DOM and its benefits in React applications.",
+      points: 5,
+      explanation:
+        "Virtual DOM is a programming concept where a virtual representation of UI is kept in memory and synced with the real DOM.",
+    },
+  ];
+
+  // Pagination logic
+  const indexOfLastTest = currentPage * testsPerPage;
+  const indexOfFirstTest = indexOfLastTest - testsPerPage;
+  const currentTests = availableTests.slice(indexOfFirstTest, indexOfLastTest);
+  const totalPages = Math.ceil(availableTests.length / testsPerPage);
+
+  useEffect(() => {
+    if (isSecureMode && currentTest) {
+      // Enable browser lockdown for exams
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          setSuspiciousActivity((prev) => prev + 1);
+          setShowSecurityWarning(true);
+          if (suspiciousActivity >= 2) {
+            // Auto-submit test after 3 suspicious activities
+            submitTest();
+          }
+        }
+      };
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Prevent common shortcuts
+        if (
+          e.key === "F12" ||
+          (e.ctrlKey && (e.key === "u" || e.key === "i" || e.key === "s")) ||
+          (e.ctrlKey && e.shiftKey && e.key === "I")
+        ) {
+          e.preventDefault();
+          setSuspiciousActivity((prev) => prev + 1);
+          setShowSecurityWarning(true);
+        }
+      };
+
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("contextmenu", handleContextMenu);
+
+      return () => {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("contextmenu", handleContextMenu);
+      };
+    }
+  }, [isSecureMode, currentTest, suspiciousActivity]);
+
+  useEffect(() => {
+    if (currentTest && timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            submitTest(); // Auto-submit when time runs out
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [currentTest, timeLeft]);
 
   const startTest = (testId: string) => {
-    setCurrentTest(testId)
-    setCurrentQuestion(0)
-    setAnswers({})
-    setTestCompleted(false)
-    setTimeLeft(1800)
-  }
+    const test = availableTests.find((t) => t.id === testId);
+
+    if (test?.requiresSubscription && !isSubscriber) {
+      alert(
+        "This exam requires an active subscription. Please upgrade your plan to access semester exams."
+      );
+      return;
+    }
+
+    if (test?.type === "exam" && examAttempts >= maxAttempts) {
+      alert(
+        `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
+      );
+      return;
+    }
+
+    setCurrentTest(testId);
+    setCurrentQuestion(0);
+    setAnswers({});
+    setTestCompleted(false);
+    setTimeLeft(
+      test?.id === "semester-exam-math"
+        ? 7200
+        : test?.id === "semester-exam-physics"
+        ? 5400
+        : 1800
+    );
+
+    if (test?.type === "exam") {
+      setIsSecureMode(true);
+      setBrowserLocked(true);
+      setExamAttempts((prev) => prev + 1);
+    }
+  };
 
   const handleAnswerChange = (value: string) => {
     setAnswers((prev) => ({
       ...prev,
       [currentQuestion]: value,
-    }))
-  }
+    }));
+  };
 
   const nextQuestion = () => {
     if (currentQuestion < sampleQuestions.length - 1) {
-      setCurrentQuestion((prev) => prev + 1)
+      setCurrentQuestion((prev) => prev + 1);
     }
-  }
+  };
 
   const previousQuestion = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion((prev) => prev - 1)
+      setCurrentQuestion((prev) => prev - 1);
     }
-  }
+  };
 
   const submitTest = () => {
-    setTestCompleted(true)
-  }
+    setTestCompleted(true);
+    setIsSecureMode(false);
+    setBrowserLocked(false);
+    setSuspiciousActivity(0);
+  };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   if (testCompleted) {
-    const score = Object.values(answers).filter(
-      (answer, index) => Number.parseInt(answer) === sampleQuestions[index]?.correct,
-    ).length
-    const percentage = Math.round((score / sampleQuestions.length) * 100)
+    const score = Object.entries(answers).reduce(
+      (total, [questionIndex, answer]) => {
+        const question = sampleQuestions[Number.parseInt(questionIndex)];
+        if (!question) return total;
+
+        if (
+          question.type === "multiple-choice" ||
+          question.type === "true-false"
+        ) {
+          return (
+            total +
+            (Number.parseInt(answer) === question.correct ? question.points : 0)
+          );
+        } else if (question.type === "short-answer") {
+          // Simple keyword matching for demo
+          const correctAnswer = question.correct as string;
+          return (
+            total +
+            (answer.toLowerCase().includes(correctAnswer.toLowerCase())
+              ? question.points
+              : 0)
+          );
+        }
+        return total;
+      },
+      0
+    );
+
+    const totalPoints = sampleQuestions.reduce((sum, q) => sum + q.points, 0);
+    const percentage = Math.round((score / totalPoints) * 100);
 
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Test Results</h1>
-          <p className="text-muted-foreground">Your performance summary</p>
+          <p className="text-muted-foreground">
+            Your performance summary with detailed feedback
+          </p>
         </div>
 
         <Card className="max-w-2xl mx-auto">
@@ -125,9 +351,11 @@ export function CBTTest() {
                 <XCircle className="h-16 w-16 text-red-500" />
               )}
             </div>
-            <CardTitle className="text-2xl">{percentage >= 70 ? "Congratulations!" : "Keep Learning!"}</CardTitle>
+            <CardTitle className="text-2xl">
+              {percentage >= 70 ? "Congratulations!" : "Keep Learning!"}
+            </CardTitle>
             <CardDescription>
-              You scored {score} out of {sampleQuestions.length} questions
+              You scored {score} out of {totalPoints} points
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -136,20 +364,47 @@ export function CBTTest() {
               <Progress value={percentage} className="h-3" />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3 text-center">
+            <div className="grid gap-4 md:grid-cols-4 text-center">
               <div>
                 <div className="text-2xl font-bold text-green-600">{score}</div>
-                <div className="text-sm text-muted-foreground">Correct</div>
+                <div className="text-sm text-muted-foreground">
+                  Points Earned
+                </div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-red-600">{sampleQuestions.length - score}</div>
-                <div className="text-sm text-muted-foreground">Incorrect</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {totalPoints}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Total Points
+                </div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{percentage >= 70 ? "PASS" : "FAIL"}</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {Object.keys(answers).length}
+                </div>
+                <div className="text-sm text-muted-foreground">Answered</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">
+                  {percentage >= 70 ? "PASS" : "FAIL"}
+                </div>
                 <div className="text-sm text-muted-foreground">Result</div>
               </div>
             </div>
+
+            {suspiciousActivity > 0 && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="font-medium">Security Notice</span>
+                </div>
+                <p className="text-sm text-yellow-700 mt-1">
+                  {suspiciousActivity} suspicious activities detected during the
+                  exam.
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-4 justify-center">
               <Button onClick={() => setCurrentTest(null)}>
@@ -161,25 +416,61 @@ export function CBTTest() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (currentTest) {
-    const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100
+    const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100;
+    const currentQ = sampleQuestions[currentQuestion];
 
     return (
       <div className="space-y-6">
+        <Dialog
+          open={showSecurityWarning}
+          onOpenChange={setShowSecurityWarning}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Security Warning
+              </DialogTitle>
+              <DialogDescription>
+                Suspicious activity detected! Switching tabs or using keyboard
+                shortcuts is not allowed during secure exams.
+                {suspiciousActivity >= 2 &&
+                  " Your test will be auto-submitted if this continues."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end">
+              <Button onClick={() => setShowSecurityWarning(false)}>
+                I Understand
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">React Fundamentals Test</h1>
+            <h1 className="text-3xl font-bold">
+              {availableTests.find((t) => t.id === currentTest)?.title}
+            </h1>
             <p className="text-muted-foreground">
               Question {currentQuestion + 1} of {sampleQuestions.length}
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {isSecureMode && (
+              <div className="flex items-center gap-2 text-red-600">
+                <Shield className="h-4 w-4" />
+                <span className="text-sm font-medium">Secure Mode</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              <span className="font-mono">{formatTime(timeLeft)}</span>
+              <span
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
+                {formatTime(timeLeft)}
+              </span>
             </div>
             <Badge variant="outline">{Math.round(progress)}% Complete</Badge>
           </div>
@@ -191,24 +482,63 @@ export function CBTTest() {
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle>Question {currentQuestion + 1}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Question {currentQuestion + 1}</CardTitle>
+                  <Badge variant="secondary">{currentQ?.points} points</Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <p className="text-lg">{sampleQuestions[currentQuestion]?.question}</p>
+                <p className="text-lg">{currentQ?.question}</p>
 
-                <RadioGroup value={answers[currentQuestion] || ""} onValueChange={handleAnswerChange}>
-                  {sampleQuestions[currentQuestion]?.options.map((option, index) => (
-                    <div key={index} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
-                      <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                      <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
-                        {option}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
+                {currentQ?.type === "multiple-choice" ||
+                currentQ?.type === "true-false" ? (
+                  <RadioGroup
+                    value={answers[currentQuestion] || ""}
+                    onValueChange={handleAnswerChange}>
+                    {currentQ.options?.map((option, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                        <RadioGroupItem
+                          value={index.toString()}
+                          id={`option-${index}`}
+                        />
+                        <Label
+                          htmlFor={`option-${index}`}
+                          className="flex-1 cursor-pointer">
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                ) : currentQ?.type === "short-answer" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="short-answer">Your Answer:</Label>
+                    <Input
+                      id="short-answer"
+                      value={answers[currentQuestion] || ""}
+                      onChange={(e) => handleAnswerChange(e.target.value)}
+                      placeholder="Type your answer here..."
+                    />
+                  </div>
+                ) : currentQ?.type === "essay" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="essay-answer">Your Essay:</Label>
+                    <Textarea
+                      id="essay-answer"
+                      value={answers[currentQuestion] || ""}
+                      onChange={(e) => handleAnswerChange(e.target.value)}
+                      placeholder="Write your detailed answer here..."
+                      rows={6}
+                    />
+                  </div>
+                ) : null}
 
                 <div className="flex justify-between">
-                  <Button variant="outline" onClick={previousQuestion} disabled={currentQuestion === 0}>
+                  <Button
+                    variant="outline"
+                    onClick={previousQuestion}
+                    disabled={currentQuestion === 0}>
                     Previous
                   </Button>
 
@@ -232,10 +562,15 @@ export function CBTTest() {
                   {sampleQuestions.map((_, index) => (
                     <Button
                       key={index}
-                      variant={currentQuestion === index ? "default" : answers[index] ? "secondary" : "outline"}
+                      variant={
+                        currentQuestion === index
+                          ? "default"
+                          : answers[index]
+                          ? "secondary"
+                          : "outline"
+                      }
                       size="sm"
-                      onClick={() => setCurrentQuestion(index)}
-                    >
+                      onClick={() => setCurrentQuestion(index)}>
                       {index + 1}
                     </Button>
                   ))}
@@ -258,83 +593,134 @@ export function CBTTest() {
                 </div>
                 <div className="flex justify-between">
                   <span>Remaining:</span>
-                  <span>{sampleQuestions.length - Object.keys(answers).length}</span>
+                  <span>
+                    {sampleQuestions.length - Object.keys(answers).length}
+                  </span>
                 </div>
+                {isSecureMode && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Security Alerts:</span>
+                    <span>{suspiciousActivity}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">CBT Tests</h1>
-        <p className="text-muted-foreground">Test your knowledge with computer-based assessments</p>
+        <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
+        <p className="text-muted-foreground">
+          Quizzes and secure semester exams with comprehensive feedback
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {availableTests.map((test) => (
-          <Card key={test.id} className="hover:shadow-lg transition-shadow">
+        {currentTests.map((test) => (
+          <Card
+            key={test.id}
+            className="hover:shadow-lg transition-shadow flex flex-col h-full">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="sm:flex items-center justify-between">
                 <CardTitle className="text-lg">{test.title}</CardTitle>
-                <Badge
-                  variant={
-                    test.difficulty === "Beginner"
-                      ? "default"
-                      : test.difficulty === "Intermediate"
+                <div className="flex gap-2">
+                  <Badge
+                    variant={
+                      test.difficulty === "Beginner"
+                        ? "default"
+                        : test.difficulty === "Intermediate"
                         ? "secondary"
                         : "destructive"
-                  }
-                >
-                  {test.difficulty}
-                </Badge>
+                    }>
+                    {test.difficulty}
+                  </Badge>
+
+                  {test.type === "exam" && (
+                    <Badge
+                      variant="outline"
+                      className="text-red-600 border-red-200">
+                      <Shield className="h-3 w-3 mr-1" />
+                      Secure Exam
+                    </Badge>
+                  )}
+                </div>
               </div>
               <CardDescription>{test.description}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+
+            <CardContent className="flex-1 flex flex-col gap-4">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{test.questions} questions</span>
                 <span>{test.duration}</span>
               </div>
-              <Button onClick={() => startTest(test.id)} className="w-full">
-                <Play className="mr-2 h-4 w-4" />
-                Start Test
-              </Button>
+
+              {test.requiresSubscription && !isSubscriber && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <Shield className="h-4 w-4 inline mr-1" />
+                    Requires active subscription
+                  </p>
+                </div>
+              )}
+
+              {test.type === "exam" && (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Attempts: {examAttempts}/{maxAttempts}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-auto">
+                <Button
+                  onClick={() => startTest(test.id)}
+                  className="w-full h-11"
+                  disabled={
+                    test.type === "exam" && examAttempts >= maxAttempts
+                  }>
+                  <Play className="mr-2 h-4 w-4" />
+                  {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Test Results</CardTitle>
-          <CardDescription>Your performance history</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              { test: "JavaScript Basics", score: 85, date: "Dec 20, 2024", status: "Passed" },
-              { test: "HTML/CSS Fundamentals", score: 92, date: "Dec 18, 2024", status: "Passed" },
-              { test: "Python Basics", score: 67, date: "Dec 15, 2024", status: "Failed" },
-            ].map((result, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">{result.test}</h4>
-                  <p className="text-sm text-muted-foreground">{result.date}</p>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold">{result.score}%</div>
-                  <Badge variant={result.status === "Passed" ? "default" : "destructive"}>{result.status}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <Pagination>
+        <PaginationContent>
+          <PaginationPrevious
+            onClick={() => handlePageChange(currentPage - 1)}
+            className={
+              currentPage === 1 ? "pointer-events-none opacity-50" : ""
+            }
+          />
+          {[...Array(totalPages)].map((_, index) => {
+            const page = index + 1;
+            return (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  isActive={currentPage === page}
+                  onClick={() => handlePageChange(page)}>
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            );
+          })}
+          {totalPages > 5 && <PaginationEllipsis />}
+          <PaginationNext
+            onClick={() => handlePageChange(currentPage + 1)}
+            className={
+              currentPage === totalPages ? "pointer-events-none opacity-50" : ""
+            }
+          />
+        </PaginationContent>
+      </Pagination>
     </div>
-  )
+  );
 }

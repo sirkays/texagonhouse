@@ -112,7 +112,7 @@ export function AdminOverview() {
     },
   ]
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case "success":
         return "text-green-600"
@@ -125,36 +125,36 @@ export function AdminOverview() {
     }
   }
 
-  const getSubscriptionBadge = (status: string) => {
+  const getSubscriptionBadge = (status) => {
     return status === "Premium" ? (
-      <Badge className="bg-gold-100 text-gold-800">Premium</Badge>
+      <Badge className="bg-yellow-100 text-yellow-800 text-[0.65rem] xs:text-xs sm:text-sm">Premium</Badge>
     ) : (
-      <Badge variant="secondary">Basic</Badge>
+      <Badge variant="secondary" className="text-[0.65rem] xs:text-xs sm:text-sm">Basic</Badge>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">System Administration</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">System Administration</h1>
+        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">
           Welcome to TECHXAGON Admin Portal. Monitor and manage the entire platform.
         </p>
       </div>
 
       {/* System Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
         {systemStats.map((stat, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <div className={`p-2 rounded-full ${stat.bgColor}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              <CardTitle className="text-xs xs:text-sm font-medium">{stat.title}</CardTitle>
+              <div className={`p-1.5 xs:p-2 rounded-full ${stat.bgColor}`}>
+                <stat.icon className={`h-3 w-3 xs:h-4 xs:w-4 ${stat.color}`} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-lg xs:text-xl sm:text-2xl font-bold">{stat.value}</div>
+              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                 <span className="text-green-600">{stat.change}</span>
               </p>
             </CardContent>
@@ -162,28 +162,28 @@ export function AdminOverview() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 xs:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
+            <CardTitle className="text-base xs:text-lg sm:text-xl">Quick Actions</CardTitle>
+            <CardDescription className="text-xs xs:text-sm sm:text-base">Common administrative tasks</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full justify-start">
-              <Building2 className="mr-2 h-4 w-4" />
+          <CardContent className="space-y-2 xs:space-y-3">
+            <Button className="w-full justify-start text-xs xs:text-sm sm:text-base">
+              <Building2 className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Add New School
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
-              <Users className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="w-full justify-start bg-transparent text-xs xs:text-sm sm:text-base">
+              <Users className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Bulk User Import
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
-              <CreditCard className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="w-full justify-start bg-transparent text-xs xs:text-sm sm:text-base">
+              <CreditCard className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Manage Subscriptions
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
-              <TrendingUp className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="w-full justify-start bg-transparent text-xs xs:text-sm sm:text-base">
+              <TrendingUp className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Generate Reports
             </Button>
           </CardContent>
@@ -192,20 +192,20 @@ export function AdminOverview() {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest system events and updates</CardDescription>
+            <CardTitle className="text-base xs:text-lg sm:text-xl">Recent Activity</CardTitle>
+            <CardDescription className="text-xs xs:text-sm sm:text-base">Latest system events and updates</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 xs:space-y-4">
             {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-start space-x-3">
-                <div className={`p-2 rounded-full bg-muted`}>
-                  <activity.icon className={`h-3 w-3 ${getStatusColor(activity.status)}`} />
+              <div key={index} className="flex items-start space-x-2 xs:space-x-3">
+                <div className={`p-1.5 xs:p-2 rounded-full bg-muted`}>
+                  <activity.icon className={`h-2.5 w-2.5 xs:h-3 xs:w-3 ${getStatusColor(activity.status)}`} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">{activity.title}</p>
-                  <p className="text-xs text-muted-foreground">{activity.description}</p>
-                  <p className="text-xs text-muted-foreground flex items-center">
-                    <Clock className="mr-1 h-3 w-3" />
+                  <p className="text-xs xs:text-sm font-medium">{activity.title}</p>
+                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">{activity.description}</p>
+                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground flex items-center">
+                    <Clock className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                     {activity.time}
                   </p>
                 </div>
@@ -217,37 +217,37 @@ export function AdminOverview() {
         {/* System Health */}
         <Card>
           <CardHeader>
-            <CardTitle>System Health</CardTitle>
-            <CardDescription>Platform performance metrics</CardDescription>
+            <CardTitle className="text-base xs:text-lg sm:text-xl">System Health</CardTitle>
+            <CardDescription className="text-xs xs:text-sm sm:text-base">Platform performance metrics</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 xs:space-y-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs xs:text-sm">
                 <span>Server Uptime</span>
                 <span className="text-green-600">99.9%</span>
               </div>
-              <Progress value={99.9} className="h-2" />
+              <Progress value={99.9} className="h-1.5 xs:h-2" />
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs xs:text-sm">
                 <span>Active Sessions</span>
                 <span>2,847</span>
               </div>
-              <Progress value={75} className="h-2" />
+              <Progress value={75} className="h-1.5 xs:h-2" />
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs xs:text-sm">
                 <span>Storage Usage</span>
                 <span>67%</span>
               </div>
-              <Progress value={67} className="h-2" />
+              <Progress value={67} className="h-1.5 xs:h-2" />
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs xs:text-sm">
                 <span>Payment Success Rate</span>
                 <span className="text-green-600">94.2%</span>
               </div>
-              <Progress value={94.2} className="h-2" />
+              <Progress value={94.2} className="h-1.5 xs:h-2" />
             </div>
           </CardContent>
         </Card>
@@ -256,25 +256,25 @@ export function AdminOverview() {
       {/* Top Performing Schools */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Performing Schools</CardTitle>
-          <CardDescription>Schools with highest engagement and revenue</CardDescription>
+          <CardTitle className="text-base xs:text-lg sm:text-xl">Top Performing Schools</CardTitle>
+          <CardDescription className="text-xs xs:text-sm sm:text-base">Schools with highest engagement and revenue</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3 xs:space-y-4">
             {topPerformingSchools.map((school, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
-                <div className="space-y-1">
-                  <h4 className="font-medium">{school.name}</h4>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="space-y-1 mb-2 sm:mb-0">
+                  <h4 className="font-medium text-xs xs:text-sm sm:text-base">{school.name}</h4>
+                  <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
+                      <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {school.students} students
                     </div>
                     <div className="flex items-center gap-1">
-                      <GraduationCap className="h-3 w-3" />
+                      <GraduationCap className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                       {school.teachers} teachers
                     </div>
                     {getSubscriptionBadge(school.subscriptionStatus)}
@@ -282,8 +282,8 @@ export function AdminOverview() {
                   </div>
                 </div>
                 <div className="text-right space-y-2">
-                  <div className="text-sm font-medium">{school.performance}% Performance</div>
-                  <Progress value={school.performance} className="w-20 h-2" />
+                  <div className="text-xs xs:text-sm font-medium">{school.performance}% Performance</div>
+                  <Progress value={school.performance} className="w-16 xs:w-20 h-1.5 xs:h-2" />
                 </div>
               </div>
             ))}
@@ -292,36 +292,36 @@ export function AdminOverview() {
       </Card>
 
       {/* Platform Statistics */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 xs:gap-6 grid-cols-1 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Growth</CardTitle>
-            <CardDescription>Platform expansion metrics</CardDescription>
+            <CardTitle className="text-base xs:text-lg sm:text-xl">Monthly Growth</CardTitle>
+            <CardDescription className="text-xs xs:text-sm sm:text-base">Platform expansion metrics</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 xs:space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm">New Schools</span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">3</span>
-                <Badge variant="secondary" className="text-green-600">
+              <span className="text-xs xs:text-sm">New Schools</span>
+              <div className="flex items-center gap-1 xs:gap-2">
+                <span className="text-lg xs:text-xl sm:text-2xl font-bold">3</span>
+                <Badge variant="secondary" className="text-green-600 text-[0.65rem] xs:text-xs sm:text-sm">
                   +50%
                 </Badge>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm">New Teachers</span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">89</span>
-                <Badge variant="secondary" className="text-green-600">
+              <span className="text-xs xs:text-sm">New Teachers</span>
+              <div className="flex items-center gap-1 xs:gap-2">
+                <span className="text-lg xs:text-xl sm:text-2xl font-bold">89</span>
+                <Badge variant="secondary" className="text-green-600 text-[0.65rem] xs:text-xs sm:text-sm">
                   +23%
                 </Badge>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm">New Students</span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">1,234</span>
-                <Badge variant="secondary" className="text-green-600">
+              <span className="text-xs xs:text-sm">New Students</span>
+              <div className="flex items-center gap-1 xs:gap-2">
+                <span className="text-lg xs:text-xl sm:text-2xl font-bold">1,234</span>
+                <Badge variant="secondary" className="text-green-600 text-[0.65rem] xs:text-xs sm:text-sm">
                   +18%
                 </Badge>
               </div>
@@ -331,29 +331,29 @@ export function AdminOverview() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Revenue Breakdown</CardTitle>
-            <CardDescription>Income sources this month</CardDescription>
+            <CardTitle className="text-base xs:text-lg sm:text-xl">Revenue Breakdown</CardTitle>
+            <CardDescription className="text-xs xs:text-sm sm:text-base">Income sources this month</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 xs:space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm">Subscriptions</span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">₦1,890,000</span>
-                <span className="text-xs text-muted-foreground">77%</span>
+              <span className="text-xs xs:text-sm">Subscriptions</span>
+              <div className="flex items-center gap-1 xs:gap-2">
+                <span className="text-base xs:text-lg sm:text-xl font-semibold">₦1,890,000</span>
+                <span className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">77%</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm">Private Tutoring</span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">₦340,000</span>
-                <span className="text-xs text-muted-foreground">14%</span>
+              <span className="text-xs xs:text-sm">Private Tutoring</span>
+              <div className="flex items-center gap-1 xs:gap-2">
+                <span className="text-base xs:text-lg sm:text-xl font-semibold">₦340,000</span>
+                <span className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">14%</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm">E-commerce</span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">₦220,000</span>
-                <span className="text-xs text-muted-foreground">9%</span>
+              <span className="text-xs xs:text-sm">E-commerce</span>
+              <div className="flex items-center gap-1 xs:gap-2">
+                <span className="text-base xs:text-lg sm:text-xl font-semibold">₦220,000</span>
+                <span className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">9%</span>
               </div>
             </div>
           </CardContent>

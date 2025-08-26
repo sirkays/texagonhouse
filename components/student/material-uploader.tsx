@@ -1,17 +1,29 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useCallback, useMemo } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {useState, useCallback, useMemo} from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Textarea} from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {Badge} from "@/components/ui/badge";
+import {Progress} from "@/components/ui/progress";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +32,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   Upload,
   File,
@@ -38,51 +59,55 @@ import {
   Play,
   Pause,
   Volume2,
-} from "lucide-react"
+} from "lucide-react";
 
 interface UploadedFile {
-  id: string
-  name: string
-  type: string
-  size: number
-  category: string
-  uploadDate: Date
-  status: "uploading" | "completed" | "failed"
-  progress: number
-  description?: string
-  tags: string[]
-  fileUrl?: string // Add this
-  originalFile?: File // Add this
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  category: string;
+  uploadDate: Date;
+  status: "uploading" | "completed" | "failed";
+  progress: number;
+  description?: string;
+  tags: string[];
+  fileUrl?: string;
+  originalFile?: File;
 }
 
 interface Category {
-  id: string
-  name: string
-  color: string
-  count: number
+  id: string;
+  name: string;
+  color: string;
+  count: number;
 }
 
 export function MaterialUploader() {
-  const [dragActive, setDragActive] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [selectedType, setSelectedType] = useState("All")
-  const [editingFile, setEditingFile] = useState<UploadedFile | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState("")
-  const [newCategoryColor, setNewCategoryColor] = useState("bg-blue-500")
-  const [viewingMaterial, setViewingMaterial] = useState<UploadedFile | null>(null)
-  const [isViewMaterialOpen, setIsViewMaterialOpen] = useState(false)
+  const [dragActive, setDragActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedType, setSelectedType] = useState("All");
+  const [editingFile, setEditingFile] = useState<UploadedFile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("bg-blue-500");
+  const [viewingMaterial, setViewingMaterial] = useState<UploadedFile | null>(
+    null
+  );
+  const [isViewMaterialOpen, setIsViewMaterialOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const filesPerPage = 4;
 
   const [categories, setCategories] = useState<Category[]>([
-    { id: "1", name: "Frontend Development", color: "bg-blue-500", count: 45 },
-    { id: "2", name: "Backend Development", color: "bg-green-500", count: 32 },
-    { id: "3", name: "Database", color: "bg-purple-500", count: 18 },
-    { id: "4", name: "Programming", color: "bg-orange-500", count: 67 },
-    { id: "5", name: "AI/Machine Learning", color: "bg-red-500", count: 23 },
-    { id: "6", name: "General", color: "bg-gray-500", count: 12 },
-  ])
+    {id: "1", name: "Frontend Development", color: "bg-blue-500", count: 45},
+    {id: "2", name: "Backend Development", color: "bg-green-500", count: 32},
+    {id: "3", name: "Database", color: "bg-purple-500", count: 18},
+    {id: "4", name: "Programming", color: "bg-orange-500", count: 67},
+    {id: "5", name: "AI/Machine Learning", color: "bg-red-500", count: 23},
+    {id: "6", name: "General", color: "bg-gray-500", count: 12},
+  ]);
 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([
     {
@@ -94,7 +119,8 @@ export function MaterialUploader() {
       uploadDate: new Date("2024-01-15"),
       status: "completed",
       progress: 100,
-      description: "Comprehensive guide to React Hooks covering useState, useEffect, and custom hooks",
+      description:
+        "Comprehensive guide to React Hooks covering useState, useEffect, and custom hooks",
       tags: ["react", "hooks", "tutorial", "javascript"],
     },
     {
@@ -130,7 +156,8 @@ export function MaterialUploader() {
       uploadDate: new Date("2024-01-05"),
       status: "completed",
       progress: 100,
-      description: "Audio lecture on database normalization and design principles",
+      description:
+        "Audio lecture on database normalization and design principles",
       tags: ["database", "design", "normalization", "sql"],
     },
     {
@@ -145,19 +172,19 @@ export function MaterialUploader() {
       description: "Visual guide to CSS Grid layout properties",
       tags: ["css", "grid", "layout", "design"],
     },
-  ])
+  ]);
 
   const [currentUpload, setCurrentUpload] = useState<{
-    title: string
-    description: string
-    category: string
-    tags: string
+    title: string;
+    description: string;
+    category: string;
+    tags: string;
   }>({
     title: "",
     description: "",
     category: "",
     tags: "",
-  })
+  });
 
   // Filter files based on search and category
   const filteredFiles = useMemo(() => {
@@ -165,39 +192,47 @@ export function MaterialUploader() {
       const matchesSearch =
         file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         file.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        file.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        file.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-      const matchesCategory = selectedCategory === "All" || file.category === selectedCategory
-      const matchesType = selectedType === "All" || file.type === selectedType
+      const matchesCategory =
+        selectedCategory === "All" || file.category === selectedCategory;
+      const matchesType = selectedType === "All" || file.type === selectedType;
 
-      return matchesSearch && matchesCategory && matchesType
-    })
-  }, [uploadedFiles, searchQuery, selectedCategory, selectedType])
+      return matchesSearch && matchesCategory && matchesType;
+    });
+  }, [uploadedFiles, searchQuery, selectedCategory, selectedType]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
+  const indexOfLastFile = currentPage * filesPerPage;
+  const indexOfFirstFile = indexOfLastFile - filesPerPage;
+  const currentFiles = filteredFiles.slice(indexOfFirstFile, indexOfLastFile);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
+      setDragActive(true);
     } else if (e.type === "dragleave") {
-      setDragActive(false)
+      setDragActive(false);
     }
-  }, [])
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFiles(e.dataTransfer.files)
+      handleFiles(e.dataTransfer.files);
     }
-  }, [])
+  }, []);
 
   const handleFiles = (files: FileList) => {
     Array.from(files).forEach((file) => {
-      // Create object URL for preview
-      const fileUrl = URL.createObjectURL(file)
+      const fileUrl = URL.createObjectURL(file);
 
       const newFile: UploadedFile = {
         id: Date.now().toString() + Math.random(),
@@ -213,82 +248,90 @@ export function MaterialUploader() {
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
-        fileUrl: fileUrl, // Store the object URL
-        originalFile: file, // Store the original file
-      }
+        fileUrl: fileUrl,
+        originalFile: file,
+      };
 
-      setUploadedFiles((prev) => [...prev, newFile])
-      simulateUpload(newFile.id)
-    })
-  }
+      setUploadedFiles((prev) => [...prev, newFile]);
+      simulateUpload(newFile.id);
+    });
+  };
 
   const simulateUpload = (fileId: string) => {
     const interval = setInterval(() => {
       setUploadedFiles((prev) =>
         prev.map((file) => {
           if (file.id === fileId) {
-            const newProgress = Math.min(file.progress + Math.random() * 20, 100)
+            const newProgress = Math.min(
+              file.progress + Math.random() * 20,
+              100
+            );
             return {
               ...file,
               progress: newProgress,
               status: newProgress === 100 ? "completed" : "uploading",
-            }
+            };
           }
-          return file
-        }),
-      )
-    }, 500)
+          return file;
+        })
+      );
+    }, 500);
 
-    setTimeout(() => clearInterval(interval), 5000)
-  }
+    setTimeout(() => clearInterval(interval), 5000);
+  };
 
   const getFileType = (mimeType: string): string => {
-    if (mimeType.startsWith("image/")) return "image"
-    if (mimeType.startsWith("video/")) return "video"
-    if (mimeType.startsWith("audio/")) return "audio"
-    if (mimeType.includes("pdf") || mimeType.includes("document")) return "document"
-    return "file"
-  }
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    if (mimeType.includes("pdf") || mimeType.includes("document"))
+      return "document";
+    return "file";
+  };
 
   const getFileIcon = (type: string) => {
     switch (type) {
       case "image":
-        return ImageIcon
+        return ImageIcon;
       case "video":
-        return Video
+        return Video;
       case "audio":
-        return Headphones
+        return Headphones;
       case "document":
-        return FileText
+        return FileText;
       default:
-        return File
+        return File;
     }
-  }
+  };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-  }
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (
+      Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+    );
+  };
 
   const removeFile = (fileId: string) => {
-    setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId))
-  }
+    setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId));
+  };
 
   const handleEditFile = (file: UploadedFile) => {
-    setEditingFile(file)
-    setIsEditDialogOpen(true)
-  }
+    setEditingFile(file);
+    setIsEditDialogOpen(true);
+  };
 
   const handleSaveEdit = () => {
     if (editingFile) {
-      setUploadedFiles((prev) => prev.map((file) => (file.id === editingFile.id ? editingFile : file)))
-      setIsEditDialogOpen(false)
-      setEditingFile(null)
+      setUploadedFiles((prev) =>
+        prev.map((file) => (file.id === editingFile.id ? editingFile : file))
+      );
+      setIsEditDialogOpen(false);
+      setEditingFile(null);
     }
-  }
+  };
 
   const handleAddCategory = () => {
     if (newCategoryName.trim()) {
@@ -297,33 +340,54 @@ export function MaterialUploader() {
         name: newCategoryName.trim(),
         color: newCategoryColor,
         count: 0,
-      }
-      setCategories((prev) => [...prev, newCategory])
-      setNewCategoryName("")
-      setIsAddCategoryOpen(false)
+      };
+      setCategories((prev) => [...prev, newCategory]);
+      setNewCategoryName("");
+      setIsAddCategoryOpen(false);
     }
-  }
+  };
 
-  const uniqueCategories = Array.from(new Set(uploadedFiles.map((file) => file.category)))
-  const fileTypes = ["All", "document", "video", "audio", "image"]
+  const uniqueCategories = Array.from(
+    new Set(uploadedFiles.map((file) => file.category))
+  );
+  const fileTypes = ["All", "document", "video", "audio", "image"];
 
   const handleViewMaterial = (file: UploadedFile) => {
-    setViewingMaterial(file)
-    setIsViewMaterialOpen(true)
-  }
+    setViewingMaterial(file);
+    setIsViewMaterialOpen(true);
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Material Uploader</h1>
-        <p className="text-muted-foreground">Upload and manage your teaching materials</p>
+        <p className="text-muted-foreground">
+          Upload and manage your teaching materials
+        </p>
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList>
-          <TabsTrigger value="upload">Upload Materials</TabsTrigger>
-          <TabsTrigger value="library">Materials Library</TabsTrigger>
-          <TabsTrigger value="organize">Organize & Tag</TabsTrigger>
+        <TabsList
+          className="
+    flex flex-col sm:flex-row 
+    gap-2 sm:gap-4 
+    w-full sm:w-auto
+  ">
+          <TabsTrigger
+            value="upload"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Upload Materials
+          </TabsTrigger>
+          <TabsTrigger
+            value="library"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Materials Library
+          </TabsTrigger>
+          <TabsTrigger
+            value="organize"
+            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            Organize & Tag
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-6">
@@ -332,30 +396,40 @@ export function MaterialUploader() {
             <Card>
               <CardHeader>
                 <CardTitle>Upload Files</CardTitle>
-                <CardDescription>Drag and drop files or click to browse</CardDescription>
+                <CardDescription>
+                  Drag and drop files or click to browse
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+                    dragActive
+                      ? "border-primary bg-primary/5"
+                      : "border-muted-foreground/25"
                   }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                >
+                  onDrop={handleDrop}>
                   <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">Drop files here</h3>
                   <p className="text-muted-foreground mb-4">
                     Support for PDF, images, videos, audio files, and documents
                   </p>
-                  <Button onClick={() => document.getElementById("file-upload")?.click()}>Browse Files</Button>
+                  <Button
+                    onClick={() =>
+                      document.getElementById("file-upload")?.click()
+                    }>
+                    Browse Files
+                  </Button>
                   <input
                     id="file-upload"
                     type="file"
                     multiple
                     className="hidden"
-                    onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                    onChange={(e) =>
+                      e.target.files && handleFiles(e.target.files)
+                    }
                     accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mov,.avi,.mp3,.wav"
                   />
                 </div>
@@ -366,8 +440,12 @@ export function MaterialUploader() {
                       <Label>Category</Label>
                       <Select
                         value={currentUpload.category}
-                        onValueChange={(value) => setCurrentUpload((prev) => ({ ...prev, category: value }))}
-                      >
+                        onValueChange={(value) =>
+                          setCurrentUpload((prev) => ({
+                            ...prev,
+                            category: value,
+                          }))
+                        }>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
@@ -384,7 +462,12 @@ export function MaterialUploader() {
                       <Label>Tags</Label>
                       <Input
                         value={currentUpload.tags}
-                        onChange={(e) => setCurrentUpload((prev) => ({ ...prev, tags: e.target.value }))}
+                        onChange={(e) =>
+                          setCurrentUpload((prev) => ({
+                            ...prev,
+                            tags: e.target.value,
+                          }))
+                        }
                         placeholder="react, tutorial, beginner"
                       />
                     </div>
@@ -394,7 +477,12 @@ export function MaterialUploader() {
                     <Label>Description</Label>
                     <Textarea
                       value={currentUpload.description}
-                      onChange={(e) => setCurrentUpload((prev) => ({ ...prev, description: e.target.value }))}
+                      onChange={(e) =>
+                        setCurrentUpload((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
                       placeholder="Describe this material..."
                       rows={3}
                     />
@@ -410,7 +498,8 @@ export function MaterialUploader() {
                 <CardDescription>Track your file uploads</CardDescription>
               </CardHeader>
               <CardContent>
-                {uploadedFiles.filter((f) => f.status === "uploading").length === 0 ? (
+                {uploadedFiles.filter((f) => f.status === "uploading")
+                  .length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Folder className="mx-auto h-12 w-12 mb-4 opacity-50" />
                     <p>No active uploads</p>
@@ -421,25 +510,37 @@ export function MaterialUploader() {
                     {uploadedFiles
                       .filter((f) => f.status === "uploading")
                       .map((file) => {
-                        const Icon = getFileIcon(file.type)
+                        const Icon = getFileIcon(file.type);
                         return (
-                          <div key={file.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                          <div
+                            key={file.id}
+                            className="flex items-center space-x-3 p-3 border rounded-lg">
                             <Icon className="h-8 w-8 text-muted-foreground" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-sm font-medium truncate">
+                                {file.name}
+                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatFileSize(file.size)} • {file.category}
                               </p>
-                              <Progress value={file.progress} className="h-1 mt-2" />
+                              <Progress
+                                value={file.progress}
+                                className="h-1 mt-2"
+                              />
                             </div>
                             <div className="flex items-center space-x-2">
-                              <div className="text-xs text-muted-foreground">{Math.round(file.progress)}%</div>
-                              <Button variant="ghost" size="sm" onClick={() => removeFile(file.id)}>
+                              <div className="text-xs text-muted-foreground">
+                                {Math.round(file.progress)}%
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFile(file.id)}>
                                 <X className="h-3 w-3" />
                               </Button>
                             </div>
                           </div>
-                        )
+                        );
                       })}
                   </div>
                 )}
@@ -452,7 +553,9 @@ export function MaterialUploader() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">Materials Library</h2>
-              <p className="text-muted-foreground">Browse and manage all your uploaded materials</p>
+              <p className="text-muted-foreground">
+                Browse and manage all your uploaded materials
+              </p>
             </div>
           </div>
 
@@ -467,7 +570,9 @@ export function MaterialUploader() {
                 className="pl-8"
               />
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
@@ -487,7 +592,9 @@ export function MaterialUploader() {
               <SelectContent>
                 {fileTypes.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {type === "All" ? "All Types" : type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type === "All"
+                      ? "All Types"
+                      : type.charAt(0).toUpperCase() + type.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -496,15 +603,17 @@ export function MaterialUploader() {
 
           {/* Results count */}
           <div className="text-sm text-muted-foreground">
-            Showing {filteredFiles.length} of {uploadedFiles.length} materials
+            Showing {currentFiles.length} of {filteredFiles.length} materials
           </div>
 
           {/* Materials Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredFiles.map((file) => {
-              const Icon = getFileIcon(file.type)
+            {currentFiles.map((file) => {
+              const Icon = getFileIcon(file.type);
               return (
-                <Card key={file.id} className="hover:shadow-lg transition-shadow">
+                <Card
+                  key={file.id}
+                  className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <Icon className="h-8 w-8 text-muted-foreground" />
@@ -513,20 +622,28 @@ export function MaterialUploader() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
-                      <h4 className="font-medium text-sm line-clamp-2">{file.name}</h4>
+                      <h4 className="font-medium text-sm line-clamp-2">
+                        {file.name}
+                      </h4>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {formatFileSize(file.size)} • {file.uploadDate.toLocaleDateString()}
+                        {formatFileSize(file.size)} •{" "}
+                        {file.uploadDate.toLocaleDateString()}
                       </p>
                     </div>
 
                     {file.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{file.description}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {file.description}
+                      </p>
                     )}
 
                     {file.tags.length > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {file.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="text-xs">
                             {tag}
                           </Badge>
                         ))}
@@ -539,57 +656,117 @@ export function MaterialUploader() {
                     )}
 
                     <div className="flex gap-2">
-                      <Button size="sm" className="flex-1" onClick={() => handleViewMaterial(file)}>
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleViewMaterial(file)}>
                         <Eye className="mr-1 h-3 w-3" />
                         View
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleEditFile(file)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditFile(file)}>
                         <Edit className="mr-1 h-3 w-3" />
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => removeFile(file.id)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => removeFile(file.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
 
-          {filteredFiles.length === 0 && (
+          {filteredFiles.length === 0 ? (
             <div className="text-center py-12">
               <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No materials found</h3>
-              <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
+              <p className="text-muted-foreground">
+                Try adjusting your search or filter criteria
+              </p>
             </div>
+          ) : (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                  (page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}>
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+                {totalPages > 5 && <PaginationEllipsis />}
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
           )}
         </TabsContent>
 
         <TabsContent value="organize" className="space-y-6">
           <div>
             <h2 className="text-2xl font-bold">Organize & Tag</h2>
-            <p className="text-muted-foreground">Organize your materials with categories and tags</p>
+            <p className="text-muted-foreground">
+              Organize your materials with categories and tags
+            </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Categories</CardTitle>
-                <CardDescription>Manage your material categories</CardDescription>
+                <CardDescription>
+                  Manage your material categories
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {categories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div
+                    key={category.id}
+                    className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${category.color}`} />
+                      <div
+                        className={`w-3 h-3 rounded-full ${category.color}`}
+                      />
                       <span className="font-medium">{category.name}</span>
                     </div>
                     <Badge variant="secondary">{category.count}</Badge>
                   </div>
                 ))}
 
-                <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+                <Dialog
+                  open={isAddCategoryOpen}
+                  onOpenChange={setIsAddCategoryOpen}>
                   <DialogTrigger asChild>
                     <Button className="w-full mt-4">
                       <Plus className="mr-2 h-4 w-4" />
@@ -599,7 +776,9 @@ export function MaterialUploader() {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Add New Category</DialogTitle>
-                      <DialogDescription>Create a new category to organize your materials</DialogDescription>
+                      <DialogDescription>
+                        Create a new category to organize your materials
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -626,7 +805,9 @@ export function MaterialUploader() {
                             <button
                               key={color}
                               className={`w-6 h-6 rounded-full ${color} ${
-                                newCategoryColor === color ? "ring-2 ring-offset-2 ring-primary" : ""
+                                newCategoryColor === color
+                                  ? "ring-2 ring-offset-2 ring-primary"
+                                  : ""
                               }`}
                               onClick={() => setNewCategoryColor(color)}
                             />
@@ -635,7 +816,9 @@ export function MaterialUploader() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAddCategoryOpen(false)}>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsAddCategoryOpen(false)}>
                         Cancel
                       </Button>
                       <Button onClick={handleAddCategory}>Add Category</Button>
@@ -648,19 +831,22 @@ export function MaterialUploader() {
             <Card>
               <CardHeader>
                 <CardTitle>Popular Tags</CardTitle>
-                <CardDescription>Most used tags in your materials</CardDescription>
+                <CardDescription>
+                  Most used tags in your materials
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {Array.from(new Set(uploadedFiles.flatMap((file) => file.tags)))
+                  {Array.from(
+                    new Set(uploadedFiles.flatMap((file) => file.tags))
+                  )
                     .slice(0, 15)
                     .map((tag, index) => (
                       <Badge
                         key={index}
                         variant="outline"
                         className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                        onClick={() => setSearchQuery(tag)}
-                      >
+                        onClick={() => setSearchQuery(tag)}>
                         {tag}
                       </Badge>
                     ))}
@@ -678,12 +864,14 @@ export function MaterialUploader() {
             <DialogTitle className="flex items-center gap-2">
               {viewingMaterial &&
                 (() => {
-                  const Icon = getFileIcon(viewingMaterial.type)
-                  return <Icon className="h-5 w-5" />
+                  const Icon = getFileIcon(viewingMaterial.type);
+                  return <Icon className="h-5 w-5" />;
                 })()}
               {viewingMaterial?.name}
             </DialogTitle>
-            <DialogDescription>{viewingMaterial?.description}</DialogDescription>
+            <DialogDescription>
+              {viewingMaterial?.description}
+            </DialogDescription>
           </DialogHeader>
 
           {viewingMaterial && (
@@ -696,9 +884,12 @@ export function MaterialUploader() {
                       <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                       <p className="text-lg font-medium">PDF Document</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatFileSize(viewingMaterial.size)} • {viewingMaterial.category}
+                        {formatFileSize(viewingMaterial.size)} •{" "}
+                        {viewingMaterial.category}
                       </p>
-                      <Button className="mt-4" onClick={() => window.open("#", "_blank")}>
+                      <Button
+                        className="mt-4"
+                        onClick={() => window.open("#", "_blank")}>
                         Open in New Tab
                       </Button>
                     </div>
@@ -708,10 +899,12 @@ export function MaterialUploader() {
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
                     <div>
-                      <strong>Upload Date:</strong> {viewingMaterial.uploadDate.toLocaleDateString()}
+                      <strong>Upload Date:</strong>{" "}
+                      {viewingMaterial.uploadDate.toLocaleDateString()}
                     </div>
                     <div>
-                      <strong>File Size:</strong> {formatFileSize(viewingMaterial.size)}
+                      <strong>File Size:</strong>{" "}
+                      {formatFileSize(viewingMaterial.size)}
                     </div>
                     <div>
                       <strong>Status:</strong> {viewingMaterial.status}
@@ -727,7 +920,9 @@ export function MaterialUploader() {
                     <div className="text-center text-white">
                       <Video className="h-16 w-16 mx-auto mb-4" />
                       <p className="text-lg font-medium">Video Player</p>
-                      <p className="text-sm opacity-75">{viewingMaterial.name}</p>
+                      <p className="text-sm opacity-75">
+                        {viewingMaterial.name}
+                      </p>
                       <Button className="mt-4" variant="secondary">
                         <Play className="mr-2 h-4 w-4" />
                         Play Video
@@ -739,10 +934,12 @@ export function MaterialUploader() {
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
                     <div>
-                      <strong>Upload Date:</strong> {viewingMaterial.uploadDate.toLocaleDateString()}
+                      <strong>Upload Date:</strong>{" "}
+                      {viewingMaterial.uploadDate.toLocaleDateString()}
                     </div>
                     <div>
-                      <strong>File Size:</strong> {formatFileSize(viewingMaterial.size)}
+                      <strong>File Size:</strong>{" "}
+                      {formatFileSize(viewingMaterial.size)}
                     </div>
                     <div>
                       <strong>Format:</strong> MP4
@@ -757,8 +954,12 @@ export function MaterialUploader() {
                   <div className="bg-muted rounded-lg p-8">
                     <div className="text-center mb-6">
                       <Headphones className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg font-medium">{viewingMaterial.name}</p>
-                      <p className="text-sm text-muted-foreground">{viewingMaterial.category}</p>
+                      <p className="text-lg font-medium">
+                        {viewingMaterial.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {viewingMaterial.category}
+                      </p>
                     </div>
 
                     {/* Audio Controls */}
@@ -795,10 +996,12 @@ export function MaterialUploader() {
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
                     <div>
-                      <strong>Upload Date:</strong> {viewingMaterial.uploadDate.toLocaleDateString()}
+                      <strong>Upload Date:</strong>{" "}
+                      {viewingMaterial.uploadDate.toLocaleDateString()}
                     </div>
                     <div>
-                      <strong>File Size:</strong> {formatFileSize(viewingMaterial.size)}
+                      <strong>File Size:</strong>{" "}
+                      {formatFileSize(viewingMaterial.size)}
                     </div>
                     <div>
                       <strong>Format:</strong> MP3
@@ -814,7 +1017,9 @@ export function MaterialUploader() {
                     <div className="text-center">
                       <ImageIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                       <p className="text-lg font-medium">Image Preview</p>
-                      <p className="text-sm text-muted-foreground">{viewingMaterial.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {viewingMaterial.name}
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -822,10 +1027,12 @@ export function MaterialUploader() {
                       <strong>Category:</strong> {viewingMaterial.category}
                     </div>
                     <div>
-                      <strong>Upload Date:</strong> {viewingMaterial.uploadDate.toLocaleDateString()}
+                      <strong>Upload Date:</strong>{" "}
+                      {viewingMaterial.uploadDate.toLocaleDateString()}
                     </div>
                     <div>
-                      <strong>File Size:</strong> {formatFileSize(viewingMaterial.size)}
+                      <strong>File Size:</strong>{" "}
+                      {formatFileSize(viewingMaterial.size)}
                     </div>
                     <div>
                       <strong>Format:</strong> PNG/JPG
@@ -851,15 +1058,16 @@ export function MaterialUploader() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewMaterialOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewMaterialOpen(false)}>
               Close
             </Button>
             <Button
               onClick={() => {
-                setIsViewMaterialOpen(false)
-                if (viewingMaterial) handleEditFile(viewingMaterial)
-              }}
-            >
+                setIsViewMaterialOpen(false);
+                if (viewingMaterial) handleEditFile(viewingMaterial);
+              }}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </Button>
@@ -872,7 +1080,9 @@ export function MaterialUploader() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Material</DialogTitle>
-            <DialogDescription>Update the details of your material</DialogDescription>
+            <DialogDescription>
+              Update the details of your material
+            </DialogDescription>
           </DialogHeader>
           {editingFile && (
             <div className="space-y-4">
@@ -880,15 +1090,18 @@ export function MaterialUploader() {
                 <Label>Name</Label>
                 <Input
                   value={editingFile.name}
-                  onChange={(e) => setEditingFile({ ...editingFile, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditingFile({...editingFile, name: e.target.value})
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Select
                   value={editingFile.category}
-                  onValueChange={(value) => setEditingFile({ ...editingFile, category: value })}
-                >
+                  onValueChange={(value) =>
+                    setEditingFile({...editingFile, category: value})
+                  }>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -905,7 +1118,12 @@ export function MaterialUploader() {
                 <Label>Description</Label>
                 <Textarea
                   value={editingFile.description || ""}
-                  onChange={(e) => setEditingFile({ ...editingFile, description: e.target.value })}
+                  onChange={(e) =>
+                    setEditingFile({
+                      ...editingFile,
+                      description: e.target.value,
+                    })
+                  }
                   rows={3}
                 />
               </div>
@@ -928,7 +1146,9 @@ export function MaterialUploader() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveEdit}>Save Changes</Button>
@@ -936,5 +1156,5 @@ export function MaterialUploader() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

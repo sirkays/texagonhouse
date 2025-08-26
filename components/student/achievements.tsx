@@ -1,10 +1,25 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Star, Target, Zap, Award, Medal, Crown, Gem } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
+import {Progress} from "@/components/ui/progress";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {
+  Trophy,
+  Star,
+  Target,
+  Zap,
+  Award,
+  Medal,
+  Crown,
+  Gem,
+} from "lucide-react";
 
 export function Achievements() {
   const achievements = [
@@ -71,7 +86,7 @@ export function Achievements() {
       points: 400,
       category: "Community",
     },
-  ]
+  ];
 
   const badges = [
     {
@@ -110,21 +125,23 @@ export function Achievements() {
       progress: 7500,
       total: 25000,
     },
-  ]
+  ];
 
-  const earnedAchievements = achievements.filter((a) => a.earned)
-  const inProgressAchievements = achievements.filter((a) => !a.earned)
+  const earnedAchievements = achievements.filter((a) => a.earned);
+  const inProgressAchievements = achievements.filter((a) => !a.earned);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Achievements & Badges</h1>
-        <p className="text-muted-foreground">Track your learning milestones and unlock rewards</p>
+        <p className="text-muted-foreground">
+          Track your learning milestones and unlock rewards
+        </p>
       </div>
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Points</CardTitle>
             <Star className="h-4 w-4 text-yellow-500" />
@@ -140,8 +157,12 @@ export function Achievements() {
             <Trophy className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{earnedAchievements.length}</div>
-            <p className="text-xs text-muted-foreground">of {achievements.length} unlocked</p>
+            <div className="text-2xl font-bold text-blue-600">
+              {earnedAchievements.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              of {achievements.length} unlocked
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -150,18 +171,26 @@ export function Achievements() {
             <Medal className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{badges.filter((b) => b.earned).length}</div>
-            <p className="text-xs text-muted-foreground">of {badges.length} earned</p>
+            <div className="text-2xl font-bold text-purple-600">
+              {badges.filter((b) => b.earned).length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              of {badges.length} earned
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Current Streak
+            </CardTitle>
             <Zap className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">15 days</div>
-            <p className="text-xs text-muted-foreground">Personal best: 23 days</p>
+            <p className="text-xs text-muted-foreground">
+              Personal best: 23 days
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -176,9 +205,11 @@ export function Achievements() {
         <TabsContent value="achievements" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {earnedAchievements.map((achievement) => {
-              const IconComponent = achievement.icon
+              const IconComponent = achievement.icon;
               return (
-                <Card key={achievement.id} className="border-green-200 bg-green-50">
+                <Card
+                  key={achievement.id}
+                  className="border-green-200 bg-green-50">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -186,11 +217,17 @@ export function Achievements() {
                           <IconComponent className="h-5 w-5 text-green-600" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{achievement.title}</CardTitle>
-                          <CardDescription>{achievement.description}</CardDescription>
+                          <CardTitle className="text-lg">
+                            {achievement.title}
+                          </CardTitle>
+                          <CardDescription>
+                            {achievement.description}
+                          </CardDescription>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-700">
                         +{achievement.points} pts
                       </Badge>
                     </div>
@@ -202,7 +239,7 @@ export function Achievements() {
                     </div>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
         </TabsContent>
@@ -210,23 +247,34 @@ export function Achievements() {
         <TabsContent value="badges" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {badges.map((badge) => {
-              const IconComponent = badge.icon
+              const IconComponent = badge.icon;
               return (
-                <Card key={badge.id} className={badge.earned ? "border-yellow-200 bg-yellow-50" : ""}>
+                <Card
+                  key={badge.id}
+                  className={
+                    badge.earned ? "border-yellow-200 bg-yellow-50" : ""
+                  }>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`p-3 rounded-full ${badge.color} ${badge.earned ? "opacity-100" : "opacity-50"}`}
-                        >
+                          className={`p-3 rounded-full ${badge.color} ${
+                            badge.earned ? "opacity-100" : "opacity-50"
+                          }`}>
                           <IconComponent className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{badge.name}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {badge.name}
+                          </CardTitle>
                           <CardDescription>{badge.description}</CardDescription>
                         </div>
                       </div>
-                      {badge.earned && <Badge className="bg-yellow-100 text-yellow-700">Earned</Badge>}
+                      {badge.earned && (
+                        <Badge className="bg-yellow-100 text-yellow-700">
+                          Earned
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
                   {!badge.earned && badge.progress && (
@@ -235,15 +283,19 @@ export function Achievements() {
                         <div className="flex justify-between text-sm">
                           <span>Progress</span>
                           <span>
-                            {badge.progress?.toLocaleString()} / {badge.total?.toLocaleString()}
+                            {badge.progress?.toLocaleString()} /{" "}
+                            {badge.total?.toLocaleString()}
                           </span>
                         </div>
-                        <Progress value={(badge.progress / badge.total!) * 100} className="h-2" />
+                        <Progress
+                          value={(badge.progress / badge.total!) * 100}
+                          className="h-2"
+                        />
                       </div>
                     </CardContent>
                   )}
                 </Card>
-              )
+              );
             })}
           </div>
         </TabsContent>
@@ -251,9 +303,11 @@ export function Achievements() {
         <TabsContent value="progress" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {inProgressAchievements.map((achievement) => {
-              const IconComponent = achievement.icon
+              const IconComponent = achievement.icon;
               const progressPercent =
-                achievement.progress && achievement.total ? (achievement.progress / achievement.total) * 100 : 0
+                achievement.progress && achievement.total
+                  ? (achievement.progress / achievement.total) * 100
+                  : 0;
 
               return (
                 <Card key={achievement.id}>
@@ -264,8 +318,12 @@ export function Achievements() {
                           <IconComponent className="h-5 w-5 text-gray-600" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{achievement.title}</CardTitle>
-                          <CardDescription>{achievement.description}</CardDescription>
+                          <CardTitle className="text-lg">
+                            {achievement.title}
+                          </CardTitle>
+                          <CardDescription>
+                            {achievement.description}
+                          </CardDescription>
                         </div>
                       </div>
                       <Badge variant="outline">+{achievement.points} pts</Badge>
@@ -287,11 +345,11 @@ export function Achievements() {
                     </div>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

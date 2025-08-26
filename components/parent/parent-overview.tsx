@@ -222,18 +222,21 @@ export function ParentOverview() {
       </div>
 
       {/* Children Overview */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Children's Progress Overview</CardTitle>
+          <CardTitle>Children&apos;s Progress Overview</CardTitle>
           <CardDescription>
-            Quick summary of each child's learning journey
+            Quick summary of each child&apos;s learning journey
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">
             {children.map((child) => (
-              <div key={child.id} className="p-4 border rounded-lg space-y-4">
-                <div className="flex items-center space-x-3">
+              <div
+                key={child.id}
+                className="p-4 border rounded-lg space-y-4 bg-card shadow-sm hover:shadow-md transition-shadow">
+                {/* Avatar + Info */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={child.avatar || "/placeholder.svg"} />
                     <AvatarFallback>
@@ -243,9 +246,9 @@ export function ParentOverview() {
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{child.name}</h3>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate">{child.name}</h3>
+                    <p className="text-sm text-muted-foreground truncate">
                       {child.grade} • {child.school}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -254,11 +257,12 @@ export function ParentOverview() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                {/* Progress Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
-                      <BookOpen className="h-3 w-3" />
-                      <span>
+                      <BookOpen className="h-3 w-3 shrink-0" />
+                      <span className="truncate">
                         Courses: {child.coursesCompleted}/
                         {child.coursesEnrolled}
                       </span>
@@ -273,9 +277,9 @@ export function ParentOverview() {
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
-                      <Target className="h-3 w-3" />
+                      <Target className="h-3 w-3 shrink-0" />
                       <span
-                        className={`font-medium ${getScoreColor(
+                        className={`font-medium truncate ${getScoreColor(
                           child.averageScore
                         )}`}>
                         Avg: {child.averageScore}%
@@ -285,27 +289,29 @@ export function ParentOverview() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
+                {/* Extra Stats */}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                   <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
+                    <Clock className="h-3 w-3 shrink-0" />
                     <span>{child.weeklyHours}h this week</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Trophy className="h-3 w-3 text-orange-500" />
+                    <Trophy className="h-3 w-3 text-orange-500 shrink-0" />
                     <span>{child.totalRewards} rewards</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-green-500" />
+                    <TrendingUp className="h-3 w-3 text-green-500 shrink-0" />
                     <span>{child.currentStreak} day streak</span>
                   </div>
                 </div>
 
+                {/* Upcoming */}
                 <div className="p-2 bg-muted rounded text-xs">
                   <div className="flex items-center gap-1 text-blue-600">
-                    <Calendar className="h-3 w-3" />
+                    <Calendar className="h-3 w-3 shrink-0" />
                     <span className="font-medium">Upcoming:</span>
                   </div>
-                  <p className="mt-1">{child.upcomingTest}</p>
+                  <p className="mt-1 truncate">{child.upcomingTest}</p>
                 </div>
               </div>
             ))}
@@ -315,7 +321,7 @@ export function ParentOverview() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Activity */}
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>
@@ -324,23 +330,30 @@ export function ParentOverview() {
           </CardHeader>
           <CardContent className="space-y-4">
             {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-start space-x-3">
-                <div className="p-2 bg-muted rounded-full">
-                  <activity.icon className={`h-3 w-3 ${activity.color}`} />
+              <div
+                key={index}
+                className="flex flex-col sm:flex-row sm:items-start gap-3">
+                {/* Icon */}
+                <div className="p-2 bg-muted rounded-full self-start sm:self-center shrink-0">
+                  <activity.icon className={`h-4 w-4 ${activity.color}`} />
                 </div>
+
+                {/* Details */}
                 <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-medium">{activity.title}</p>
                     <Badge variant="outline" className="text-xs">
                       {activity.child}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+
+                  <p className="text-xs text-muted-foreground break-words">
                     {activity.description}
                   </p>
+
                   <p className="text-xs text-muted-foreground flex items-center">
-                    <Clock className="mr-1 h-3 w-3" />
-                    {activity.time}
+                    <Clock className="mr-1 h-3 w-3 shrink-0" />
+                    <span className="truncate">{activity.time}</span>
                   </p>
                 </div>
               </div>
@@ -360,23 +373,30 @@ export function ParentOverview() {
             {upcomingEvents.map((event, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
+                {/* Left section */}
+                <div className="space-y-1 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-medium text-sm">{event.event}</h4>
                     <Badge variant="outline" className="text-xs">
                       {event.child}
                     </Badge>
                   </div>
+
                   <div className="flex items-center text-xs text-muted-foreground">
-                    <Calendar className="mr-1 h-3 w-3" />
-                    {event.date}
+                    <Calendar className="mr-1 h-3 w-3 shrink-0" />
+                    <span className="truncate">{event.date}</span>
                   </div>
+
                   <Badge variant="secondary" className="text-xs">
                     {event.type}
                   </Badge>
                 </div>
-                <div>{getImportanceBadge(event.importance)}</div>
+
+                {/* Right section */}
+                <div className="sm:self-center">
+                  {getImportanceBadge(event.importance)}
+                </div>
               </div>
             ))}
           </CardContent>
@@ -384,7 +404,7 @@ export function ParentOverview() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Common tasks and shortcuts</CardDescription>
@@ -417,7 +437,7 @@ export function ParentOverview() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 }
