@@ -1,13 +1,13 @@
-'use client'
-import React from 'react'
-import { CBTTest } from '@/components/student/cbt-test'
+"use client";
+import {CBTTest} from "@/components/student/cbt-test";
+import React from "react";
 
 const CBTTestMain = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 w-full">
-        <CBTTest />
+      <CBTTest />
     </div>
-  )
-}
+  );
+};
 
-export default CBTTestMain
+export default CBTTestMain;

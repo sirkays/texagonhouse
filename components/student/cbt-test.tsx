@@ -47,7 +47,10 @@ export function CBTTest() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes
+  const [initialTime, setInitialTime] = useState(0);
+  const [startTime, setStartTime] = useState<string | null>(null);
   const [testCompleted, setTestCompleted] = useState(false);
+  const [result, setResult] = useState<any>(null);
   const [isSecureMode, setIsSecureMode] = useState(false);
   const [browserLocked, setBrowserLocked] = useState(false);
   const [suspiciousActivity, setSuspiciousActivity] = useState(0);
@@ -167,8 +170,8 @@ export function CBTTest() {
     }
   }, [currentTest, timeLeft]);
 
-  const startTest = (testId: string) => {
-    const test = availableTests.find((t) => t.id === testId);
+  const startTest = (testPk: string) => {
+    const test = availableTests.find((t) => t.pk.toString() === testPk);
 
     if (test?.requiresSubscription && !isSubscriber) {
       setShowStartDialog(true);
@@ -182,32 +185,33 @@ export function CBTTest() {
       return;
     }
 
-    // Set questions from the selected test's items
     // Map the API structure to the expected question structure
+    // Assuming test.items have {id, type, question, choices: [{id, text}], points}
     // Note: API doesn't provide 'correct' or 'explanation', so client-side scoring is not possible.
-    // For demo, we'll proceed without scoring or mock it. In real scenario, submit answers to backend for scoring.
     const mappedQuestions = test.items.map((item: any) => ({
       id: item.id,
-      type: item.type === "scq" ? "multiple-choice" : item.type, // Assuming 'scq' is single choice (multiple-choice)
+      type: item.type === "scq" ? "multiple-choice" : item.type,
       question: item.question,
-      options: item.options, // or map from choices: item.choices.map((c: any) => c.text)
+      options: item.choices
+        ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
+        : [],
       points: item.points,
-      // correct: not provided by API, so scoring will be skipped or handled differently
-      // explanation: not provided
     }));
 
     setQuestions(mappedQuestions);
-    setCurrentTest(testId);
+    setCurrentTest(testPk);
     setCurrentQuestion(0);
     setAnswers({});
     setTestCompleted(false);
-    setTimeLeft(
+    const duration =
       test?.id === "semester-exam-math"
         ? 7200
         : test?.id === "semester-exam-physics"
         ? 5400
-        : parseInt(test.duration) * 60 || 1800 // Use duration from API if available
-    );
+        : parseInt(test.duration) * 60 || 1800;
+    setInitialTime(duration);
+    setTimeLeft(duration);
+    setStartTime(new Date().toISOString());
 
     setIsSecureMode(true); // Enable secure mode for all tests
     setBrowserLocked(true);
@@ -216,8 +220,8 @@ export function CBTTest() {
     }
   };
 
-  const handleStartTest = (testId: string) => {
-    setPendingTestId(testId);
+  const handleStartTest = (testPk: string) => {
+    setPendingTestId(testPk);
     setShowStartDialog(true);
   };
 
@@ -263,13 +267,52 @@ export function CBTTest() {
     }
   };
 
-  const submitTest = () => {
-    setTestCompleted(true);
-    setIsSecureMode(false);
-    setBrowserLocked(false);
-    setSuspiciousActivity(0);
-    // In real app, POST answers to backend for scoring
-    // e.g., fetch('/api/submit-test', { method: 'POST', body: JSON.stringify({ testId: currentTest, answers }) })
+  const submitTest = async () => {
+    const submitAnswers = [];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const ans = answers[i];
+      if (ans !== undefined) {
+        if (q.type === "multiple-choice") {
+          submitAnswers.push({question: q.id, choice: parseInt(ans)});
+        } else {
+          submitAnswers.push({question: q.id, text: ans});
+        }
+      }
+    }
+
+    const body = {
+      answers: submitAnswers,
+      started_at: startTime,
+      duration_seconds: initialTime - timeLeft,
+      suspicious_activity: suspiciousActivity,
+      currentTest: currentTest,
+    };
+
+    try {
+      const res = await fetch(`/api/student/cbt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to submit test");
+      }
+
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      console.error("[Client] Error submitting test:", err);
+      // Optionally set an error state to show in UI
+    } finally {
+      setTestCompleted(true);
+      setIsSecureMode(false);
+      setBrowserLocked(false);
+      setSuspiciousActivity(0);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -291,21 +334,25 @@ export function CBTTest() {
   }
 
   if (testCompleted) {
-    // Since API doesn't provide correct answers, we can't calculate score client-side.
-    // For demo, show a message. In real app, score would come from backend after submit.
+    const Icon = result?.result === "PASS" ? CheckCircle : XCircle;
+    const iconColor =
+      result?.result === "PASS" ? "text-green-500" : "text-red-500";
+
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            Your test has been submitted. Results will be available soon.
+            {result
+              ? `Your result: ${result.result}`
+              : "Your test has been submitted. Results will be available soon."}
           </p>
         </div>
 
         <Card className="max-w-2xl mx-auto">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              <CheckCircle className="h-16 w-16 text-green-500" />
+              <Icon className={`h-16 w-16 ${iconColor}`} />
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
@@ -313,6 +360,19 @@ export function CBTTest() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {result && (
+              <div className="text-center space-y-2">
+                <p className="text-4xl font-bold">{result.percentage}%</p>
+                <p className="text-xl">
+                  Score: {result.score} / {result.total_points}
+                </p>
+                <p>Answered: {result.answered}</p>
+                {result.pending_manual > 0 && (
+                  <p>{result.pending_manual} questions pending manual review</p>
+                )}
+              </div>
+            )}
+
             {suspiciousActivity > 0 && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-center gap-2 text-yellow-800">
@@ -342,7 +402,7 @@ export function CBTTest() {
   if (currentTest) {
     const progress = ((currentQuestion + 1) / questions.length) * 100;
     const currentQ = questions[currentQuestion];
-    const test = availableTests.find((t) => t.id === currentTest);
+    const test = availableTests.find((t) => t.pk.toString() === currentTest);
 
     return (
       <div className="space-y-6">
@@ -437,21 +497,23 @@ export function CBTTest() {
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={handleAnswerChange}>
-                    {currentQ.options?.map((option: string, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem
-                          value={index.toString()}
-                          id={`option-${index}`}
-                        />
-                        <Label
-                          htmlFor={`option-${index}`}
-                          className="flex-1 cursor-pointer">
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
+                    {currentQ.options?.map(
+                      (option: {id: number; text: string}, index: number) => (
+                        <div
+                          key={option.id}
+                          className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                          <RadioGroupItem
+                            value={option.id.toString()}
+                            id={`option-${option.id}`}
+                          />
+                          <Label
+                            htmlFor={`option-${option.id}`}
+                            className="flex-1 cursor-pointer">
+                            {option.text}
+                          </Label>
+                        </div>
+                      )
+                    )}
                   </RadioGroup>
                 ) : currentQ?.type === "short-answer" ? (
                   <div className="space-y-2">
@@ -564,8 +626,9 @@ export function CBTTest() {
               <Play className="h-5 w-5" />
               {pendingTestId
                 ? `Start ${
-                    availableTests.find((t) => t.id === pendingTestId)?.type ===
-                    "exam"
+                    availableTests.find(
+                      (t) => t.pk.toString() === pendingTestId
+                    )?.type === "exam"
                       ? "Secure Exam"
                       : "Quiz"
                   }`
@@ -574,7 +637,9 @@ export function CBTTest() {
             <DialogDescription>
               {pendingTestId
                 ? `Are you ready to start the ${
-                    availableTests.find((t) => t.id === pendingTestId)?.title
+                    availableTests.find(
+                      (t) => t.pk.toString() === pendingTestId
+                    )?.title
                   }? During the test, you must remain on this tab. Switching tabs or opening new tabs will be flagged as suspicious activity.`
                 : examAttempts >= maxAttempts
                 ? `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
@@ -607,7 +672,7 @@ export function CBTTest() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {currentTests.map((test) => (
           <Card
-            key={test.id}
+            key={test.pk}
             className="hover:shadow-lg transition-shadow flex flex-col h-full">
             <CardHeader>
               <div className="sm:flex items-center justify-between">
@@ -662,7 +727,7 @@ export function CBTTest() {
 
               <div className="mt-auto">
                 <Button
-                  onClick={() => handleStartTest(test.id)}
+                  onClick={() => handleStartTest(test.pk.toString())}
                   className="w-full h-11"
                   disabled={
                     (test.type === "exam" && examAttempts >= maxAttempts) ||
