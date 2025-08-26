@@ -47,10 +47,7 @@ export function CBTTest() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes
-  const [initialTime, setInitialTime] = useState(0);
-  const [startTime, setStartTime] = useState<string | null>(null);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [result, setResult] = useState<any>(null);
   const [isSecureMode, setIsSecureMode] = useState(false);
   const [browserLocked, setBrowserLocked] = useState(false);
   const [suspiciousActivity, setSuspiciousActivity] = useState(0);
@@ -63,31 +60,110 @@ export function CBTTest() {
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [pendingTestId, setPendingTestId] = useState<string | null>(null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [availableTests, setAvailableTests] = useState<any[]>([]);
-  const [questions, setQuestions] = useState<any[]>([]); // Dynamic questions from selected test
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTests = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch("/api/student/cbt");
-        if (!response.ok) {
-          throw new Error("Failed to fetch tests");
-        }
-        const data = await response.json();
-        setAvailableTests(data.tests || []);
-      } catch (err) {
-        setError("Error fetching tests. Please try again later.");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const availableTests = [
+    {
+      id: "react-basics",
+      title: "React Fundamentals",
+      questions: 20,
+      duration: "30 mins",
+      difficulty: "Beginner",
+      description:
+        "Test your knowledge of React components, props, and state management.",
+      type: "quiz",
+      requiresSubscription: false,
+    },
+    {
+      id: "javascript-advanced",
+      title: "Advanced JavaScript",
+      questions: 25,
+      duration: "45 mins",
+      difficulty: "Advanced",
+      description:
+        "Closures, prototypes, async/await, and modern ES6+ features.",
+      type: "quiz",
+      requiresSubscription: false,
+    },
+    {
+      id: "semester-exam-math",
+      title: "Mathematics Semester Exam",
+      questions: 50,
+      duration: "120 mins",
+      difficulty: "Advanced",
+      description:
+        "Comprehensive semester examination covering all mathematics topics.",
+      type: "exam",
+      requiresSubscription: true,
+    },
+    {
+      id: "semester-exam-physics",
+      title: "Physics Semester Exam",
+      questions: 45,
+      duration: "90 mins",
+      difficulty: "Advanced",
+      description:
+        "Final examination for physics covering mechanics, thermodynamics, and waves.",
+      type: "exam",
+      requiresSubscription: true,
+    },
+  ];
 
-    fetchTests();
-  }, []);
+  const sampleQuestions = [
+    {
+      id: 1,
+      type: "multiple-choice",
+      question: "What is the correct way to create a React component?",
+      options: [
+        "function MyComponent() { return <div>Hello</div>; }",
+        "const MyComponent = () => <div>Hello</div>;",
+        "class MyComponent extends React.Component { render() { return <div>Hello</div>; } }",
+        "All of the above",
+      ],
+      correct: 3,
+      points: 2,
+      explanation:
+        "All three methods are valid ways to create React components.",
+    },
+    {
+      id: 2,
+      type: "multiple-choice",
+      question:
+        "Which hook is used for managing state in functional components?",
+      options: ["useEffect", "useState", "useContext", "useReducer"],
+      correct: 1,
+      points: 2,
+      explanation:
+        "useState is the primary hook for managing local state in functional components.",
+    },
+    {
+      id: 3,
+      type: "true-false",
+      question: "JSX is mandatory for React development.",
+      options: ["True", "False"],
+      correct: 1,
+      points: 1,
+      explanation:
+        "JSX is not mandatory but is the recommended way to write React components.",
+    },
+    {
+      id: 4,
+      type: "short-answer",
+      question: "What does the 'key' prop do in React lists?",
+      correct: "helps react identify which items have changed",
+      points: 3,
+      explanation:
+        "The key prop helps React identify which items have changed, are added, or are removed.",
+    },
+    {
+      id: 5,
+      type: "essay",
+      question:
+        "Explain the concept of Virtual DOM and its benefits in React applications.",
+      points: 5,
+      explanation:
+        "Virtual DOM is a programming concept where a virtual representation of UI is kept in memory and synced with the real DOM.",
+    },
+  ];
 
   // Pagination logic
   const indexOfLastTest = currentPage * testsPerPage;
@@ -170,8 +246,8 @@ export function CBTTest() {
     }
   }, [currentTest, timeLeft]);
 
-  const startTest = (testPk: string) => {
-    const test = availableTests.find((t) => t.pk.toString() === testPk);
+  const startTest = (testId: string) => {
+    const test = availableTests.find((t) => t.id === testId);
 
     if (test?.requiresSubscription && !isSubscriber) {
       setShowStartDialog(true);
@@ -185,33 +261,17 @@ export function CBTTest() {
       return;
     }
 
-    // Map the API structure to the expected question structure
-    // Assuming test.items have {id, type, question, choices: [{id, text}], points}
-    // Note: API doesn't provide 'correct' or 'explanation', so client-side scoring is not possible.
-    const mappedQuestions = test.items.map((item: any) => ({
-      id: item.id,
-      type: item.type === "scq" ? "multiple-choice" : item.type,
-      question: item.question,
-      options: item.choices
-        ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
-        : [],
-      points: item.points,
-    }));
-
-    setQuestions(mappedQuestions);
-    setCurrentTest(testPk);
+    setCurrentTest(testId);
     setCurrentQuestion(0);
     setAnswers({});
     setTestCompleted(false);
-    const duration =
+    setTimeLeft(
       test?.id === "semester-exam-math"
         ? 7200
         : test?.id === "semester-exam-physics"
         ? 5400
-        : parseInt(test.duration) * 60 || 1800;
-    setInitialTime(duration);
-    setTimeLeft(duration);
-    setStartTime(new Date().toISOString());
+        : 1800
+    );
 
     setIsSecureMode(true); // Enable secure mode for all tests
     setBrowserLocked(true);
@@ -220,8 +280,8 @@ export function CBTTest() {
     }
   };
 
-  const handleStartTest = (testPk: string) => {
-    setPendingTestId(testPk);
+  const handleStartTest = (testId: string) => {
+    setPendingTestId(testId);
     setShowStartDialog(true);
   };
 
@@ -245,7 +305,6 @@ export function CBTTest() {
     setSuspiciousActivity(0);
     setCurrentQuestion(0);
     setAnswers({});
-    setQuestions([]);
   };
 
   const handleAnswerChange = (value: string) => {
@@ -256,7 +315,7 @@ export function CBTTest() {
   };
 
   const nextQuestion = () => {
-    if (currentQuestion < questions.length - 1) {
+    if (currentQuestion < sampleQuestions.length - 1) {
       setCurrentQuestion((prev) => prev + 1);
     }
   };
@@ -267,52 +326,11 @@ export function CBTTest() {
     }
   };
 
-  const submitTest = async () => {
-    const submitAnswers = [];
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const ans = answers[i];
-      if (ans !== undefined) {
-        if (q.type === "multiple-choice") {
-          submitAnswers.push({question: q.id, choice: parseInt(ans)});
-        } else {
-          submitAnswers.push({question: q.id, text: ans});
-        }
-      }
-    }
-
-    const body = {
-      answers: submitAnswers,
-      started_at: startTime,
-      duration_seconds: initialTime - timeLeft,
-      suspicious_activity: suspiciousActivity,
-      currentTest: currentTest,
-    };
-
-    try {
-      const res = await fetch(`/api/student/cbt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to submit test");
-      }
-
-      const data = await res.json();
-      setResult(data);
-    } catch (err) {
-      console.error("[Client] Error submitting test:", err);
-      // Optionally set an error state to show in UI
-    } finally {
-      setTestCompleted(true);
-      setIsSecureMode(false);
-      setBrowserLocked(false);
-      setSuspiciousActivity(0);
-    }
+  const submitTest = () => {
+    setTestCompleted(true);
+    setIsSecureMode(false);
+    setBrowserLocked(false);
+    setSuspiciousActivity(0);
   };
 
   const formatTime = (seconds: number) => {
@@ -325,53 +343,96 @@ export function CBTTest() {
     setCurrentPage(page);
   };
 
-  if (loading) {
-    return <div>Loading tests...</div>;
-  }
-
-  if (error) {
-    return <div>{error}</div>;
-  }
-
   if (testCompleted) {
-    const Icon = result?.result === "PASS" ? CheckCircle : XCircle;
-    const iconColor =
-      result?.result === "PASS" ? "text-green-500" : "text-red-500";
+    const score = Object.entries(answers).reduce(
+      (total, [questionIndex, answer]) => {
+        const question = sampleQuestions[Number.parseInt(questionIndex)];
+        if (!question) return total;
+
+        if (
+          question.type === "multiple-choice" ||
+          question.type === "true-false"
+        ) {
+          return (
+            total +
+            (Number.parseInt(answer) === question.correct ? question.points : 0)
+          );
+        } else if (question.type === "short-answer") {
+          const correctAnswer = question.correct as string;
+          return (
+            total +
+            (answer.toLowerCase().includes(correctAnswer.toLowerCase())
+              ? question.points
+              : 0)
+          );
+        }
+        return total;
+      },
+      0
+    );
+
+    const totalPoints = sampleQuestions.reduce((sum, q) => sum + q.points, 0);
+    const percentage = Math.round((score / totalPoints) * 100);
 
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Test Submitted</h1>
+          <h1 className="text-3xl font-bold">Test Results</h1>
           <p className="text-muted-foreground">
-            {result
-              ? `Your result: ${result.result}`
-              : "Your test has been submitted. Results will be available soon."}
+            Your performance summary with detailed feedback
           </p>
         </div>
 
         <Card className="max-w-2xl mx-auto">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              <Icon className={`h-16 w-16 ${iconColor}`} />
+              {percentage >= 70 ? (
+                <CheckCircle className="h-16 w-16 text-green-500" />
+              ) : (
+                <XCircle className="h-16 w-16 text-red-500" />
+              )}
             </div>
-            <CardTitle className="text-2xl">Test Completed</CardTitle>
+            <CardTitle className="text-2xl">
+              {percentage >= 70 ? "Congratulations!" : "Keep Learning!"}
+            </CardTitle>
             <CardDescription>
-              Thank you for completing the test.
+              You scored {score} out of {totalPoints} points
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {result && (
-              <div className="text-center space-y-2">
-                <p className="text-4xl font-bold">{result.percentage}%</p>
-                <p className="text-xl">
-                  Score: {result.score} / {result.total_points}
-                </p>
-                <p>Answered: {result.answered}</p>
-                {result.pending_manual > 0 && (
-                  <p>{result.pending_manual} questions pending manual review</p>
-                )}
+            <div className="text-center">
+              <div className="text-4xl font-bold mb-2">{percentage}%</div>
+              <Progress value={percentage} className="h-3" />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-green-600">{score}</div>
+                <div className="text-sm text-muted-foreground">
+                  Points Earned
+                </div>
               </div>
-            )}
+              <div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {totalPoints}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Total Points
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {Object.keys(answers).length}
+                </div>
+                <div className="text-sm text-muted-foreground">Answered</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">
+                  {percentage >= 70 ? "PASS" : "FAIL"}
+                </div>
+                <div className="text-sm text-muted-foreground">Result</div>
+              </div>
+            </div>
 
             {suspiciousActivity > 0 && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -391,7 +452,7 @@ export function CBTTest() {
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Take Another Test
               </Button>
-              <Button variant="outline">View Submitted Answers</Button>
+              <Button variant="outline">Review Answers</Button>
             </div>
           </CardContent>
         </Card>
@@ -400,9 +461,9 @@ export function CBTTest() {
   }
 
   if (currentTest) {
-    const progress = ((currentQuestion + 1) / questions.length) * 100;
-    const currentQ = questions[currentQuestion];
-    const test = availableTests.find((t) => t.pk.toString() === currentTest);
+    const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100;
+    const currentQ = sampleQuestions[currentQuestion];
+    const test = availableTests.find((t) => t.id === currentTest);
 
     return (
       <div className="space-y-6">
@@ -458,7 +519,7 @@ export function CBTTest() {
           <div>
             <h1 className="text-3xl font-bold">{test?.title}</h1>
             <p className="text-muted-foreground">
-              Question {currentQuestion + 1} of {questions.length}
+              Question {currentQuestion + 1} of {sampleQuestions.length}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -493,27 +554,26 @@ export function CBTTest() {
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
 
-                {currentQ?.type === "multiple-choice" ? (
+                {currentQ?.type === "multiple-choice" ||
+                currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={handleAnswerChange}>
-                    {currentQ.options?.map(
-                      (option: {id: number; text: string}, index: number) => (
-                        <div
-                          key={option.id}
-                          className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
-                          <RadioGroupItem
-                            value={option.id.toString()}
-                            id={`option-${option.id}`}
-                          />
-                          <Label
-                            htmlFor={`option-${option.id}`}
-                            className="flex-1 cursor-pointer">
-                            {option.text}
-                          </Label>
-                        </div>
-                      )
-                    )}
+                    {currentQ.options?.map((option, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                        <RadioGroupItem
+                          value={index.toString()}
+                          id={`option-${index}`}
+                        />
+                        <Label
+                          htmlFor={`option-${index}`}
+                          className="flex-1 cursor-pointer">
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
                   </RadioGroup>
                 ) : currentQ?.type === "short-answer" ? (
                   <div className="space-y-2">
@@ -546,7 +606,7 @@ export function CBTTest() {
                     Previous
                   </Button>
                   <div className="flex gap-2">
-                    {currentQuestion === questions.length - 1 ? (
+                    {currentQuestion === sampleQuestions.length - 1 ? (
                       <Button onClick={submitTest}>Submit Test</Button>
                     ) : (
                       <Button onClick={nextQuestion}>Next</Button>
@@ -567,7 +627,7 @@ export function CBTTest() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-5 gap-2">
-                  {questions.map((_, index) => (
+                  {sampleQuestions.map((_, index) => (
                     <Button
                       key={index}
                       variant={
@@ -593,7 +653,7 @@ export function CBTTest() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Total Questions:</span>
-                  <span>{questions.length}</span>
+                  <span>{sampleQuestions.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Answered:</span>
@@ -601,7 +661,9 @@ export function CBTTest() {
                 </div>
                 <div className="flex justify-between">
                   <span>Remaining:</span>
-                  <span>{questions.length - Object.keys(answers).length}</span>
+                  <span>
+                    {sampleQuestions.length - Object.keys(answers).length}
+                  </span>
                 </div>
                 {isSecureMode && (
                   <div className="flex justify-between text-red-600">
@@ -626,9 +688,8 @@ export function CBTTest() {
               <Play className="h-5 w-5" />
               {pendingTestId
                 ? `Start ${
-                    availableTests.find(
-                      (t) => t.pk.toString() === pendingTestId
-                    )?.type === "exam"
+                    availableTests.find((t) => t.id === pendingTestId)?.type ===
+                    "exam"
                       ? "Secure Exam"
                       : "Quiz"
                   }`
@@ -637,9 +698,7 @@ export function CBTTest() {
             <DialogDescription>
               {pendingTestId
                 ? `Are you ready to start the ${
-                    availableTests.find(
-                      (t) => t.pk.toString() === pendingTestId
-                    )?.title
+                    availableTests.find((t) => t.id === pendingTestId)?.title
                   }? During the test, you must remain on this tab. Switching tabs or opening new tabs will be flagged as suspicious activity.`
                 : examAttempts >= maxAttempts
                 ? `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
@@ -672,7 +731,7 @@ export function CBTTest() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {currentTests.map((test) => (
           <Card
-            key={test.pk}
+            key={test.id}
             className="hover:shadow-lg transition-shadow flex flex-col h-full">
             <CardHeader>
               <div className="sm:flex items-center justify-between">
@@ -727,7 +786,7 @@ export function CBTTest() {
 
               <div className="mt-auto">
                 <Button
-                  onClick={() => handleStartTest(test.pk.toString())}
+                  onClick={() => handleStartTest(test.id)}
                   className="w-full h-11"
                   disabled={
                     (test.type === "exam" && examAttempts >= maxAttempts) ||
@@ -744,49 +803,31 @@ export function CBTTest() {
 
       <Pagination>
         <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (currentPage > 1) handlePageChange(currentPage - 1);
-              }}
-              className={
-                currentPage === 1 ? "pointer-events-none opacity-50" : ""
-              }
-            />
-          </PaginationItem>
+          <PaginationPrevious
+            onClick={() => handlePageChange(currentPage - 1)}
+            className={
+              currentPage === 1 ? "pointer-events-none opacity-50" : ""
+            }
+          />
           {[...Array(totalPages)].map((_, index) => {
             const page = index + 1;
             return (
               <PaginationItem key={page}>
                 <PaginationLink
-                  href="#"
                   isActive={currentPage === page}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handlePageChange(page);
-                  }}>
+                  onClick={() => handlePageChange(page)}>
                   {page}
                 </PaginationLink>
               </PaginationItem>
             );
           })}
           {totalPages > 5 && <PaginationEllipsis />}
-          <PaginationItem>
-            <PaginationNext
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (currentPage < totalPages) handlePageChange(currentPage + 1);
-              }}
-              className={
-                currentPage === totalPages
-                  ? "pointer-events-none opacity-50"
-                  : ""
-              }
-            />
-          </PaginationItem>
+          <PaginationNext
+            onClick={() => handlePageChange(currentPage + 1)}
+            className={
+              currentPage === totalPages ? "pointer-events-none opacity-50" : ""
+            }
+          />
         </PaginationContent>
       </Pagination>
     </div>
