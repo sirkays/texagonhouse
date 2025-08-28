@@ -23,14 +23,17 @@ import {
   Star,
   Medal,
   Zap,
+  LogIn,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export function DashboardOverview() {
   const { data: session } = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   // Helper function to capitalize first letters of each word
   const capitalizeName = (name) => {
@@ -63,6 +66,11 @@ export function DashboardOverview() {
         console.log("[DashboardOverview] Fetch response status:", res.status);
         if (!res.ok) {
           console.error("[DashboardOverview] Fetch failed with status:", res.status);
+          if (res.status === 403) {
+            setError("Session expired");
+          } else {
+            setError("Failed to fetch data");
+          }
           throw new Error("Fetch failed");
         }
         const json = await res.json();
@@ -70,14 +78,55 @@ export function DashboardOverview() {
         setData(json);
       } catch (e) {
         console.error("[DashboardOverview] Fetch error:", e);
-        setError("Failed to fetch data");
+        if (!error) setError("Failed to fetch data");
       }
       setLoading(false);
     };
     fetchData();
-  }, [session]);
+  }, [session, error]);
 
   if (loading) return <div className="p-6">Loading...</div>;
+  if (error === "Session expired") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardDescription className="text-center">
+              Your session has expired. Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={async () => {
+                console.log("[DashboardOverview] Initiating logout via /api/auth/logout-route");
+                try {
+                  const res = await fetch("/api/auth/logout-route", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Session-Token": session?.user?.sessionToken || "",
+                    },
+                  });
+                  console.log("[DashboardOverview] Logout route response status:", res.status);
+                  const json = await res.json();
+                  console.log("[DashboardOverview] Logout route response data:", json);
+                } catch (e) {
+                  console.error("[DashboardOverview] Logout route error:", e);
+                }
+                console.log("[DashboardOverview] Redirecting to /login");
+                router.push("/login");
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogIn className="h-4 w-4" />
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   if (error && !data) return <div className="p-6">Error: {error}</div>;
 
   const recentCourses = data?.recent_courses ?? [

@@ -111,9 +111,9 @@ function SidebarMenuContent() {
   };
 
   return (
-    <SidebarContent>
-      <SidebarGroup>
-        <SidebarGroupLabel className="text-[0.65rem] xs:text-xs sm:text-sm">Navigation</SidebarGroupLabel>
+    <SidebarContent className="">
+      <SidebarGroup className="">
+        <SidebarGroupLabel className="text-[0.65rem] xs:text-xs sm:text-sm ">Navigation</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {menuItems.map((item) => (
