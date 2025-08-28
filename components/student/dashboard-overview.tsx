@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Spinner } from "../ui/spinner";
 
 export function DashboardOverview() {
   const { data: session } = useSession();
@@ -85,7 +86,13 @@ export function DashboardOverview() {
     fetchData();
   }, [session, error]);
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
+    );
+  }
   if (error === "Session expired") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">

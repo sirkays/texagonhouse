@@ -42,11 +42,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
-import { useSession, signOut } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const menuItems = [
   {
@@ -143,7 +143,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   console.log("[StudentLayout] Session data:", session);
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
+    );
   }
 
   if (status !== "authenticated" || session?.user?.role !== "student") {
