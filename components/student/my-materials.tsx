@@ -64,33 +64,31 @@ export function MyMaterials() {
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
-  const [notes, setNotes] = useState<Note[]>([]); // Now fetched from API
+  const [notes, setNotes] = useState<Note[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchMediaItems = async () => {
       if (status === "loading" || !session) return;
       try {
         setIsLoading(true);
         const lessonsUrl = "https://texagonbackend.esm.name.ng/api/lessons/";
         const materialsUrl =
           "https://texagonbackend.esm.name.ng/api/materials/";
-        const notesUrl = "https://texagonbackend.esm.name.ng/api/notes/"; // Added notes URL
 
-        const [lessonsResponse, materialsResponse, notesResponse] =
-          await Promise.all([
-            fetch(`/api/media?url=${encodeURIComponent(lessonsUrl)}`, {
-              headers: {"Content-Type": "application/json"},
-            }),
-            fetch(`/api/media?url=${encodeURIComponent(materialsUrl)}`, {
-              headers: {"Content-Type": "application/json"},
-            }),
-            fetch(`/api/notes`, {
-              // Fetch notes
-              headers: {"Content-Type": "application/json"},
-            }),
-          ]);
+        const [lessonsResponse, materialsResponse] = await Promise.all([
+          fetch(`/api/media?url=${encodeURIComponent(lessonsUrl)}`, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+          fetch(`/api/media?url=${encodeURIComponent(materialsUrl)}`, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+        ]);
 
         if (!lessonsResponse.ok) {
           throw new Error(`Lessons fetch failed: ${lessonsResponse.status}`);
@@ -100,15 +98,11 @@ export function MyMaterials() {
             `Materials fetch failed: ${materialsResponse.status}`
           );
         }
-        if (!notesResponse.ok) {
-          throw new Error(`Notes fetch failed: ${notesResponse.status}`);
-        }
 
         const lessonsData = await lessonsResponse.json();
         const materialsData = await materialsResponse.json();
-        const notesData = await notesResponse.json();
 
-        // Transform media items (unchanged)
+        // Combine and filter to ensure they have valid media file_urls
         const data = [...lessonsData, ...materialsData].filter((item: any) => {
           if (!item.file_url) return false;
           const lowerUrl = item.file_url.toLowerCase();
@@ -124,8 +118,10 @@ export function MyMaterials() {
           );
         });
 
+        console.log("Fetched and filtered data:", data); // Debug log
+
         const transformedItems = data.map((item: any) => {
-          let type: "video" | "audio" | "pdf" = "pdf";
+          let type: "video" | "audio" | "pdf" = "pdf"; // Default
           const lowerUrl = item.file_url.toLowerCase();
           if (lowerUrl.endsWith(".mp4")) type = "video";
           else if (
@@ -134,6 +130,7 @@ export function MyMaterials() {
             lowerUrl.endsWith(".ogg")
           )
             type = "audio";
+          // Assume pdf for pdf, but downloads tab is for pdf, but could add more
 
           return {
             id: item.id,
@@ -153,26 +150,15 @@ export function MyMaterials() {
           };
         });
 
-        // Transform notes
-        const transformedNotes = notesData.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          content: item.content,
-          tags: item.tags || [],
-          createdAt: new Date(item.created_at),
-          updatedAt: new Date(item.updated_at),
-        }));
-
         setMediaItems(transformedItems);
-        setNotes(transformedNotes); // Set fetched notes
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching media items:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    fetchMediaItems();
   }, [session, status]);
 
   const handleWatchVideo = (video: MediaItem) => {
@@ -211,6 +197,7 @@ export function MyMaterials() {
     setNotes(notes.filter((n) => n.id !== noteId));
   };
 
+  // Helper to show no items message
   const NoItemsMessage = ({
     icon,
     title,
@@ -232,7 +219,7 @@ export function MyMaterials() {
       <div>
         <h1 className="text-3xl font-bold">My Materials</h1>
         <p className="text-muted-foreground">
-          Access your saved learning materials, pages, and bookmarks
+          Access your saved learning materials and notes
         </p>
       </div>
 
@@ -257,12 +244,9 @@ export function MyMaterials() {
       ) : (
         <Tabs defaultValue="saved" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            {" "}
-            {/* Still 4 columns */}
             <TabsTrigger value="saved">Saved Items</TabsTrigger>
             <TabsTrigger value="downloads">Downloads</TabsTrigger>
-            <TabsTrigger value="pages">My Pages</TabsTrigger>{" "}
-            {/* Renamed to Pages */}
+            <TabsTrigger value="notes">My Notes</TabsTrigger>
             <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
           </TabsList>
 
@@ -285,11 +269,6 @@ export function MyMaterials() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {mediaItems
                     .filter((item) => item.type === "video")
-                    .filter((item) =>
-                      item.title
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                    ) // Added search
                     .map((video) => (
                       <Card
                         key={video.id}
@@ -376,11 +355,6 @@ export function MyMaterials() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {mediaItems
                     .filter((item) => item.type === "audio")
-                    .filter((item) =>
-                      item.title
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                    ) // Added search
                     .map((audio) => (
                       <Card
                         key={audio.id}
@@ -446,9 +420,6 @@ export function MyMaterials() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {mediaItems
                   .filter((item) => item.type === "pdf")
-                  .filter((item) =>
-                    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-                  ) // Added search
                   .map((pdf) => (
                     <Card
                       key={pdf.id}
@@ -487,14 +458,12 @@ export function MyMaterials() {
             )}
           </TabsContent>
 
-          <TabsContent value="pages" className="space-y-4">
-            {" "}
-            {/* Renamed to Pages */}
+          <TabsContent value="notes" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">My Pages</h3>
+              <h3 className="text-lg font-semibold">My Notes</h3>
               <Button onClick={() => handleOpenNote()}>
                 <Edit className="mr-2 h-4 w-4" />
-                Create New Page
+                Create New Note
               </Button>
             </div>
             {notes.length === 0 ? (
@@ -502,61 +471,55 @@ export function MyMaterials() {
                 icon={
                   <Edit className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 }
-                title="No pages yet"
-                message="Start creating your pages."
+                title="No notes yet"
+                message="Start creating your notes."
               />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {notes
-                  .filter((note) =>
-                    note.title.toLowerCase().includes(searchQuery.toLowerCase())
-                  ) // Added search
-                  .map((note) => (
-                    <Card
-                      key={note.id}
-                      className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">
-                            {note.title}
-                          </CardTitle>
-                          <CardDescription className="line-clamp-2">
-                            {note.content}
-                          </CardDescription>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex flex-wrap gap-1">
-                          {note.tags.map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="outline"
-                              className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Updated {note.updatedAt.toLocaleDateString()}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleOpenNote(note)}>
-                            <Edit className="mr-2 h-3 w-3" />
-                            Open
-                          </Button>
-                          <Button
-                            size="sm"
+                {notes.map((note) => (
+                  <Card
+                    key={note.id}
+                    className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg">{note.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">
+                          {note.content}
+                        </CardDescription>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex flex-wrap gap-1">
+                        {note.tags.map((tag) => (
+                          <Badge
+                            key={tag}
                             variant="outline"
-                            onClick={() => handleDeleteNote(note.id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Updated {note.updatedAt.toLocaleDateString()}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleOpenNote(note)}>
+                          <Edit className="mr-2 h-3 w-3" />
+                          Open
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteNote(note.id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>
