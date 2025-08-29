@@ -1,8 +1,6 @@
-// components/my-materials.tsx
 "use client";
 
-import {useState, useEffect} from "react";
-import {useSession} from "next-auth/react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -10,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -25,159 +23,285 @@ import {
   Play,
   Edit,
   Bookmark,
+  LogIn,
 } from "lucide-react";
-import {VideoModal} from "./video-modal";
-import {NoteEditor} from "./note-editor";
-import {BookmarkManager} from "./bookmark-manager";
+import { VideoModal } from "./video-modal";
+import { NoteEditor } from "./note-editor";
+import { BookmarkManager } from "./bookmark-manager";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Note {
   id: string;
   title: string;
   content: string;
   tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface MediaItem {
+interface SavedItem {
+  videos: {
+    id: string;
+    title: string;
+    instructor: string;
+    duration: string;
+    progress: number;
+    thumbnail: string | null;
+    videoUrl: string;
+  }[];
+  pdfs: {
+    id: string;
+    title: string;
+    author: string;
+    pages: number | null;
+    size: string | null;
+    downloadUrl: string;
+  }[];
+  audio: {
+    id: string;
+    title: string;
+    speaker: string;
+    duration: string;
+    progress: number;
+    audioUrl: string;
+  }[];
+}
+
+interface Bookmark {
   id: string;
-  title: string;
-  url: string;
-  type: "video" | "audio" | "pdf";
-  metadata: {
-    instructor?: string;
-    duration?: string;
-    progress?: number;
-    thumbnail?: string;
-    author?: string;
-    pages?: number;
-    size?: string;
-    speaker?: string;
-  };
+  lessonId: number;
+  lessonTitle: string;
+  positionSeconds: number;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function MyMaterials() {
-  const {data: session, status} = useSession();
+  const { data: session } = useSession();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<MediaItem | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<{ saved: SavedItem; notes: Note[]; bookmarks: Bookmark[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fallback data for UI stability
+  const fallbackData = {
+    saved: {
+      videos: [
+        {
+          id: "1",
+          title: "Advanced React Patterns",
+          instructor: "Sarah Johnson",
+          duration: "2h 45m",
+          progress: 65,
+          thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          videoUrl: "/sample-video.mp4",
+        },
+        {
+          id: "2",
+          title: "Python Web Development",
+          instructor: "Mike Chen",
+          duration: "3h 20m",
+          progress: 30,
+          thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          videoUrl: "/sample-video.mp4",
+        },
+      ],
+      pdfs: [
+        {
+          id: "1",
+          title: "JavaScript ES6 Guide",
+          author: "John Doe",
+          pages: 150,
+          size: "5.2 MB",
+          downloadUrl: "/sample.pdf",
+        },
+        {
+          id: "2",
+          title: "React Best Practices",
+          author: "Jane Smith",
+          pages: 89,
+          size: "3.1 MB",
+          downloadUrl: "/sample.pdf",
+        },
+      ],
+      audio: [
+        {
+          id: "1",
+          title: "Tech Podcast: Future of AI",
+          speaker: "Tech Leaders",
+          duration: "45m",
+          progress: 80,
+          audioUrl: "/sample-audio.mp3",
+        },
+        {
+          id: "2",
+          title: "JavaScript Deep Dive",
+          speaker: "Dev Community",
+          duration: "1h 20m",
+          progress: 45,
+          audioUrl: "/sample-audio.mp3",
+        },
+      ],
+    },
+    notes: [
+      {
+        id: "1",
+        title: "React Hooks Notes",
+        content: "useState and useEffect are the most commonly used hooks...",
+        tags: ["react", "hooks", "frontend"],
+        createdAt: "2024-01-15T00:00:00Z",
+        updatedAt: "2024-01-15T00:00:00Z",
+      },
+      {
+        id: "2",
+        title: "Python Data Structures",
+        content: "Lists, dictionaries, and sets are fundamental data structures...",
+        tags: ["python", "data-structures", "programming"],
+        createdAt: "2024-01-10T00:00:00Z",
+        updatedAt: "2024-01-12T00:00:00Z",
+      },
+    ],
+    bookmarks: [],
+  };
 
   useEffect(() => {
-    const fetchMediaItems = async () => {
-      if (status === "loading" || !session) return;
-      try {
-        setIsLoading(true);
-        const lessonsUrl = "https://texagonbackend.esm.name.ng/api/lessons/";
-        const materialsUrl =
-          "https://texagonbackend.esm.name.ng/api/materials/";
-
-        const [lessonsResponse, materialsResponse] = await Promise.all([
-          fetch(`/api/media?url=${encodeURIComponent(lessonsUrl)}`, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }),
-          fetch(`/api/media?url=${encodeURIComponent(materialsUrl)}`, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }),
-        ]);
-
-        if (!lessonsResponse.ok) {
-          throw new Error(`Lessons fetch failed: ${lessonsResponse.status}`);
-        }
-        if (!materialsResponse.ok) {
-          throw new Error(
-            `Materials fetch failed: ${materialsResponse.status}`
-          );
-        }
-
-        const lessonsData = await lessonsResponse.json();
-        const materialsData = await materialsResponse.json();
-
-        // Combine and filter to ensure they have valid media file_urls
-        const data = [...lessonsData, ...materialsData].filter((item: any) => {
-          if (!item.file_url) return false;
-          const lowerUrl = item.file_url.toLowerCase();
-          return (
-            lowerUrl.endsWith(".mp4") ||
-            lowerUrl.endsWith(".mp3") ||
-            lowerUrl.endsWith(".pdf") ||
-            lowerUrl.endsWith(".wav") ||
-            lowerUrl.endsWith(".ogg") ||
-            lowerUrl.endsWith(".doc") ||
-            lowerUrl.endsWith(".docx") ||
-            lowerUrl.endsWith(".txt")
-          );
-        });
-
-        console.log("Fetched and filtered data:", data); // Debug log
-
-        const transformedItems = data.map((item: any) => {
-          let type: "video" | "audio" | "pdf" = "pdf"; // Default
-          const lowerUrl = item.file_url.toLowerCase();
-          if (lowerUrl.endsWith(".mp4")) type = "video";
-          else if (
-            lowerUrl.endsWith(".mp3") ||
-            lowerUrl.endsWith(".wav") ||
-            lowerUrl.endsWith(".ogg")
-          )
-            type = "audio";
-          // Assume pdf for pdf, but downloads tab is for pdf, but could add more
-
-          return {
-            id: item.id,
-            title: item.title || item.file_url.split("/").pop(),
-            url: `/api/media?url=${encodeURIComponent(item.file_url)}`,
-            type,
-            metadata: {
-              instructor: item.instructor,
-              duration: item.duration,
-              progress: item.progress,
-              thumbnail: item.thumbnail,
-              author: item.author,
-              pages: item.pages,
-              size: item.size,
-              speaker: item.speaker,
-            },
-          };
-        });
-
-        setMediaItems(transformedItems);
-      } catch (error) {
-        console.error("Error fetching media items:", error);
-      } finally {
-        setIsLoading(false);
+    const fetchData = async () => {
+      console.log("[MyMaterials] Initiating fetch for /api/student/materials");
+      if (!session?.user?.sessionToken) {
+        console.log("[MyMaterials] No session token found");
+        setError("Not authenticated");
+        setLoading(false);
+        return;
       }
+
+      try {
+        console.log("[MyMaterials] Fetching from /api/student/materials with token:", session.user.sessionToken);
+        const res = await fetch("/api/student/materials", {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[MyMaterials] Fetch response status:", res.status);
+        if (!res.ok) {
+          console.error("[MyMaterials] Fetch failed with status:", res.status);
+          if (res.status === 401) {
+            setError("Session expired");
+          } else {
+            setError("Failed to fetch materials");
+            setData(fallbackData); // Use fallback data on error
+          }
+          throw new Error("Fetch failed");
+        }
+        const json = await res.json();
+        console.log("[MyMaterials] Fetch response data:", json);
+        setData(json);
+      } catch (e) {
+        console.error("[MyMaterials] Fetch error:", e);
+        if (!error) {
+          setError("Failed to fetch materials");
+          setData(fallbackData); // Use fallback data on error
+        }
+      }
+      setLoading(false);
     };
+    fetchData();
+  }, [session, error]);
 
-    fetchMediaItems();
-  }, [session, status]);
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
+  }
 
-  const handleWatchVideo = (video: MediaItem) => {
+  if (error === "Session expired") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardDescription className="text-center">
+              Your session has expired. Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={async () => {
+                console.log("[MyMaterials] Initiating logout via /api/auth/logout-route");
+                try {
+                  const res = await fetch("/api/auth/logout-route", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Session-Token": session?.user?.sessionToken || "",
+                    },
+                  });
+                  console.log("[MyMaterials] Logout route response status:", res.status);
+                  const json = await res.json();
+                  console.log("[MyMaterials] Logout route response data:", json);
+                } catch (e) {
+                  console.error("[MyMaterials] Logout route error:", e);
+                }
+                console.log("[MyMaterials] Redirecting to /login");
+                router.push("/login");
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogIn className="h-4 w-4" />
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardDescription className="text-center">{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const savedItems = data?.saved ?? fallbackData.saved;
+  const notes = data?.notes ?? fallbackData.notes;
+  const bookmarks = data?.bookmarks ?? fallbackData.bookmarks;
+
+  const handleWatchVideo = (video: any) => {
     setSelectedVideo(video);
     setVideoModalOpen(true);
   };
 
-  const handleDownload = (item: MediaItem) => {
+  const handleDownload = (item: any) => {
     const link = document.createElement("a");
-    link.href = item.url;
+    link.href = item.downloadUrl || "#";
     link.download = item.title;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const handlePlayAudio = (audio: MediaItem) => {
-    const audioPlayer = new Audio(audio.url);
-    audioPlayer.play().catch((err) => console.error("Audio play error:", err));
   };
 
   const handleOpenNote = (note?: Note) => {
@@ -187,8 +311,10 @@ export function MyMaterials() {
 
   const handleSaveNote = (note: Note) => {
     if (selectedNote) {
+      // Update existing note
       setNotes(notes.map((n) => (n.id === note.id ? note : n)));
     } else {
+      // Add new note
       setNotes([...notes, note]);
     }
   };
@@ -197,22 +323,15 @@ export function MyMaterials() {
     setNotes(notes.filter((n) => n.id !== noteId));
   };
 
-  // Helper to show no items message
-  const NoItemsMessage = ({
-    icon,
-    title,
-    message,
-  }: {
-    icon: React.ReactNode;
+  function handlePlayAudio(audio: {
+    id: string;
     title: string;
-    message: string;
-  }) => (
-    <div className="text-center py-12">
-      {icon}
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground mb-4">{message}</p>
-    </div>
-  );
+    speaker: string;
+    duration: string;
+    progress: number;
+  }): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <div className="space-y-6">
@@ -223,6 +342,7 @@ export function MyMaterials() {
         </p>
       </div>
 
+      {/* Search and Filter */}
       <div className="flex gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -235,325 +355,307 @@ export function MyMaterials() {
         </div>
         <Button variant="outline">
           <Filter className="mr-2 h-4 w-4" />
-          Filter
+          Search
         </Button>
       </div>
 
-      {isLoading ? (
-        <div>Loading materials...</div>
-      ) : (
-        <Tabs defaultValue="saved" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="saved">Saved Items</TabsTrigger>
-            <TabsTrigger value="downloads">Downloads</TabsTrigger>
-            <TabsTrigger value="notes">My Notes</TabsTrigger>
-            <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="saved" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="saved">Saved Items</TabsTrigger>
+          <TabsTrigger value="downloads">Downloads</TabsTrigger>
+          <TabsTrigger value="notes">My Notes</TabsTrigger>
+          <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="saved" className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                Saved Videos
-              </h3>
-              {mediaItems.filter((item) => item.type === "video").length ===
-              0 ? (
-                <NoItemsMessage
-                  icon={
-                    <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  }
-                  title="No videos found"
-                  message="There are no video materials available at the moment."
-                />
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {mediaItems
-                    .filter((item) => item.type === "video")
-                    .map((video) => (
-                      <Card
-                        key={video.id}
-                        className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                        <CardHeader>
-                          <div className="relative">
-                            <img
-                              src={
-                                video.metadata.thumbnail || "/placeholder.svg"
-                              }
-                              alt={video.title}
-                              className="w-full h-32 object-cover rounded-md"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md">
-                              <Button
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() => handleWatchVideo(video)}>
-                                <Play className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg">
-                              {video.title}
-                            </CardTitle>
-                            <CardDescription>
-                              by {video.metadata.instructor}
-                            </CardDescription>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="flex flex-col flex-1">
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span>Progress</span>
-                              <span>{video.metadata.progress || 0}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{
-                                  width: `${video.metadata.progress || 0}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {video.metadata.duration || "N/A"}
-                            </div>
-                          </div>
-                          <div className="mt-auto pt-4">
-                            <Button
-                              size="sm"
-                              className="w-full h-10"
-                              onClick={() => handleWatchVideo(video)}>
-                              <Play className="mr-2 h-3 w-3" />
-                              Continue Watching
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Headphones className="h-5 w-5" />
-                Saved Audio
-              </h3>
-              {mediaItems.filter((item) => item.type === "audio").length ===
-              0 ? (
-                <NoItemsMessage
-                  icon={
-                    <Headphones className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  }
-                  title="No audio found"
-                  message="There are no audio materials available at the moment."
-                />
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {mediaItems
-                    .filter((item) => item.type === "audio")
-                    .map((audio) => (
-                      <Card
-                        key={audio.id}
-                        className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                        <CardHeader>
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg">
-                              {audio.title}
-                            </CardTitle>
-                            <CardDescription>
-                              by {audio.metadata.speaker}
-                            </CardDescription>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="flex flex-col flex-1">
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span>Progress</span>
-                              <span>{audio.metadata.progress || 0}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{
-                                  width: `${audio.metadata.progress || 0}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {audio.metadata.duration || "N/A"}
-                            </div>
-                          </div>
-                          <div className="mt-auto pt-4">
-                            <Button
-                              size="sm"
-                              className="w-full h-10"
-                              onClick={() => handlePlayAudio(audio)}>
-                              <Play className="mr-2 h-3 w-3" />
-                              Continue Listening
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="downloads" className="space-y-4">
-            {mediaItems.filter((item) => item.type === "pdf").length === 0 ? (
-              <NoItemsMessage
-                icon={
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                }
-                title="No downloads found"
-                message="There are no downloadable materials like PDFs available at the moment."
-              />
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {mediaItems
-                  .filter((item) => item.type === "pdf")
-                  .map((pdf) => (
-                    <Card
-                      key={pdf.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg">
-                              {pdf.title}
-                            </CardTitle>
-                            <CardDescription>
-                              by {pdf.metadata.author}
-                            </CardDescription>
-                          </div>
-                          <FileText className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex flex-col flex-1">
-                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                          <div>Pages: {pdf.metadata.pages || "N/A"}</div>
-                          <div>Size: {pdf.metadata.size || "N/A"}</div>
-                        </div>
-                        <div className="mt-auto pt-4">
-                          <Button
-                            size="sm"
-                            className="w-full h-10"
-                            onClick={() => handleDownload(pdf)}>
-                            <Download className="mr-2 h-3 w-3" />
-                            Download
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="notes" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">My Notes</h3>
-              <Button onClick={() => handleOpenNote()}>
-                <Edit className="mr-2 h-4 w-4" />
-                Create New Note
-              </Button>
-            </div>
-            {notes.length === 0 ? (
-              <NoItemsMessage
-                icon={
-                  <Edit className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                }
-                title="No notes yet"
-                message="Start creating your notes."
-              />
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {notes.map((note) => (
-                  <Card
-                    key={note.id}
-                    className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg">{note.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">
-                          {note.content}
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex flex-wrap gap-1">
-                        {note.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="outline"
-                            className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Updated {note.updatedAt.toLocaleDateString()}
-                      </div>
-                      <div className="flex gap-2">
+        <TabsContent value="saved" className="space-y-6">
+          {/* Videos */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Video className="h-5 w-5" />
+              Saved Videos
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {savedItems.videos.map((video) => (
+                <Card
+                  key={video.id}
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                >
+                  {/* Header */}
+                  <CardHeader>
+                    <div className="relative">
+                      <img
+                        src={video.thumbnail || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail"}
+                        alt={video.title}
+                        className="w-full h-32 object-cover rounded-md"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md">
                         <Button
                           size="sm"
-                          className="flex-1"
-                          onClick={() => handleOpenNote(note)}>
-                          <Edit className="mr-2 h-3 w-3" />
-                          Open
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteNote(note.id)}>
-                          Delete
+                          className="rounded-full"
+                          onClick={() => handleWatchVideo(video)}
+                        >
+                          <Play className="h-4 w-4" />
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+                    </div>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{video.title}</CardTitle>
+                      <CardDescription>by {video.instructor}</CardDescription>
+                    </div>
+                  </CardHeader>
 
-          <TabsContent value="bookmarks" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">My Bookmarks</h3>
-              <Button onClick={() => setBookmarkManagerOpen(true)}>
-                <Bookmark className="mr-2 h-4 w-4" />
-                Manage Bookmarks
-              </Button>
+                  {/* Body + Footer */}
+                  <CardContent className="flex flex-col flex-1">
+                    {/* Body */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span>{video.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full"
+                          style={{ width: `${video.progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {video.duration}
+                      </div>
+                    </div>
+
+                    {/* Footer — stays bottom */}
+                    <div className="mt-auto pt-4">
+                      <Button
+                        size="sm"
+                        className="w-full h-10"
+                        onClick={() => handleWatchVideo(video)}
+                      >
+                        <Play className="mr-2 h-3 w-3" />
+                        Continue Watching
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <NoItemsMessage
-              icon={
-                <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              }
-              title="No bookmarks yet"
-              message="Start bookmarking your favorite learning resources"
-            />
-            <div className="text-center">
+          </div>
+
+          {/* Audio */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Headphones className="h-5 w-5" />
+              Saved Audio
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {savedItems.audio.map((audio) => (
+                <Card
+                  key={audio.id}
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                >
+                  {/* Header */}
+                  <CardHeader>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{audio.title}</CardTitle>
+                      <CardDescription>by {audio.speaker}</CardDescription>
+                    </div>
+                  </CardHeader>
+
+                  {/* Body + Footer */}
+                  <CardContent className="flex flex-col flex-1">
+                    {/* Body */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span>{audio.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full"
+                          style={{ width: `${audio.progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {audio.duration}
+                      </div>
+                    </div>
+
+                    {/* Footer — sticks to bottom */}
+                    <div className="mt-auto pt-4">
+                      <Button
+                        size="sm"
+                        className="w-full h-10"
+                        onClick={() => handlePlayAudio(audio)}
+                      >
+                        <Play className="mr-2 h-3 w-3" />
+                        Continue Listening
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="downloads" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {savedItems.pdfs.map((pdf) => (
+              <Card
+                key={pdf.id}
+                className="hover:shadow-lg transition-shadow flex flex-col h-full"
+              >
+                {/* Header */}
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                      <CardDescription>by {pdf.author}</CardDescription>
+                    </div>
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+
+                {/* Body + Footer */}
+                <CardContent className="flex flex-col flex-1">
+                  {/* Body */}
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div>Pages: {pdf.pages ?? "N/A"}</div>
+                    <div>Size: {pdf.size ?? "N/A"}</div>
+                  </div>
+
+                  {/* Footer — sticks to bottom */}
+                  <div className="mt-auto pt-4">
+                    <Button
+                      size="sm"
+                      className="w-full h-10"
+                      onClick={() => handleDownload(pdf)}
+                    >
+                      <Download className="mr-2 h-3 w-3" />
+                      Download
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="notes" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">My Notes</h3>
+            <Button onClick={() => handleOpenNote()}>
+              <Edit className="mr-2 h-4 w-4" />
+              Create New Note
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {notes.map((note) => (
+              <Card key={note.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg">{note.title}</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      {note.content}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-1">
+                    {note.tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Updated {new Date(note.updatedAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleOpenNote(note)}
+                    >
+                      <Edit className="mr-2 h-3 w-3" />
+                      Open
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteNote(note.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="bookmarks" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">My Bookmarks</h3>
+            <Button onClick={() => setBookmarkManagerOpen(true)}>
+              <Bookmark className="mr-2 h-4 w-4" />
+              Manage Bookmarks
+            </Button>
+          </div>
+
+          {bookmarks.length === 0 ? (
+            <div className="text-center py-12">
+              <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No bookmarks yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Start bookmarking your favorite learning resources
+              </p>
               <Button onClick={() => setBookmarkManagerOpen(true)}>
                 <Bookmark className="mr-2 h-4 w-4" />
                 Add Your First Bookmark
               </Button>
             </div>
-          </TabsContent>
-        </Tabs>
-      )}
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {bookmarks.map((bookmark) => (
+                <Card key={bookmark.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{bookmark.lessonTitle}</CardTitle>
+                      <CardDescription className="line-clamp-2">
+                        {bookmark.note}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      Position: {bookmark.positionSeconds}s
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Updated {new Date(bookmark.updatedAt).toLocaleDateString()}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
+      {/* Modals */}
       <VideoModal
         isOpen={videoModalOpen}
         onClose={() => setVideoModalOpen(false)}
         title={selectedVideo?.title || ""}
-        videoUrl={selectedVideo?.url}
+        videoUrl={selectedVideo?.videoUrl}
       />
 
       <NoteEditor

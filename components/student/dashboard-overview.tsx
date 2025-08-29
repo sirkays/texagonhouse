@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Spinner } from "../ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 export function DashboardOverview() {
   const { data: session } = useSession();
@@ -67,7 +67,7 @@ export function DashboardOverview() {
         console.log("[DashboardOverview] Fetch response status:", res.status);
         if (!res.ok) {
           console.error("[DashboardOverview] Fetch failed with status:", res.status);
-          if (res.status === 403) {
+          if (res.status === 401) {
             setError("Session expired");
           } else {
             setError("Failed to fetch data");
@@ -89,7 +89,7 @@ export function DashboardOverview() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" className="text-black" />
+        <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
@@ -149,13 +149,24 @@ export function DashboardOverview() {
     title: test.title,
     date: new Date(test.date).toLocaleString(),
     duration: test.duration,
+    testId: test.testId,
   })) ?? [
     {
       title: "No Upcoming Tests",
       date: "N/A",
       duration: "N/A",
+      testId: null,
     },
   ];
+
+  const handleTestClick = (testId) => {
+    if (testId) {
+      console.log("[DashboardOverview] Navigating to test:", testId);
+      router.push(`/student/cbt?testId=${testId}`);
+    } else {
+      console.log("[DashboardOverview] No testId provided, navigation skipped");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -323,7 +334,8 @@ export function DashboardOverview() {
             {upcomingTests.map((test, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 border rounded-lg"
+                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                onClick={() => handleTestClick(test.testId)}
               >
                 <div className="space-y-1">
                   <h4 className="font-medium">{test.title}</h4>
@@ -336,7 +348,13 @@ export function DashboardOverview() {
                     {test.duration}
                   </div>
                 </div>
-                <Button size="sm">
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent parent div's onClick from firing
+                    handleTestClick(test.testId);
+                  }}
+                >
                   <TestTube className="mr-2 h-3 w-3" />
                   Start
                 </Button>
