@@ -80,10 +80,10 @@ export function MyMaterials() {
 
         const [lessonsResponse, materialsResponse, notesResponse] =
           await Promise.all([
-            fetch(`/api/media?url=${encodeURIComponent(lessonsUrl)}files`, {
+            fetch(`/api/media?url=${encodeURIComponent(lessonsUrl)}`, {
               headers: {"Content-Type": "application/json"},
             }),
-            fetch(`/api/media?url=${encodeURIComponent(materialsUrl)}files`, {
+            fetch(`/api/media?url=${encodeURIComponent(materialsUrl)}`, {
               headers: {"Content-Type": "application/json"},
             }),
             fetch(`/api/notes`, {
