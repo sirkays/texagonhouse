@@ -1,6 +1,7 @@
 services:
   traefik:
     image: traefik:v3.1
+    container_name: traefik
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
@@ -17,11 +18,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
     labels:
+      # Redirect all plain HTTP to HTTPS
       - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
     networks: [web]
+    restart: unless-stopped
 
   app:
     build: .
@@ -30,22 +33,20 @@ services:
     labels:
       - "traefik.enable=true"
 
-      # HTTP router for ACME HTTP-01 challenge (entrypoint web)
-      - "traefik.http.routers.next-web.rule=Host(`texagonui.esm.name.ng`,`texagon.epichouse.online`)"
-      - "traefik.http.routers.next-web.entrypoints=web"
-      - "traefik.http.routers.next-web.priority=50"
+      # HTTPS router for both hostnames (Traefik will request/renew certs via Let's Encrypt)
+      - "traefik.http.routers.next.rule=Host(`texagonui.esm.name.ng`,`texagon.epichouse.online`)"
+      - "traefik.http.routers.next.entrypoints=websecure"
+      - "traefik.http.routers.next.tls.certresolver=le"
+      - "traefik.http.routers.next.service=next"
 
-      # HTTPS router (entrypoint websecure) — Traefik will request certs for both hostnames
-      - "traefik.http.routers.next-websecure.rule=Host(`texagonui.esm.name.ng`,`texagon.epichouse.online`)"
-      - "traefik.http.routers.next-websecure.entrypoints=websecure"
-      - "traefik.http.routers.next-websecure.tls.certresolver=le"
-      - "traefik.http.routers.next-websecure.priority=40"
-
-      # Container internal port
+      # Internal service (container's port)
       - "traefik.http.services.next.loadbalancer.server.port=3000"
 
+      # (Optional but helpful if multiple networks exist)
+      - "traefik.docker.network=web"
     networks: [web]
     depends_on: [traefik]
+    restart: unless-stopped
 
 networks:
   web:
