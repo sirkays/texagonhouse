@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -23,103 +23,272 @@ import {
   Play,
   Edit,
   Bookmark,
+  LogIn,
 } from "lucide-react";
-import {VideoModal} from "./video-modal";
-import {NoteEditor} from "./note-editor";
-import {BookmarkManager} from "./bookmark-manager";
+import { VideoModal } from "./video-modal";
+import { NoteEditor } from "./note-editor";
+import { BookmarkManager } from "./bookmark-manager";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Note {
   id: string;
   title: string;
   content: string;
   tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SavedItem {
+  videos: {
+    id: string;
+    title: string;
+    instructor: string;
+    duration: string;
+    progress: number;
+    thumbnail: string | null;
+    videoUrl: string;
+  }[];
+  pdfs: {
+    id: string;
+    title: string;
+    author: string;
+    pages: number | null;
+    size: string | null;
+    downloadUrl: string;
+  }[];
+  audio: {
+    id: string;
+    title: string;
+    speaker: string;
+    duration: string;
+    progress: number;
+    audioUrl: string;
+  }[];
+}
+
+interface Bookmark {
+  id: string;
+  lessonId: number;
+  lessonTitle: string;
+  positionSeconds: number;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function MyMaterials() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: "1",
-      title: "React Hooks Notes",
-      content: "useState and useEffect are the most commonly used hooks...",
-      tags: ["react", "hooks", "frontend"],
-      createdAt: new Date("2024-01-15"),
-      updatedAt: new Date("2024-01-15"),
-    },
-    {
-      id: "2",
-      title: "Python Data Structures",
-      content:
-        "Lists, dictionaries, and sets are fundamental data structures...",
-      tags: ["python", "data-structures", "programming"],
-      createdAt: new Date("2024-01-10"),
-      updatedAt: new Date("2024-01-12"),
-    },
-  ]);
+  const [data, setData] = useState<{ saved: SavedItem; notes: Note[]; bookmarks: Bookmark[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const savedItems = {
-    videos: [
+  // Fallback data for UI stability
+  const fallbackData = {
+    saved: {
+      videos: [
+        {
+          id: "1",
+          title: "Advanced React Patterns",
+          instructor: "Sarah Johnson",
+          duration: "2h 45m",
+          progress: 65,
+          thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          videoUrl: "/sample-video.mp4",
+        },
+        {
+          id: "2",
+          title: "Python Web Development",
+          instructor: "Mike Chen",
+          duration: "3h 20m",
+          progress: 30,
+          thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          videoUrl: "/sample-video.mp4",
+        },
+      ],
+      pdfs: [
+        {
+          id: "1",
+          title: "JavaScript ES6 Guide",
+          author: "John Doe",
+          pages: 150,
+          size: "5.2 MB",
+          downloadUrl: "/sample.pdf",
+        },
+        {
+          id: "2",
+          title: "React Best Practices",
+          author: "Jane Smith",
+          pages: 89,
+          size: "3.1 MB",
+          downloadUrl: "/sample.pdf",
+        },
+      ],
+      audio: [
+        {
+          id: "1",
+          title: "Tech Podcast: Future of AI",
+          speaker: "Tech Leaders",
+          duration: "45m",
+          progress: 80,
+          audioUrl: "/sample-audio.mp3",
+        },
+        {
+          id: "2",
+          title: "JavaScript Deep Dive",
+          speaker: "Dev Community",
+          duration: "1h 20m",
+          progress: 45,
+          audioUrl: "/sample-audio.mp3",
+        },
+      ],
+    },
+    notes: [
       {
         id: "1",
-        title: "Advanced React Patterns ;a;iuobas,jnbs,n sgvlkjnb;skin;",
-        instructor: "Sarah Johnson",
-        duration: "2h 45m",
-        progress: 65,
-        thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
-        videoUrl: "/sample-video.mp4",
+        title: "React Hooks Notes",
+        content: "useState and useEffect are the most commonly used hooks...",
+        tags: ["react", "hooks", "frontend"],
+        createdAt: "2024-01-15T00:00:00Z",
+        updatedAt: "2024-01-15T00:00:00Z",
       },
       {
         id: "2",
-        title: "Python Web Development",
-        instructor: "Mike Chen",
-        duration: "3h 20m",
-        progress: 30,
-        thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
-        videoUrl: "/sample-video.mp4",
+        title: "Python Data Structures",
+        content: "Lists, dictionaries, and sets are fundamental data structures...",
+        tags: ["python", "data-structures", "programming"],
+        createdAt: "2024-01-10T00:00:00Z",
+        updatedAt: "2024-01-12T00:00:00Z",
       },
     ],
-    pdfs: [
-      {
-        id: "1",
-        title: "JavaScript ES6 Guide",
-        author: "John Doe",
-        pages: 150,
-        size: "5.2 MB",
-        downloadUrl: "/sample.pdf",
-      },
-      {
-        id: "2",
-        title: "React Best Practices",
-        author: "Jane Smith",
-        pages: 89,
-        size: "3.1 MB",
-        downloadUrl: "/sample.pdf",
-      },
-    ],
-    audio: [
-      {
-        id: "1",
-        title: "Tech Podcast: Future of AI fojnb;okin';in;oinb;o",
-        speaker: "Tech Leaders",
-        duration: "45m",
-        progress: 80,
-      },
-      {
-        id: "2",
-        title: "JavaScript Deep Dive",
-        speaker: "Dev Community",
-        duration: "1h 20m",
-        progress: 45,
-      },
-    ],
+    bookmarks: [],
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log("[MyMaterials] Initiating fetch for /api/student/materials");
+      if (!session?.user?.sessionToken) {
+        console.log("[MyMaterials] No session token found");
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log("[MyMaterials] Fetching from /api/student/materials with token:", session.user.sessionToken);
+        const res = await fetch("/api/student/materials", {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[MyMaterials] Fetch response status:", res.status);
+        if (!res.ok) {
+          console.error("[MyMaterials] Fetch failed with status:", res.status);
+          if (res.status === 401) {
+            setError("Session expired");
+          } else {
+            setError("Failed to fetch materials");
+            setData(fallbackData); // Use fallback data on error
+          }
+          throw new Error("Fetch failed");
+        }
+        const json = await res.json();
+        console.log("[MyMaterials] Fetch response data:", json);
+        setData(json);
+      } catch (e) {
+        console.error("[MyMaterials] Fetch error:", e);
+        if (!error) {
+          setError("Failed to fetch materials");
+          setData(fallbackData); // Use fallback data on error
+        }
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, [session, error]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
+  }
+
+  if (error === "Session expired") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardDescription className="text-center">
+              Your session has expired. Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={async () => {
+                console.log("[MyMaterials] Initiating logout via /api/auth/logout-route");
+                try {
+                  const res = await fetch("/api/auth/logout-route", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Session-Token": session?.user?.sessionToken || "",
+                    },
+                  });
+                  console.log("[MyMaterials] Logout route response status:", res.status);
+                  const json = await res.json();
+                  console.log("[MyMaterials] Logout route response data:", json);
+                } catch (e) {
+                  console.error("[MyMaterials] Logout route error:", e);
+                }
+                console.log("[MyMaterials] Redirecting to /login");
+                router.push("/login");
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogIn className="h-4 w-4" />
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardDescription className="text-center">{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const savedItems = data?.saved ?? fallbackData.saved;
+  const notes = data?.notes ?? fallbackData.notes;
+  const bookmarks = data?.bookmarks ?? fallbackData.bookmarks;
 
   const handleWatchVideo = (video: any) => {
     setSelectedVideo(video);
@@ -186,7 +355,7 @@ export function MyMaterials() {
         </div>
         <Button variant="outline">
           <Filter className="mr-2 h-4 w-4" />
-          Filter
+          Search
         </Button>
       </div>
 
@@ -209,12 +378,13 @@ export function MyMaterials() {
               {savedItems.videos.map((video) => (
                 <Card
                   key={video.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                >
                   {/* Header */}
                   <CardHeader>
                     <div className="relative">
                       <img
-                        src={video.thumbnail || "/placeholder.svg"}
+                        src={video.thumbnail || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail"}
                         alt={video.title}
                         className="w-full h-32 object-cover rounded-md"
                       />
@@ -222,7 +392,8 @@ export function MyMaterials() {
                         <Button
                           size="sm"
                           className="rounded-full"
-                          onClick={() => handleWatchVideo(video)}>
+                          onClick={() => handleWatchVideo(video)}
+                        >
                           <Play className="h-4 w-4" />
                         </Button>
                       </div>
@@ -244,7 +415,7 @@ export function MyMaterials() {
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-primary h-2 rounded-full"
-                          style={{width: `${video.progress}%`}}
+                          style={{ width: `${video.progress}%` }}
                         />
                       </div>
                     </div>
@@ -261,7 +432,8 @@ export function MyMaterials() {
                       <Button
                         size="sm"
                         className="w-full h-10"
-                        onClick={() => handleWatchVideo(video)}>
+                        onClick={() => handleWatchVideo(video)}
+                      >
                         <Play className="mr-2 h-3 w-3" />
                         Continue Watching
                       </Button>
@@ -282,7 +454,8 @@ export function MyMaterials() {
               {savedItems.audio.map((audio) => (
                 <Card
                   key={audio.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                >
                   {/* Header */}
                   <CardHeader>
                     <div className="space-y-1">
@@ -302,7 +475,7 @@ export function MyMaterials() {
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-primary h-2 rounded-full"
-                          style={{width: `${audio.progress}%`}}
+                          style={{ width: `${audio.progress}%` }}
                         />
                       </div>
                     </div>
@@ -319,7 +492,8 @@ export function MyMaterials() {
                       <Button
                         size="sm"
                         className="w-full h-10"
-                        onClick={() => handlePlayAudio(audio)}>
+                        onClick={() => handlePlayAudio(audio)}
+                      >
                         <Play className="mr-2 h-3 w-3" />
                         Continue Listening
                       </Button>
@@ -336,7 +510,8 @@ export function MyMaterials() {
             {savedItems.pdfs.map((pdf) => (
               <Card
                 key={pdf.id}
-                className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                className="hover:shadow-lg transition-shadow flex flex-col h-full"
+              >
                 {/* Header */}
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -352,8 +527,8 @@ export function MyMaterials() {
                 <CardContent className="flex flex-col flex-1">
                   {/* Body */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div>Pages: {pdf.pages}</div>
-                    <div>Size: {pdf.size}</div>
+                    <div>Pages: {pdf.pages ?? "N/A"}</div>
+                    <div>Size: {pdf.size ?? "N/A"}</div>
                   </div>
 
                   {/* Footer — sticks to bottom */}
@@ -361,7 +536,8 @@ export function MyMaterials() {
                     <Button
                       size="sm"
                       className="w-full h-10"
-                      onClick={() => handleDownload(pdf)}>
+                      onClick={() => handleDownload(pdf)}
+                    >
                       <Download className="mr-2 h-3 w-3" />
                       Download
                     </Button>
@@ -401,20 +577,22 @@ export function MyMaterials() {
                     ))}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Updated {note.updatedAt.toLocaleDateString()}
+                    Updated {new Date(note.updatedAt).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       className="flex-1"
-                      onClick={() => handleOpenNote(note)}>
+                      onClick={() => handleOpenNote(note)}
+                    >
                       <Edit className="mr-2 h-3 w-3" />
                       Open
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteNote(note.id)}>
+                      onClick={() => handleDeleteNote(note.id)}
+                    >
                       Delete
                     </Button>
                   </div>
@@ -433,17 +611,42 @@ export function MyMaterials() {
             </Button>
           </div>
 
-          <div className="text-center py-12">
-            <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No bookmarks yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Start bookmarking your favorite learning resources
-            </p>
-            <Button onClick={() => setBookmarkManagerOpen(true)}>
-              <Bookmark className="mr-2 h-4 w-4" />
-              Add Your First Bookmark
-            </Button>
-          </div>
+          {bookmarks.length === 0 ? (
+            <div className="text-center py-12">
+              <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No bookmarks yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Start bookmarking your favorite learning resources
+              </p>
+              <Button onClick={() => setBookmarkManagerOpen(true)}>
+                <Bookmark className="mr-2 h-4 w-4" />
+                Add Your First Bookmark
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {bookmarks.map((bookmark) => (
+                <Card key={bookmark.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{bookmark.lessonTitle}</CardTitle>
+                      <CardDescription className="line-clamp-2">
+                        {bookmark.note}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      Position: {bookmark.positionSeconds}s
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Updated {new Date(bookmark.updatedAt).toLocaleDateString()}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

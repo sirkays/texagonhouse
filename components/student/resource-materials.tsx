@@ -347,7 +347,7 @@ export function ResourceMaterials() {
         </div>
         <Button variant="outline">
           <Filter className="mr-2 h-4 w-4" />
-          Filter
+          Searchx``
         </Button>
       </div>
 

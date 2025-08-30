@@ -14,6 +14,7 @@ import {
   BarChart3,
   Video,
   Calendar,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -180,8 +181,8 @@ export default function TeacherLayout({
     };
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar>
+      <div className="flex min-h-screen w-full ">
+        <Sidebar className="">
           <SidebarHeader>
             <div className="flex items-center gap-2 px-4 py-2">
               <GraduationCap className="h-6 w-6 text-primary" />
@@ -221,7 +222,13 @@ export default function TeacherLayout({
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Log out</DropdownMenuItem>
+                     <DropdownMenuItem
+                      className="text-[0.65rem] xs:text-xs sm:text-sm"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      Log out
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </SidebarMenuItem>

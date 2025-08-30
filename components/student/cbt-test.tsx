@@ -41,6 +41,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Spinner } from "../ui/spinner";
 
 export function CBTTest() {
   const [currentTest, setCurrentTest] = useState<string | null>(null);
@@ -326,7 +327,11 @@ export function CBTTest() {
   };
 
   if (loading) {
-    return <div>Loading tests...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
+    );
   }
 
   if (error) {
