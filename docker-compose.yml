@@ -11,14 +11,17 @@ services:
       - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --log.level=INFO
+      - --accesslog=true
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./letsencrypt:/letsencrypt
+      # ensure this file exists and is chmod 600 (see notes below)
+      - ./letsencrypt/acme.json:/letsencrypt/acme.json
     labels:
-      # Redirect all plain HTTP to HTTPS
+      # HTTP -> HTTPS redirect for everything
       - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
@@ -32,18 +35,21 @@ services:
     env_file: .env
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=web"
 
-      # HTTPS router for both hostnames (Traefik will request/renew certs via Let's Encrypt)
-      - "traefik.http.routers.next.rule=Host(`texagonui.esm.name.ng`,`texagon.epichouse.online`)"
+      # ✅ Traefik v3: use OR between hosts
+      - "traefik.http.routers.next.rule=Host(`texagonui.esm.name.ng`) || Host(`texagon.epichouse.online`)"
       - "traefik.http.routers.next.entrypoints=websecure"
+      - "traefik.http.routers.next.tls=true"
       - "traefik.http.routers.next.tls.certresolver=le"
       - "traefik.http.routers.next.service=next"
 
-      # Internal service (container's port)
-      - "traefik.http.services.next.loadbalancer.server.port=3000"
+      # Optional: pre-announce both names for a single cert
+      - "traefik.http.routers.next.tls.domains[0].main=texagonui.esm.name.ng"
+      - "traefik.http.routers.next.tls.domains[0].sans=texagon.epichouse.online"
 
-      # (Optional but helpful if multiple networks exist)
-      - "traefik.docker.network=web"
+      # App's internal port
+      - "traefik.http.services.next.loadbalancer.server.port=3000"
     networks: [web]
     depends_on: [traefik]
     restart: unless-stopped
