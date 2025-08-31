@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -7,9 +6,9 @@ import { unstable_noStore as noStore } from "next/cache";
 const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 
-function normalizeImage(image) {
-  if (!image) return null;
-  const cleaned = image.replace(/^\/*(?:media\/)+|\/+$/g, "");
+function normalizeMedia(media) {
+  if (!media) return null;
+  const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
   return `${BASE_URL}/media/${cleaned}`;
 }
@@ -132,15 +131,22 @@ export async function GET(req) {
       );
     }
 
-    // Normalize thumbnail URLs in videos
     const normalizedData = {
       ...data,
       saved: {
         ...data.saved,
         videos: data.saved.videos.map((video) => ({
           ...video,
-          thumbnail: normalizeImage(video.thumbnail) || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
-          videoUrl: normalizeImage(video.videoUrl) || "/sample-video.mp4",
+          thumbnail: normalizeMedia(video.thumbnail) || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          videoUrl: normalizeMedia(video.videoUrl) || "/sample-video.mp4",
+        })),
+        pdfs: data.saved.pdfs.map((pdf) => ({
+          ...pdf,
+          downloadUrl: normalizeMedia(pdf.downloadUrl) || "/sample.pdf",
+        })),
+        audio: data.saved.audio.map((audio) => ({
+          ...audio,
+          audioUrl: normalizeMedia(audio.audioUrl) || "/sample-audio.mp3",
         })),
       },
     };

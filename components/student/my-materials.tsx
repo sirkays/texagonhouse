@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,7 +16,6 @@ import {
   FileText,
   Video,
   Headphones,
-  Download,
   Search,
   Filter,
   Clock,
@@ -25,10 +23,13 @@ import {
   Edit,
   Bookmark,
   LogIn,
+  Eye,
 } from "lucide-react";
 import { VideoModal } from "./video-modal";
 import { NoteEditor } from "./note-editor";
 import { BookmarkManager } from "./bookmark-manager";
+import { PDFViewer } from "./pdf-viewer";
+import { AudioPlayer } from "./audio-player";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
@@ -89,6 +90,10 @@ export function MyMaterials() {
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [selectedPdf, setSelectedPdf] = useState<any>(null);
+  const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
+  const [selectedAudio, setSelectedAudio] = useState<any>(null);
   const [data, setData] = useState<{ saved: SavedItem; notes: Note[]; bookmarks: Bookmark[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -296,13 +301,21 @@ export function MyMaterials() {
     setVideoModalOpen(true);
   };
 
-  const handleDownload = (item: any) => {
-    const link = document.createElement("a");
-    link.href = item.downloadUrl || "#";
-    link.download = item.title;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handlePreviewPdf = (pdf: any) => {
+    setSelectedPdf(pdf);
+    setPdfViewerOpen(true);
+  };
+
+  const handlePlayAudio = (audio: {
+    id: string;
+    title: string;
+    speaker: string;
+    duration: string;
+    progress: number;
+    audioUrl: string;
+  }) => {
+    setSelectedAudio(audio);
+    setAudioPlayerOpen(true);
   };
 
   const handleOpenNote = (note?: Note) => {
@@ -331,16 +344,6 @@ export function MyMaterials() {
     });
   };
 
-  function handlePlayAudio(audio: {
-    id: string;
-    title: string;
-    speaker: string;
-    duration: string;
-    progress: number;
-  }): void {
-    throw new Error("Function not implemented.");
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -350,7 +353,6 @@ export function MyMaterials() {
         </p>
       </div>
 
-      {/* Search and Filter */}
       <div className="flex gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -376,7 +378,6 @@ export function MyMaterials() {
         </TabsList>
 
         <TabsContent value="saved" className="space-y-6">
-          {/* Videos */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Video className="h-5 w-5" />
@@ -449,7 +450,6 @@ export function MyMaterials() {
             </div>
           </div>
 
-          {/* Audio */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Headphones className="h-5 w-5" />
@@ -528,10 +528,10 @@ export function MyMaterials() {
                     <Button
                       size="sm"
                       className="w-full h-10"
-                      onClick={() => handleDownload(pdf)}
+                      onClick={() => handlePreviewPdf(pdf)}
                     >
-                      <Download className="mr-2 h-3 w-3" />
-                      Download
+                      <Eye className="mr-2 h-3 w-3" />
+                      Preview
                     </Button>
                   </div>
                 </CardContent>
@@ -645,6 +645,19 @@ export function MyMaterials() {
         onClose={() => setVideoModalOpen(false)}
         title={selectedVideo?.title || ""}
         videoUrl={selectedVideo?.videoUrl}
+      />
+      <PDFViewer
+        isOpen={pdfViewerOpen}
+        onClose={() => setPdfViewerOpen(false)}
+        title={selectedPdf?.title || ""}
+        pdfUrl={selectedPdf?.downloadUrl}
+      />
+      <AudioPlayer
+        isOpen={audioPlayerOpen}
+        onClose={() => setAudioPlayerOpen(false)}
+        title={selectedAudio?.title || ""}
+        audioUrl={selectedAudio?.audioUrl}
+        duration={selectedAudio?.duration}
       />
       <NoteEditor
         isOpen={noteEditorOpen}

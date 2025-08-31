@@ -1,18 +1,17 @@
 "use client";
 
 import type React from "react";
-
-import {useState, useRef} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {Button} from "@/components/ui/button";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
-import {ScrollArea} from "@/components/ui/scroll-area";
-import {Play, Pause, Volume2, VolumeX, Maximize, Languages} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Languages } from "lucide-react";
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -32,6 +31,7 @@ export function VideoModal({
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Mock transcript data
@@ -86,7 +86,7 @@ export function VideoModal({
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch((e) => console.error("[VideoModal] Play error:", e));
       }
       setIsPlaying(!isPlaying);
     }
@@ -98,6 +98,67 @@ export function VideoModal({
       setIsMuted(!isMuted);
     }
   };
+
+  const toggleFullscreen = () => {
+    if (!videoRef.current) return;
+
+    if (!isFullscreen) {
+      // Try standard fullscreen first
+      const requestFullscreen = videoRef.current.requestFullscreen ||
+        (videoRef.current as any).webkitRequestFullscreen ||
+        (videoRef.current as any).mozRequestFullScreen ||
+        (videoRef.current as any).msRequestFullscreen;
+      // For iOS Safari, use webkitEnterFullscreen for video elements
+      const webkitEnterFullscreen = (videoRef.current as any).webkitEnterFullscreen;
+
+      if (webkitEnterFullscreen && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        webkitEnterFullscreen.call(videoRef.current).catch((e: Error) => 
+          console.error("[VideoModal] webkitEnterFullscreen error:", e)
+        );
+        setIsFullscreen(true);
+      } else if (requestFullscreen) {
+        requestFullscreen.call(videoRef.current).catch((e: Error) => 
+          console.error("[VideoModal] Fullscreen error:", e)
+        );
+        setIsFullscreen(true);
+      }
+    } else {
+      const exitFullscreen = document.exitFullscreen ||
+        (document as any).webkitExitFullscreen ||
+        (document as any).mozCancelFullScreen ||
+        (document as any).msExitFullscreen ||
+        (document as any).webkitCancelFullScreen;
+      if (exitFullscreen) {
+        exitFullscreen.call(document).catch((e: Error) => 
+          console.error("[VideoModal] Exit fullscreen error:", e)
+        );
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  // Listen for fullscreen changes to update state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!document.fullscreenElement ||
+        !!(document as any).webkitFullscreenElement ||
+        !!(document as any).mozFullScreenElement ||
+        !!(document as any).msFullscreenElement;
+      setIsFullscreen(isCurrentlyFullscreen);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, []);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number.parseFloat(e.target.value);
@@ -144,7 +205,6 @@ export function VideoModal({
         </DialogHeader>
 
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-y-auto">
-          {/* Video Player */}
           <div className="lg:col-span-2 space-y-4">
             <div className="relative bg-black rounded-lg overflow-hidden">
               <video
@@ -152,12 +212,13 @@ export function VideoModal({
                 className="w-full aspect-video"
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
-                poster="/placeholder.svg?height=400&width=600&text=Video+Thumbnail">
+                onEnded={() => setIsPlaying(false)}
+                poster="/placeholder.svg?height=400&width=600&text=Video+Thumbnail"
+              >
                 <source src={videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
 
-              {/* Video Controls */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                   <Button variant="ghost" size="sm" onClick={togglePlay}>
@@ -208,22 +269,26 @@ export function VideoModal({
                     />
                   </div>
 
-                  <Button variant="ghost" size="sm">
-                    <Maximize className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+                    {isFullscreen ? (
+                      <Minimize className="h-4 w-4" />
+                    ) : (
+                      <Maximize className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Transcript & Translation */}
           <div className="space-y-4">
             <Tabs defaultValue="transcript" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="transcript">Transcript</TabsTrigger>
                 <TabsTrigger
                   value="translation"
-                  className="flex items-center justify-center">
+                  className="flex items-center justify-center"
+                >
                   <Languages className="h-4 w-4 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">Spanish</span>
                 </TabsTrigger>
@@ -236,8 +301,7 @@ export function VideoModal({
                       <div
                         key={index}
                         className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-colors ${
-                          getCurrentTranscriptItem(transcript)?.time ===
-                          item.time
+                          getCurrentTranscriptItem(transcript)?.time === item.time
                             ? "bg-primary/10 border-primary/20 border"
                             : "bg-muted/50 hover:bg-muted"
                         }`}
@@ -246,7 +310,8 @@ export function VideoModal({
                             videoRef.current.currentTime = item.time;
                             setCurrentTime(item.time);
                           }
-                        }}>
+                        }}
+                      >
                         <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">
                           {formatTime(item.time)}
                         </div>
@@ -264,8 +329,7 @@ export function VideoModal({
                       <div
                         key={index}
                         className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-colors ${
-                          getCurrentTranscriptItem(translation)?.time ===
-                          item.time
+                          getCurrentTranscriptItem(translation)?.time === item.time
                             ? "bg-primary/10 border-primary/20 border"
                             : "bg-muted/50 hover:bg-muted"
                         }`}
@@ -274,7 +338,8 @@ export function VideoModal({
                             videoRef.current.currentTime = item.time;
                             setCurrentTime(item.time);
                           }
-                        }}>
+                        }}
+                      >
                         <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">
                           {formatTime(item.time)}
                         </div>
