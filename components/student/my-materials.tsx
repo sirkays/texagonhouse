@@ -324,15 +324,22 @@ export function MyMaterials() {
   };
 
   const handleSaveNote = (note: Note) => {
+    // Convert createdAt and updatedAt to ISO strings if they are Date objects
+    const normalizedNote: Note = {
+      ...note,
+      createdAt: note.createdAt instanceof Date ? note.createdAt.toISOString() : note.createdAt,
+      updatedAt: note.updatedAt instanceof Date ? note.updatedAt.toISOString() : note.updatedAt,
+    };
+
     if (selectedNote) {
       setData({
         ...data!,
-        notes: notes.map((n) => (n.id === note.id ? note : n)),
+        notes: notes.map((n) => (n.id === normalizedNote.id ? normalizedNote : n)),
       });
     } else {
       setData({
         ...data!,
-        notes: [...notes, note],
+        notes: [...notes, normalizedNote],
       });
     }
   };

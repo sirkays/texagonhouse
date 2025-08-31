@@ -1,25 +1,25 @@
 "use client";
 
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Textarea} from "@/components/ui/textarea";
-import {Badge} from "@/components/ui/badge";
-import {Save, Plus, X, Tag} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Save, Plus, X, Tag } from "lucide-react";
 
 interface Note {
   id: string;
   title: string;
   content: string;
   tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string; // Changed from Date to string to match MyMaterials
+  updatedAt: string; // Changed from Date to string to match MyMaterials
 }
 
 interface NoteEditorProps {
@@ -29,7 +29,7 @@ interface NoteEditorProps {
   onSave: (note: Note) => void;
 }
 
-export function NoteEditor({isOpen, onClose, note, onSave}: NoteEditorProps) {
+export function NoteEditor({ isOpen, onClose, note, onSave }: NoteEditorProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -70,8 +70,8 @@ export function NoteEditor({isOpen, onClose, note, onSave}: NoteEditorProps) {
       title: title.trim(),
       content: content.trim(),
       tags,
-      createdAt: note?.createdAt || new Date(),
-      updatedAt: new Date(),
+      createdAt: note?.createdAt || new Date().toISOString(), // Convert Date to ISO string
+      updatedAt: new Date().toISOString(), // Convert Date to ISO string
     };
 
     onSave(savedNote);
@@ -112,7 +112,8 @@ export function NoteEditor({isOpen, onClose, note, onSave}: NoteEditorProps) {
       w-[95%] sm:w-[90%] md:w-[80%] lg:w-[70%] xl:w-[60%] 
       max-w-4xl h-[80vh] flex flex-col 
       mx-auto rounded-xl p-4 sm:p-6
-    ">
+    "
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>{note ? "Edit Note" : "Create New Note"}</span>
@@ -139,13 +140,15 @@ export function NoteEditor({isOpen, onClose, note, onSave}: NoteEditorProps) {
                 <Badge
                   key={tag}
                   variant="secondary"
-                  className="flex items-center gap-1">
+                  className="flex items-center gap-1"
+                >
                   {tag}
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-4 w-4 p-0 hover:bg-transparent"
-                    onClick={() => removeTag(tag)}>
+                    onClick={() => removeTag(tag)}
+                  >
                     <X className="h-3 w-3" />
                   </Button>
                 </Badge>
@@ -181,7 +184,7 @@ export function NoteEditor({isOpen, onClose, note, onSave}: NoteEditorProps) {
               <span className="text-sm text-orange-500">Unsaved changes</span>
             )}
             <Button onClick={() => handleSave(true)} disabled={!title.trim()}>
-              <Save className="h-4 w-full sm:w-4 r-2" />
+              <Save className="h-4 w-4 mr-2" />
               Save
             </Button>
           </div>
@@ -189,8 +192,8 @@ export function NoteEditor({isOpen, onClose, note, onSave}: NoteEditorProps) {
           {/* Metadata */}
           {note && (
             <div className="text-xs text-muted-foreground border-t pt-2">
-              <div>Created: {note.createdAt.toLocaleDateString()}</div>
-              <div>Last updated: {note.updatedAt.toLocaleDateString()}</div>
+              <div>Created: {new Date(note.createdAt).toLocaleDateString()}</div>
+              <div>Last updated: {new Date(note.updatedAt).toLocaleDateString()}</div>
             </div>
           )}
         </div>
