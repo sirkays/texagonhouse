@@ -1,5 +1,7 @@
-import { getToken } from "next-auth/jwt";
+
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
@@ -24,10 +26,13 @@ export async function GET(req) {
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[Materials API] Initiating fetch for:", fullUrl);
 
-  const token = await getToken({ req, secret: "aVeryStrongSecretKeyAtLeast32Chars" });
-  console.log("[Materials API] Token retrieved:", token ? { id: token.id, role: token.role, sessionToken: token.sessionToken } : "No token");
+  const session = await getServerSession(authOptions);
+  console.log("[Materials API] Session retrieved:", {
+    sessionToken: session?.user?.sessionToken,
+    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
+  });
 
-  if (!token?.sessionToken) {
+  if (!session?.user?.sessionToken) {
     console.log("[Materials API] No session token found");
     return NextResponse.json(
       { error: "Not authenticated" },
@@ -44,10 +49,10 @@ export async function GET(req) {
   }
 
   try {
-    console.log("[Materials API] Fetching from", fullUrl, "with token:", token.sessionToken);
+    console.log("[Materials API] Fetching from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
-      headers: headers(token.sessionToken),
+      headers: headers(session.user.sessionToken),
     });
 
     console.log("[Materials API] Fetch response status:", response.status);

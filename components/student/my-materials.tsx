@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -80,7 +81,7 @@ interface Bookmark {
 }
 
 export function MyMaterials() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -176,8 +177,8 @@ export function MyMaterials() {
   useEffect(() => {
     const fetchData = async () => {
       console.log("[MyMaterials] Initiating fetch for /api/student/materials");
-      if (!session?.user?.sessionToken) {
-        console.log("[MyMaterials] No session token found");
+      if (status !== "authenticated" || !session?.user?.sessionToken) {
+        console.log("[MyMaterials] Session not authenticated, status:", status, "sessionToken:", session?.user?.sessionToken);
         setError("Not authenticated");
         setLoading(false);
         return;
@@ -197,7 +198,7 @@ export function MyMaterials() {
           if (res.status === 401) {
             setError("Session expired");
           } else {
-            setError("Failed to fetch materials");
+            setError(res.status === 404 ? "Materials endpoint not found" : "Failed to fetch materials");
             setData(fallbackData); // Use fallback data on error
           }
           throw new Error("Fetch failed");
@@ -215,7 +216,7 @@ export function MyMaterials() {
       setLoading(false);
     };
     fetchData();
-  }, [session, error]);
+  }, [session, status]);
 
   if (loading) {
     return (
@@ -225,14 +226,14 @@ export function MyMaterials() {
     );
   }
 
-  if (error === "Session expired") {
+  if (error === "Session expired" || error === "Not authenticated") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
             <CardDescription className="text-center">
-              Your session has expired. Please log in again to continue.
+              Your session has expired or you are not authenticated. Please log in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -311,16 +312,23 @@ export function MyMaterials() {
 
   const handleSaveNote = (note: Note) => {
     if (selectedNote) {
-      // Update existing note
-      setNotes(notes.map((n) => (n.id === note.id ? note : n)));
+      setData({
+        ...data!,
+        notes: notes.map((n) => (n.id === note.id ? note : n)),
+      });
     } else {
-      // Add new note
-      setNotes([...notes, note]);
+      setData({
+        ...data!,
+        notes: [...notes, note],
+      });
     }
   };
 
   const handleDeleteNote = (noteId: string) => {
-    setNotes(notes.filter((n) => n.id !== noteId));
+    setData({
+      ...data!,
+      notes: notes.filter((n) => n.id !== noteId),
+    });
   };
 
   function handlePlayAudio(audio: {
@@ -380,12 +388,15 @@ export function MyMaterials() {
                   key={video.id}
                   className="hover:shadow-lg transition-shadow flex flex-col h-full"
                 >
-                  {/* Header */}
                   <CardHeader>
                     <div className="relative">
                       <img
                         src={video.thumbnail || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail"}
                         alt={video.title}
+                        onError={(e) => {
+                          console.error("[MyMaterials] Image load error for:", video.thumbnail);
+                          e.currentTarget.src = "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
+                        }}
                         className="w-full h-32 object-cover rounded-md"
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md">
@@ -403,10 +414,7 @@ export function MyMaterials() {
                       <CardDescription>by {video.instructor}</CardDescription>
                     </div>
                   </CardHeader>
-
-                  {/* Body + Footer */}
                   <CardContent className="flex flex-col flex-1">
-                    {/* Body */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
@@ -419,15 +427,12 @@ export function MyMaterials() {
                         />
                       </div>
                     </div>
-
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {video.duration}
                       </div>
                     </div>
-
-                    {/* Footer — stays bottom */}
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
@@ -456,17 +461,13 @@ export function MyMaterials() {
                   key={audio.id}
                   className="hover:shadow-lg transition-shadow flex flex-col h-full"
                 >
-                  {/* Header */}
                   <CardHeader>
                     <div className="space-y-1">
                       <CardTitle className="text-lg">{audio.title}</CardTitle>
                       <CardDescription>by {audio.speaker}</CardDescription>
                     </div>
                   </CardHeader>
-
-                  {/* Body + Footer */}
                   <CardContent className="flex flex-col flex-1">
-                    {/* Body */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
@@ -479,15 +480,12 @@ export function MyMaterials() {
                         />
                       </div>
                     </div>
-
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {audio.duration}
                       </div>
                     </div>
-
-                    {/* Footer — sticks to bottom */}
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
@@ -512,7 +510,6 @@ export function MyMaterials() {
                 key={pdf.id}
                 className="hover:shadow-lg transition-shadow flex flex-col h-full"
               >
-                {/* Header */}
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -522,16 +519,11 @@ export function MyMaterials() {
                     <FileText className="h-8 w-8 text-muted-foreground" />
                   </div>
                 </CardHeader>
-
-                {/* Body + Footer */}
                 <CardContent className="flex flex-col flex-1">
-                  {/* Body */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                     <div>Pages: {pdf.pages ?? "N/A"}</div>
                     <div>Size: {pdf.size ?? "N/A"}</div>
                   </div>
-
-                  {/* Footer — sticks to bottom */}
                   <div className="mt-auto pt-4">
                     <Button
                       size="sm"
@@ -556,7 +548,6 @@ export function MyMaterials() {
               Create New Note
             </Button>
           </div>
-
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {notes.map((note) => (
               <Card key={note.id} className="hover:shadow-lg transition-shadow">
@@ -610,7 +601,6 @@ export function MyMaterials() {
               Manage Bookmarks
             </Button>
           </div>
-
           {bookmarks.length === 0 ? (
             <div className="text-center py-12">
               <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -650,21 +640,18 @@ export function MyMaterials() {
         </TabsContent>
       </Tabs>
 
-      {/* Modals */}
       <VideoModal
         isOpen={videoModalOpen}
         onClose={() => setVideoModalOpen(false)}
         title={selectedVideo?.title || ""}
         videoUrl={selectedVideo?.videoUrl}
       />
-
       <NoteEditor
         isOpen={noteEditorOpen}
         onClose={() => setNoteEditorOpen(false)}
         note={selectedNote ? selectedNote : undefined}
         onSave={handleSaveNote}
       />
-
       <BookmarkManager
         isOpen={bookmarkManagerOpen}
         onClose={() => setBookmarkManagerOpen(false)}
