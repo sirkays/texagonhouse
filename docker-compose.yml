@@ -7,12 +7,17 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+
+      # ACME (Let's Encrypt) via HTTP-01 on port 80
       - --certificatesresolvers.le.acme.httpchallenge=true
       - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+
+      # (Optional) dashboard/logging while debugging
       - --log.level=INFO
       - --accesslog=true
+
     ports:
       - "80:80"
       - "443:443"
@@ -20,11 +25,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt/acme.json:/letsencrypt/acme.json
     labels:
-      # Redirect all HTTP to HTTPS
+      # Global HTTP -> HTTPS (low priority so ACME wins)
       - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.routers.http-catchall.priority=1"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https@docker"
+
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
     networks: [web]
     restart: unless-stopped
 
@@ -34,21 +42,20 @@ services:
     env_file: .env
     labels:
       - "traefik.enable=true"
-      # Point Traefik at the *actual* network name (we force it to be 'web' below)
       - "traefik.docker.network=web"
 
-      # Match either hostname (Traefik v3 syntax)
-      - "traefik.http.routers.next.rule=Host(`texagonui.esm.name.ng`) || Host(`texagon.epichouse.online`)"
-      - "traefik.http.routers.next.entrypoints=websecure"
-      - "traefik.http.routers.next.tls=true"
-      - "traefik.http.routers.next.tls.certresolver=le"
-      - "traefik.http.routers.next.service=next"
+      # One router per hostname (each can get its own cert)
+      - "traefik.http.routers.next-epichouse.rule=Host(`texagon.epichouse.online`)"
+      - "traefik.http.routers.next-epichouse.entrypoints=websecure"
+      - "traefik.http.routers.next-epichouse.tls=true"
+      - "traefik.http.routers.next-epichouse.tls.certresolver=le"
 
-      # (Optional) Hint a single cert with both names
-      - "traefik.http.routers.next.tls.domains[0].main=texagonui.esm.name.ng"
-      - "traefik.http.routers.next.tls.domains[0].sans=texagon.epichouse.online"
+      - "traefik.http.routers.next-esm.rule=Host(`texagonui.esm.name.ng`)"
+      - "traefik.http.routers.next-esm.entrypoints=websecure"
+      - "traefik.http.routers.next-esm.tls=true"
+      - "traefik.http.routers.next-esm.tls.certresolver=le"
 
-      # Internal app port
+      # App service port
       - "traefik.http.services.next.loadbalancer.server.port=3000"
     networks: [web]
     depends_on: [traefik]
@@ -56,6 +63,5 @@ services:
 
 networks:
   web:
-    # Force the network to be literally named "web" (no compose prefix)
     name: web
     external: false
