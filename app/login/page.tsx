@@ -27,9 +27,13 @@ export default function LoginPage() {
         router.push("/admin");
       } else if (role === "student") {
         router.push("/student");
+      } else if (role === "teacher") {
+        router.push("/teacher");
+      } else if (role === "parent") {
+        router.push("/parent");
       } else {
         console.log("[LoginPage] Unknown role, redirecting to /student");
-        router.push("/student");
+        router.push("/login");
       }
     }
   }, [status, session, router]);
