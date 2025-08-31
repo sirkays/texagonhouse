@@ -4,7 +4,7 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.esm.name.ng";
+const BASE_URL = "https://texagonbackend.epichouse.online";
 //const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 

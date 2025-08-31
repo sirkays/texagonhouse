@@ -3,7 +3,7 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "../auth/[...nextauth]/route";
 
-const ALLOWED_HOST = "texagonbackend.esm.name.ng";
+const ALLOWED_HOST = "texagonbackend.epichouse.online";
 const ALLOWED_ORIGIN = "http://localhost:3000"; // Adjust for production
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 
