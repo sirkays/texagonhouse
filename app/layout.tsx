@@ -5,9 +5,9 @@ import './globals.css';
 import Providers from '@/utils/providers';
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Texagon Educational Platform',
+  description: 'An educational platform to help students learn and teachers teach.',
+  generator: 'Epic House',
 };
 
 export default function RootLayout({
