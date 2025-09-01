@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Play,
   Video,
@@ -20,8 +27,10 @@ import {
   FileText,
   Clock,
   Users,
-  Star,
   CheckCircle,
+  Download,
+  Eye,
+  Star,
 } from "lucide-react";
 import {
   Pagination,
@@ -32,153 +41,247 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { VideoModal } from "@/components/student/video-modal";
+import { AudioPlayer } from "@/components/student/audio-player";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
+
+interface Module {
+  id: number;
+  title: string;
+  content_type: string;
+  duration: string;
+  url: string | null;
+  course: string;
+  subject: string;
+  instructor: string | null;
+  module_order: number;
+  lesson_order: number;
+  progress: number;
+  popularity: number;
+  updated_at: string;
+  type?: string;
+  scheduledAt?: string;
+  isActiveNow?: boolean;
+}
+
+interface ModulesData {
+  videos: Module[];
+  audio: Module[];
+  pdfs: Module[];
+  docs: Module[];
+  links: Module[];
+  tutorials: Module[];
+}
+
+const StarRating = ({ popularity }: { popularity: number | null }) => {
+  if (!popularity || popularity <= 0) return null;
+  const maxStars = 5;
+  const filledStars = Math.min(Math.max(popularity, 0), maxStars);
+  return (
+    <div className="flex items-center gap-1">
+      {[...Array(maxStars)].map((_, index) => (
+        <Star
+          key={index}
+          className={`h-4 w-4 ${index < filledStars ? "fill-current text-yellow-500" : "text-muted-foreground"}`}
+        />
+      ))}
+    </div>
+  );
+};
 
 export function LearningModules() {
+  const { data: session, status } = useSession();
   const [currentPage, setCurrentPage] = useState({
     videos: 1,
     audio: 1,
+    pdfs: 1,
     tutorials: 1,
-    journals: 1,
-    recommendations: 1,
   });
+  const [modules, setModules] = useState<ModulesData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<Module | null>(null);
+  const [selectedAudio, setSelectedAudio] = useState<Module | null>(null);
+  const [selectedModuleOrder, setSelectedModuleOrder] = useState<string>("all");
 
   const itemsPerPage = 3;
 
-  const modules = {
+  // Fallback data for UI stability
+  const fallbackData: ModulesData = {
     videos: [
       {
+        id: 1,
         title: "React Hooks Masterclass",
-        instructor: "Sarah Wilson",
+        content_type: "video",
         duration: "4h 30m",
-        lessons: 24,
+        url: "/sample-video.mp4",
+        course: "Advanced React Development",
+        subject: "Advanced React Development",
+        instructor: "Sarah Wilson",
+        module_order: 1,
+        lesson_order: 1,
         progress: 65,
-        rating: 4.8,
-        students: 12500,
-        level: "Intermediate",
-        completed: false,
+        popularity: 3,
+        updated_at: "2025-08-27T14:17:18.781644+00:00",
       },
       {
+        id: 2,
         title: "Python for Beginners",
-        instructor: "John Martinez",
+        content_type: "video",
         duration: "6h 15m",
-        lessons: 32,
+        url: "/sample-video.mp4",
+        course: "Python for Data Science",
+        subject: "Python for Data Science",
+        instructor: "John Martinez",
+        module_order: 2,
+        lesson_order: 1,
         progress: 100,
-        rating: 4.9,
-        students: 25600,
-        level: "Beginner",
-        completed: true,
-      },
-      {
-        title: "Advanced JavaScript Concepts",
-        instructor: "Emily Chen",
-        duration: "5h 45m",
-        lessons: 28,
-        progress: 30,
-        rating: 4.7,
-        students: 8900,
-        level: "Advanced",
-        completed: false,
+        popularity: 4,
+        updated_at: "2025-08-27T14:16:34.225646+00:00",
       },
     ],
     audio: [
       {
+        id: 4,
         title: "Tech Career Podcast Series",
-        host: "Industry Experts",
-        episodes: 15,
+        content_type: "audio",
         duration: "12h total",
+        url: "/sample-audio.mp3",
+        course: "Career Development",
+        subject: "Career Development",
+        instructor: "Industry Experts",
+        module_order: 1,
+        lesson_order: 1,
         progress: 40,
-        rating: 4.6,
-        listeners: 5600,
-        category: "Career Development",
-      },
-      {
-        title: "JavaScript Deep Dive Audio Course",
-        host: "Dev Academy",
-        episodes: 20,
-        duration: "8h 30m",
-        progress: 75,
-        rating: 4.8,
-        listeners: 3400,
-        category: "Programming",
+        popularity: 2,
+        updated_at: "2025-08-27T14:17:18.781644+00:00",
       },
     ],
+    pdfs: [
+      {
+        id: 5,
+        title: "JavaScript ES6 Guide",
+        content_type: "pdf",
+        duration: "N/A",
+        url: "/sample.pdf",
+        course: "JavaScript Algorithms",
+        subject: "JavaScript Algorithms",
+        instructor: "John Doe",
+        module_order: 1,
+        lesson_order: 1,
+        progress: 0,
+        popularity: 1,
+        updated_at: "2025-08-27T14:17:18.781644+00:00",
+      },
+    ],
+    docs: [],
+    links: [],
     tutorials: [
       {
-        title: "Build a Full-Stack E-commerce App",
-        type: "Project Tutorial",
-        steps: 12,
-        duration: "8h",
-        difficulty: "Advanced",
-        technologies: ["React", "Node.js", "MongoDB"],
-        sessionCategory: "Private",
-        isActive: true,
-      },
-      {
-        title: "Create a REST API with Express",
-        type: "Step-by-step Guide",
-        steps: 8,
-        duration: "3h",
-        difficulty: "Intermediate",
-        technologies: ["Node.js", "Express", "PostgreSQL"],
-        sessionCategory: "General",
-        isActive: false,
-      },
-    ],
-    journals: [
-      {
-        title: "Weekly Web Development Digest",
-        type: "Industry Newsletter",
-        issues: 52,
-        readTime: "5 min each",
-        subscribed: true,
-        category: "News & Updates",
-      },
-      {
-        title: "Research Papers in AI",
-        type: "Academic Journal",
-        papers: 25,
-        readTime: "20 min avg",
-        subscribed: false,
-        category: "Research",
-      },
-    ],
-    recommendations: [
-      {
-        title: "Full-Stack Web Developer",
-        modules: 8,
-        duration: "12 weeks",
-        level: "Beginner to Advanced",
-        technologies: ["HTML/CSS", "JavaScript", "React", "Node.js"],
-      },
-      {
-        title: "Data Science with Python",
-        modules: 6,
-        duration: "10 weeks",
-        level: "Intermediate",
-        technologies: ["Python", "Pandas", "NumPy", "Matplotlib"],
-      },
-      {
-        title: "Mobile App Development",
-        modules: 7,
-        duration: "14 weeks",
-        level: "Intermediate",
-        technologies: ["React Native", "Flutter", "Firebase"],
+        id: 6,
+        title: "Sample Tutorial",
+        type: "Live Session",
+        duration: "60m",
+        scheduledAt: "2025-09-02T14:27:12+00:00",
+        course: "Python for Data Science",
+        subject: "Python for Data Science",
+        instructor: null,
+        module_order: 1,
+        lesson_order: 1,
+        progress: 0,
+        popularity: 0,
+        updated_at: "2025-08-27T14:17:18.781644+00:00",
+        isActiveNow: false,
       },
     ],
   };
 
+  useEffect(() => {
+    const fetchModules = async () => {
+      if (status !== "authenticated" || !session?.user?.sessionToken) {
+        console.log("[LearningModules] Session not authenticated, status:", status);
+        setError("Not authenticated");
+        setModules(fallbackData);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log("[LearningModules] Fetching from /api/learning-modules with token:", session.user.sessionToken);
+        const response = await fetch("/api/student/learning-modules", {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[LearningModules] Fetch response status:", response.status);
+        if (!response.ok) {
+          console.error("[LearningModules] Fetch failed with status:", response.status);
+          setError(response.status === 403 ? "Session expired" : "Failed to fetch modules");
+          setModules(fallbackData);
+          throw new Error("Fetch failed");
+        }
+        const data = await response.json();
+        console.log("[LearningModules] Fetch response data:", data);
+        setModules(data);
+      } catch (e) {
+        console.error("[LearningModules] Fetch error:", e);
+        setError("Failed to fetch modules");
+        setModules(fallbackData);
+      }
+      setLoading(false);
+    };
+
+    fetchModules();
+  }, [session, status]);
+
+  // Compute unique module_order values for dropdown
+  const moduleOrderOptions = useMemo(() => {
+    const data = modules || fallbackData;
+    const allModules = [
+      ...data.videos,
+      ...data.audio,
+      ...data.pdfs,
+      ...data.tutorials,
+    ];
+    const moduleOrders = Array.from(
+      new Set(allModules.map((module) => module.module_order).filter((order) => order !== undefined && order !== null))
+    ).sort((a, b) => a - b);
+    return moduleOrders.length > 0 ? moduleOrders : [1];
+  }, [modules]);
+
+  // Filter modules based on selected module_order
+  const filteredModules = useMemo(() => {
+    const data = modules || fallbackData;
+    if (selectedModuleOrder === "all") return data;
+    const moduleOrder = parseInt(selectedModuleOrder);
+    return {
+      videos: data.videos.filter((video) => video.module_order === moduleOrder),
+      audio: data.audio.filter((audio) => audio.module_order === moduleOrder),
+      pdfs: data.pdfs.filter((pdf) => pdf.module_order === moduleOrder),
+      docs: data.docs.filter((doc) => doc.module_order === moduleOrder),
+      links: data.links.filter((link) => doc.module_order === moduleOrder),
+      tutorials: data.tutorials.filter((tutorial) => tutorial.module_order === moduleOrder),
+    };
+  }, [modules, selectedModuleOrder]);
+
   const getPaginatedItems = (items: any[], page: number) => {
+    if (!items) return [];
     const startIndex = (page - 1) * itemsPerPage;
     return items.slice(startIndex, startIndex + itemsPerPage);
   };
 
   const getTotalPages = (items: any[]) => {
+    if (!items) return 1;
     return Math.ceil(items.length / itemsPerPage);
   };
 
   const renderPagination = (tab: keyof typeof currentPage) => {
-    const totalPages = getTotalPages(modules[tab]);
-    const current = currentPage[tab];
+    const totalPages = getTotalPages(filteredModules[tab]);
+    const current = currentPage[tab] || 1;
 
     return (
       <Pagination>
@@ -188,7 +291,7 @@ export function LearningModules() {
               onClick={() =>
                 setCurrentPage((prev) => ({
                   ...prev,
-                  [tab]: Math.max(1, prev[tab] - 1),
+                  [tab]: Math.max(1, (prev[tab] || 1) - 1),
                 }))
               }
             />
@@ -197,7 +300,8 @@ export function LearningModules() {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
+                onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}
+              >
                 1
               </PaginationLink>
             </PaginationItem>
@@ -209,15 +313,16 @@ export function LearningModules() {
             </PaginationItem>
           )}
 
-          {Array.from({length: totalPages}, (_, i) => i + 1)
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
                   onClick={() =>
-                    setCurrentPage((prev) => ({...prev, [tab]: page}))
-                  }>
+                    setCurrentPage((prev) => ({ ...prev, [tab]: page }))
+                  }
+                >
                   {page}
                 </PaginationLink>
               </PaginationItem>
@@ -233,8 +338,9 @@ export function LearningModules() {
             <PaginationItem>
               <PaginationLink
                 onClick={() =>
-                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
-                }>
+                  setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))
+                }
+              >
                 {totalPages}
               </PaginationLink>
             </PaginationItem>
@@ -245,7 +351,7 @@ export function LearningModules() {
               onClick={() =>
                 setCurrentPage((prev) => ({
                   ...prev,
-                  [tab]: Math.min(totalPages, prev[tab] + 1),
+                  [tab]: Math.min(totalPages, (prev[tab] || 1) + 1),
                 }))
               }
             />
@@ -255,345 +361,389 @@ export function LearningModules() {
     );
   };
 
+  const handlePlayVideo = (video: Module) => {
+    if (!video.url) {
+      console.error("[LearningModules] No video URL for:", video.title);
+      setError("No video URL available");
+      return;
+    }
+    setSelectedVideo(video);
+    setVideoModalOpen(true);
+  };
+
+  const handlePlayAudio = (audio: Module) => {
+    if (!audio.url) {
+      console.error("[LearningModules] No audio URL for:", audio.title);
+      setError("No audio URL available");
+      return;
+    }
+    setSelectedAudio(audio);
+    setAudioPlayerOpen(true);
+  };
+
+  const handlePreviewPdf = (pdf: Module) => {
+    if (!pdf.url) {
+      console.error("[LearningModules] No PDF URL for:", pdf.title);
+      setError("No PDF URL available");
+      return;
+    }
+    console.log("[LearningModules] Opening PDF in new tab:", pdf.url);
+    const url = new URL(pdf.url);
+    if (session?.user?.sessionToken) {
+      url.searchParams.append("sessionToken", session.user.sessionToken);
+    }
+    window.open(url.toString(), "_blank");
+  };
+
+  const handleDownloadPdf = (pdf: Module) => {
+    if (!pdf.url) {
+      console.error("[LearningModules] No PDF URL for download:", pdf.title);
+      setError("No PDF URL available for download");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = pdf.url;
+    link.download = pdf.title || "document.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
+  }
+
+  if (error === "Session expired" || error === "Not authenticated") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardDescription className="text-center">
+              Your session has expired or you are not authenticated. Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => window.location.href = "/login"} className="flex items-center gap-2">
+              <Play className="h-4 w-4" />
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && !modules) {
+    return (
+      <div className="p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardDescription className="text-center">{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+              <Play className="h-4 w-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Learning Modules</h1>
         <p className="text-muted-foreground">
-          Structured learning paths with videos, audio, tutorials, and journals
+          Structured learning paths with videos, audio, PDFs, and tutorials
         </p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <label htmlFor="module-order-filter" className="text-sm font-medium">
+          Filter by Module Order:
+        </label>
+        <Select
+          value={selectedModuleOrder}
+          onValueChange={(value) => {
+            setSelectedModuleOrder(value);
+            setCurrentPage({ videos: 1, audio: 1, pdfs: 1, tutorials: 1 });
+          }}
+        >
+          <SelectTrigger id="module-order-filter" className="w-[180px]">
+            <SelectValue placeholder="Select module order" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Modules</SelectItem>
+            {moduleOrderOptions.map((order) => (
+              <SelectItem key={order} value={order.toString()}>
+                Module {order}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs defaultValue="videos" className="w-full">
         <TabsList className="flex flex-col md:flex-row w-full mb-10">
-          <TabsTrigger
-            value="videos"
-            className="flex items-center gap-2 w-full md:w-auto">
+          <TabsTrigger value="videos" className="flex items-center gap-2 w-full ">
             <Video className="h-4 w-4" />
             Video
           </TabsTrigger>
-          <TabsTrigger
-            value="audio"
-            className="flex items-center gap-2 w-full md:w-auto">
+          <TabsTrigger value="audio" className="flex items-center gap-2 w-full ">
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
-          <TabsTrigger
-            value="tutorials"
-            className="flex items-center gap-2 w-full md:w-auto">
+          <TabsTrigger value="pdfs" className="flex items-center gap-2 w-full ">
+            <FileText className="h-4 w-4" />
+            PDFs
+          </TabsTrigger>
+          <TabsTrigger value="tutorials" className="flex items-center gap-2 w-full ">
             <BookOpen className="h-4 w-4" />
             Live Session
-          </TabsTrigger>
-          <TabsTrigger
-            value="journals"
-            className="flex items-center gap-2 w-full md:w-auto">
-            <FileText className="h-4 w-4" />
-            Journals
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="videos" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {getPaginatedItems(modules.videos, currentPage.videos).map(
-              (course, index) => (
-                <Card
-                  key={index}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                  <CardHeader className="p-0">
-                    <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative">
-                      <Video className="h-8 w-8 text-muted-foreground" />
-                      {course.completed && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-5">
+            {getPaginatedItems(filteredModules.videos, currentPage.videos).map((video) => (
+              <Card key={video.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                <CardHeader className="p-0">
+                  <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative">
+                    <Video className="h-8 w-8 text-muted-foreground" />
+                    {video.progress === 100 && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 right-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {video.progress > 0 ? "In Progress" : "Available"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-6">
+                    <CardTitle className="text-lg">{video.title}</CardTitle>
+                    <CardDescription>{video.course}</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {video.duration}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      {video.popularity} students
+                    </div>
+                    {video.instructor && (
+                      <div className="col-span-2">Instructor: {video.instructor}</div>
+                    )}
+                    <div>Module: {video.module_order}</div>
+                    <div>Lesson: {video.lesson_order}</div>
+                    <div className="col-span-2">
+                      Updated: {new Date(video.updated_at).toLocaleDateString()}
+                    </div>
+                    {video.popularity > 0 && (
+                      <div className="col-span-2">
+                        <StarRating popularity={video.popularity} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span>{video.progress}%</span>
+                    </div>
+                    <Progress value={video.progress} className="h-2" />
+                  </div>
+                  <div className="mt-auto">
+                    <Button className="w-full" onClick={() => handlePlayVideo(video)} disabled={!video.url}>
+                      {video.progress === 100 ? (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Review Video
+                        </>
+                      ) : video.progress > 0 ? (
+                        <>
+                          <Play className="mr-2 h-4 w-4" />
+                          Continue Watching
+                        </>
+                      ) : (
+                        <>
+                          <Play className="mr-2 h-4 w-4" />
+                          Start Video
+                        </>
                       )}
-                      <div className="absolute bottom-2 right-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {course.progress > 0 ? "In Progress" : "Available"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-2 px-6">
-                      <div className="flex items-center justify-between">
-                        <Badge
-                          variant={
-                            course.level === "Beginner"
-                              ? "default"
-                              : course.level === "Intermediate"
-                              ? "secondary"
-                              : "destructive"
-                          }>
-                          {course.level}
-                        </Badge>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          {course.rating}
-                        </div>
-                      </div>
-                      <CardTitle className="text-lg">{course.title}</CardTitle>
-                      <CardDescription>by {course.instructor}</CardDescription>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col flex-1 space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {course.duration}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Play className="h-3 w-3" />
-                        {course.lessons} lessons
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {course.students.toLocaleString()}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        {Math.floor(course.lessons * 0.3)} quizzes
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{course.progress}%</span>
-                      </div>
-                      <Progress value={course.progress} className="h-2" />
-                    </div>
-                    <div className="mt-auto">
-                      <Button className="w-full">
-                        {course.completed ? (
-                          <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Review Course
-                          </>
-                        ) : course.progress > 0 ? (
-                          <>
-                            <Play className="mr-2 h-4 w-4" />
-                            Continue Learning
-                          </>
-                        ) : (
-                          <>
-                            <Play className="mr-2 h-4 w-4" />
-                            Start Course
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
           {renderPagination("videos")}
         </TabsContent>
 
-        <TabsContent value="audio" className="space-y-6">
+        <TabsContent value="audio" className="space-y-6 ">
           <div className="grid gap-6 md:grid-cols-2">
-            {getPaginatedItems(modules.audio, currentPage.audio).map(
-              (course, index) => (
-                <Card
-                  key={index}
-                  className="flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                        <Headphones className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <CardTitle className="text-lg">
-                          {course.title}
-                        </CardTitle>
-                        <CardDescription>by {course.host}</CardDescription>
-                        <Badge variant="outline">{course.category}</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>{course.episodes} episodes</div>
-                      <div>{course.duration}</div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        {course.rating}
-                      </div>
-                      <div>{course.listeners} listeners</div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{course.progress}%</span>
-                      </div>
-                      <Progress value={course.progress} className="h-2" />
-                    </div>
-                    <Button className="w-full mt-auto">
-                      <Headphones className="mr-2 h-4 w-4" />
-                      {course.progress > 0
-                        ? "Continue Listening"
-                        : "Start Listening"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-          {renderPagination("audio")}
-        </TabsContent>
-
-        <TabsContent value="tutorials" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {getPaginatedItems(modules.tutorials, currentPage.tutorials).map(
-              (tutorial, index) => (
-                <Card
-                  key={index}
-                  className="flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="outline">{tutorial.type}</Badge>
-                        <Badge
-                          variant={
-                            tutorial.difficulty === "Beginner"
-                              ? "default"
-                              : tutorial.difficulty === "Intermediate"
-                              ? "secondary"
-                              : "destructive"
-                          }>
-                          {tutorial.difficulty}
-                        </Badge>
-                        <Badge variant="outline">
-                          {tutorial.sessionCategory}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-lg">
-                        {tutorial.title}
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>{tutorial.steps} steps</div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {tutorial.duration}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <span className="text-sm font-medium">Technologies:</span>
-                      <div className="flex gap-2 flex-wrap">
-                        {tutorial.technologies.map(
-                          (tech: any, techIndex: any) => (
-                            <Badge
-                              key={techIndex}
-                              variant="secondary"
-                              className="text-xs">
-                              {tech}
-                            </Badge>
-                          )
-                        )}
-                      </div>
-                    </div>
-                    <Button className="w-full mt-auto">
-                      {tutorial.isActive ? (
-                        "Join Session"
-                      ) : (
-                        <div>01-12-2025 / 10:00 AM</div>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-          {renderPagination("tutorials")}
-        </TabsContent>
-
-        <TabsContent value="journals" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {getPaginatedItems(modules.journals, currentPage.journals).map(
-              (journal, index) => (
-                <Card
-                  key={index}
-                  className="flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline">{journal.type}</Badge>
-                        {journal.subscribed && (
-                          <Badge variant="default">Subscribed</Badge>
-                        )}
-                      </div>
-                      <CardTitle className="text-lg">{journal.title}</CardTitle>
-                      <CardDescription>{journal.category}</CardDescription>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>
-                        {journal.issues || journal.papers}{" "}
-                        {journal.issues ? "issues" : "papers"}
-                      </div>
-                      <div>{journal.readTime}</div>
-                    </div>
-                    <Button
-                      className="w-full mt-auto"
-                      variant={journal.subscribed ? "secondary" : "default"}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      {journal.subscribed ? "Read Latest" : "Subscribe"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-          {renderPagination("journals")}
-        </TabsContent>
-      </Tabs>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recommended Learning Paths</CardTitle>
-          <CardDescription>
-            Curated sequences of modules for structured learning
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {getPaginatedItems(
-              modules.recommendations,
-              currentPage.recommendations
-            ).map((path, index) => (
-              <Card
-                key={index}
-                className="border-dashed flex flex-col min-h-[250px] max-h-[300px] hover:shadow-lg transition-shadow">
+            {getPaginatedItems(filteredModules.audio, currentPage.audio).map((audio) => (
+              <Card key={audio.id} className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow mb-16">
                 <CardHeader>
-                  <CardTitle className="text-base">{path.title}</CardTitle>
-                  <CardDescription>{path.level}</CardDescription>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                      <Headphones className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <CardTitle className="text-lg">{audio.title}</CardTitle>
+                      <CardDescription>{audio.course}</CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="flex flex-col flex-1 justify-between space-y-3">
-                  <div className="text-sm text-muted-foreground">
-                    {path.modules} modules • {path.duration}
+                <CardContent className="flex flex-col justify-between flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div>{audio.duration}</div>
+                    <div>{audio.popularity} listeners</div>
+                    {audio.instructor && (
+                      <div className="col-span-2">Instructor: {audio.instructor}</div>
+                    )}
+                    <div>Module: {audio.module_order}</div>
+                    <div>Lesson: {audio.lesson_order}</div>
+                    <div className="col-span-2">
+                      Updated: {new Date(audio.updated_at).toLocaleDateString()}
+                    </div>
+                    {audio.popularity > 0 && (
+                      <div className="col-span-2">
+                        <StarRating popularity={audio.popularity} />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {path.technologies.map((tech: any, techIndex: any) => (
-                      <Badge
-                        key={techIndex}
-                        variant="outline"
-                        className="text-xs">
-                        {tech}
-                      </Badge>
-                    ))}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span>{audio.progress}%</span>
+                    </div>
+                    <Progress value={audio.progress} className="h-2" />
                   </div>
-                  <Button size="sm" className="w-full mt-auto">
-                    Start Learning Path
+                  <Button className="w-full mt-auto" onClick={() => handlePlayAudio(audio)} disabled={!audio.url}>
+                    <Headphones className="mr-2 h-4 w-4" />
+                    {audio.progress > 0 ? "Continue Listening" : "Start Listening"}
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
-          {renderPagination("recommendations")}
-        </CardContent>
-      </Card>
+          {renderPagination("audio")}
+        </TabsContent>
+
+        <TabsContent value="pdfs" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2 mb-5 lg:grid-cols-3">
+            {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map((pdf) => (
+              <Card key={pdf.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                      <CardDescription>{pdf.course}</CardDescription>
+                    </div>
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col flex-1">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div>Course: {pdf.course}</div>
+                    <div>Updated: {new Date(pdf.updated_at).toLocaleDateString()}</div>
+                    {pdf.instructor && (
+                      <div className="col-span-2">Instructor: {pdf.instructor}</div>
+                    )}
+                    <div>Module: {pdf.module_order}</div>
+                    <div>Lesson: {pdf.lesson_order}</div>
+                    {pdf.popularity > 0 && (
+                      <div className="col-span-2">
+                        <StarRating popularity={pdf.popularity} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-auto pt-4 flex gap-2">
+                    <Button size="sm" className="flex-1 h-10" onClick={() => handlePreviewPdf(pdf)} disabled={!pdf.url}>
+                      <Eye className="mr-2 h-3 w-3" />
+                      Preview
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
+                      <Download className="mr-2 h-3 w-3" />
+                      Download
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {renderPagination("pdfs")}
+        </TabsContent>
+
+        <TabsContent value="tutorials" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            {getPaginatedItems(filteredModules.tutorials, currentPage.tutorials).map((tutorial) => (
+              <Card key={tutorial.id} className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline">{tutorial.type || tutorial.content_type}</Badge>
+                    </div>
+                    <CardTitle className="text-lg">{tutorial.title}</CardTitle>
+                    <CardDescription>{tutorial.course}</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col justify-between flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div>{tutorial.duration}</div>
+                    <div>{tutorial.popularity || 0} participants</div>
+                    {tutorial.instructor && (
+                      <div className="col-span-2">Instructor: {tutorial.instructor}</div>
+                    )}
+                    <div>Module: {tutorial.module_order}</div>
+                    <div>Lesson: {tutorial.lesson_order}</div>
+                    <div className="col-span-2">
+                      Scheduled: {tutorial.scheduledAt ? new Date(tutorial.scheduledAt).toLocaleString() : "TBD"}
+                    </div>
+                    <div>Active: {tutorial.isActiveNow ? "Yes" : "No"}</div>
+                    {tutorial.popularity > 0 && (
+                      <div className="col-span-2">
+                        <StarRating popularity={tutorial.popularity} />
+                      </div>
+                    )}
+                  </div>
+                  <Button className="w-full mt-auto" disabled={!tutorial.isActiveNow}>
+                    Join Session
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {renderPagination("tutorials")}
+        </TabsContent>
+      </Tabs>
+
+      <VideoModal
+        isOpen={videoModalOpen}
+        onClose={() => setVideoModalOpen(false)}
+        title={selectedVideo?.title || ""}
+        videoUrl={selectedVideo?.url}
+      />
+      <AudioPlayer
+        isOpen={audioPlayerOpen}
+        onClose={() => setAudioPlayerOpen(false)}
+        title={selectedAudio?.title || ""}
+        audioUrl={selectedAudio?.url}
+        duration={selectedAudio?.duration}
+      />
     </div>
   );
 }
