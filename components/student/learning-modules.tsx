@@ -265,7 +265,7 @@ export function LearningModules() {
       </div>
 
       <Tabs defaultValue="videos" className="w-full">
-        <TabsList className="flex flex-col md:flex-row w-full">
+        <TabsList className="flex flex-col md:flex-row w-full mb-10">
           <TabsTrigger
             value="videos"
             className="flex items-center gap-2 w-full md:w-auto">
