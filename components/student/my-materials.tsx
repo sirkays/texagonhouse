@@ -24,11 +24,12 @@ import {
   Bookmark,
   LogIn,
   Eye,
+  ExternalLink,
+  Download,
 } from "lucide-react";
 import { VideoModal } from "./video-modal";
 import { NoteEditor } from "./note-editor";
 import { BookmarkManager } from "./bookmark-manager";
-import { PDFViewer } from "./pdf-viewer";
 import { AudioPlayer } from "./audio-player";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -90,8 +91,6 @@ export function MyMaterials() {
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
-  const [selectedPdf, setSelectedPdf] = useState<any>(null);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
   const [selectedAudio, setSelectedAudio] = useState<any>(null);
   const [data, setData] = useState<{ saved: SavedItem; notes: Note[]; bookmarks: Bookmark[] } | null>(null);
@@ -302,8 +301,12 @@ export function MyMaterials() {
   };
 
   const handlePreviewPdf = (pdf: any) => {
-    setSelectedPdf(pdf);
-    setPdfViewerOpen(true);
+    if (!pdf.downloadUrl) {
+      console.error("[MyMaterials] No downloadUrl provided for PDF:", pdf.title);
+      return;
+    }
+    console.log("[MyMaterials] Opening PDF in new tab:", pdf.downloadUrl);
+    window.open(pdf.downloadUrl, "_blank");
   };
 
   const handlePlayAudio = (audio: {
@@ -324,7 +327,6 @@ export function MyMaterials() {
   };
 
   const handleSaveNote = (note: Note) => {
-    // Convert createdAt and updatedAt to ISO strings if they are Date objects
     const normalizedNote: Note = {
       ...note,
       createdAt: note.createdAt instanceof Date ? note.createdAt.toISOString() : note.createdAt,
@@ -377,11 +379,11 @@ export function MyMaterials() {
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="saved">Saved Items</TabsTrigger>
-          <TabsTrigger value="downloads">Downloads</TabsTrigger>
-          <TabsTrigger value="notes">My Notes</TabsTrigger>
-          <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
+        <TabsList className="flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger value="saved" className="w-full justify-center py-2">Saved Items</TabsTrigger>
+          <TabsTrigger value="downloads" className="w-full justify-center py-2">Downloads</TabsTrigger>
+          <TabsTrigger value="notes" className="w-full justify-center py-2">My Notes</TabsTrigger>
+          <TabsTrigger value="bookmarks" className="w-full justify-center py-2">Bookmarks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="saved" className="space-y-6">
@@ -531,14 +533,34 @@ export function MyMaterials() {
                     <div>Pages: {pdf.pages ?? "N/A"}</div>
                     <div>Size: {pdf.size ?? "N/A"}</div>
                   </div>
-                  <div className="mt-auto pt-4">
+                  <div className="mt-auto pt-4 flex gap-2">
                     <Button
                       size="sm"
-                      className="w-full h-10"
+                      className="flex-1 h-10"
                       onClick={() => handlePreviewPdf(pdf)}
                     >
                       <Eye className="mr-2 h-3 w-3" />
                       Preview
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 h-10"
+                      onClick={() => {
+                        if (!pdf.downloadUrl) {
+                          console.error("[MyMaterials] No downloadUrl for download:", pdf.title);
+                          return;
+                        }
+                        const link = document.createElement("a");
+                        link.href = pdf.downloadUrl;
+                        link.download = pdf.title || "document.pdf";
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <Download className="mr-2 h-3 w-3" />
+                      Download
                     </Button>
                   </div>
                 </CardContent>
@@ -652,12 +674,6 @@ export function MyMaterials() {
         onClose={() => setVideoModalOpen(false)}
         title={selectedVideo?.title || ""}
         videoUrl={selectedVideo?.videoUrl}
-      />
-      <PDFViewer
-        isOpen={pdfViewerOpen}
-        onClose={() => setPdfViewerOpen(false)}
-        title={selectedPdf?.title || ""}
-        pdfUrl={selectedPdf?.downloadUrl}
       />
       <AudioPlayer
         isOpen={audioPlayerOpen}
