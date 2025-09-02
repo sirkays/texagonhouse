@@ -31,6 +31,7 @@ import {
   Download,
   Eye,
   Star,
+  Bookmark,
 } from "lucide-react";
 import {
   Pagination,
@@ -45,6 +46,7 @@ import { VideoModal } from "@/components/student/video-modal";
 import { AudioPlayer } from "@/components/student/audio-player";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
+import toast from "react-hot-toast";
 
 interface Module {
   id: number;
@@ -106,6 +108,7 @@ export function LearningModules() {
   const [selectedVideo, setSelectedVideo] = useState<Module | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<Module | null>(null);
   const [selectedModuleOrder, setSelectedModuleOrder] = useState<string>("all");
+  const [savedLessons, setSavedLessons] = useState<Set<number>>(new Set());
 
   const itemsPerPage = 3;
 
@@ -210,7 +213,7 @@ export function LearningModules() {
       }
 
       try {
-        console.log("[LearningModules] Fetching from /api/learning-modules with token:", session.user.sessionToken);
+        console.log("[LearningModules] Fetching from /api/student/learning-modules with token:", session.user.sessionToken);
         const response = await fetch("/api/student/learning-modules", {
           headers: {
             "Content-Type": "application/json",
@@ -238,6 +241,52 @@ export function LearningModules() {
     fetchModules();
   }, [session, status]);
 
+  const handleSaveLesson = async (module: Module) => {
+    if (!session?.user?.sessionToken) {
+      toast.error("Please log in to save lessons");
+      return;
+    }
+
+    if (savedLessons.has(module.id)) {
+      toast.error("Lesson already saved");
+      return;
+    }
+
+    try {
+      console.log("[LearningModules] Saving lesson:", module.id, module.title);
+      const response = await fetch(`/api/student/save/lesson/${module.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+        body: JSON.stringify({}),
+      });
+
+      console.log("[LearningModules] Save response status:", response.status);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("[LearningModules] Save failed:", response.status, errorData);
+        if (response.status === 401 || response.status === 403) {
+          toast.error("Session expired, please log in again");
+        } else if (response.status === 404) {
+          toast.error("Lesson not found");
+        } else {
+          toast.error("Failed to save lesson");
+        }
+        return;
+      }
+
+      const data = await response.json();
+      console.log("[LearningModules] Save successful:", data);
+      setSavedLessons((prev) => new Set([...prev, module.id]));
+      toast.success("Lesson saved!");
+    } catch (error) {
+      console.error("[LearningModules] Save error:", error);
+      toast.error("Failed to save lesson");
+    }
+  };
+
   // Compute unique module_order values for dropdown
   const moduleOrderOptions = useMemo(() => {
     const data = modules || fallbackData;
@@ -263,7 +312,7 @@ export function LearningModules() {
       audio: data.audio.filter((audio) => audio.module_order === moduleOrder),
       pdfs: data.pdfs.filter((pdf) => pdf.module_order === moduleOrder),
       docs: data.docs.filter((doc) => doc.module_order === moduleOrder),
-      links: data.links.filter((link) => doc.module_order === moduleOrder),
+      links: data.links.filter((link) => link.module_order === moduleOrder),
       tutorials: data.tutorials.filter((tutorial) => tutorial.module_order === moduleOrder),
     };
   }, [modules, selectedModuleOrder]);
@@ -493,7 +542,7 @@ export function LearningModules() {
 
       <Tabs defaultValue="videos" className="w-full">
         <TabsList className="flex flex-col md:flex-row w-full mb-10">
-          <TabsTrigger value="videos" className="flex items-center gap-2 w-full ">
+          <TabsTrigger value="videos" className="flex items-center gap-2 w-full">
             <Video className="h-4 w-4" />
             Video
           </TabsTrigger>
@@ -505,14 +554,14 @@ export function LearningModules() {
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
-          <TabsTrigger value="tutorials" className="flex items-center gap-2 w-full ">
+          <TabsTrigger value="tutorials" className="flex items-center gap-2 w-full">
             <BookOpen className="h-4 w-4" />
             Live Session
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="videos" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-5">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {getPaginatedItems(filteredModules.videos, currentPage.videos).map((video) => (
               <Card key={video.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
                 <CardHeader className="p-0">
@@ -558,14 +607,14 @@ export function LearningModules() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Progress</span>
                       <span>{video.progress}%</span>
                     </div>
                     <Progress value={video.progress} className="h-2" />
-                  </div>
-                  <div className="mt-auto">
+                  </div> */}
+                  <div className="mt-auto flex flex-col gap-2">
                     <Button className="w-full" onClick={() => handlePlayVideo(video)} disabled={!video.url}>
                       {video.progress === 100 ? (
                         <>
@@ -584,6 +633,15 @@ export function LearningModules() {
                         </>
                       )}
                     </Button>
+                    <Button
+                      variant={savedLessons.has(video.id) ? "default" : "outline"}
+                      className="w-full"
+                      onClick={() => handleSaveLesson(video)}
+                      disabled={!session?.user?.sessionToken || savedLessons.has(video.id)}
+                    >
+                      <Bookmark className={`mr-2 h-4 w-4 ${savedLessons.has(video.id) ? "fill-current" : ""}`} />
+                      {savedLessons.has(video.id) ? "Saved" : "Save"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -592,10 +650,10 @@ export function LearningModules() {
           {renderPagination("videos")}
         </TabsContent>
 
-        <TabsContent value="audio" className="space-y-6 ">
+        <TabsContent value="audio" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {getPaginatedItems(filteredModules.audio, currentPage.audio).map((audio) => (
-              <Card key={audio.id} className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow mb-16">
+              <Card key={audio.id} className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -626,16 +684,27 @@ export function LearningModules() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
+                    {/* <div className="flex justify-between text-sm">
                       <span>Progress</span>
                       <span>{audio.progress}%</span>
-                    </div>
-                    <Progress value={audio.progress} className="h-2" />
+                    </div> */}
+                    {/* <Progress value={audio.progress} className="h-2" /> */}
                   </div>
-                  <Button className="w-full mt-auto" onClick={() => handlePlayAudio(audio)} disabled={!audio.url}>
-                    <Headphones className="mr-2 h-4 w-4" />
-                    {audio.progress > 0 ? "Continue Listening" : "Start Listening"}
-                  </Button>
+                  <div className="mt-auto flex flex-col gap-2">
+                    <Button className="w-full" onClick={() => handlePlayAudio(audio)} disabled={!audio.url}>
+                      <Headphones className="mr-2 h-4 w-4" />
+                      {audio.progress > 0 ? "Continue Listening" : "Start Listening"}
+                    </Button>
+                    <Button
+                      variant={savedLessons.has(audio.id) ? "default" : "outline"}
+                      className="w-full"
+                      onClick={() => handleSaveLesson(audio)}
+                      disabled={!session?.user?.sessionToken || savedLessons.has(audio.id)}
+                    >
+                      <Bookmark className={`mr-2 h-4 w-4 ${savedLessons.has(audio.id) ? "fill-current" : ""}`} />
+                      {savedLessons.has(audio.id) ? "Saved" : "Save"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -644,9 +713,9 @@ export function LearningModules() {
         </TabsContent>
 
         <TabsContent value="pdfs" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 mb-5 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map((pdf) => (
-              <Card key={pdf.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
+              <Card key={pdf.id} className="hover:shadow-lg transition-shadow flex flex-col h-full ">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -679,6 +748,16 @@ export function LearningModules() {
                     <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={savedLessons.has(pdf.id) ? "default" : "outline"}
+                      className="flex-1 h-10"
+                      onClick={() => handleSaveLesson(pdf)}
+                      disabled={!session?.user?.sessionToken || savedLessons.has(pdf.id)}
+                    >
+                      <Bookmark className={`mr-2 h-3 w-3 ${savedLessons.has(pdf.id) ? "fill-current" : ""}`} />
+                      {savedLessons.has(pdf.id) ? "Saved" : "Save"}
                     </Button>
                   </div>
                 </CardContent>
