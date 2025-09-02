@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -25,6 +25,8 @@ import {
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+
+// Remove local module augmentation; move it to a global .d.ts file for proper type extension
 
 interface Achievement {
   id: number;
@@ -82,6 +84,7 @@ export function Achievements() {
   const [achievementsData, setAchievementsData] = useState<AchievementsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
 
   const handleLogout = async () => {
     console.log("[Achievements] Initiating logout, sessionToken:", session?.user?.sessionToken);
@@ -227,7 +230,7 @@ export function Achievements() {
 
   useEffect(() => {
     const fetchAchievements = async () => {
-      if (status !== "authenticated" || !session?.user?.sessionToken) {
+      if (status !== "authenticated" || !sessionToken) {
         console.log("[Achievements] Session not authenticated, status:", status);
         setError("Not authenticated");
         setAchievementsData(fallbackData);
@@ -236,11 +239,11 @@ export function Achievements() {
       }
 
       try {
-        console.log("[Achievements] Fetching from /api/student/achievements with token:", session.user.sessionToken);
+        console.log("[Achievements] Fetching from /api/student/achievements with token:", sessionToken);
         const response = await fetch("/api/student/achievements", {
           headers: {
             "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+            "X-Session-Token": sessionToken,
           },
         });
         console.log("[Achievements] Fetch response status:", response.status);
@@ -270,7 +273,7 @@ export function Achievements() {
     };
 
     fetchAchievements();
-  }, [session, status]);
+  }, [sessionToken, status]);
 
   if (loading) {
     return (

@@ -116,6 +116,7 @@ export function LearningModules() {
   const [selectedAudio, setSelectedAudio] = useState<Module | null>(null);
   const [selectedModuleName, setSelectedModuleName] = useState<string>("all");
   const [savedLessons, setSavedLessons] = useState<Set<number>>(new Set());
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
 
   const itemsPerPage = 3;
 
@@ -238,7 +239,7 @@ export function LearningModules() {
   useEffect(() => {
     const fetchModules = async () => {
       console.log("[LearningModules] Session status:", status, "Session token:", session?.user?.sessionToken);
-      if (status !== "authenticated" || !session?.user?.sessionToken) {
+      if (status !== "authenticated" || !sessionToken) {
         console.log("[LearningModules] Session not authenticated, status:", status);
         setError("Not authenticated");
         setModules(fallbackData);
@@ -251,7 +252,7 @@ export function LearningModules() {
         const response = await fetch("/api/student/learning-modules", {
           headers: {
             "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+            "X-Session-Token": sessionToken,
           },
         });
         console.log("[LearningModules] Fetch response status:", response.status);
@@ -280,12 +281,12 @@ export function LearningModules() {
     };
 
     fetchModules();
-  }, [session, status]);
+  }, [sessionToken, status]);
 
   useEffect(() => {
     const fetchActiveModules = async () => {
       console.log("[LearningModules] Session status for active modules:", status, "Session token:", session?.user?.sessionToken);
-      if (status !== "authenticated" || !session?.user?.sessionToken) {
+      if (status !== "authenticated" || !sessionToken) {
         console.log("[LearningModules] Skipping active modules fetch, not authenticated");
         setActiveModules([]);
         return;
@@ -296,7 +297,7 @@ export function LearningModules() {
         const response = await fetch("/api/student/modules/active", {
           headers: {
             "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+            "X-Session-Token": sessionToken,
           },
         });
         console.log("[LearningModules] Active modules fetch response status:", response.status);
@@ -321,7 +322,7 @@ export function LearningModules() {
     };
 
     fetchActiveModules();
-  }, [session, status]);
+  }, [sessionToken, status]);
 
   const handleSaveLesson = async (module: Module) => {
     if (!session?.user?.sessionToken) {
@@ -811,10 +812,10 @@ export function LearningModules() {
                       <Eye className="mr-2 h-3 w-3" />
                       Preview
                     </Button>
-                    <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
+                    {/* <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
-                    </Button>
+                    </Button> */}
                     <Button
                       variant={savedLessons.has(pdf.id) ? "default" : "outline"}
                       className="flex-1 h-10"

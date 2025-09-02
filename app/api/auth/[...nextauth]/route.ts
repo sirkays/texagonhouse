@@ -7,7 +7,7 @@ const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 const headers = (sessionToken?: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
 export const authOptions = {
@@ -15,12 +15,8 @@ export const authOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: {label: "Email", type: "email", placeholder: "Enter your email"},
-        password: {
-          label: "Password",
-          type: "password",
-          placeholder: "Enter your password",
-        },
+        email: { label: "Email", type: "email", placeholder: "Enter your email" },
+        password: { label: "Password", type: "password", placeholder: "Enter your password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -43,15 +39,11 @@ export const authOptions = {
           try {
             loginData = JSON.parse(loginRaw);
           } catch {
-            throw new Error(
-              `Invalid login response: ${loginRaw.slice(0, 100)}...`
-            );
+            throw new Error(`Invalid login response: ${loginRaw.slice(0, 100)}...`);
           }
 
           if (!loginResponse.ok) {
-            throw new Error(
-              loginData.detail || `Login failed (${loginResponse.status})`
-            );
+            throw new Error(loginData.detail || `Login failed (${loginResponse.status})`);
           }
 
           const sessionToken = loginData.sessionToken;
@@ -74,16 +66,10 @@ export const authOptions = {
           try {
             data = JSON.parse(rawPostLogin);
           } catch {
-            throw new Error(
-              `Invalid post-login response: ${rawPostLogin.slice(0, 100)}...`
-            );
+            throw new Error(`Invalid post-login response: ${rawPostLogin.slice(0, 100)}...`);
           }
 
-          if (
-            !response.ok ||
-            data.detail !== "User access granted" ||
-            !data.role
-          ) {
+          if (!response.ok || data.detail !== "User access granted" || !data.role) {
             throw new Error(data.detail || "User access not granted");
           }
 
@@ -96,8 +82,7 @@ export const authOptions = {
             expiresAt: loginData.expiresAt,
           };
         } catch (err) {
-          const errorMessage =
-            err instanceof Error ? err.message : "Authentication failed";
+          const errorMessage = err instanceof Error ? err.message : "Authentication failed";
           throw new Error(errorMessage);
         }
       },
@@ -109,17 +94,26 @@ export const authOptions = {
   },
 
   callbacks: {
-    async jwt({token, user}) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.sessionToken = user.sessionToken;
         token.expiresAt = user.expiresAt;
       }
+      // Check if token is expired
+      if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+        console.log("[Auth] Token expired, invalidating:", token.sessionToken);
+        return null; // Invalidate the token
+      }
       return token;
     },
 
-    async session({session, token}) {
+    async session({ session, token }) {
+      if (!token) {
+        console.log("[Auth] No valid token, session invalidated");
+        return { ...session, user: null, expires: new Date().toISOString() };
+      }
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
@@ -135,6 +129,7 @@ export const authOptions = {
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 4 * 60 * 60, // Check session every 4 hours instead of default (0)
   },
 
   cookies: {
@@ -167,4 +162,4 @@ export const authOptions = {
 
 const handler = NextAuth(authOptions);
 
-export {handler as GET, handler as POST};
+export { handler as GET, handler as POST };

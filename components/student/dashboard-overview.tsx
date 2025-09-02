@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, } from "react";
 import {
   Card,
   CardContent,
@@ -35,6 +35,7 @@ export function DashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
 
   // Helper function to capitalize first letters of each word
   const capitalizeName = (name) => {
@@ -115,7 +116,7 @@ export function DashboardOverview() {
       setLoading(false);
     };
     fetchData();
-  }, [session, status]);
+  }, [sessionToken, status]);
 
   if (loading) {
     return (

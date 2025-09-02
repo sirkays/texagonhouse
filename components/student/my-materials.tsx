@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, } from "react";
 import {
   Card,
   CardContent,
@@ -96,6 +96,7 @@ export function MyMaterials() {
   const [data, setData] = useState<{ saved: SavedItem; notes: Note[]; bookmarks: Bookmark[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
 
   // Fallback data for UI stability
   const fallbackData = {
@@ -179,7 +180,7 @@ export function MyMaterials() {
   };
 
   const handleLogout = async () => {
-    console.log("[MyMaterials] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    console.log("[MyMaterials] Initiating logout, sessionToken:", sessionToken);
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
@@ -207,7 +208,7 @@ export function MyMaterials() {
   useEffect(() => {
     const fetchData = async () => {
       console.log("[MyMaterials] Initiating fetch for /api/student/materials");
-      if (status !== "authenticated" || !session?.user?.sessionToken) {
+      if (status !== "authenticated" || !sessionToken) {
         console.log("[MyMaterials] Session not authenticated, status:", status, "sessionToken:", session?.user?.sessionToken);
         setError("Not authenticated");
         setLoading(false);
@@ -219,7 +220,7 @@ export function MyMaterials() {
         const res = await fetch("/api/student/materials", {
           headers: {
             "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+            "X-Session-Token": sessionToken,
           },
         });
         console.log("[MyMaterials] Fetch response status:", res.status);
@@ -247,7 +248,7 @@ export function MyMaterials() {
       setLoading(false);
     };
     fetchData();
-  }, [session, status]);
+  }, [sessionToken, status]);
 
   if (loading) {
     return (

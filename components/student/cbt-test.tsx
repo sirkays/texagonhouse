@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, } from "react";
 import {
   Card,
   CardContent,
@@ -71,6 +71,7 @@ export function CBTTest() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
 
   const handleLogout = async () => {
     console.log("[CBTTest] Initiating logout, sessionToken:", session?.user?.sessionToken);
@@ -143,7 +144,7 @@ export function CBTTest() {
     };
 
     fetchTests();
-  }, [session, status]);
+  }, [sessionToken, status]);
 
   // Pagination logic
   const indexOfLastTest = currentPage * testsPerPage;
