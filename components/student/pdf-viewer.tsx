@@ -65,7 +65,9 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
             <Button variant="outline" size="sm" onClick={handleZoomOut}>
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium">{(zoom * 100).toFixed(0)}%</span>
+            <span className="text-sm font-medium">
+              {(zoom * 100).toFixed(0)}%
+            </span>
             <Button variant="outline" size="sm" onClick={handleZoomIn}>
               <ZoomIn className="h-4 w-4" />
             </Button>
@@ -106,8 +108,12 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
           ) : !pdfUrl ? (
             <div className="w-full h-full flex items-center justify-center text-center text-gray-500">
               <div>
-                <div className="text-lg font-semibold mb-2">No PDF Available</div>
-                <div className="text-sm">Please check the PDF URL or try again.</div>
+                <div className="text-lg font-semibold mb-2">
+                  No PDF Available
+                </div>
+                <div className="text-sm">
+                  Please check the PDF URL or try again.
+                </div>
               </div>
             </div>
           ) : (
@@ -119,15 +125,32 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
                 height: "100%",
               }}
             >
-              <iframe
-                src={iframeSrc}
-                className="w-full h-full border-0"
-                title={title}
-                onError={(e) => {
-                  console.error("[PDFViewer] Failed to load PDF in iframe:", e);
-                  setError("Failed to load PDF. Please try downloading the file.");
+              <div
+                style={{
+                  transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                  transformOrigin: "center",
+                  width: "100%",
+                  height: "100%",
                 }}
-              />
+              >
+                {pdfUrl && (
+                  <object
+                    data={pdfUrl}
+                    type="application/pdf"
+                    className="w-full h-full"
+                    onError={() =>
+                      setError("Failed to load PDF. Try downloading instead.")
+                    }
+                  >
+                    <iframe
+                      src={`https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(
+                        pdfUrl
+                      )}`}
+                      className="w-full h-full border-0"
+                    />
+                  </object>
+                )}
+              </div>
             </div>
           )}
         </div>

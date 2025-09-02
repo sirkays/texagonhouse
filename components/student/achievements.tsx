@@ -348,10 +348,10 @@ export function Achievements() {
       </div>
 
       <Tabs defaultValue="achievements" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="achievements">Achievements</TabsTrigger>
-          <TabsTrigger value="badges">Badges</TabsTrigger>
-          <TabsTrigger value="progress">In Progress</TabsTrigger>
+        <TabsList className=''>
+          <TabsTrigger value="achievements" className='w-full '>Achievements</TabsTrigger>
+          <TabsTrigger value="badges" className='w-full'>Badges</TabsTrigger>
+          <TabsTrigger value="progress" className='w-full'>In Progress</TabsTrigger>
         </TabsList>
 
         <TabsContent value="achievements" className="space-y-4">

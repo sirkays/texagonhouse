@@ -425,7 +425,7 @@ export function MyMaterials() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col flex-1">
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
                         <span>{video.progress}%</span>
@@ -436,7 +436,7 @@ export function MyMaterials() {
                           style={{ width: `${video.progress}%` }}
                         />
                       </div>
-                    </div>
+                    </div> */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -477,7 +477,7 @@ export function MyMaterials() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col flex-1">
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
                         <span>{audio.progress}%</span>
@@ -488,7 +488,7 @@ export function MyMaterials() {
                           style={{ width: `${audio.progress}%` }}
                         />
                       </div>
-                    </div>
+                    </div> */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />

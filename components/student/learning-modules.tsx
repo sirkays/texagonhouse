@@ -76,6 +76,12 @@ interface ModulesData {
   tutorials: Module[];
 }
 
+interface ActiveModule {
+  id: number;
+  name: string;
+  courseName: string;
+}
+
 const StarRating = ({ popularity }: { popularity: number | null }) => {
   if (!popularity || popularity <= 0) return null;
   const maxStars = 5;
@@ -101,13 +107,14 @@ export function LearningModules() {
     tutorials: 1,
   });
   const [modules, setModules] = useState<ModulesData | null>(null);
+  const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Module | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<Module | null>(null);
-  const [selectedModuleOrder, setSelectedModuleOrder] = useState<string>("all");
+  const [selectedModuleName, setSelectedModuleName] = useState<string>("all");
   const [savedLessons, setSavedLessons] = useState<Set<number>>(new Set());
 
   const itemsPerPage = 3;
@@ -241,6 +248,39 @@ export function LearningModules() {
     fetchModules();
   }, [session, status]);
 
+  // Fetch active modules
+  useEffect(() => {
+    const fetchActiveModules = async () => {
+      if (status !== "authenticated" || !session?.user?.sessionToken) {
+        console.log("[LearningModules] Skipping active modules fetch, not authenticated");
+        return;
+      }
+
+      try {
+        console.log("[LearningModules] Fetching from /api/student/modules/active with token:", session.user.sessionToken);
+        const response = await fetch("/api/student/modules/active", {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[LearningModules] Active modules fetch response status:", response.status);
+        if (!response.ok) {
+          console.error("[LearningModules] Active modules fetch failed with status:", response.status);
+          throw new Error("Failed to fetch active modules");
+        }
+        const data = await response.json();
+        console.log("[LearningModules] Active modules fetch response data:", data);
+        setActiveModules(data);
+      } catch (e) {
+        console.error("[LearningModules] Active modules fetch error:", e);
+        setActiveModules([]);
+      }
+    };
+
+    fetchActiveModules();
+  }, [session, status]);
+
   const handleSaveLesson = async (module: Module) => {
     if (!session?.user?.sessionToken) {
       toast.error("Please log in to save lessons");
@@ -287,35 +327,28 @@ export function LearningModules() {
     }
   };
 
-  // Compute unique module_order values for dropdown
-  const moduleOrderOptions = useMemo(() => {
-    const data = modules || fallbackData;
-    const allModules = [
-      ...data.videos,
-      ...data.audio,
-      ...data.pdfs,
-      ...data.tutorials,
-    ];
-    const moduleOrders = Array.from(
-      new Set(allModules.map((module) => module.module_order).filter((order) => order !== undefined && order !== null))
-    ).sort((a, b) => a - b);
-    return moduleOrders.length > 0 ? moduleOrders : [1];
-  }, [modules]);
+  // Compute unique module names for dropdown
+  const moduleNameOptions = useMemo(() => {
+    const modulesToUse = activeModules.length > 0 ? activeModules : [];
+    return modulesToUse.sort((a, b) => a.name.localeCompare(b.name));
+  }, [activeModules]);
 
-  // Filter modules based on selected module_order
+  // Filter modules based on selected module name
   const filteredModules = useMemo(() => {
     const data = modules || fallbackData;
-    if (selectedModuleOrder === "all") return data;
-    const moduleOrder = parseInt(selectedModuleOrder);
+    if (selectedModuleName === "all") return data;
+    const selectedModule = moduleNameOptions.find((m) => m.name === selectedModuleName);
+    if (!selectedModule) return data;
+    const courseName = selectedModule.courseName;
     return {
-      videos: data.videos.filter((video) => video.module_order === moduleOrder),
-      audio: data.audio.filter((audio) => audio.module_order === moduleOrder),
-      pdfs: data.pdfs.filter((pdf) => pdf.module_order === moduleOrder),
-      docs: data.docs.filter((doc) => doc.module_order === moduleOrder),
-      links: data.links.filter((link) => link.module_order === moduleOrder),
-      tutorials: data.tutorials.filter((tutorial) => tutorial.module_order === moduleOrder),
+      videos: data.videos.filter((video) => video.course === courseName),
+      audio: data.audio.filter((audio) => audio.course === courseName),
+      pdfs: data.pdfs.filter((pdf) => pdf.course === courseName),
+      docs: data.docs.filter((doc) => doc.course === courseName),
+      links: data.links.filter((link) => link.course === courseName),
+      tutorials: data.tutorials.filter((tutorial) => tutorial.course === courseName),
     };
-  }, [modules, selectedModuleOrder]);
+  }, [modules, selectedModuleName]);
 
   const getPaginatedItems = (items: any[], page: number) => {
     if (!items) return [];
@@ -516,24 +549,24 @@ export function LearningModules() {
       </div>
 
       <div className="flex items-center gap-4">
-        <label htmlFor="module-order-filter" className="text-sm font-medium">
-          Filter by Module Order:
+        <label htmlFor="module-name-filter" className="text-sm font-medium">
+          Filter by Module:
         </label>
         <Select
-          value={selectedModuleOrder}
+          value={selectedModuleName}
           onValueChange={(value) => {
-            setSelectedModuleOrder(value);
+            setSelectedModuleName(value);
             setCurrentPage({ videos: 1, audio: 1, pdfs: 1, tutorials: 1 });
           }}
         >
-          <SelectTrigger id="module-order-filter" className="w-[180px]">
-            <SelectValue placeholder="Select module order" />
+          <SelectTrigger id="module-name-filter" className="w-[180px]">
+            <SelectValue placeholder="Select module" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Modules</SelectItem>
-            {moduleOrderOptions.map((order) => (
-              <SelectItem key={order} value={order.toString()}>
-                Module {order}
+            {moduleNameOptions.map((module) => (
+              <SelectItem key={module.id} value={module.name}>
+                {module.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -546,11 +579,11 @@ export function LearningModules() {
             <Video className="h-4 w-4" />
             Video
           </TabsTrigger>
-          <TabsTrigger value="audio" className="flex items-center gap-2 w-full ">
+          <TabsTrigger value="audio" className="flex items-center gap-2 w-full">
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
-          <TabsTrigger value="pdfs" className="flex items-center gap-2 w-full ">
+          <TabsTrigger value="pdfs" className="flex items-center gap-2 w-full">
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
@@ -715,7 +748,7 @@ export function LearningModules() {
         <TabsContent value="pdfs" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map((pdf) => (
-              <Card key={pdf.id} className="hover:shadow-lg transition-shadow flex flex-col h-full ">
+              <Card key={pdf.id} className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -740,17 +773,16 @@ export function LearningModules() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-auto pt-4 flex gap-2">
-                    <Button size="sm" className="flex-1 h-10" onClick={() => handlePreviewPdf(pdf)} disabled={!pdf.url}>
+                  <div className="mt-auto pt-4 flex flex-col gap-2">
+                    <Button className="flex-1" onClick={() => handlePreviewPdf(pdf)} disabled={!pdf.url}>
                       <Eye className="mr-2 h-3 w-3" />
                       Preview
                     </Button>
-                    <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
+                    <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
                     </Button>
                     <Button
-                      size="sm"
                       variant={savedLessons.has(pdf.id) ? "default" : "outline"}
                       className="flex-1 h-10"
                       onClick={() => handleSaveLesson(pdf)}
