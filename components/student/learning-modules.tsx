@@ -209,8 +209,35 @@ export function LearningModules() {
     ],
   };
 
+  const handleLogout = async () => {
+    console.log("[LearningModules] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log("[LearningModules] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[LearningModules] Logout API response:", data);
+      if (!response.ok) {
+        console.error("[LearningModules] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
+      }
+      console.log("[LearningModules] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[LearningModules] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
+  };
+
   useEffect(() => {
     const fetchModules = async () => {
+      console.log("[LearningModules] Session status:", status, "Session token:", session?.user?.sessionToken);
       if (status !== "authenticated" || !session?.user?.sessionToken) {
         console.log("[LearningModules] Session not authenticated, status:", status);
         setError("Not authenticated");
@@ -230,17 +257,24 @@ export function LearningModules() {
         console.log("[LearningModules] Fetch response status:", response.status);
         if (!response.ok) {
           console.error("[LearningModules] Fetch failed with status:", response.status);
-          setError(response.status === 403 ? "Session expired" : "Failed to fetch modules");
+          if (response.status === 401 || response.status === 403) {
+            setError("Session expired");
+            setModules(null);
+            setLoading(false);
+            return;
+          }
+          setError("Failed to fetch modules");
           setModules(fallbackData);
           throw new Error("Fetch failed");
         }
         const data = await response.json();
         console.log("[LearningModules] Fetch response data:", data);
         setModules(data);
+        setError(null);
       } catch (e) {
         console.error("[LearningModules] Fetch error:", e);
-        setError("Failed to fetch modules");
-        setModules(fallbackData);
+        setError("Session expired");
+        setModules(null);
       }
       setLoading(false);
     };
@@ -248,11 +282,12 @@ export function LearningModules() {
     fetchModules();
   }, [session, status]);
 
-  // Fetch active modules
   useEffect(() => {
     const fetchActiveModules = async () => {
+      console.log("[LearningModules] Session status for active modules:", status, "Session token:", session?.user?.sessionToken);
       if (status !== "authenticated" || !session?.user?.sessionToken) {
         console.log("[LearningModules] Skipping active modules fetch, not authenticated");
+        setActiveModules([]);
         return;
       }
 
@@ -267,13 +302,20 @@ export function LearningModules() {
         console.log("[LearningModules] Active modules fetch response status:", response.status);
         if (!response.ok) {
           console.error("[LearningModules] Active modules fetch failed with status:", response.status);
+          if (response.status === 401 || response.status === 403) {
+            setError("Session expired");
+            setActiveModules([]);
+            return;
+          }
           throw new Error("Failed to fetch active modules");
         }
         const data = await response.json();
         console.log("[LearningModules] Active modules fetch response data:", data);
         setActiveModules(data);
+        setError(null);
       } catch (e) {
         console.error("[LearningModules] Active modules fetch error:", e);
+        setError("Session expired");
         setActiveModules([]);
       }
     };
@@ -308,12 +350,16 @@ export function LearningModules() {
         const errorData = await response.json();
         console.error("[LearningModules] Save failed:", response.status, errorData);
         if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          setModules(null);
           toast.error("Session expired, please log in again");
-        } else if (response.status === 404) {
-          toast.error("Lesson not found");
-        } else {
-          toast.error("Failed to save lesson");
+          return;
         }
+        if (response.status === 404) {
+          toast.error("Lesson not found");
+          return;
+        }
+        toast.error("Failed to save lesson");
         return;
       }
 
@@ -323,17 +369,17 @@ export function LearningModules() {
       toast.success("Lesson saved!");
     } catch (error) {
       console.error("[LearningModules] Save error:", error);
-      toast.error("Failed to save lesson");
+      setError("Session expired");
+      setModules(null);
+      toast.error("Session expired, please log in again");
     }
   };
 
-  // Compute unique module names for dropdown
   const moduleNameOptions = useMemo(() => {
     const modulesToUse = activeModules.length > 0 ? activeModules : [];
     return modulesToUse.sort((a, b) => a.name.localeCompare(b.name));
   }, [activeModules]);
 
-  // Filter modules based on selected module name
   const filteredModules = useMemo(() => {
     const data = modules || fallbackData;
     if (selectedModuleName === "all") return data;
@@ -378,7 +424,6 @@ export function LearningModules() {
               }
             />
           </PaginationItem>
-
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
@@ -388,13 +433,11 @@ export function LearningModules() {
               </PaginationLink>
             </PaginationItem>
           )}
-
           {current > 3 && (
             <PaginationItem>
               <PaginationEllipsis />
             </PaginationItem>
           )}
-
           {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
@@ -409,13 +452,11 @@ export function LearningModules() {
                 </PaginationLink>
               </PaginationItem>
             ))}
-
           {current < totalPages - 2 && (
             <PaginationItem>
               <PaginationEllipsis />
             </PaginationItem>
           )}
-
           {current < totalPages - 1 && (
             <PaginationItem>
               <PaginationLink
@@ -427,7 +468,6 @@ export function LearningModules() {
               </PaginationLink>
             </PaginationItem>
           )}
-
           <PaginationItem>
             <PaginationNext
               onClick={() =>
@@ -499,7 +539,7 @@ export function LearningModules() {
     );
   }
 
-  if (error === "Session expired" || error === "Not authenticated") {
+  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
@@ -510,7 +550,7 @@ export function LearningModules() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => window.location.href = "/login"} className="flex items-center gap-2">
+            <Button onClick={handleLogout} className="flex items-center gap-2">
               <Play className="h-4 w-4" />
               Log In Again
             </Button>
@@ -640,13 +680,6 @@ export function LearningModules() {
                       </div>
                     )}
                   </div>
-                  {/* <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{video.progress}%</span>
-                    </div>
-                    <Progress value={video.progress} className="h-2" />
-                  </div> */}
                   <div className="mt-auto flex flex-col gap-2">
                     <Button className="w-full" onClick={() => handlePlayVideo(video)} disabled={!video.url}>
                       {video.progress === 100 ? (

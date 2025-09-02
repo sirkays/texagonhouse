@@ -178,6 +178,32 @@ export function MyMaterials() {
     bookmarks: [],
   };
 
+  const handleLogout = async () => {
+    console.log("[MyMaterials] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log("[MyMaterials] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[MyMaterials] Logout API response:", data);
+      if (!response.ok) {
+        console.error("[MyMaterials] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
+      }
+      console.log("[MyMaterials] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[MyMaterials] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       console.log("[MyMaterials] Initiating fetch for /api/student/materials");
@@ -199,23 +225,24 @@ export function MyMaterials() {
         console.log("[MyMaterials] Fetch response status:", res.status);
         if (!res.ok) {
           console.error("[MyMaterials] Fetch failed with status:", res.status);
-          if (res.status === 401) {
+          if (res.status === 401 || res.status === 403) {
             setError("Session expired");
-          } else {
-            setError(res.status === 404 ? "Materials endpoint not found" : "Failed to fetch materials");
-            setData(fallbackData); // Use fallback data on error
+            setData(null); // Prevent fallback data on session expiry
+            setLoading(false);
+            return;
           }
+          setError(res.status === 404 ? "Materials endpoint not found" : "Failed to fetch materials");
+          setData(fallbackData); // Use fallback data for other errors
           throw new Error("Fetch failed");
         }
         const json = await res.json();
         console.log("[MyMaterials] Fetch response data:", json);
         setData(json);
+        setError(null); // Clear error on success
       } catch (e) {
         console.error("[MyMaterials] Fetch error:", e);
-        if (!error) {
-          setError("Failed to fetch materials");
-          setData(fallbackData); // Use fallback data on error
-        }
+        setError("Session expired"); // Assume session expiry for any error when authenticated
+        setData(null); // Prevent fallback data
       }
       setLoading(false);
     };
@@ -230,7 +257,7 @@ export function MyMaterials() {
     );
   }
 
-  if (error === "Session expired" || error === "Not authenticated") {
+  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
@@ -241,28 +268,7 @@ export function MyMaterials() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button
-              onClick={async () => {
-                console.log("[MyMaterials] Initiating logout via /api/auth/logout-route");
-                try {
-                  const res = await fetch("/api/auth/logout-route", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "X-Session-Token": session?.user?.sessionToken || "",
-                    },
-                  });
-                  console.log("[MyMaterials] Logout route response status:", res.status);
-                  const json = await res.json();
-                  console.log("[MyMaterials] Logout route response data:", json);
-                } catch (e) {
-                  console.error("[MyMaterials] Logout route error:", e);
-                }
-                console.log("[MyMaterials] Redirecting to /login");
-                router.push("/login");
-              }}
-              className="flex items-center gap-2"
-            >
+            <Button onClick={handleLogout} className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Log In Again
             </Button>

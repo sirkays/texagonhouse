@@ -30,10 +30,10 @@ import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 
 export function DashboardOverview() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   // Helper function to capitalize first letters of each word
@@ -45,11 +45,37 @@ export function DashboardOverview() {
       .join(" ");
   };
 
+  const handleLogout = async () => {
+    console.log("[DashboardOverview] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log("[DashboardOverview] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[DashboardOverview] Logout API response:", data);
+      if (!response.ok) {
+        console.error("[DashboardOverview] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
+      }
+      console.log("[DashboardOverview] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[DashboardOverview] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       console.log("[DashboardOverview] Initiating fetch for /api/student/dashboard-overview");
-      if (!session?.user?.sessionToken) {
-        console.log("[DashboardOverview] No session token found");
+      if (status !== "authenticated" || !session?.user?.sessionToken) {
+        console.log("[DashboardOverview] Session not authenticated, status:", status, "sessionToken:", session?.user?.sessionToken);
         setError("Not authenticated");
         setLoading(false);
         return;
@@ -67,24 +93,29 @@ export function DashboardOverview() {
         console.log("[DashboardOverview] Fetch response status:", res.status);
         if (!res.ok) {
           console.error("[DashboardOverview] Fetch failed with status:", res.status);
-          if (res.status === 401) {
+          if (res.status === 401 || res.status === 403) {
             setError("Session expired");
-          } else {
-            setError("Failed to fetch data");
+            setData(null); // Prevent fallback data on session expiry
+            setLoading(false);
+            return;
           }
+          setError("Failed to fetch data");
+          setData(null); // Use null for other errors to trigger error state
           throw new Error("Fetch failed");
         }
         const json = await res.json();
         console.log("[DashboardOverview] Fetch response data:", json);
         setData(json);
+        setError(null); // Clear error on success
       } catch (e) {
         console.error("[DashboardOverview] Fetch error:", e);
-        if (!error) setError("Failed to fetch data");
+        setError("Session expired"); // Assume session expiry for any error when authenticated
+        setData(null);
       }
       setLoading(false);
     };
     fetchData();
-  }, [session, error]);
+  }, [session, status]);
 
   if (loading) {
     return (
@@ -93,39 +124,19 @@ export function DashboardOverview() {
       </div>
     );
   }
-  if (error === "Session expired") {
+
+  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
             <CardDescription className="text-center">
-              Your session has expired. Please log in again to continue.
+              Your session has expired or you are not authenticated. Please log in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button
-              onClick={async () => {
-                console.log("[DashboardOverview] Initiating logout via /api/auth/logout-route");
-                try {
-                  const res = await fetch("/api/auth/logout-route", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "X-Session-Token": session?.user?.sessionToken || "",
-                    },
-                  });
-                  console.log("[DashboardOverview] Logout route response status:", res.status);
-                  const json = await res.json();
-                  console.log("[DashboardOverview] Logout route response data:", json);
-                } catch (e) {
-                  console.error("[DashboardOverview] Logout route error:", e);
-                }
-                console.log("[DashboardOverview] Redirecting to /login");
-                router.push("/login");
-              }}
-              className="flex items-center gap-2"
-            >
+            <Button onClick={handleLogout} className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Log In Again
             </Button>
@@ -134,7 +145,25 @@ export function DashboardOverview() {
       </div>
     );
   }
-  if (error && !data) return <div className="p-6">Error: {error}</div>;
+
+  if (error && !data) {
+    return (
+      <div className="p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardDescription className="text-center">{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const recentCourses = data?.recent_courses ?? [
     {

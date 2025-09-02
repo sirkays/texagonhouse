@@ -1,21 +1,26 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Download, Copy, RotateCcw, AlertCircle } from "lucide-react"
+import { Play, Download, Copy, RotateCcw, AlertCircle, LogIn } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useSession } from "next-auth/react"
+import { Spinner } from "@/components/ui/spinner"
 
 export function CodeEditor() {
+  const { data: session, status } = useSession()
   const [selectedLanguage, setSelectedLanguage] = useState("javascript")
   const [code, setCode] = useState("")
   const [output, setOutput] = useState("")
   const [isRunning, setIsRunning] = useState(false)
   const [htmlPreview, setHtmlPreview] = useState("")
   const [executionError, setExecutionError] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const languages = {
@@ -249,28 +254,63 @@ body {
     },
   }
 
-  const handleLanguageChange = (language: string) => {
-    setSelectedLanguage(language)
-    setCode(languages[language as keyof typeof languages].template)
-    setOutput("")
-    setHtmlPreview("")
-    setExecutionError("")
+  const handleLogout = async () => {
+    console.log("[CodeEditor] Initiating logout, sessionToken:", session?.user?.sessionToken)
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      console.log("[CodeEditor] Logout API response status:", response.status)
+      const data = await response.json()
+      console.log("[CodeEditor] Logout API response:", data)
+      if (!response.ok) {
+        console.error("[CodeEditor] Logout failed:", data)
+        throw new Error(data.error || "Logout failed")
+      }
+      console.log("[CodeEditor] Logout successful, redirecting to /login")
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure"
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure"
+      window.location.href = "/login"
+    } catch (error) {
+      console.error("[CodeEditor] Logout error:", error)
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure"
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure"
+      window.location.href = "/login"
+    }
   }
 
-  // Execute code using Judge0 API
+  useEffect(() => {
+    console.log("[CodeEditor] Checking authentication status:", status, "sessionToken:", session?.user?.sessionToken)
+    if (status === "loading") {
+      setLoading(true)
+    } else if (status !== "authenticated" || !session?.user?.sessionToken) {
+      console.log("[CodeEditor] Session not authenticated")
+      setError("Not authenticated")
+      setLoading(false)
+    } else {
+      setError(null)
+      setLoading(false)
+      setCode(languages[selectedLanguage].template)
+    }
+  }, [session, status, selectedLanguage])
+
   const executeCodeOnline = async (sourceCode: string, languageId: number) => {
+    console.log("[CodeEditor] Executing code online, languageId:", languageId)
     try {
-      // Submit code for execution
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+      }
+      if (session?.user?.sessionToken) {
+        headers["X-Session-Token"] = session.user.sessionToken
+      }
       const submitResponse = await fetch(
         "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // Replace "your-rapidapi-key-here" with your actual RapidAPI Key
-            "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
-            "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-          },
+          headers,
           body: JSON.stringify({
             source_code: sourceCode,
             language_id: languageId,
@@ -279,37 +319,40 @@ body {
         },
       )
 
+      console.log("[CodeEditor] Judge0 API response status:", submitResponse.status)
       if (!submitResponse.ok) {
+        console.error("[CodeEditor] Judge0 API failed with status:", submitResponse.status)
+        if (submitResponse.status === 401 || submitResponse.status === 403) {
+          setError("Session expired")
+          return "Session expired. Please log in again."
+        }
         throw new Error("Failed to submit code for execution")
       }
 
       const result = await submitResponse.json()
+      console.log("[CodeEditor] Judge0 API response:", result)
+      setError(null)
 
       if (result.status?.id === 3) {
-        // Accepted
         return result.stdout || "Code executed successfully (no output)"
       } else if (result.status?.id === 6) {
-        // Compilation Error
         return `Compilation Error:\n${result.compile_output || result.stderr}`
       } else if (result.status?.id === 5) {
-        // Time Limit Exceeded
         return "Error: Time Limit Exceeded"
       } else if (result.status?.id === 4) {
-        // Wrong Answer
         return `Runtime Error:\n${result.stderr}`
       } else {
         return result.stderr || result.stdout || "Unknown execution error"
       }
     } catch (error) {
-      console.error("Code execution error:", error)
+      console.error("[CodeEditor] Code execution error:", error)
+      setError("Session expired")
       return `Network Error: Unable to execute code. ${error}`
     }
   }
 
-  // Fallback local execution for demonstration
   const executeCodeLocally = async (sourceCode: string, language: string) => {
-    // This is a fallback when the online API is not available
-    // In a real implementation, you might want to use WebAssembly or other solutions
+    console.log("[CodeEditor] Executing code locally, language:", language)
     const simulatedOutputs = {
       python: `Hello, World!
 Factorial of 5: 120
@@ -326,19 +369,16 @@ Original vector: 1 2 3 4 5
 Doubled vector: 2 4 6 8 10 `,
     }
 
-    // Simulate execution delay
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    // Try to parse and execute simple operations
     try {
       if (language === "python" && sourceCode.includes("print")) {
-        // Simple Python execution simulation
         const lines = sourceCode.split("\n")
         const outputs: string[] = []
 
         for (const line of lines) {
           if (line.trim().startsWith("print(") && line.includes('"')) {
-            const match = line.match(/print$$"([^"]+)"$$/)
+            const match = line.match(/print\("([^"]+)"\)/)
             if (match) {
               outputs.push(match[1])
             }
@@ -362,8 +402,13 @@ Doubled vector: 2 4 6 8 10 `,
     setExecutionError("")
 
     try {
+      if (error === "Session expired" || error === "Not authenticated") {
+        setOutput("Session expired. Please log in again.")
+        setIsRunning(false)
+        return
+      }
+
       if (selectedLanguage === "javascript") {
-        // Client-side JavaScript execution
         const logs: string[] = []
         const originalLog = console.log
         console.log = (...args) => {
@@ -408,16 +453,13 @@ Doubled vector: 2 4 6 8 10 `,
         setHtmlPreview(htmlWithCSS)
         setOutput("CSS applied to preview template")
       } else {
-        // Real-time execution for Python, Java, C++
         const languageConfig = languages[selectedLanguage as keyof typeof languages]
 
         if (languageConfig.judgeId) {
           try {
-            // Try online execution first
             const result = await executeCodeOnline(code, languageConfig.judgeId)
             setOutput(result)
           } catch (error) {
-            // Fallback to local simulation
             setExecutionError("Online execution unavailable. Using local simulation.")
             const result = await executeCodeLocally(code, selectedLanguage)
             setOutput(result)
@@ -465,6 +507,14 @@ Doubled vector: 2 4 6 8 10 `,
     setExecutionError("")
   }
 
+  const handleLanguageChange = (language: string) => {
+    setSelectedLanguage(language)
+    setCode(languages[language as keyof typeof languages].template)
+    setOutput("")
+    setHtmlPreview("")
+    setExecutionError("")
+  }
+
   const handleCodeChange = (value: string) => {
     setCode(value)
     if (selectedLanguage === "html") {
@@ -496,6 +546,35 @@ Doubled vector: 2 4 6 8 10 `,
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
+    )
+  }
+
+  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardDescription className="text-center">
+              Your session has expired or you are not authenticated. Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={handleLogout} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -513,7 +592,6 @@ Doubled vector: 2 4 6 8 10 `,
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Code Editor */}
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -545,7 +623,7 @@ Doubled vector: 2 4 6 8 10 `,
               className="flex-1 font-mono text-sm resize-none min-h-[400px]"
             />
             <div className="flex gap-2 mt-4">
-              <Button onClick={runCode} disabled={isRunning} className="flex-1">
+              <Button onClick={runCode} disabled={isRunning || !!error} className="flex-1">
                 <Play className="mr-2 h-4 w-4" />
                 {isRunning ? "Executing..." : "Run Code"}
               </Button>
@@ -559,7 +637,6 @@ Doubled vector: 2 4 6 8 10 `,
           </CardContent>
         </Card>
 
-        {/* Output/Preview */}
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>

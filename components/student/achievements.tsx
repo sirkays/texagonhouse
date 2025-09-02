@@ -20,8 +20,10 @@ import {
   Medal,
   Crown,
   Gem,
+  LogIn,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 interface Achievement {
@@ -80,6 +82,32 @@ export function Achievements() {
   const [achievementsData, setAchievementsData] = useState<AchievementsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    console.log("[Achievements] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log("[Achievements] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[Achievements] Logout API response:", data);
+      if (!response.ok) {
+        console.error("[Achievements] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
+      }
+      console.log("[Achievements] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[Achievements] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
+  };
 
   // Fallback data for UI stability
   const fallbackData: AchievementsData = {
@@ -218,19 +246,27 @@ export function Achievements() {
         console.log("[Achievements] Fetch response status:", response.status);
         if (!response.ok) {
           console.error("[Achievements] Fetch failed with status:", response.status);
-          setError(response.status === 401 ? "Session expired" : "Failed to fetch achievements");
+          if (response.status === 401 || response.status === 403) {
+            setError("Session expired");
+            setAchievementsData(fallbackData);
+            setLoading(false);
+            return;
+          }
+          setError("Failed to fetch achievements");
           setAchievementsData(fallbackData);
           throw new Error("Fetch failed");
         }
         const data = await response.json();
         console.log("[Achievements] Fetch response data:", data);
         setAchievementsData(data);
+        setError(null);
       } catch (e) {
         console.error("[Achievements] Fetch error:", e);
-        setError("Failed to fetch achievements");
+        setError("Session expired");
         setAchievementsData(fallbackData);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchAchievements();
@@ -244,7 +280,7 @@ export function Achievements() {
     );
   }
 
-  if (error === "Session expired" || error === "Not authenticated") {
+  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
@@ -255,8 +291,8 @@ export function Achievements() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => window.location.href = "/login"} className="flex items-center gap-2">
-              <Trophy className="h-4 w-4" />
+            <Button onClick={handleLogout} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
               Log In Again
             </Button>
           </CardContent>
@@ -349,7 +385,7 @@ export function Achievements() {
 
       <Tabs defaultValue="achievements" className="space-y-4">
         <TabsList className=''>
-          <TabsTrigger value="achievements" className='w-full '>Achievements</TabsTrigger>
+          <TabsTrigger value="achievements" className='w-full'>Achievements</TabsTrigger>
           <TabsTrigger value="badges" className='w-full'>Badges</TabsTrigger>
           <TabsTrigger value="progress" className='w-full'>In Progress</TabsTrigger>
         </TabsList>
