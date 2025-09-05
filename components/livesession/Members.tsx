@@ -35,7 +35,7 @@ const Members = ({call}: MembersProps) => {
           return (
             <Image
               key={user.id} // Unique key for React list rendering
-              src={user.email} // User avatar image
+              src={'/assets/images/avatar-1.svg'} // User avatar image
               alt="attendees"
               width={40} // Image width
               height={40} // Image height
