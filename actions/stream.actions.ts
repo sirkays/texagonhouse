@@ -4,8 +4,9 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {StreamClient} from "@stream-io/node-sdk";
 
-const streamApiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
-const streamSecretKey = process.env.STREAM_SECRET_KEY;
+const streamApiKey = "cx85x7gj2dxr";
+const streamSecretKey =
+  "u35v7mqqwfcqdcr544w92kj39r6mm5cxxszqkmgdcmna23m7tn75candrdjw3k2h";
 
 export const tokenProvider = async () => {
   const session = await getServerSession(authOptions);

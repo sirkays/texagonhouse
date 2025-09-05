@@ -47,7 +47,7 @@ const MyRoomPage = () => {
     router.push(`/main/meeting/${meetingId}`);
   };
 
-  const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${
+  const meetingLink = `https://texagon.epichouse.online/main/meeting/${
     meetingId || "unknown"
   }`;
 
