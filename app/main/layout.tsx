@@ -12,7 +12,7 @@ const MainLayout = async ({children}: {children: React.ReactNode}) => {
     return (
       <main className="flex flex-col items-center p-5 gap-10 animate-fade-in">
         <section className="flex flex-col items-center">
-          <Image src="logo.svg" width={100} height={100} alt="Logo" />
+          <Image src="/logo.svg" width={100} height={100} alt="Logo" />
           <h1 className="text-lg font-extrabold text-sky-1 lg:text-2xl">
             Connect, Communicate, Collaborate in Real-Time
           </h1>
@@ -20,7 +20,7 @@ const MainLayout = async ({children}: {children: React.ReactNode}) => {
         <div className="w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-lg border border-border bg-background shadow-md p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <Image
-              src="logo.svg"
+              src="/logo.svg"
               width={24}
               height={24}
               alt="EduPlatform Logo"

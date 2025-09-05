@@ -84,7 +84,7 @@ const MyRoomPage = () => {
                 "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
             });
           }}>
-          <Image src="copy.svg" alt="copy" width={20} height={20} />
+          <Image src="/copy.svg" alt="copy" width={20} height={20} />
           Copy Invitation
         </Button>
       </div>

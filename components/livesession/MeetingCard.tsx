@@ -93,7 +93,7 @@ const MeetingCard = ({
                 });
               }}>
               {/* Copy icon */}
-              <Image src="copy.svg" alt="copy" width={20} height={20} />
+              <Image src="/copy.svg" alt="copy" width={20} height={20} />
               &nbsp; Copy Link
             </Button>
           </div>

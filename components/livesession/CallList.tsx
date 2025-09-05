@@ -106,7 +106,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
   return (
     <Alert
       title="No calls available" // Alert title
-      iconUrl="no-calls.svg" // Alert icon
+      iconUrl="/no-calls.svg" // Alert icon
     />
   );
 };
