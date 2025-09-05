@@ -50,7 +50,7 @@ const StatusBar = () => {
           src="/home-image.svg"
           width={400}
           height={400}
-          alt="home image"
+          alt="/home image"
           className="max-md:hidden -ml-16"
         />
       </section>
@@ -69,7 +69,7 @@ const StatusBar = () => {
       <DateAndTime />
       {/* Display an image with specific styles */}
       <Image
-        src="home-image.svg"
+        src="/home-image.svg"
         width={400}
         height={400}
         alt="home image"

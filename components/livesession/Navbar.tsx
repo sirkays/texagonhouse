@@ -1,10 +1,8 @@
 "use client";
-// import {SignedIn, UserButton} from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {navLinks} from "@/constants";
-// import {neobrutalism} from "@clerk/themes";
 import {cn} from "@/lib/utils";
 
 const NavBar = () => {
@@ -24,7 +22,7 @@ const NavBar = () => {
                   alt="Let's talk"
                 /> */}
           <h1 className="text-[26px] font-extrabold text-white max-sm:hidden">
-            Techxagon
+            TECHXAGON
           </h1>
         </Link>
 
@@ -41,8 +39,8 @@ const NavBar = () => {
                   href={item.route}
                   key={item.label}
                   className={cn(
-                    "flex gap-4 items-center p-4 text-white rounded-lg justify-start hover:scale-150 duration-300 ",
-                    isActive && "bg-blue-100 text-black rounded-3xl"
+                    "flex gap-4 items-center p-4 text-white ustify-start",
+                    isActive && "border-b-2 border-white"
                   )}>
                   <Image
                     src={item.imgURL || "/placeholder.svg"}

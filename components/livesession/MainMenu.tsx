@@ -128,7 +128,8 @@ const MainMenu = () => {
     return <Loading />;
 
   return (
-    <section className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+    <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* New Meeting */}
       <Dialog>
         <DialogTrigger>
           <MenuItemCard
@@ -138,22 +139,24 @@ const MainMenu = () => {
             hoverColor="hover:bg-orange-800"
           />
         </DialogTrigger>
-        <DialogContent className="bg-gray-200 px-16 py-10 text-gray-900 rounded-3xl">
+        <DialogContent className="bg-gray-200 w-[95%] sm:w-[90%] md:w-[600px] px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl sm:rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-3xl font-black leading-relaxed text-center">
+            <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black leading-relaxed text-center">
               Start an Instant Meeting 🤝
             </DialogTitle>
-            <DialogDescription className="flex flex-col items-center">
-              Add a meeting description
+            <DialogDescription className="flex flex-col items-center gap-3 sm:gap-4 mt-4">
+              <span className="text-xs sm:text-sm md:text-base">
+                Add a meeting description
+              </span>
               <Textarea
-                className="inputs p-5"
+                className="inputs w-full p-2 sm:p-3 md:p-5"
                 rows={4}
                 onChange={(e) =>
                   setValues({...values, description: e.target.value})
                 }
               />
               <Button
-                className="mt-5 font-extrabold text-lg text-white rounded-xl bg-blue-700 py-5 px-10 hover:bg-blue-900 hover:scale-110 transition ease-in-out delay-75 duration-700 hover:-translate-y-1 cursor-pointer"
+                className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
                 onClick={() => setMeetingState("Instant")}>
                 Create Meeting
               </Button>
@@ -162,6 +165,7 @@ const MainMenu = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Join Meeting */}
       <Dialog>
         <DialogTrigger>
           <MenuItemCard
@@ -171,20 +175,20 @@ const MainMenu = () => {
             hoverColor="hover:bg-blue-800"
           />
         </DialogTrigger>
-        <DialogContent className="bg-gray-200 px-16 py-10 text-gray-900 rounded-3xl">
+        <DialogContent className="bg-gray-200 w-[95%] sm:w-[90%] md:w-[600px] px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl sm:rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-3xl font-black leading-relaxed text-center mb-5">
+            <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black text-center mb-3 sm:mb-4 md:mb-5">
               Type the Meeting link here
             </DialogTitle>
-            <DialogDescription className="flex flex-col gap-3 items-center">
+            <DialogDescription className="flex flex-col gap-3 sm:gap-4 items-center w-full">
               <Input
                 type="text"
                 placeholder="Meeting Link or Meeting ID"
                 onChange={(e) => setValues({...values, link: e.target.value})}
-                className="inputs"
+                className="inputs w-full"
               />
               <Button
-                className="mt-5 font-extrabold text-lg text-white rounded-xl bg-blue-700 py-5 px-10 hover:bg-blue-900 hover:scale-110 transition ease-in-out delay-75 duration-700 hover:-translate-y-1 cursor-pointer"
+                className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
                 onClick={joinMeeting}>
                 Join Meeting
               </Button>
@@ -193,6 +197,7 @@ const MainMenu = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Schedule */}
       <Dialog>
         <DialogTrigger>
           <MenuItemCard
@@ -202,23 +207,25 @@ const MainMenu = () => {
             hoverColor="hover:bg-blue-800"
           />
         </DialogTrigger>
-        <DialogContent className="bg-gray-200 px-16 py-10 text-gray-900 !rounded-3xl">
+        <DialogContent className="bg-gray-200 w-[95%] sm:w-[90%] md:w-[600px] px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl sm:rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-3xl font-black leading-relaxed text-center mb-5">
+            <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black text-center mb-3 sm:mb-4 md:mb-5">
               Schedule Meeting
             </DialogTitle>
-            <DialogDescription className="flex flex-col gap-3">
-              Add a meeting description
+            <DialogDescription className="flex flex-col gap-3 sm:gap-4">
+              <span className="text-xs sm:text-sm md:text-base">
+                Add a meeting description
+              </span>
               <Textarea
-                className="inputs p-5"
+                className="inputs w-full p-2 sm:p-3 md:p-5"
                 rows={4}
                 onChange={(e) =>
                   setValues({...values, description: e.target.value})
                 }
               />
             </DialogDescription>
-            <div className="flex w-full flex-col gap-2.5">
-              <label className="text-base font-normal leading-[22.4px] text-sky-2">
+            <div className="flex w-full flex-col gap-2.5 mt-4">
+              <label className="text-xs sm:text-sm md:text-base font-normal text-sky-2">
                 Select Date and Time
               </label>
               <DatePicker
@@ -229,11 +236,11 @@ const MainMenu = () => {
                 timeIntervals={15}
                 timeCaption="time"
                 dateFormat="MMMM d, yyyy h:mm aa"
-                className="inputs w-full rounded p-2 focus:outline-hidden focus:border-blue-500 focus:ring-3 focus:ring-blue-200"
+                className="inputs w-full rounded p-2 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
             </div>
             <Button
-              className="!mt-5 font-extrabold text-lg text-white rounded-xl bg-blue-700 py-5 px-10 hover:bg-blue-900 hover:scale-110 transition ease-in-out delay-75 duration-700 hover:-translate-y-1 cursor-pointer"
+              className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
               onClick={() => setMeetingState("Schedule")}>
               Submit
             </Button>
@@ -241,6 +248,7 @@ const MainMenu = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Recordings */}
       <MenuItemCard
         img="/recordings2.svg"
         title="Recordings"
