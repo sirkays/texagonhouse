@@ -22,7 +22,7 @@ export const useGetCalls = () => {
           filter_conditions: {
             starts_at: {$exists: true}, // Calls must have a start time
             $or: [
-              {created_by_user_id: session.user.id}, // User is the creator
+              {created_by_user_id: String(session.user.id)}, // User is the creator
               {members: {$in: [session.user.id]}}, // OR user is a member of the call
             ],
           },

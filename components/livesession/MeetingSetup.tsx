@@ -80,7 +80,7 @@ const MeetingSetup = ({
         onClick={() => {
           call.join();
           call.updateCallMembers({
-            update_members: [{user_id: session.user?.id}],
+            update_members: [{user_id: String(session.user?.id)}],
           });
           setIsSetupComplete(true);
         }}>

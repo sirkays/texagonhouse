@@ -51,6 +51,7 @@ const MainMenu = () => {
 
       const id = crypto.randomUUID();
       const call = client.call("default", id);
+      console.log(id, 'default user_id')
       if (!call) throw new Error("Failed to create meeting");
       const startsAt =
         values.dateTime.toISOString() || new Date(Date.now()).toISOString();
@@ -65,11 +66,11 @@ const MainMenu = () => {
       });
 
       await call.updateCallMembers({
-        update_members: [{user_id: session.user.id}],
+        update_members: [{user_id: String(session.user.id)}],
       });
 
       if (meetingState === "Instant") {
-        router.push(`/meeting/${call.id}`);
+        router.push(`/main/meeting/${call.id}`);
         toast("Setting up your meeting", {
           duration: 3000,
           className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",

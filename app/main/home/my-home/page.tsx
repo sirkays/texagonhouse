@@ -44,7 +44,7 @@ const MyRoomPage = () => {
       },
     });
 
-    router.push(`/meeting/${meetingId}`);
+    router.push(`/main/meeting/${meetingId}`);
   };
 
   const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/meeting/${
