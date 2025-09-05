@@ -15,6 +15,7 @@ import {
   Trophy,
   Medal,
   LogOut,
+  Video,
 } from "lucide-react";
 import {
   Sidebar,
@@ -96,6 +97,12 @@ const menuItems = [
     icon: Medal,
     id: "leaderboard",
     path: "/student/leaderboard",
+  },
+  {
+    title: "Live Sessions",
+    icon: Video,
+    id: "live-sessions",
+    path: "/main/home",
   },
 ];
 

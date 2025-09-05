@@ -628,10 +628,10 @@ export function LearningModules() {
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
-          <TabsTrigger value="tutorials" className="flex items-center gap-2 w-full">
+          {/* <TabsTrigger value="tutorials" className="flex items-center gap-2 w-full">
             <BookOpen className="h-4 w-4" />
             Live Session
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="videos" className="space-y-6">
