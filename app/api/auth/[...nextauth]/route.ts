@@ -1,5 +1,7 @@
-import NextAuth from "next-auth";
+import NextAuth, {NextAuthOptions} from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import type {JWT} from "next-auth/jwt";
+import type {Session, User} from "next-auth";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
@@ -7,16 +9,20 @@ const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 const headers = (sessionToken?: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "Enter your email" },
-        password: { label: "Password", type: "password", placeholder: "Enter your password" },
+        email: {label: "Email", type: "email", placeholder: "Enter your email"},
+        password: {
+          label: "Password",
+          type: "password",
+          placeholder: "Enter your password",
+        },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -39,11 +45,15 @@ export const authOptions = {
           try {
             loginData = JSON.parse(loginRaw);
           } catch {
-            throw new Error(`Invalid login response: ${loginRaw.slice(0, 100)}...`);
+            throw new Error(
+              `Invalid login response: ${loginRaw.slice(0, 100)}...`
+            );
           }
 
           if (!loginResponse.ok) {
-            throw new Error(loginData.detail || `Login failed (${loginResponse.status})`);
+            throw new Error(
+              loginData.detail || `Login failed (${loginResponse.status})`
+            );
           }
 
           const sessionToken = loginData.sessionToken;
@@ -66,10 +76,16 @@ export const authOptions = {
           try {
             data = JSON.parse(rawPostLogin);
           } catch {
-            throw new Error(`Invalid post-login response: ${rawPostLogin.slice(0, 100)}...`);
+            throw new Error(
+              `Invalid post-login response: ${rawPostLogin.slice(0, 100)}...`
+            );
           }
 
-          if (!response.ok || data.detail !== "User access granted" || !data.role) {
+          if (
+            !response.ok ||
+            data.detail !== "User access granted" ||
+            !data.role
+          ) {
             throw new Error(data.detail || "User access not granted");
           }
 
@@ -82,7 +98,8 @@ export const authOptions = {
             expiresAt: loginData.expiresAt,
           };
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : "Authentication failed";
+          const errorMessage =
+            err instanceof Error ? err.message : "Authentication failed";
           throw new Error(errorMessage);
         }
       },
@@ -94,31 +111,30 @@ export const authOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({token, user}: {token: JWT; user?: User}) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.sessionToken = user.sessionToken;
-        token.expiresAt = user.expiresAt;
+        token.id = (user as any).id;
+        token.role = (user as any).role;
+        token.sessionToken = (user as any).sessionToken;
+        token.expiresAt = (user as any).expiresAt;
       }
-      // Check if token is expired
-      if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+      if (token.expiresAt && new Date(token.expiresAt as string) < new Date()) {
         console.log("[Auth] Token expired, invalidating:", token.sessionToken);
-        return null; // Invalidate the token
+        return {} as JWT; // Return empty JWT instead of null
       }
       return token;
     },
 
-    async session({ session, token }) {
-      if (!token) {
+    async session({session, token}: {session: Session; token: JWT}) {
+      if (!token || !token.sessionToken) {
         console.log("[Auth] No valid token, session invalidated");
-        return { ...session, user: null, expires: new Date().toISOString() };
+        return {...session, user: undefined, expires: new Date().toISOString()};
       }
       if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.sessionToken = token.sessionToken;
-        session.user.expiresAt = token.expiresAt;
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
+        (session.user as any).sessionToken = token.sessionToken;
+        (session.user as any).expiresAt = token.expiresAt;
       }
       return session;
     },
@@ -162,4 +178,4 @@ export const authOptions = {
 
 const handler = NextAuth(authOptions);
 
-export { handler as GET, handler as POST };
+export {handler as GET, handler as POST};
