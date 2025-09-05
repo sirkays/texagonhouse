@@ -4,7 +4,7 @@ import Image from "next/image";
 
 import {cn} from "@/lib/utils"; // Utility function for conditional classNames
 import {Button} from "../ui/button"; // UI Button component
-import {Call} from "@stream-io/video-react-sdk"; // Import Call type from Stream Video SDK
+import type {Call} from "@stream-io/video-react-sdk"; // Import Call type from Stream Video SDK
 import {toast} from "sonner";
 import Members from "./Members";
 
@@ -40,7 +40,12 @@ const MeetingCard = ({
     <section className="flex min-h-[258px] w-full flex-col justify-between rounded-3xl bg-blue-200 px-5 py-8 xl:max-w-[568px] text-black scale-90 shadow-2xl">
       <article className="flex flex-col gap-5">
         {/* Display meeting icon */}
-        <Image src={icon} alt="upcoming" width={28} height={28} />
+        <Image
+          src={icon || "/placeholder.svg"}
+          alt="upcoming"
+          width={28}
+          height={28}
+        />
         <div className="flex justify-between">
           <div className="flex flex-col gap-2">
             {/* Meeting title and date */}
@@ -66,7 +71,12 @@ const MeetingCard = ({
               onClick={handleClick}
               className="rounded bg-blue-700 p-4 hover:bg-blue-400 px-6">
               {buttonIcon1 && (
-                <Image src={buttonIcon1} alt="feature" width={20} height={20} />
+                <Image
+                  src={buttonIcon1 || "/placeholder.svg"}
+                  alt="feature"
+                  width={20}
+                  height={20}
+                />
               )}
               &nbsp; {buttonText}
             </Button>
@@ -83,7 +93,7 @@ const MeetingCard = ({
                 });
               }}>
               {/* Copy icon */}
-              <Image src="/assets/copy.svg" alt="copy" width={20} height={20} />
+              <Image src="copy.svg" alt="copy" width={20} height={20} />
               &nbsp; Copy Link
             </Button>
           </div>

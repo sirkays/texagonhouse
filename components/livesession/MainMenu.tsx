@@ -51,7 +51,6 @@ const MainMenu = () => {
 
       const id = crypto.randomUUID();
       const call = client.call("default", id);
-      console.log(id, 'default user_id')
       if (!call) throw new Error("Failed to create meeting");
       const startsAt =
         values.dateTime.toISOString() || new Date(Date.now()).toISOString();
@@ -78,7 +77,7 @@ const MainMenu = () => {
       }
 
       if (meetingState === "Schedule") {
-        router.push("/upcoming");
+        router.push("/main/home/upcoming");
         toast(`Your meeting is scheduled at ${values.dateTime}`, {
           duration: 5000,
           className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
@@ -90,6 +89,33 @@ const MainMenu = () => {
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
     }
+  };
+
+  const joinMeeting = () => {
+    if (!values.link) {
+      toast("Please enter a meeting link", {
+        duration: 3000,
+        className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+      });
+      return;
+    }
+
+    // Extract meeting ID from link or use the link directly
+    let meetingPath = values.link;
+    if (values.link.includes("/meeting/")) {
+      meetingPath = values.link;
+    } else if (values.link.includes("/main/meeting/")) {
+      meetingPath = values.link;
+    } else {
+      // Assume it's just a meeting ID
+      meetingPath = `/main/meeting/${values.link}`;
+    }
+
+    router.push(meetingPath);
+    toast("Joining meeting...", {
+      duration: 3000,
+      className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+    });
   };
 
   useEffect(() => {
@@ -153,13 +179,13 @@ const MainMenu = () => {
             <DialogDescription className="flex flex-col gap-3 items-center">
               <Input
                 type="text"
-                placeholder="Meeting Link"
+                placeholder="Meeting Link or Meeting ID"
                 onChange={(e) => setValues({...values, link: e.target.value})}
                 className="inputs"
               />
               <Button
                 className="mt-5 font-extrabold text-lg text-white rounded-xl bg-blue-700 py-5 px-10 hover:bg-blue-900 hover:scale-110 transition ease-in-out delay-75 duration-700 hover:-translate-y-1 cursor-pointer"
-                onClick={() => router.push(values.link)}>
+                onClick={joinMeeting}>
                 Join Meeting
               </Button>
             </DialogDescription>
@@ -220,7 +246,7 @@ const MainMenu = () => {
         title="Recordings"
         bgColor="bg-blue-600"
         hoverColor="hover:bg-blue-800"
-        handleClick={() => router.push("/recordings")}
+        handleClick={() => router.push("/main/home/recordings")}
       />
     </section>
   );

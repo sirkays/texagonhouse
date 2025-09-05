@@ -15,10 +15,10 @@ const NavBar = () => {
       <nav className="flex justify-between items-center fixed z-50 w-full h-28 bg-[#DD2701] px-10 gap-4 shadow-2xl">
         {/* Logo */}
         <Link
-          href="/"
+          href="/main/home"
           className="flex items-center gap-1 hover:scale-150 duration-500 ">
           {/* <Image
-                  src="/assets/logo.svg"
+                  src="logo.svg"
                   width={60}
                   height={60}
                   alt="Let's talk"
@@ -45,7 +45,7 @@ const NavBar = () => {
                     isActive && "bg-blue-100 text-black rounded-3xl"
                   )}>
                   <Image
-                    src={item.imgURL}
+                    src={item.imgURL || "/placeholder.svg"}
                     alt={item.label}
                     width={24}
                     height={24}
@@ -62,16 +62,18 @@ const NavBar = () => {
         </section>
 
         {/* User button */}
-        {/* <div className="hover:scale-150 duration-500 ">
-          <SignedIn>
-            Mount the UserButton component
-            <UserButton
-              appearance={{
-                baseTheme: neobrutalism,
-              }}
-            />
-          </SignedIn>
-        </div> */}
+        <div className="hover:scale-150 duration-500 ">
+          <div>
+            <div className="rounded-full">
+              <Image
+                src="/assets/images/avatar-1.svg"
+                width={40}
+                height={40}
+                alt="User Avatar"
+              />
+            </div>
+          </div>
+        </div>
       </nav>
     </>
   );

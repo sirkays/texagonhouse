@@ -1,28 +1,28 @@
 export const navLinks = [
   {
     imgURL: "/home.svg",
-    route: "/",
+    route: "/main/home",
     label: "Home",
   },
 
   {
     imgURL: "/upcoming.svg",
-    route: "/upcoming",
+    route: "/main/home/upcoming",
     label: "Upcoming",
   },
   {
     imgURL: "/previous.svg",
-    route: "/previous",
+    route: "/main/home/previous",
     label: "Previous",
   },
   {
     imgURL: "/recordings.svg",
-    route: "/recordings",
+    route: "/main/home/recordings",
     label: "Recordings",
   },
   {
     imgURL: "/my-room.svg",
-    route: "/my-room",
+    route: "/main/home/my-home",
     label: "My Room",
   },
 ];

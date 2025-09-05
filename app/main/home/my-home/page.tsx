@@ -37,7 +37,7 @@ const MyRoomPage = () => {
   const startRoom = async () => {
     if (!client || !user || !meetingId) return;
 
-    const personalCall = client.call("default", meetingId);
+    const personalCall = client.call("default", String(meetingId));
     await personalCall.getOrCreate({
       data: {
         starts_at: new Date().toISOString(),
@@ -47,7 +47,7 @@ const MyRoomPage = () => {
     router.push(`/main/meeting/${meetingId}`);
   };
 
-  const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/meeting/${
+  const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${
     meetingId || "unknown"
   }`;
 
@@ -84,7 +84,7 @@ const MyRoomPage = () => {
                 "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
             });
           }}>
-          <Image src="/copy.svg" alt="copy" width={20} height={20} />
+          <Image src="copy.svg" alt="copy" width={20} height={20} />
           Copy Invitation
         </Button>
       </div>

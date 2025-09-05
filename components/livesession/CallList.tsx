@@ -1,7 +1,7 @@
 "use client";
 
 import {useGetCalls} from "@/hooks/useGetCalls";
-import {Call, CallRecording} from "@stream-io/video-react-sdk";
+import type {Call, CallRecording} from "@stream-io/video-react-sdk";
 import {useEffect, useState} from "react";
 import Loading from "./Loading";
 import Alert from "./Alert";
@@ -67,10 +67,10 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
               type={type} // Pass type prop
               icon={
                 type === "ended"
-                  ? "/assets/previous.svg" // Icon for ended calls
+                  ? "/previous.svg" // Icon for ended calls
                   : type === "recordings"
-                  ? "/assets/recordings2.svg" // Icon for recordings
-                  : "/assets/upcoming.svg" // Icon for upcoming calls
+                  ? "/recordings2.svg" // Icon for recordings
+                  : "/upcoming.svg" // Icon for upcoming calls
               }
               title={
                 (meeting as Call).state?.custom?.description || // Use custom description if available
@@ -85,18 +85,16 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
               link={
                 type === "recordings"
                   ? (meeting as CallRecording).url // Use recording URL if type is recordings
-                  : `${process.env.NEXT_PUBLIC_BASE_URL}/meeting/${
+                  : `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${
                       (meeting as Call).id
-                    }` // Construct meeting URL
+                    }` // Construct meeting URL with correct path
               }
-              buttonIcon1={
-                type === "recordings" ? "/assets/play.svg" : undefined
-              } // Use play icon for recordings
+              buttonIcon1={type === "recordings" ? "play.svg" : undefined} // Use play icon for recordings
               buttonText={type === "recordings" ? "Play" : "Start"} // Use 'Play' for recordings, 'Start' otherwise
               handleClick={
                 type === "recordings"
                   ? () => router.push(`${(meeting as CallRecording).url}`) // Navigate to recording URL
-                  : () => router.push(`/meeting/${(meeting as Call).id}`) // Navigate to meeting page
+                  : () => router.push(`/main/meeting/${(meeting as Call).id}`) // Navigate to meeting page with correct path
               }
             />
           );
@@ -108,7 +106,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
   return (
     <Alert
       title="No calls available" // Alert title
-      iconUrl="/assets/no-calls.svg" // Alert icon
+      iconUrl="no-calls.svg" // Alert icon
     />
   );
 };

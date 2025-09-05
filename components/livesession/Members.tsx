@@ -30,10 +30,12 @@ const Members = ({call}: MembersProps) => {
       <div className="relative flex w-full">
         {callMembers.map((member, index) => {
           const user = member.user; // Extract user details from member object
+
+          console.log(user, "this is my user");
           return (
             <Image
               key={user.id} // Unique key for React list rendering
-              src={user.image} // User avatar image
+              src={user.email} // User avatar image
               alt="attendees"
               width={40} // Image width
               height={40} // Image height
