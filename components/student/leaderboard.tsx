@@ -351,11 +351,11 @@ export function Leaderboard() {
         </Card>
       </div>
 
-      <Tabs defaultValue="global" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="global">Global</TabsTrigger>
-          <TabsTrigger value="school">My School</TabsTrigger>
-          <TabsTrigger value="weekly">This Week</TabsTrigger>
+      <Tabs defaultValue="global" className="space-y-4 ">
+        <TabsList className="flex flex-col md:flex-row w-full mb-10">
+          <TabsTrigger value="global" className="flex items-center gap-2 w-full">Global</TabsTrigger>
+          <TabsTrigger value="school" className="flex items-center gap-2 w-full">My School</TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2 w-full">This Week</TabsTrigger>
         </TabsList>
 
         <TabsContent value="global" className="space-y-4">
