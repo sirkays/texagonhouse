@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -24,6 +25,7 @@ import {
   Clock,
   Eye,
   LogIn,
+  AlertCircle,
 } from "lucide-react";
 import {
   Pagination,
@@ -39,6 +41,7 @@ import { VideoModal } from "./video-modal";
 import { AudioPlayer } from "./audio-player";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Resource {
   id: string;
@@ -77,7 +80,7 @@ interface ResourcesData {
 export function ResourceMaterials() {
   const { data: session, status } = useSession();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -93,7 +96,7 @@ export function ResourceMaterials() {
     journals: 1,
   });
   const [resourcesData, setResourcesData] = useState<ResourcesData | null>(null);
-  const [categories, setCategories] = useState<string[]>(["All"]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,141 +105,14 @@ export function ResourceMaterials() {
   const sessionToken = useMemo(() => session?.user?.sessionToken, [session?.user?.sessionToken]);
 
   const fallbackResources: ResourcesData = {
-    categories: ["All", "Frontend", "Backend", "AI/ML", "Database", "Security", "Career"],
+    categories: ["Frontend", "Backend", "AI/ML", "Database", "Security", "Career"],
     courses: [],
     selected_course_id: null,
     selected_module_id: null,
-    pdfs: [
-      {
-        id: "1",
-        title: "React Complete Guide 2024",
-        author: "John Smith",
-        pages: 245,
-        size: "12.5 MB",
-        rating: 4.8,
-        downloads: 1250,
-        category: "Frontend",
-        pdfUrl: "/sample.pdf",
-      },
-      {
-        id: "2",
-        title: "Python Data Structures",
-        author: "Jane Doe",
-        pages: 180,
-        size: "8.2 MB",
-        rating: 4.6,
-        downloads: 890,
-        category: "Programming",
-        pdfUrl: "/sample.pdf",
-      },
-      {
-        id: "3",
-        title: "Machine Learning Fundamentals",
-        author: "Dr. Wilson",
-        pages: 320,
-        size: "18.7 MB",
-        rating: 4.9,
-        downloads: 2100,
-        category: "AI/ML",
-        pdfUrl: "/sample.pdf",
-      },
-    ],
-    videos: [
-      {
-        id: "1",
-        title: "Advanced React Patterns",
-        instructor: "Sarah Johnson",
-        duration: "2h 45m",
-        views: 15600,
-        rating: 4.7,
-        category: "Frontend",
-        videoUrl: "/sample-video.mp4",
-      },
-      {
-        id: "2",
-        title: "Python Web Scraping Tutorial",
-        instructor: "Mike Chen",
-        duration: "1h 30m",
-        views: 8900,
-        rating: 4.5,
-        category: "Python",
-        videoUrl: "/sample-video.mp4",
-      },
-      {
-        id: "3",
-        title: "Database Design Principles",
-        instructor: "Alex Rodriguez",
-        duration: "3h 15m",
-        views: 12300,
-        rating: 4.8,
-        category: "Database",
-        videoUrl: "/sample-video.mp4",
-      },
-    ],
-    audio: [
-      {
-        id: "1",
-        title: "Tech Talk: Future of Web Development",
-        speaker: "Industry Panel",
-        duration: "45m",
-        listens: 5600,
-        rating: 4.4,
-        category: "Discussion",
-        audioUrl: "/sample-audio.mp3",
-      },
-      {
-        id: "2",
-        title: "JavaScript Deep Dive Podcast",
-        speaker: "Dev Community",
-        duration: "1h 20m",
-        listens: 8900,
-        rating: 4.6,
-        category: "Programming",
-        audioUrl: "/sample-audio.mp3",
-      },
-      {
-        id: "3",
-        title: "Career in Tech - Interview Tips",
-        speaker: "HR Expert",
-        duration: "35m",
-        listens: 3400,
-        rating: 4.3,
-        category: "Career",
-        audioUrl: "/sample-audio.mp3",
-      },
-    ],
-    journals: [
-      {
-        id: "1",
-        title: "Modern JavaScript Development Practices",
-        journal: "Web Dev Quarterly",
-        date: "Dec 2024",
-        pages: 15,
-        citations: 45,
-        category: "Research",
-        content: "This comprehensive study examines the latest trends in JavaScript development...",
-      },
-      {
-        id: "2",
-        title: "AI in Software Engineering",
-        journal: "Tech Innovation Review",
-        date: "Nov 2024",
-        pages: 22,
-        citations: 78,
-        category: "AI/ML",
-        content: "Artificial Intelligence is revolutionizing software engineering practices...",
-      },
-      {
-        id: "3",
-        title: "Cybersecurity Trends 2024",
-        journal: "Security Today",
-        date: "Oct 2024",
-        pages: 18,
-        citations: 32,
-        category: "Security",
-        content: "An analysis of emerging cybersecurity threats and defense strategies...",
-      },
-    ],
+    pdfs: [],
+    videos: [],
+    audio: [],
+    journals: [],
   };
 
   const handleLogout = async () => {
@@ -278,9 +154,12 @@ export function ResourceMaterials() {
 
       try {
         const queryParams = new URLSearchParams();
-        if (searchQuery) queryParams.append("q", searchQuery);
-        if (selectedCourseId) queryParams.append("course_id", selectedCourseId.toString());
-        if (selectedModuleId) queryParams.append("module_id", selectedModuleId.toString());
+        if (searchQuery) {
+          queryParams.append("q", searchQuery);
+        } else {
+          if (selectedCourseId) queryParams.append("course_id", selectedCourseId.toString());
+          if (selectedModuleId) queryParams.append("module_id", selectedModuleId.toString());
+        }
 
         console.log("[ResourceMaterials] Fetching from /api/student/resources with token:", sessionToken, "params:", queryParams.toString());
         const response = await fetch(`/api/student/resources?${queryParams}`, {
@@ -299,6 +178,13 @@ export function ResourceMaterials() {
             setLoading(false);
             return;
           }
+          if (response.status === 404) {
+            setError("Resources not found");
+            setResourcesData(fallbackResources);
+            setCategories([]);
+            setLoading(false);
+            return;
+          }
           setError("Failed to fetch resources");
           setResourcesData(fallbackResources);
           setCategories(fallbackResources.categories);
@@ -307,8 +193,8 @@ export function ResourceMaterials() {
         const data = await response.json();
         console.log("[ResourceMaterials] Fetch response data:", data);
         setResourcesData(data);
-        setCategories(["All", ...(data.categories || [])]);
-        setSelectedCourseId(data.selected_course_id || null);
+        setCategories(data.categories || []);
+        setSelectedCourseId(data.selected_course_id || (data.courses?.[0]?.id || null));
         setSelectedModuleId(data.selected_module_id || null);
         setError(null);
       } catch (e) {
@@ -364,12 +250,12 @@ export function ResourceMaterials() {
   const getPaginatedItems = (items: Resource[], page: number) => {
     const startIndex = (page - 1) * itemsPerPage;
     return items
-      .filter(item => selectedCategory === "All" || item.category === selectedCategory)
+      .filter(item => !selectedCategory || item.category === selectedCategory)
       .slice(startIndex, startIndex + itemsPerPage);
   };
 
   const getTotalPages = (items: Resource[]) => {
-    const filteredItems = items.filter(item => selectedCategory === "All" || item.category === selectedCategory);
+    const filteredItems = items.filter(item => !selectedCategory || item.category === selectedCategory);
     return Math.ceil(filteredItems.length / itemsPerPage);
   };
 
@@ -485,6 +371,38 @@ export function ResourceMaterials() {
     );
   }
 
+  if (error === "Resources not found" || (resourcesData && 
+      resourcesData.pdfs.length === 0 && 
+      resourcesData.videos.length === 0 && 
+      resourcesData.audio.length === 0 && 
+      resourcesData.journals.length === 0)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+              Resources Not Found
+            </CardTitle>
+            <CardDescription className="text-center">
+              No resources were found for your query or selected course. Try a different search term or course.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center gap-2">
+            <Button onClick={() => setSearchQuery("")} className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Clear Search
+            </Button>
+            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (error && !resourcesData) {
     return (
       <div className="p-6">
@@ -516,6 +434,21 @@ export function ResourceMaterials() {
       </div>
 
       <div className="flex gap-4">
+        <Select
+          value={selectedCourseId?.toString() || ""}
+          onValueChange={(value) => setSelectedCourseId(value ? parseInt(value) : null)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select course" />
+          </SelectTrigger>
+          <SelectContent>
+            {resources.courses.map((course) => (
+              <SelectItem key={course.id} value={course.id.toString()}>
+                {course.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input

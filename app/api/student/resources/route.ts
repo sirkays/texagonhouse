@@ -39,27 +39,41 @@ export async function GET(req) {
     console.log("[ResourcesRoute] No session token found");
     return NextResponse.json(
       { error: "Not authenticated" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
+      { status: 401, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
 
   const queryParams = new URLSearchParams();
-  if (courseId) {
-    queryParams.append("course_id", courseId);
-  } else if (session.user.id) {
-    queryParams.append("course_id", session.user.id.toString());
-    console.log("[ResourcesRoute] No course_id provided, using student ID:", session.user.id);
-  }
-  if (moduleId) queryParams.append("module_id", moduleId);
   if (query) queryParams.append("q", query);
+  if (moduleId) queryParams.append("module_id", moduleId);
+
+  // Default to first course if no course_id is provided
+  if (!courseId) {
+    // Fetch available courses to get the first course ID
+    try {
+      const coursesResponse = await fetch(`${BASE_URL}/learning/api/academics/courses/`, {
+        method: "GET",
+        headers: headers(session.user.sessionToken),
+      });
+      if (!coursesResponse.ok) {
+        console.error("[ResourcesRoute] Failed to fetch courses:", coursesResponse.status);
+        throw new Error("Failed to fetch courses");
+      }
+      const coursesData = await coursesResponse.json();
+      const firstCourseId = coursesData.courses?.[0]?.id;
+      if (firstCourseId) {
+        queryParams.append("course_id", firstCourseId.toString());
+        console.log("[ResourcesRoute] No course_id provided, using first course ID:", firstCourseId);
+      } else {
+        console.log("[ResourcesRoute] No courses found, proceeding without course_id");
+      }
+    } catch (error) {
+      console.error("[ResourcesRoute] Error fetching courses:", error);
+      // Proceed without course_id if courses cannot be fetched
+    }
+  } else {
+    queryParams.append("course_id", courseId);
+  }
 
   const fullUrl = `${BASE_URL}${endpoint}?${queryParams}`;
   console.log("[ResourcesRoute] Query parameters:", queryParams.toString());
@@ -85,36 +99,18 @@ export async function GET(req) {
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired" },
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+          { status: 401, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
         );
       }
       if (response.status === 404) {
         return NextResponse.json(
           { error: "Resources endpoint not found" },
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+          { status: 404, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
         );
       }
       return NextResponse.json(
         { error: "Failed to fetch resources" },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: response.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
 
@@ -122,13 +118,7 @@ export async function GET(req) {
       console.error("[ResourcesRoute] Non-JSON response received:", contentType);
       return NextResponse.json(
         { error: "Invalid response format, expected JSON" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
 
@@ -139,13 +129,7 @@ export async function GET(req) {
       console.error("[ResourcesRoute] Failed to parse JSON:", parseError);
       return NextResponse.json(
         { error: "Invalid response format" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
 
@@ -183,13 +167,7 @@ export async function GET(req) {
     console.error("[ResourcesRoute] Fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch resources", details: error.message },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
 }
