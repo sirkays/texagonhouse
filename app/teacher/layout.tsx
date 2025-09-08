@@ -12,6 +12,7 @@ import {
   Bell,
   ChevronDown,
   BarChart3,
+  CameraIcon,
   Video,
   Calendar,
   LogOut,
@@ -90,6 +91,12 @@ const menuItems = [
     icon: BarChart3,
     id: "analytics",
     path: "/teacher/student-analytics",
+  },
+  {
+    title: "Live Sessions",
+    icon: CameraIcon,
+    id: "live-session",
+    path: "/main/home",
   },
 ];
 
