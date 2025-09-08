@@ -352,10 +352,22 @@ export function Leaderboard() {
       </div>
 
       <Tabs defaultValue="global" className="space-y-4 ">
-        <TabsList className="flex flex-col md:flex-row w-full mb-10">
-          <TabsTrigger value="global" className="flex items-center gap-2 w-full">Global</TabsTrigger>
-          <TabsTrigger value="school" className="flex items-center gap-2 w-full">My School</TabsTrigger>
-          <TabsTrigger value="weekly" className="flex items-center gap-2 w-full">This Week</TabsTrigger>
+        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger
+            value="global"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Global
+          </TabsTrigger>
+          <TabsTrigger
+            value="school"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            My School
+          </TabsTrigger>
+          <TabsTrigger
+            value="weekly"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            This Week
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="global" className="space-y-4">
