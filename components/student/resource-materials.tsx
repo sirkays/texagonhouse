@@ -520,7 +520,9 @@ export function ResourceMaterials() {
             className="pl-8"
           />
         </div>
-        <Button variant="outline">
+        <Button
+          className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+          variant="outline">
           <Filter className="mr-2 h-4 w-4" />
           Filter
         </Button>
@@ -531,7 +533,8 @@ export function ResourceMaterials() {
           <Badge
             key={category}
             variant={selectedCategory === category ? "default" : "outline"}
-            className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+            className={`cursor-pointer hover:bg-[#F79771] hover:text-white 
+    ${selectedCategory === category ? "bg-[#EF7B55] text-white" : ""}`}
             onClick={() => setSelectedCategory(category)}>
             {category}
           </Badge>

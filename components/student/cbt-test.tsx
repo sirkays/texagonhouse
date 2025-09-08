@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,13 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import {Label} from "@/components/ui/label";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Textarea} from "@/components/ui/textarea";
+import {Input} from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -42,11 +42,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
-import { useSession } from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
 
 export function CBTTest() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -71,14 +71,20 @@ export function CBTTest() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
+  const sessionToken = useMemo(
+    () => session?.user?.sessionToken || null,
+    [session?.user?.sessionToken]
+  );
 
   const handleLogout = async () => {
-    console.log("[CBTTest] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    console.log(
+      "[CBTTest] Initiating logout, sessionToken:",
+      session?.user?.sessionToken
+    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
       console.log("[CBTTest] Logout API response status:", response.status);
       const data = await response.json();
@@ -104,7 +110,12 @@ export function CBTTest() {
       console.log("[CBTTest] Initiating fetch for /api/student/cbt");
       setLoading(true);
       if (status !== "authenticated" || !session?.user?.sessionToken) {
-        console.log("[CBTTest] Session not authenticated, status:", status, "sessionToken:", session?.user?.sessionToken);
+        console.log(
+          "[CBTTest] Session not authenticated, status:",
+          status,
+          "sessionToken:",
+          session?.user?.sessionToken
+        );
         setError("Not authenticated");
         setLoading(false);
         return;
@@ -199,7 +210,10 @@ export function CBTTest() {
       document.addEventListener("contextmenu", handleContextMenu);
 
       return () => {
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
         window.removeEventListener("blur", handleBlur);
         document.removeEventListener("keydown", handleKeyDown);
         document.removeEventListener("contextmenu", handleContextMenu);
@@ -243,7 +257,7 @@ export function CBTTest() {
       type: item.type === "scq" ? "multiple-choice" : item.type,
       question: item.question,
       options: item.choices
-        ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
+        ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
         : [],
       points: item.points,
     }));
@@ -324,9 +338,9 @@ export function CBTTest() {
       const ans = answers[i];
       if (ans !== undefined) {
         if (q.type === "multiple-choice") {
-          submitAnswers.push({ question: q.id, choice: parseInt(ans) });
+          submitAnswers.push({question: q.id, choice: parseInt(ans)});
         } else {
-          submitAnswers.push({ question: q.id, text: ans });
+          submitAnswers.push({question: q.id, text: ans});
         }
       }
     }
@@ -383,14 +397,21 @@ export function CBTTest() {
     );
   }
 
-  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
+  if (
+    error === "Session expired" ||
+    error === "Not authenticated" ||
+    (status === "authenticated" && error === "Session expired")
+  ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Session Expired
+            </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log in again to continue.
+              Your session has expired or you are not authenticated. Please log
+              in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -409,11 +430,15 @@ export function CBTTest() {
       <div className="p-6">
         <Card className="w-full max-w-md mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Error
+            </CardTitle>
             <CardDescription className="text-center">{error}</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+            <Button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -425,7 +450,8 @@ export function CBTTest() {
 
   if (testCompleted) {
     const Icon = result?.result === "PASS" ? CheckCircle : XCircle;
-    const iconColor = result?.result === "PASS" ? "text-green-500" : "text-red-500";
+    const iconColor =
+      result?.result === "PASS" ? "text-green-500" : "text-red-500";
 
     return (
       <div className="space-y-6">
@@ -469,13 +495,16 @@ export function CBTTest() {
                   <span className="font-medium">Security Notice</span>
                 </div>
                 <p className="text-sm text-yellow-700 mt-1">
-                  {suspiciousActivity} suspicious activities detected during the test.
+                  {suspiciousActivity} suspicious activities detected during the
+                  test.
                 </p>
               </div>
             )}
 
             <div className="flex gap-4 justify-center">
-              <Button onClick={() => setCurrentTest(null)}>
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={() => setCurrentTest(null)}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Take Another Test
               </Button>
@@ -494,7 +523,9 @@ export function CBTTest() {
 
     return (
       <div className="space-y-6">
-        <Dialog open={showSecurityWarning} onOpenChange={setShowSecurityWarning}>
+        <Dialog
+          open={showSecurityWarning}
+          onOpenChange={setShowSecurityWarning}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -502,12 +533,16 @@ export function CBTTest() {
                 Security Warning
               </DialogTitle>
               <DialogDescription>
-                Suspicious activity detected! Switching tabs, opening new tabs, or using keyboard shortcuts is not allowed during the test.
-                {suspiciousActivity >= 2 && " Your test will be auto-submitted if this continues."}
+                Suspicious activity detected! Switching tabs, opening new tabs,
+                or using keyboard shortcuts is not allowed during the test.
+                {suspiciousActivity >= 2 &&
+                  " Your test will be auto-submitted if this continues."}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button onClick={() => setShowSecurityWarning(false)}>
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={() => setShowSecurityWarning(false)}>
                 I Understand
               </Button>
             </DialogFooter>
@@ -526,10 +561,16 @@ export function CBTTest() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                variant="outline"
+                onClick={() => setShowLeaveDialog(false)}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={confirmLeaveTest}>
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                variant="destructive"
+                onClick={confirmLeaveTest}>
                 Leave Test
               </Button>
             </DialogFooter>
@@ -552,7 +593,8 @@ export function CBTTest() {
             )}
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              <span className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
+              <span
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
                 {formatTime(timeLeft)}
               </span>
             </div>
@@ -577,25 +619,24 @@ export function CBTTest() {
                 {currentQ?.type === "multiple-choice" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
-                    onValueChange={handleAnswerChange}
-                  >
-                    {currentQ.options?.map((option: { id: number; text: string }, index: number) => (
-                      <div
-                        key={option.id}
-                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
-                      >
-                        <RadioGroupItem
-                          value={option.id.toString()}
-                          id={`option-${option.id}`}
-                        />
-                        <Label
-                          htmlFor={`option-${option.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
-                          {option.text}
-                        </Label>
-                      </div>
-                    ))}
+                    onValueChange={handleAnswerChange}>
+                    {currentQ.options?.map(
+                      (option: {id: number; text: string}, index: number) => (
+                        <div
+                          key={option.id}
+                          className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                          <RadioGroupItem
+                            value={option.id.toString()}
+                            id={`option-${option.id}`}
+                          />
+                          <Label
+                            htmlFor={`option-${option.id}`}
+                            className="flex-1 cursor-pointer">
+                            {option.text}
+                          </Label>
+                        </div>
+                      )
+                    )}
                   </RadioGroup>
                 ) : currentQ?.type === "short-answer" ? (
                   <div className="space-y-2">
@@ -622,19 +663,30 @@ export function CBTTest() {
 
                 <div className="flex justify-between">
                   <Button
+                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                     variant="outline"
                     onClick={previousQuestion}
-                    disabled={currentQuestion === 0}
-                  >
+                    disabled={currentQuestion === 0}>
                     Previous
                   </Button>
                   <div className="flex gap-2">
                     {currentQuestion === questions.length - 1 ? (
-                      <Button onClick={submitTest}>Submit Test</Button>
+                      <Button
+                        className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                        onClick={submitTest}>
+                        Submit Test
+                      </Button>
                     ) : (
-                      <Button onClick={nextQuestion}>Next</Button>
+                      <Button
+                        className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                        onClick={nextQuestion}>
+                        Next
+                      </Button>
                     )}
-                    <Button variant="destructive" onClick={handleLeaveTest}>
+                    <Button
+                      className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                      variant="destructive"
+                      onClick={handleLeaveTest}>
                       Leave Test
                     </Button>
                   </div>
@@ -661,8 +713,7 @@ export function CBTTest() {
                           : "outline"
                       }
                       size="sm"
-                      onClick={() => setCurrentQuestion(index)}
-                    >
+                      onClick={() => setCurrentQuestion(index)}>
                       {index + 1}
                     </Button>
                   ))}
@@ -710,7 +761,9 @@ export function CBTTest() {
               <Play className="h-5 w-5" />
               {pendingTestId
                 ? `Start ${
-                    availableTests.find((t) => t.pk.toString() === pendingTestId)?.type === "exam"
+                    availableTests.find(
+                      (t) => t.pk.toString() === pendingTestId
+                    )?.type === "exam"
                       ? "Secure Exam"
                       : "Quiz"
                   }`
@@ -719,7 +772,9 @@ export function CBTTest() {
             <DialogDescription>
               {pendingTestId
                 ? `Are you ready to start the ${
-                    availableTests.find((t) => t.pk.toString() === pendingTestId)?.title
+                    availableTests.find(
+                      (t) => t.pk.toString() === pendingTestId
+                    )?.title
                   }? During the test, you must remain on this tab. Switching tabs or opening new tabs will be flagged as suspicious activity.`
                 : examAttempts >= maxAttempts
                 ? `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
@@ -728,15 +783,21 @@ export function CBTTest() {
           </DialogHeader>
           <DialogFooter>
             <Button
+              className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
               variant="outline"
               onClick={() => {
                 setShowStartDialog(false);
                 setPendingTestId(null);
-              }}
-            >
+              }}>
               Cancel
             </Button>
-            {pendingTestId && <Button onClick={confirmStartTest}>Start Test</Button>}
+            {pendingTestId && (
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={confirmStartTest}>
+                Start Test
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -752,8 +813,7 @@ export function CBTTest() {
         {currentTests.map((test) => (
           <Card
             key={test.pk}
-            className="hover:shadow-lg transition-shadow flex flex-col h-full"
-          >
+            className="hover:shadow-lg transition-shadow flex flex-col h-full">
             <CardHeader>
               <div className="sm:flex items-center justify-between">
                 <CardTitle className="text-lg">{test.title}</CardTitle>
@@ -765,13 +825,14 @@ export function CBTTest() {
                         : test.difficulty === "Intermediate"
                         ? "secondary"
                         : "destructive"
-                    }
-                  >
+                    }>
                     {test.difficulty}
                   </Badge>
 
                   {test.type === "exam" && (
-                    <Badge variant="outline" className="text-red-600 border-red-200">
+                    <Badge
+                      variant="outline"
+                      className="text-red-600 border-red-200">
                       <Shield className="h-3 w-3 mr-1" />
                       Secure Exam
                     </Badge>
@@ -807,12 +868,11 @@ export function CBTTest() {
               <div className="mt-auto">
                 <Button
                   onClick={() => handleStartTest(test.pk.toString())}
-                  className="w-full h-11"
+                  className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                   disabled={
                     (test.type === "exam" && examAttempts >= maxAttempts) ||
                     (test.requiresSubscription && !isSubscriber)
-                  }
-                >
+                  }>
                   <Play className="mr-2 h-4 w-4" />
                   {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
                 </Button>
@@ -831,7 +891,9 @@ export function CBTTest() {
                 e.preventDefault();
                 if (currentPage > 1) handlePageChange(currentPage - 1);
               }}
-              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              className={
+                currentPage === 1 ? "pointer-events-none opacity-50" : ""
+              }
             />
           </PaginationItem>
           {[...Array(totalPages)].map((_, index) => {
@@ -844,8 +906,7 @@ export function CBTTest() {
                   onClick={(e) => {
                     e.preventDefault();
                     handlePageChange(page);
-                  }}
-                >
+                  }}>
                   {page}
                 </PaginationLink>
               </PaginationItem>
@@ -859,7 +920,11 @@ export function CBTTest() {
                 e.preventDefault();
                 if (currentPage < totalPages) handlePageChange(currentPage + 1);
               }}
-              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
             />
           </PaginationItem>
         </PaginationContent>

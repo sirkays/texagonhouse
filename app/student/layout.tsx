@@ -273,7 +273,7 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
         </Sidebar>
 
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-50 py-4 bg-[rgb(247,151,113)] shadow-md border-b">
+          <header className="sticky top-0 z-50 py-4 bg-[rgb(247,151,113)]">
             <style jsx>{`
               header {
                 background: rgba(
@@ -294,8 +294,8 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                 background: transparent;
               }
             `}</style>
-            <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-white">
-              <SidebarTrigger className="" />
+            <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
+              <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
               <div className="flex-1 max-w-[90vw] xs:max-w-md">
                 {/* <div className="relative">
                   <Search className="absolute left-2 xs:left-2.5 top-2 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
@@ -305,7 +305,10 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                   />
                 </div> */}
               </div>
-              <Button variant="ghost" size="icon" className="p-1 xs:p-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
                 <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
               </Button>
             </div>
