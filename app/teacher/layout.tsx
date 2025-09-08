@@ -66,7 +66,7 @@ const menuItems = [
     title: "Live Sessions",
     icon: Calendar,
     id: "live-sessions",
-    path: "/teacher/live-session-manager",
+    path: "/main/home",
   },
   {
     title: "Upload Materials",
@@ -92,12 +92,12 @@ const menuItems = [
     id: "analytics",
     path: "/teacher/student-analytics",
   },
-  {
-    title: "Live Sessions",
-    icon: CameraIcon,
-    id: "live-session",
-    path: "/main/home",
-  },
+  // {
+  //   title: "Live Sessions",
+  //   icon: CameraIcon,
+  //   id: "live-session",
+  //   path: "/main/home",
+  // },
 ];
 
 function SidebarMenuContent() {
@@ -206,9 +206,9 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
                     <SidebarMenuButton>
                       <Avatar className="h-6 w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback>DR</AvatarFallback>
+                        <AvatarFallback>{session?.user?.name?.[0] || "JD"}</AvatarFallback>
                       </Avatar>
-                      <span>Dr. Sarah Wilson</span>
+                      <span> {session?.user?.name || "John Doe"}</span>
                       <ChevronDown className="ml-auto h-4 w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
