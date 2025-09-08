@@ -574,22 +574,22 @@ export function SubscriptionManagement() {
                           <Building2 className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                           {subscription.schoolName}
                         </div>
-                        <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                        <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                           Auto-renewal:{" "}
                           {subscription.autoRenewal ? "Enabled" : "Disabled"}
                         </div>
                         <div className="sm:hidden space-y-1 mt-2">
                           <div className="flex items-center gap-1">
                             {getPlanBadge(subscription.plan)}
-                            <span className="font-medium text-green-600 text-[0.65rem] xs:text-xs sm:text-sm">
+                            <span className="font-medium text-green-600 text-[0.85rem] xs:text-xs sm:text-sm">
                               {subscription.price}
                             </span>
                           </div>
-                          <div className="text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {subscription.startDate} to {subscription.endDate}
                           </div>
                           <div
-                            className={`text-[0.65rem] xs:text-xs sm:text-sm ${getExpiryColor(
+                            className={`text-[0.85rem] xs:text-xs sm:text-sm ${getExpiryColor(
                               getDaysUntilExpiry(subscription.endDate)
                             )}`}>
                             {getDaysUntilExpiry(subscription.endDate) > 0
@@ -600,19 +600,19 @@ export function SubscriptionManagement() {
                                   getDaysUntilExpiry(subscription.endDate)
                                 )} days overdue`}
                           </div>
-                          <div className="text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {subscription.paymentMethod}
                           </div>
-                          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                             Last: {subscription.lastPayment}
                           </div>
-                          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                             Next: {subscription.nextBilling}
                           </div>
-                          <div className="text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {subscription.students} students
                           </div>
-                          <div className="text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {subscription.teachers} teachers
                           </div>
                           <div className="flex items-center gap-1">
@@ -752,7 +752,7 @@ export function SubscriptionManagement() {
             <div className="text-lg xs:text-xl sm:text-2xl font-bold">
               {subscriptions.length}
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               {subscriptions.filter((s) => s.status === "Active").length} active
               subscriptions
             </p>
@@ -769,7 +769,7 @@ export function SubscriptionManagement() {
             <div className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">
               ₦2,450,000
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               +18% from last month
             </p>
           </CardContent>
@@ -785,7 +785,7 @@ export function SubscriptionManagement() {
             <div className="text-lg xs:text-xl sm:text-2xl font-bold">
               {subscriptions.filter((s) => s.plan === "Premium").length}
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               {Math.round(
                 (subscriptions.filter((s) => s.plan === "Premium").length /
                   subscriptions.length) *
@@ -806,7 +806,7 @@ export function SubscriptionManagement() {
             <div className="text-lg xs:text-xl sm:text-2xl font-bold text-red-600">
               {subscriptions.filter((s) => s.status === "Overdue").length}
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               Require immediate attention
             </p>
           </CardContent>

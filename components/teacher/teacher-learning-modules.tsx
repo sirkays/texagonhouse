@@ -238,17 +238,17 @@ export function TeacherLearningModules() {
   ">
           <TabsTrigger
             value="create"
-            className="flex-1 sm:flex-none text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+            className="flex-1 sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="flex-1 sm:flex-none text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+            className="flex-1 sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="flex-1 sm:flex-none text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+            className="flex-1 sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             Module Analytics
           </TabsTrigger>
         </TabsList>
@@ -261,7 +261,7 @@ export function TeacherLearningModules() {
                 <CardTitle className="text-sm xs:text-base sm:text-lg">
                   Module Configuration
                 </CardTitle>
-                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+                <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                   Set up your learning module
                 </CardDescription>
               </CardHeader>
@@ -443,7 +443,7 @@ export function TeacherLearningModules() {
                 </div>
 
                 <div className="pt-2 xs:pt-3 space-y-2">
-                  <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                  <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                     <span>Total Lessons:</span>
                     <span>{currentModule.lessons.length}</span>
                   </div>
@@ -475,7 +475,7 @@ export function TeacherLearningModules() {
                     <CardTitle className="text-sm xs:text-base sm:text-lg">
                       Lessons
                     </CardTitle>
-                    <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+                    <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                       Manage module lessons
                     </CardDescription>
                   </div>
@@ -491,7 +491,7 @@ export function TeacherLearningModules() {
                 {currentModule.lessons.length === 0 ? (
                   <div className="text-center py-6 xs:py-8 text-muted-foreground">
                     <BookOpen className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 mb-2 xs:mb-3 sm:mb-4 opacity-50" />
-                    <p className="text-[0.65rem] xs:text-xs sm:text-sm">
+                    <p className="text-[0.85rem] xs:text-xs sm:text-sm">
                       No lessons added yet
                     </p>
                     <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
@@ -514,7 +514,7 @@ export function TeacherLearningModules() {
                           <div className="flex-1">
                             <div className="flex items-center gap-1 xs:gap-2 mb-1">
                               <Icon className="h-3 w-3 xs:h-4 xs:w-4" />
-                              <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                              <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                                 Lesson {index + 1}
                               </span>
                               <Badge
@@ -523,7 +523,7 @@ export function TeacherLearningModules() {
                                 {lesson.type}
                               </Badge>
                             </div>
-                            <p className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                            <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                               {lesson.title || "Untitled lesson"}
                             </p>
                             {lesson.duration && (
@@ -557,7 +557,7 @@ export function TeacherLearningModules() {
                 <CardTitle className="text-sm xs:text-base sm:text-lg">
                   Lesson Editor
                 </CardTitle>
-                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+                <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                   {editingLesson
                     ? "Edit the selected lesson"
                     : "Select a lesson to edit"}
@@ -707,7 +707,7 @@ export function TeacherLearningModules() {
                 ) : (
                   <div className="text-center py-6 xs:py-8 text-muted-foreground">
                     <Edit className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 mb-2 xs:mb-3 sm:mb-4 opacity-50" />
-                    <p className="text-[0.65rem] xs:text-xs sm:text-sm">
+                    <p className="text-[0.85rem] xs:text-xs sm:text-sm">
                       Select a lesson to edit
                     </p>
                     <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
@@ -726,7 +726,7 @@ export function TeacherLearningModules() {
               <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
                 Manage Modules
               </h2>
-              <p className="text-muted-foreground text-[0.65rem] xs:text-xs sm:text-sm">
+              <p className="text-muted-foreground text-[0.85rem] xs:text-xs sm:text-sm">
                 View and manage all your learning modules
               </p>
             </div>
@@ -738,7 +738,7 @@ export function TeacherLearningModules() {
             </Button>
           </div>
 
-          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
             Showing{" "}
             {
               getPaginatedModules(existingModules, currentPageManage)
@@ -765,7 +765,7 @@ export function TeacherLearningModules() {
                         <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
                           {module.title}
                         </CardTitle>
-                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                           {module.description}
                         </CardDescription>
                       </div>
@@ -776,22 +776,22 @@ export function TeacherLearningModules() {
                     <div className="flex items-center flex-wrap gap-2">
                       <Badge
                         variant={module.isPublished ? "default" : "secondary"}
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {module.isPublished ? "Published" : "Draft"}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {module.difficulty}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {module.category}
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         {module.duration}
@@ -835,7 +835,7 @@ export function TeacherLearningModules() {
               <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                 No Modules found
               </h3>
-              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+              <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                 Create a new module to get started
               </p>
             </div>
@@ -903,7 +903,7 @@ export function TeacherLearningModules() {
             <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
               Module Analytics
             </h2>
-            <p className="text-muted-foreground text-[0.65rem] xs:text-xs sm:text-sm">
+            <p className="text-muted-foreground text-[0.85rem] xs:text-xs sm:text-sm">
               Track performance and engagement of your learning modules
             </p>
           </div>
@@ -911,7 +911,7 @@ export function TeacherLearningModules() {
           <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-1 xs:pb-2">
-                <CardTitle className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                   Total Enrollments
                 </CardTitle>
               </CardHeader>
@@ -926,7 +926,7 @@ export function TeacherLearningModules() {
             </Card>
             <Card>
               <CardHeader className="pb-1 xs:pb-2">
-                <CardTitle className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                   Completion Rate
                 </CardTitle>
               </CardHeader>
@@ -941,7 +941,7 @@ export function TeacherLearningModules() {
             </Card>
             <Card>
               <CardHeader className="pb-1 xs:pb-2">
-                <CardTitle className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                   Average Rating
                 </CardTitle>
               </CardHeader>
@@ -956,7 +956,7 @@ export function TeacherLearningModules() {
             </Card>
             <Card>
               <CardHeader className="pb-1 xs:pb-2">
-                <CardTitle className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                   Revenue
                 </CardTitle>
               </CardHeader>
@@ -976,12 +976,12 @@ export function TeacherLearningModules() {
               <CardTitle className="text-sm xs:text-base sm:text-lg">
                 Module Performance
               </CardTitle>
-              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                 Detailed analytics for each module
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
+              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
                 Showing{" "}
                 {
                   getPaginatedModules(existingModules, currentPageAnalytics)
@@ -1003,7 +1003,7 @@ export function TeacherLearningModules() {
                     key={module.id}
                     className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg">
                     <div className="space-y-1 flex-1">
-                      <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                      <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                         {module.title}
                       </h4>
                       <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
@@ -1021,7 +1021,7 @@ export function TeacherLearningModules() {
                       </div>
                     </div>
                     <div className="mt-2 sm:mt-0 text-right space-y-2">
-                      <div className="text-[0.65rem] xs:text-xs sm:text-sm font-medium text-green-600">
+                      <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium text-green-600">
                         ${Math.floor(Math.random() * 5000) + 1000}
                       </div>
                       <Button
@@ -1042,7 +1042,7 @@ export function TeacherLearningModules() {
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                     No Modules found
                   </h3>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Create a new module to view analytics
                   </p>
                 </div>

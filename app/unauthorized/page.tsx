@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import {useEffect} from "react";
+import {AlertCircle} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
 
 export default function UnauthorizedPage() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
 
   // Redirect based on role after session is loaded
@@ -52,15 +52,16 @@ export default function UnauthorizedPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 xs:space-y-5 text-center">
-          <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+          <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
             You do not have permission to access this page.
           </p>
           <Button
             onClick={handleRedirect}
-            className="w-full text-[0.65rem] xs:text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-          >
+            className="w-full text-[0.85rem] xs:text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90">
             {status === "authenticated" && session?.user?.role
-              ? `Go to ${session.user.role === "admin" ? "Admin" : "Student"} Dashboard`
+              ? `Go to ${
+                  session.user.role === "admin" ? "Admin" : "Student"
+                } Dashboard`
               : "Go to Login"}
           </Button>
         </CardContent>

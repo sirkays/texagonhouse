@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -27,13 +27,13 @@ import {
   ExternalLink,
   Download,
 } from "lucide-react";
-import { VideoModal } from "./video-modal";
-import { NoteEditor } from "./note-editor";
-import { BookmarkManager } from "./bookmark-manager";
-import { AudioPlayer } from "./audio-player";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import {VideoModal} from "./video-modal";
+import {NoteEditor} from "./note-editor";
+import {BookmarkManager} from "./bookmark-manager";
+import {AudioPlayer} from "./audio-player";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Note {
   id: string;
@@ -83,7 +83,7 @@ interface Bookmark {
 }
 
 export function MyMaterials() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -93,10 +93,17 @@ export function MyMaterials() {
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
   const [selectedAudio, setSelectedAudio] = useState<any>(null);
-  const [data, setData] = useState<{ saved: SavedItem; notes: Note[]; bookmarks: Bookmark[] } | null>(null);
+  const [data, setData] = useState<{
+    saved: SavedItem;
+    notes: Note[];
+    bookmarks: Bookmark[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
+  const sessionToken = useMemo(
+    () => session?.user?.sessionToken || null,
+    [session?.user?.sessionToken]
+  );
 
   // Fallback data for UI stability
   const fallbackData = {
@@ -108,7 +115,7 @@ export function MyMaterials() {
           instructor: "Sarah Johnson",
           duration: "2h 45m",
           progress: 65,
-          thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          thumbnail: "https://source.unsplash.com/random/300x200?sig=1",
           videoUrl: "/sample-video.mp4",
         },
         {
@@ -117,7 +124,7 @@ export function MyMaterials() {
           instructor: "Mike Chen",
           duration: "3h 20m",
           progress: 30,
-          thumbnail: "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          thumbnail: "https://source.unsplash.com/random/300x200?sig=1",
           videoUrl: "/sample-video.mp4",
         },
       ],
@@ -170,7 +177,8 @@ export function MyMaterials() {
       {
         id: "2",
         title: "Python Data Structures",
-        content: "Lists, dictionaries, and sets are fundamental data structures...",
+        content:
+          "Lists, dictionaries, and sets are fundamental data structures...",
         tags: ["python", "data-structures", "programming"],
         createdAt: "2024-01-10T00:00:00Z",
         updatedAt: "2024-01-12T00:00:00Z",
@@ -184,7 +192,7 @@ export function MyMaterials() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
       console.log("[MyMaterials] Logout API response status:", response.status);
       const data = await response.json();
@@ -209,14 +217,22 @@ export function MyMaterials() {
     const fetchData = async () => {
       console.log("[MyMaterials] Initiating fetch for /api/student/materials");
       if (status !== "authenticated" || !sessionToken) {
-        console.log("[MyMaterials] Session not authenticated, status:", status, "sessionToken:", session?.user?.sessionToken);
+        console.log(
+          "[MyMaterials] Session not authenticated, status:",
+          status,
+          "sessionToken:",
+          session?.user?.sessionToken
+        );
         setError("Not authenticated");
         setLoading(false);
         return;
       }
 
       try {
-        console.log("[MyMaterials] Fetching from /api/student/materials with token:", session.user.sessionToken);
+        console.log(
+          "[MyMaterials] Fetching from /api/student/materials with token:",
+          session.user.sessionToken
+        );
         const res = await fetch("/api/student/materials", {
           headers: {
             "Content-Type": "application/json",
@@ -232,7 +248,11 @@ export function MyMaterials() {
             setLoading(false);
             return;
           }
-          setError(res.status === 404 ? "Materials endpoint not found" : "Failed to fetch materials");
+          setError(
+            res.status === 404
+              ? "Materials endpoint not found"
+              : "Failed to fetch materials"
+          );
           setData(fallbackData); // Use fallback data for other errors
           throw new Error("Fetch failed");
         }
@@ -258,14 +278,21 @@ export function MyMaterials() {
     );
   }
 
-  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
+  if (
+    error === "Session expired" ||
+    error === "Not authenticated" ||
+    (status === "authenticated" && error === "Session expired")
+  ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Session Expired
+            </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log in again to continue.
+              Your session has expired or you are not authenticated. Please log
+              in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -284,11 +311,15 @@ export function MyMaterials() {
       <div className="p-6">
         <Card className="w-full max-w-md mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Error
+            </CardTitle>
             <CardDescription className="text-center">{error}</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+            <Button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -309,7 +340,10 @@ export function MyMaterials() {
 
   const handlePreviewPdf = (pdf: any) => {
     if (!pdf.downloadUrl) {
-      console.error("[MyMaterials] No downloadUrl provided for PDF:", pdf.title);
+      console.error(
+        "[MyMaterials] No downloadUrl provided for PDF:",
+        pdf.title
+      );
       return;
     }
     console.log("[MyMaterials] Opening PDF in new tab:", pdf.downloadUrl);
@@ -336,14 +370,22 @@ export function MyMaterials() {
   const handleSaveNote = (note: Note) => {
     const normalizedNote: Note = {
       ...note,
-      createdAt: note.createdAt instanceof Date ? note.createdAt.toISOString() : note.createdAt,
-      updatedAt: note.updatedAt instanceof Date ? note.updatedAt.toISOString() : note.updatedAt,
+      createdAt:
+        note.createdAt instanceof Date
+          ? note.createdAt.toISOString()
+          : note.createdAt,
+      updatedAt:
+        note.updatedAt instanceof Date
+          ? note.updatedAt.toISOString()
+          : note.updatedAt,
     };
 
     if (selectedNote) {
       setData({
         ...data!,
-        notes: notes.map((n) => (n.id === normalizedNote.id ? normalizedNote : n)),
+        notes: notes.map((n) =>
+          n.id === normalizedNote.id ? normalizedNote : n
+        ),
       });
     } else {
       setData({
@@ -376,21 +418,39 @@ export function MyMaterials() {
             placeholder="Search your materials..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
+            className="pl-8 border focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-gray-300 focus:shadow-none"
           />
         </div>
-        <Button variant="outline">
-          <Filter className="mr-2 h-4 w-4" />
+        <Button
+          className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+          variant="outline">
+          <Filter className="mr-2 h-4 w-4 " />
           Search
         </Button>
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
-        <TabsList className="flex flex-col lg:flex-row w-full gap-2 mb-14">
-          <TabsTrigger value="saved" className="w-full justify-center py-2">Saved Items</TabsTrigger>
-          <TabsTrigger value="downloads" className="w-full justify-center py-2">Downloads</TabsTrigger>
-          <TabsTrigger value="notes" className="w-full justify-center py-2">My Notes</TabsTrigger>
-          <TabsTrigger value="bookmarks" className="w-full justify-center py-2">Bookmarks</TabsTrigger>
+        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger
+            value="saved"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            Saved Items
+          </TabsTrigger>
+          <TabsTrigger
+            value="downloads"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            Downloads
+          </TabsTrigger>
+          <TabsTrigger
+            value="notes"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            My Notes
+          </TabsTrigger>
+          <TabsTrigger
+            value="bookmarks"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            Bookmarks
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="saved" className="space-y-6">
@@ -403,35 +463,36 @@ export function MyMaterials() {
               {savedItems.videos.map((video) => (
                 <Card
                   key={video.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                >
-                  <CardHeader>
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                  <CardHeader className="p-0">
                     <div className="relative">
                       <img
-                        src={video.thumbnail || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail"}
+                        src={video.thumbnail || ""}
                         alt={video.title}
                         onError={(e) => {
-                          console.error("[MyMaterials] Image load error for:", video.thumbnail);
-                          e.currentTarget.src = "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
+                          console.error(
+                            "[MyMaterials] Image load error for:",
+                            video.thumbnail
+                          );
+                          e.currentTarget.src = "";
                         }}
                         className="w-full h-32 object-cover rounded-md"
                       />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md rounded-bl-none rounded-br-none">
                         <Button
                           size="sm"
-                          className="rounded-full"
-                          onClick={() => handleWatchVideo(video)}
-                        >
+                          className="rounded-full bg-transparent h-10 w-10 text-white hover:bg-[#f7977192] hover:text-white"
+                          onClick={() => handleWatchVideo(video)}>
                           <Play className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 px-4">
                       <CardTitle className="text-lg">{video.title}</CardTitle>
                       <CardDescription>by {video.instructor}</CardDescription>
                     </div>
                   </CardHeader>
-                  <CardContent className="flex flex-col flex-1">
+                  <CardContent className="flex flex-col flex-1 px-4">
                     {/* <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
@@ -453,9 +514,8 @@ export function MyMaterials() {
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
-                        className="w-full h-10"
-                        onClick={() => handleWatchVideo(video)}
-                      >
+                        className="w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        onClick={() => handleWatchVideo(video)}>
                         <Play className="mr-2 h-3 w-3" />
                         Continue Watching
                       </Button>
@@ -475,8 +535,7 @@ export function MyMaterials() {
               {savedItems.audio.map((audio) => (
                 <Card
                   key={audio.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                >
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader>
                     <div className="space-y-1">
                       <CardTitle className="text-lg">{audio.title}</CardTitle>
@@ -505,9 +564,8 @@ export function MyMaterials() {
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
-                        className="w-full h-10"
-                        onClick={() => handlePlayAudio(audio)}
-                      >
+                        className="w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        onClick={() => handlePlayAudio(audio)}>
                         <Play className="mr-2 h-3 w-3" />
                         Continue Listening
                       </Button>
@@ -524,15 +582,14 @@ export function MyMaterials() {
             {savedItems.pdfs.map((pdf) => (
               <Card
                 key={pdf.id}
-                className="hover:shadow-lg transition-shadow flex flex-col h-full"
-              >
+                className="hover:shadow-lg transition-shadow flex flex-col h-full">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-lg">{pdf.title}</CardTitle>
                       <CardDescription>by {pdf.author}</CardDescription>
                     </div>
-                    <FileText className="h-8 w-8 text-muted-foreground" />
+                    <FileText className="h-8 w-8 text-[#EF7B55]" />
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col flex-1">
@@ -543,19 +600,21 @@ export function MyMaterials() {
                   <div className="mt-auto pt-4 flex gap-2">
                     <Button
                       size="sm"
-                      className="flex-1 h-10"
-                      onClick={() => handlePreviewPdf(pdf)}
-                    >
+                      className="flex-1 h-10 w-full bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                      onClick={() => handlePreviewPdf(pdf)}>
                       <Eye className="mr-2 h-3 w-3" />
                       Preview
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 h-10"
+                      className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500"
                       onClick={() => {
                         if (!pdf.downloadUrl) {
-                          console.error("[MyMaterials] No downloadUrl for download:", pdf.title);
+                          console.error(
+                            "[MyMaterials] No downloadUrl for download:",
+                            pdf.title
+                          );
                           return;
                         }
                         const link = document.createElement("a");
@@ -564,8 +623,7 @@ export function MyMaterials() {
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                      }}
-                    >
+                      }}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
                     </Button>
@@ -579,7 +637,9 @@ export function MyMaterials() {
         <TabsContent value="notes" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">My Notes</h3>
-            <Button onClick={() => handleOpenNote()}>
+            <Button
+              className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+              onClick={() => handleOpenNote()}>
               <Edit className="mr-2 h-4 w-4" />
               Create New Note
             </Button>
@@ -609,9 +669,8 @@ export function MyMaterials() {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      className="flex-1"
-                      onClick={() => handleOpenNote(note)}
-                    >
+                      className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                      onClick={() => handleOpenNote(note)}>
                       <Edit className="mr-2 h-3 w-3" />
                       Open
                     </Button>
@@ -619,7 +678,7 @@ export function MyMaterials() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDeleteNote(note.id)}
-                    >
+                      className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500">
                       Delete
                     </Button>
                   </div>
@@ -632,7 +691,9 @@ export function MyMaterials() {
         <TabsContent value="bookmarks" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">My Bookmarks</h3>
-            <Button onClick={() => setBookmarkManagerOpen(true)}>
+            <Button
+              className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+              onClick={() => setBookmarkManagerOpen(true)}>
               <Bookmark className="mr-2 h-4 w-4" />
               Manage Bookmarks
             </Button>
@@ -652,10 +713,14 @@ export function MyMaterials() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {bookmarks.map((bookmark) => (
-                <Card key={bookmark.id} className="hover:shadow-lg transition-shadow">
+                <Card
+                  key={bookmark.id}
+                  className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="space-y-1">
-                      <CardTitle className="text-lg">{bookmark.lessonTitle}</CardTitle>
+                      <CardTitle className="text-lg">
+                        {bookmark.lessonTitle}
+                      </CardTitle>
                       <CardDescription className="line-clamp-2">
                         {bookmark.note}
                       </CardDescription>
@@ -666,7 +731,8 @@ export function MyMaterials() {
                       Position: {bookmark.positionSeconds}s
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Updated {new Date(bookmark.updatedAt).toLocaleDateString()}
+                      Updated{" "}
+                      {new Date(bookmark.updatedAt).toLocaleDateString()}
                     </div>
                   </CardContent>
                 </Card>

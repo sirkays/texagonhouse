@@ -494,7 +494,7 @@ export function StudentAnalytics() {
         {overallStats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-              <CardTitle className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+              <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                 {stat.title}
               </CardTitle>
               <stat.icon className={`h-3 w-3 xs:h-4 xs:w-4 ${stat.color}`} />
@@ -524,22 +524,22 @@ export function StudentAnalytics() {
         <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full mb-14">
           <TabsTrigger
             value="courses"
-            className="text-[0.65rem] xs:text-xs sm:text-sm">
+            className="text-[0.85rem] xs:text-xs sm:text-sm">
             Course Performance
           </TabsTrigger>
           <TabsTrigger
             value="students"
-            className="text-[0.65rem] xs:text-xs sm:text-sm">
+            className="text-[0.85rem] xs:text-xs sm:text-sm">
             Top Students
           </TabsTrigger>
           <TabsTrigger
             value="tests"
-            className="text-[0.65rem] xs:text-xs sm:text-sm">
+            className="text-[0.85rem] xs:text-xs sm:text-sm">
             Test Analytics
           </TabsTrigger>
           <TabsTrigger
             value="engagement"
-            className="text-[0.65rem] xs:text-xs sm:text-sm">
+            className="text-[0.85rem] xs:text-xs sm:text-sm">
             Engagement
           </TabsTrigger>
         </TabsList>
@@ -550,12 +550,12 @@ export function StudentAnalytics() {
               <CardTitle className="text-sm xs:text-base sm:text-lg">
                 Course Performance Overview
               </CardTitle>
-              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                 Detailed analytics for each course
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
+              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
                 Showing{" "}
                 {
                   getPaginatedItems(coursePerformance, currentPageCourses)
@@ -578,7 +578,7 @@ export function StudentAnalytics() {
                     className="p-2 xs:p-3 sm:p-4 border rounded-lg">
                     <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
                       <div>
-                        <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                        <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                           {course.name}
                         </h4>
                         <div className="flex items-center flex-wrap gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
@@ -595,7 +595,7 @@ export function StudentAnalytics() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 xs:mt-0 text-[0.65rem] xs:text-xs sm:text-sm"
+                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm"
                         onClick={() => handleViewCourseDetails(course)}>
                         <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
@@ -604,7 +604,7 @@ export function StudentAnalytics() {
 
                     <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 xs:gap-4">
                       <div className="space-y-2">
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Avg Progress</span>
                           <span>{course.avgProgress}%</span>
                         </div>
@@ -614,7 +614,7 @@ export function StudentAnalytics() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Avg Score</span>
                           <span>{course.avgScore}%</span>
                         </div>
@@ -624,7 +624,7 @@ export function StudentAnalytics() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Completion Rate</span>
                           <span>{course.completionRate}%</span>
                         </div>
@@ -644,7 +644,7 @@ export function StudentAnalytics() {
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                     No Courses Found
                   </h3>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     No courses available to display analytics
                   </p>
                 </div>
@@ -717,12 +717,12 @@ export function StudentAnalytics() {
               <CardTitle className="text-sm xs:text-base sm:text-lg">
                 Top Performing Students
               </CardTitle>
-              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                 Students with highest engagement and performance
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
+              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
                 Showing{" "}
                 {
                   getPaginatedItems(topStudents, currentPageStudents)
@@ -742,13 +742,13 @@ export function StudentAnalytics() {
                     className="flex flex-col xs:flex-row items-start xs:items-center justify-between p-2 xs:p-3 sm:p-4 border rounded-lg">
                     <div className="flex items-center gap-2 xs:gap-3">
                       <div className="w-8 h-8 xs:w-10 xs:h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="font-medium text-primary text-[0.65rem] xs:text-xs sm:text-sm">
+                        <span className="font-medium text-primary text-[0.85rem] xs:text-xs sm:text-sm">
                           #
                           {index + 1 + (currentPageStudents - 1) * itemsPerPage}
                         </span>
                       </div>
                       <div>
-                        <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                        <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                           {student.name}
                         </h4>
                         <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
@@ -757,7 +757,7 @@ export function StudentAnalytics() {
                       </div>
                     </div>
                     <div className="mt-2 xs:mt-0 text-right">
-                      <div className="grid grid-cols-3 gap-2 xs:gap-3 sm:gap-4 text-[0.65rem] xs:text-xs sm:text-sm">
+                      <div className="grid grid-cols-3 gap-2 xs:gap-3 sm:gap-4 text-[0.85rem] xs:text-xs sm:text-sm">
                         <div>
                           <div className="font-medium">
                             {student.coursesCompleted}
@@ -786,7 +786,7 @@ export function StudentAnalytics() {
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                     No Students Found
                   </h3>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     No student data available to display
                   </p>
                 </div>
@@ -857,12 +857,12 @@ export function StudentAnalytics() {
               <CardTitle className="text-sm xs:text-base sm:text-lg">
                 Test Performance Analytics
               </CardTitle>
-              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                 Detailed breakdown of test results and difficulty analysis
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
+              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
                 Showing{" "}
                 {
                   getPaginatedItems(testAnalytics, currentPageTests)
@@ -882,7 +882,7 @@ export function StudentAnalytics() {
                     className="p-2 xs:p-3 sm:p-4 border rounded-lg">
                     <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
                       <div>
-                        <h4 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                        <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                           {test.name}
                         </h4>
                         <div className="flex items-center flex-wrap gap-1 xs:gap-2 mt-0.5 xs:mt-1">
@@ -905,7 +905,7 @@ export function StudentAnalytics() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 xs:mt-0 text-[0.65rem] xs:text-xs sm:text-sm"
+                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm"
                         onClick={() => handleViewTestDetails(test)}>
                         <BarChart3 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
@@ -914,7 +914,7 @@ export function StudentAnalytics() {
 
                     <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                       <div className="space-y-2">
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Average Score</span>
                           <span>{test.avgScore}%</span>
                         </div>
@@ -924,7 +924,7 @@ export function StudentAnalytics() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Pass Rate</span>
                           <span>{test.passRate}%</span>
                         </div>
@@ -944,7 +944,7 @@ export function StudentAnalytics() {
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                     No Tests Found
                   </h3>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     No test data available to display
                   </p>
                 </div>
@@ -1016,7 +1016,7 @@ export function StudentAnalytics() {
                 <CardTitle className="text-sm xs:text-base sm:text-lg">
                   Weekly Activity
                 </CardTitle>
-                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+                <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                   Student engagement over the past week
                 </CardDescription>
               </CardHeader>
@@ -1036,7 +1036,7 @@ export function StudentAnalytics() {
                       className="flex items-center justify-between">
                       <div className="flex items-center gap-2 xs:gap-3">
                         <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-primary rounded-full" />
-                        <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                        <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                           {day.day}
                         </span>
                       </div>
@@ -1055,12 +1055,12 @@ export function StudentAnalytics() {
                 <CardTitle className="text-sm xs:text-base sm:text-lg">
                   Popular Content
                 </CardTitle>
-                <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+                <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                   Most accessed materials this month
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
+                <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
                   Showing{" "}
                   {
                     getPaginatedItems(popularContent, currentPageContent)
@@ -1082,7 +1082,7 @@ export function StudentAnalytics() {
                       key={index}
                       className="flex items-center justify-between p-2 xs:p-3 border rounded-lg">
                       <div>
-                        <h5 className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                        <h5 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                           {content.title}
                         </h5>
                         <div className="flex items-center gap-1 xs:gap-2 mt-0.5 xs:mt-1">
@@ -1099,7 +1099,7 @@ export function StudentAnalytics() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                        <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                           #{index + 1 + (currentPageContent - 1) * itemsPerPage}
                         </div>
                       </div>
@@ -1113,7 +1113,7 @@ export function StudentAnalytics() {
                     <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                       No Content Found
                     </h3>
-                    <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       No content data available to display
                     </p>
                   </div>
@@ -1185,7 +1185,7 @@ export function StudentAnalytics() {
               <CardTitle className="text-sm xs:text-base sm:text-lg">
                 Learning Patterns
               </CardTitle>
-              <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                 Insights into how students learn best
               </CardDescription>
             </CardHeader>
@@ -1195,7 +1195,7 @@ export function StudentAnalytics() {
                   <div className="text-lg xs:text-xl sm:text-2xl font-bold text-blue-600">
                     68%
                   </div>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Prefer video content
                   </p>
                 </div>
@@ -1203,7 +1203,7 @@ export function StudentAnalytics() {
                   <div className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">
                     4.2h
                   </div>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Average session length
                   </p>
                 </div>
@@ -1211,7 +1211,7 @@ export function StudentAnalytics() {
                   <div className="text-lg xs:text-xl sm:text-2xl font-bold text-purple-600">
                     Evening
                   </div>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Peak learning time
                   </p>
                 </div>
@@ -1229,7 +1229,7 @@ export function StudentAnalytics() {
               <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
               {selectedCourse?.name} - Detailed Analytics
             </DialogTitle>
-            <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+            <DialogDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
               Comprehensive performance analysis and student insights
             </DialogDescription>
           </DialogHeader>
@@ -1315,7 +1315,7 @@ export function StudentAnalytics() {
                         className="flex items-center justify-between p-2 xs:p-3 border rounded">
                         <div className="flex items-center gap-2 xs:gap-3">
                           <Calendar className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
-                          <span className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                          <span className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                             {day.day}
                           </span>
                         </div>
@@ -1355,11 +1355,11 @@ export function StudentAnalytics() {
                                 #{index + 1}
                               </span>
                             </div>
-                            <span className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                            <span className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                               {student.name}
                             </span>
                           </div>
-                          <div className="text-right text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="text-right text-[0.85rem] xs:text-xs sm:text-sm">
                             <div className="font-medium text-green-600">
                               {student.score}% score
                             </div>
@@ -1387,14 +1387,14 @@ export function StudentAnalytics() {
                             key={index}
                             className="flex items-center justify-between p-2 xs:p-3 bg-red-50 rounded">
                             <div>
-                              <div className="font-medium text-[0.65rem] xs:text-xs sm:text-sm">
+                              <div className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                                 {student.name}
                               </div>
                               <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                                 Last active: {student.lastActive}
                               </div>
                             </div>
-                            <div className="text-right text-[0.65rem] xs:text-xs sm:text-sm">
+                            <div className="text-right text-[0.85rem] xs:text-xs sm:text-sm">
                               <div className="font-medium text-red-600">
                                 {student.score}% score
                               </div>
@@ -1422,7 +1422,7 @@ export function StudentAnalytics() {
               <BarChart3 className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
               {selectedTest?.name} - Test Analytics
             </DialogTitle>
-            <DialogDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+            <DialogDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
               Detailed analysis of test performance and student responses
             </DialogDescription>
           </DialogHeader>
@@ -1514,19 +1514,19 @@ export function StudentAnalytics() {
                         className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                         {selectedTest.difficulty}
                       </Badge>
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         Difficulty Level
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-3 w-3 xs:h-4 xs:w-4" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {selectedTest.timeLimit}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-3 w-3 xs:h-4 xs:w-4" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {selectedTest.questions} Questions
                       </span>
                     </div>
@@ -1547,7 +1547,7 @@ export function StudentAnalytics() {
                       <div
                         key={index}
                         className="flex items-center justify-between">
-                        <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                        <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                           {range.range}%
                         </span>
                         <div className="flex items-center gap-2 xs:gap-3 flex-1 ml-2 xs:ml-4">
@@ -1583,7 +1583,7 @@ export function StudentAnalytics() {
                     <div className="space-y-2 xs:space-y-3">
                       {selectedTest.commonMistakes.map((mistake, index) => (
                         <div key={index} className="space-y-2">
-                          <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                             <span className="font-medium">
                               {mistake.question}
                             </span>
@@ -1615,11 +1615,11 @@ export function StudentAnalytics() {
                           className="flex items-center justify-between p-1 xs:p-2 border rounded">
                           <div className="flex items-center gap-1 xs:gap-2">
                             <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            <span className="text-[0.65rem] xs:text-xs sm:text-sm font-medium">
+                            <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
                               {time.hour}
                             </span>
                           </div>
-                          <div className="text-right text-[0.65rem] xs:text-xs sm:text-sm">
+                          <div className="text-right text-[0.85rem] xs:text-xs sm:text-sm">
                             <div className="font-medium">
                               {time.avgScore}% avg
                             </div>

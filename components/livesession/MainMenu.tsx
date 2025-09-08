@@ -182,7 +182,7 @@ const MainMenu = () => {
             <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black text-center mb-3 sm:mb-4 md:mb-5">
               Type the Meeting link here
             </DialogTitle>
-            <DialogDescription className="flex flex-colhe gap-3 sm:gap-4 items-center w-full">
+            <DialogDescription className="flex flex-col gap-3 sm:gap-4 items-center w-full">
               <Input
                 type="text"
                 placeholder="Meeting Link or Meeting ID"

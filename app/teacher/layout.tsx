@@ -31,8 +31,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,14 +41,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMediaQuery } from "react-responsive";
-import { useSession, signOut } from "next-auth/react";
+import {usePathname} from "next/navigation";
+import {useMediaQuery} from "react-responsive";
+import {useSession, signOut} from "next-auth/react";
 
 const menuItems = [
-  { title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher" },
+  {title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher"},
   {
     title: "Create CBT",
     icon: TestTube,
@@ -95,8 +95,8 @@ const menuItems = [
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
-  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
+  const isMobile = useMediaQuery({maxWidth: 639});
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -127,58 +127,56 @@ function SidebarMenuContent() {
   );
 }
 
-export default function TeacherLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function TeacherLayout({children}: {children: React.ReactNode}) {
+  const {data: session, status} = useSession();
 
-    const { data: session, status } = useSession();
-  
-    console.log("[TeacherLayout] Session status:", status);
-    console.log("[TeacherLayout] Session data:", session);
-  
-    if (status === "loading") {
-      return <div>Loading...</div>;
-    }
-  
-    if (status !== "authenticated" || session?.user?.role !== "teacher") {
-      console.log("[TeacherLayout] Unauthorized, redirecting to /login");
-      window.location.href = "/login";
-      return null;
-    }
-  
-    const handleLogout = async () => {
+  console.log("[TeacherLayout] Session status:", status);
+  console.log("[TeacherLayout] Session data:", session);
+
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+
+  if (status !== "authenticated" || session?.user?.role !== "teacher") {
+    console.log("[TeacherLayout] Unauthorized, redirecting to /login");
+    window.location.href = "/login";
+    return null;
+  }
+
+  const handleLogout = async () => {
+    console.log(
+      "[TeacherLayout] Initiating logout, sessionToken:",
+      session?.user?.sessionToken
+    );
+    try {
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+      });
+
       console.log(
-        "[TeacherLayout] Initiating logout, sessionToken:",
-        session?.user?.sessionToken
+        "[TeacherLayout] Logout API response status:",
+        response.status
       );
-      try {
-        const response = await fetch("/api/auth/logout-route", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-  
-        console.log("[TeacherLayout] Logout API response status:", response.status);
-        const data = await response.json();
-        console.log("[TeacherLayout] Logout API response:", data);
-  
-        if (!response.ok) {
-          console.error("[TeacherLayout] Logout failed:", data);
-          throw new Error(data.error || "Logout failed");
-        }
-  
-        console.log("[TeacherLayout] Logout successful, redirecting to /login");
-        document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-        document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-        window.location.href = "/login";
-      } catch (error) {
-        console.error("[TeacherLayout] Logout error:", error);
-        document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-        document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-        window.location.href = "/login";
+      const data = await response.json();
+      console.log("[TeacherLayout] Logout API response:", data);
+
+      if (!response.ok) {
+        console.error("[TeacherLayout] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
       }
-    };
+
+      console.log("[TeacherLayout] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[TeacherLayout] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
+    }
+  };
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full ">
@@ -209,8 +207,7 @@ export default function TeacherLayout({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
-                    className="w-[--radix-popper-anchor-width]"
-                  >
+                    className="w-[--radix-popper-anchor-width]">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
@@ -222,10 +219,9 @@ export default function TeacherLayout({
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                     <DropdownMenuItem
-                      className="text-[0.65rem] xs:text-xs sm:text-sm"
-                      onClick={handleLogout}
-                    >
+                    <DropdownMenuItem
+                      className="text-[0.85rem] xs:text-xs sm:text-sm"
+                      onClick={handleLogout}>
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
                     </DropdownMenuItem>

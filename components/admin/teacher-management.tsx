@@ -566,7 +566,7 @@ export function TeacherManagement() {
                           <div className="font-medium text-xs xs:text-sm sm:text-base">
                             {teacher.name}
                           </div>
-                          <div className="flex items-center text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                          <div className="flex items-center text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                             <Calendar className="mr-1 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Joined {teacher.joinDate}
                           </div>
@@ -786,7 +786,7 @@ export function TeacherManagement() {
             <div className="text-lg xs:text-xl sm:text-2xl font-bold">
               {teachers.length}
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               {teachers.filter((t) => t.status === "Active").length} active
               teachers
             </p>
@@ -805,7 +805,7 @@ export function TeacherManagement() {
                 .reduce((sum, teacher) => sum + teacher.students, 0)
                 .toLocaleString()}
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               Students being taught
             </p>
           </CardContent>
@@ -821,7 +821,7 @@ export function TeacherManagement() {
             <div className="text-lg xs:text-xl sm:text-2xl font-bold">
               {teachers.reduce((sum, teacher) => sum + teacher.courses, 0)}
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               Active courses
             </p>
           </CardContent>
@@ -843,7 +843,7 @@ export function TeacherManagement() {
               )}
               %
             </div>
-            <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+            <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
               Platform average
             </p>
           </CardContent>

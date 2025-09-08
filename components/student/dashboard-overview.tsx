@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
 import {
   BookOpen,
   Clock,
@@ -25,42 +25,53 @@ import {
   Zap,
   LogIn,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
+import {Spinner} from "@/components/ui/spinner";
 
 export function DashboardOverview() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
+  const sessionToken = useMemo(
+    () => session?.user?.sessionToken || null,
+    [session?.user?.sessionToken]
+  );
 
   // Helper function to capitalize first letters of each word
   const capitalizeName = (name) => {
     if (!name) return "User";
     return name
       .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
   };
 
   const handleLogout = async () => {
-    console.log("[DashboardOverview] Initiating logout, sessionToken:", session?.user?.sessionToken);
+    console.log(
+      "[DashboardOverview] Initiating logout, sessionToken:",
+      session?.user?.sessionToken
+    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
-      console.log("[DashboardOverview] Logout API response status:", response.status);
+      console.log(
+        "[DashboardOverview] Logout API response status:",
+        response.status
+      );
       const data = await response.json();
       console.log("[DashboardOverview] Logout API response:", data);
       if (!response.ok) {
         console.error("[DashboardOverview] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log("[DashboardOverview] Logout successful, redirecting to /login");
+      console.log(
+        "[DashboardOverview] Logout successful, redirecting to /login"
+      );
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -74,16 +85,26 @@ export function DashboardOverview() {
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log("[DashboardOverview] Initiating fetch for /api/student/dashboard-overview");
+      console.log(
+        "[DashboardOverview] Initiating fetch for /api/student/dashboard-overview"
+      );
       if (status !== "authenticated" || !session?.user?.sessionToken) {
-        console.log("[DashboardOverview] Session not authenticated, status:", status, "sessionToken:", session?.user?.sessionToken);
+        console.log(
+          "[DashboardOverview] Session not authenticated, status:",
+          status,
+          "sessionToken:",
+          session?.user?.sessionToken
+        );
         setError("Not authenticated");
         setLoading(false);
         return;
       }
 
       try {
-        console.log("[DashboardOverview] Fetching from /api/student/dashboard-overview with token:", session.user.sessionToken);
+        console.log(
+          "[DashboardOverview] Fetching from /api/student/dashboard-overview with token:",
+          session.user.sessionToken
+        );
         const res = await fetch("/api/student/dashboard-overview", {
           headers: {
             Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
@@ -93,7 +114,10 @@ export function DashboardOverview() {
         });
         console.log("[DashboardOverview] Fetch response status:", res.status);
         if (!res.ok) {
-          console.error("[DashboardOverview] Fetch failed with status:", res.status);
+          console.error(
+            "[DashboardOverview] Fetch failed with status:",
+            res.status
+          );
           if (res.status === 401 || res.status === 403) {
             setError("Session expired");
             setData(null); // Prevent fallback data on session expiry
@@ -120,20 +144,27 @@ export function DashboardOverview() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-transparent">
         <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
 
-  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
+  if (
+    error === "Session expired" ||
+    error === "Not authenticated" ||
+    (status === "authenticated" && error === "Session expired")
+  ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Session Expired
+            </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log in again to continue.
+              Your session has expired or you are not authenticated. Please log
+              in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -152,11 +183,15 @@ export function DashboardOverview() {
       <div className="p-6">
         <Card className="w-full max-w-md mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Error</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Error
+            </CardTitle>
             <CardDescription className="text-center">{error}</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+            <Button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -201,14 +236,16 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Welcome back, {capitalizeName(data?.user?.display_name)}!</h1>
+        <h1 className="text-3xl font-bold">
+          Welcome back, {capitalizeName(data?.user?.display_name)}!
+        </h1>
         <p className="text-muted-foreground">Continue your learning journey</p>
         {error && <p className="text-yellow-600 text-sm">{error}</p>}
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-transparent border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Courses Enrolled
@@ -216,37 +253,51 @@ export function DashboardOverview() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.stats?.courses_enrolled ?? 0}</div>
-            <p className="text-xs text-muted-foreground">+{data?.stats?.courses_enrolled ?? 0} from last month</p>
+            <div className="text-2xl font-bold">
+              {data?.stats?.courses_enrolled ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              +{data?.stats?.courses_enrolled ?? 0} from last month
+            </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-transparent border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Hours Learned</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.stats?.hours_learned ?? 0}</div>
-            <p className="text-xs text-muted-foreground">+{data?.stats?.hours_learned ?? 0} this week</p>
+            <div className="text-2xl font-bold">
+              {data?.stats?.hours_learned ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              +{data?.stats?.hours_learned ?? 0} this week
+            </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-transparent border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Certificates</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.stats?.certificates ?? 0}</div>
-            <p className="text-xs text-muted-foreground">{data?.stats?.certificates ?? 0} in progress</p>
+            <div className="text-2xl font-bold">
+              {data?.stats?.certificates ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {data?.stats?.certificates ?? 0} in progress
+            </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-transparent border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Streak</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.stats?.streak_days ?? 0} days</div>
+            <div className="text-2xl font-bold">
+              {data?.stats?.streak_days ?? 0} days
+            </div>
             <p className="text-xs text-muted-foreground">Keep it up!</p>
           </CardContent>
         </Card>
@@ -263,11 +314,16 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-2xl font-bold text-yellow-700">{data?.gamification?.xp ?? 0} XP</div>
+              <div className="text-2xl font-bold text-yellow-700">
+                {data?.gamification?.xp ?? 0} XP
+              </div>
               <Badge className="bg-yellow-100 text-yellow-700">
                 {data?.gamification?.level_name ?? "N/A"}
               </Badge>
-              <Progress value={data?.gamification?.progress_to_next_pct ?? 0} className="h-2" />
+              <Progress
+                value={data?.gamification?.progress_to_next_pct ?? 0}
+                className="h-2"
+              />
               <p className="text-sm text-yellow-600">
                 {data?.gamification?.xp_to_next ?? 0} XP to next level
               </p>
@@ -284,15 +340,35 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-2xl font-bold text-blue-700">{data?.gamification?.achievements?.unlocked ?? 0} / {data?.gamification?.achievements?.total ?? 0}</div>
-              <p className="text-sm text-blue-600">Recent: {data?.gamification?.achievements?.recent ?? "None"}</p>
+              <div className="text-2xl font-bold text-blue-700">
+                {data?.gamification?.achievements?.unlocked ?? 0} /{" "}
+                {data?.gamification?.achievements?.total ?? 0}
+              </div>
+              <p className="text-sm text-blue-600">
+                Recent: {data?.gamification?.achievements?.recent ?? "None"}
+              </p>
               <div className="flex gap-1">
-                {Array.from({ length: data?.gamification?.achievements?.unlocked ?? 0 }, (_, i) => (
-                  <Medal key={i} className="h-4 w-4 text-yellow-500" />
-                ))}
-                {Array.from({ length: (data?.gamification?.achievements?.total ?? 0) - (data?.gamification?.achievements?.unlocked ?? 0) }, (_, i) => (
-                  <Medal key={i + (data?.gamification?.achievements?.unlocked ?? 0)} className="h-4 w-4 text-gray-300" />
-                ))}
+                {Array.from(
+                  {length: data?.gamification?.achievements?.unlocked ?? 0},
+                  (_, i) => (
+                    <Medal key={i} className="h-4 w-4 text-yellow-500" />
+                  )
+                )}
+                {Array.from(
+                  {
+                    length:
+                      (data?.gamification?.achievements?.total ?? 0) -
+                      (data?.gamification?.achievements?.unlocked ?? 0),
+                  },
+                  (_, i) => (
+                    <Medal
+                      key={
+                        i + (data?.gamification?.achievements?.unlocked ?? 0)
+                      }
+                      className="h-4 w-4 text-gray-300"
+                    />
+                  )
+                )}
               </div>
             </div>
           </CardContent>
@@ -307,7 +383,9 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-2xl font-bold text-green-700">#{data?.gamification?.leaderboard?.org_rank ?? "N/A"}</div>
+              <div className="text-2xl font-bold text-green-700">
+                #{data?.gamification?.leaderboard?.org_rank ?? "N/A"}
+              </div>
               <p className="text-sm text-green-600">in your school</p>
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <Zap className="h-3 w-3" />
@@ -320,7 +398,7 @@ export function DashboardOverview() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Continue Learning */}
-        <Card>
+        <Card className="bg-transparent border-none shadow-md">
           <CardHeader>
             <CardTitle>Continue Learning</CardTitle>
             <CardDescription>Pick up where you left off</CardDescription>
@@ -330,16 +408,19 @@ export function DashboardOverview() {
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium">{course.title}</h4>
-                  <Badge variant="secondary">{course.duration}</Badge>
+                  <Badge
+                    className="bg-blue-100 text-blue-800"
+                    variant="secondary">
+                    {course.duration}
+                  </Badge>
                 </div>
                 <Progress value={course.progress} className="h-2" />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{course.progress}% complete</span>
                   <Button
-                    className="border border-slate-300 mt-2 rounded-lg"
+                    className="border border-slate-300 hover:border-none hover:bg-[#EF7B55] hover:text-white mt-2 rounded-lg"
                     variant="ghost"
-                    size="sm"
-                  >
+                    size="sm">
                     <Play className="mr-2 h-3 w-3" />
                     Continue
                   </Button>
@@ -353,7 +434,7 @@ export function DashboardOverview() {
         </Card>
 
         {/* Upcoming Tests */}
-        <Card>
+        <Card className="bg-transparent border-none shadow-md ">
           <CardHeader>
             <CardTitle>Upcoming Tests</CardTitle>
             <CardDescription>
@@ -365,8 +446,7 @@ export function DashboardOverview() {
               <div
                 key={index}
                 className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                onClick={() => handleTestClick(test.testId)}
-              >
+                onClick={() => handleTestClick(test.testId)}>
                 <div className="space-y-1">
                   <h4 className="font-medium">{test.title}</h4>
                   <div className="flex items-center text-sm text-muted-foreground">
@@ -379,12 +459,12 @@ export function DashboardOverview() {
                   </div>
                 </div>
                 <Button
+                  className="border border-slate-300 hover:border-none hover:bg-[#EF7B55] hover:text-white mt-2 rounded-lg"
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation(); // Prevent parent div's onClick from firing
                     handleTestClick(test.testId);
-                  }}
-                >
+                  }}>
                   <TestTube className="mr-2 h-3 w-3" />
                   Start
                 </Button>

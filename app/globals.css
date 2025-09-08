@@ -112,6 +112,20 @@
   }
 }
 
+.text-default {
+  @apply text-slate-700 !important;
+}
+
+input:focus,
+input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+h1 {
+  @apply text-3xl sm:text-9xl md:text-5xl font-extrabold !important;
+}
+
 /* ======== stream css overrides ======== */
 .str-video__call-stats {
   max-width: 500px;

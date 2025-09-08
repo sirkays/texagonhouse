@@ -1,27 +1,46 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Download, Copy, RotateCcw, AlertCircle, LogIn } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useSession } from "next-auth/react"
-import { Spinner } from "@/components/ui/spinner"
+import {useState, useRef, useEffect} from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {
+  Play,
+  Download,
+  Copy,
+  RotateCcw,
+  AlertCircle,
+  LogIn,
+} from "lucide-react";
+import {Textarea} from "@/components/ui/textarea";
+import {Alert, AlertDescription} from "@/components/ui/alert";
+import {useSession} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
 
 export function CodeEditor() {
-  const { data: session, status } = useSession()
-  const [selectedLanguage, setSelectedLanguage] = useState("javascript")
-  const [code, setCode] = useState("")
-  const [output, setOutput] = useState("")
-  const [isRunning, setIsRunning] = useState(false)
-  const [htmlPreview, setHtmlPreview] = useState("")
-  const [executionError, setExecutionError] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const {data: session, status} = useSession();
+  const [selectedLanguage, setSelectedLanguage] = useState("javascript");
+  const [code, setCode] = useState("");
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  const [htmlPreview, setHtmlPreview] = useState("");
+  const [executionError, setExecutionError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const languages = {
     javascript: {
@@ -252,59 +271,67 @@ body {
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }`,
     },
-  }
+  };
 
   const handleLogout = async () => {
-    console.log("[CodeEditor] Initiating logout, sessionToken:", session?.user?.sessionToken)
+    console.log(
+      "[CodeEditor] Initiating logout, sessionToken:",
+      session?.user?.sessionToken
+    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-      console.log("[CodeEditor] Logout API response status:", response.status)
-      const data = await response.json()
-      console.log("[CodeEditor] Logout API response:", data)
+        headers: {"Content-Type": "application/json"},
+      });
+      console.log("[CodeEditor] Logout API response status:", response.status);
+      const data = await response.json();
+      console.log("[CodeEditor] Logout API response:", data);
       if (!response.ok) {
-        console.error("[CodeEditor] Logout failed:", data)
-        throw new Error(data.error || "Logout failed")
+        console.error("[CodeEditor] Logout failed:", data);
+        throw new Error(data.error || "Logout failed");
       }
-      console.log("[CodeEditor] Logout successful, redirecting to /login")
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure"
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure"
-      window.location.href = "/login"
+      console.log("[CodeEditor] Logout successful, redirecting to /login");
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
     } catch (error) {
-      console.error("[CodeEditor] Logout error:", error)
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure"
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure"
-      window.location.href = "/login"
+      console.error("[CodeEditor] Logout error:", error);
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      window.location.href = "/login";
     }
-  }
+  };
 
   useEffect(() => {
-    console.log("[CodeEditor] Checking authentication status:", status, "sessionToken:", session?.user?.sessionToken)
+    console.log(
+      "[CodeEditor] Checking authentication status:",
+      status,
+      "sessionToken:",
+      session?.user?.sessionToken
+    );
     if (status === "loading") {
-      setLoading(true)
+      setLoading(true);
     } else if (status !== "authenticated" || !session?.user?.sessionToken) {
-      console.log("[CodeEditor] Session not authenticated")
-      setError("Not authenticated")
-      setLoading(false)
+      console.log("[CodeEditor] Session not authenticated");
+      setError("Not authenticated");
+      setLoading(false);
     } else {
-      setError(null)
-      setLoading(false)
-      setCode(languages[selectedLanguage].template)
+      setError(null);
+      setLoading(false);
+      setCode(languages[selectedLanguage].template);
     }
-  }, [session, status, selectedLanguage])
+  }, [session, status, selectedLanguage]);
 
   const executeCodeOnline = async (sourceCode: string, languageId: number) => {
-    console.log("[CodeEditor] Executing code online, languageId:", languageId)
+    console.log("[CodeEditor] Executing code online, languageId:", languageId);
     try {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
         "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-      }
+      };
       if (session?.user?.sessionToken) {
-        headers["X-Session-Token"] = session.user.sessionToken
+        headers["X-Session-Token"] = session.user.sessionToken;
       }
       const submitResponse = await fetch(
         "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
@@ -316,43 +343,49 @@ body {
             language_id: languageId,
             stdin: "",
           }),
-        },
-      )
-
-      console.log("[CodeEditor] Judge0 API response status:", submitResponse.status)
-      if (!submitResponse.ok) {
-        console.error("[CodeEditor] Judge0 API failed with status:", submitResponse.status)
-        if (submitResponse.status === 401 || submitResponse.status === 403) {
-          setError("Session expired")
-          return "Session expired. Please log in again."
         }
-        throw new Error("Failed to submit code for execution")
+      );
+
+      console.log(
+        "[CodeEditor] Judge0 API response status:",
+        submitResponse.status
+      );
+      if (!submitResponse.ok) {
+        console.error(
+          "[CodeEditor] Judge0 API failed with status:",
+          submitResponse.status
+        );
+        if (submitResponse.status === 401 || submitResponse.status === 403) {
+          setError("Session expired");
+          return "Session expired. Please log in again.";
+        }
+        throw new Error("Failed to submit code for execution");
       }
 
-      const result = await submitResponse.json()
-      console.log("[CodeEditor] Judge0 API response:", result)
-      setError(null)
+      const result = await submitResponse.json();
+      console.log("[CodeEditor] Judge0 API response:", result);
+      setError(null);
 
       if (result.status?.id === 3) {
-        return result.stdout || "Code executed successfully (no output)"
+        return result.stdout || "Code executed successfully (no output)";
       } else if (result.status?.id === 6) {
-        return `Compilation Error:\n${result.compile_output || result.stderr}`
+        return `Compilation Error:\n${result.compile_output || result.stderr}`;
       } else if (result.status?.id === 5) {
-        return "Error: Time Limit Exceeded"
+        return "Error: Time Limit Exceeded";
       } else if (result.status?.id === 4) {
-        return `Runtime Error:\n${result.stderr}`
+        return `Runtime Error:\n${result.stderr}`;
       } else {
-        return result.stderr || result.stdout || "Unknown execution error"
+        return result.stderr || result.stdout || "Unknown execution error";
       }
     } catch (error) {
-      console.error("[CodeEditor] Code execution error:", error)
-      setError("Session expired")
-      return `Network Error: Unable to execute code. ${error}`
+      console.error("[CodeEditor] Code execution error:", error);
+      setError("Session expired");
+      return `Network Error: Unable to execute code. ${error}`;
     }
-  }
+  };
 
   const executeCodeLocally = async (sourceCode: string, language: string) => {
-    console.log("[CodeEditor] Executing code locally, language:", language)
+    console.log("[CodeEditor] Executing code locally, language:", language);
     const simulatedOutputs = {
       python: `Hello, World!
 Factorial of 5: 120
@@ -367,66 +400,71 @@ Fruits: [Apple, Banana, Orange]`,
 Factorial of 5: 120
 Original vector: 1 2 3 4 5 
 Doubled vector: 2 4 6 8 10 `,
-    }
+    };
 
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     try {
       if (language === "python" && sourceCode.includes("print")) {
-        const lines = sourceCode.split("\n")
-        const outputs: string[] = []
+        const lines = sourceCode.split("\n");
+        const outputs: string[] = [];
 
         for (const line of lines) {
           if (line.trim().startsWith("print(") && line.includes('"')) {
-            const match = line.match(/print\("([^"]+)"\)/)
+            const match = line.match(/print\("([^"]+)"\)/);
             if (match) {
-              outputs.push(match[1])
+              outputs.push(match[1]);
             }
           }
         }
 
         if (outputs.length > 0) {
-          return outputs.join("\n")
+          return outputs.join("\n");
         }
       }
 
-      return simulatedOutputs[language as keyof typeof simulatedOutputs] || "Code executed successfully"
+      return (
+        simulatedOutputs[language as keyof typeof simulatedOutputs] ||
+        "Code executed successfully"
+      );
     } catch (error) {
-      return `Execution Error: ${error}`
+      return `Execution Error: ${error}`;
     }
-  }
+  };
 
   const runCode = async () => {
-    setIsRunning(true)
-    setOutput("")
-    setExecutionError("")
+    setIsRunning(true);
+    setOutput("");
+    setExecutionError("");
 
     try {
       if (error === "Session expired" || error === "Not authenticated") {
-        setOutput("Session expired. Please log in again.")
-        setIsRunning(false)
-        return
+        setOutput("Session expired. Please log in again.");
+        setIsRunning(false);
+        return;
       }
 
       if (selectedLanguage === "javascript") {
-        const logs: string[] = []
-        const originalLog = console.log
+        const logs: string[] = [];
+        const originalLog = console.log;
         console.log = (...args) => {
-          logs.push(args.map((arg) => String(arg)).join(" "))
-        }
+          logs.push(args.map((arg) => String(arg)).join(" "));
+        };
 
         try {
-          const func = new Function(code)
-          func()
-          setOutput(logs.join("\n") || "Code executed successfully (no output)")
+          const func = new Function(code);
+          func();
+          setOutput(
+            logs.join("\n") || "Code executed successfully (no output)"
+          );
         } catch (error) {
-          setOutput(`Error: ${error}`)
+          setOutput(`Error: ${error}`);
         } finally {
-          console.log = originalLog
+          console.log = originalLog;
         }
       } else if (selectedLanguage === "html") {
-        setHtmlPreview(code)
-        setOutput("HTML rendered in preview tab")
+        setHtmlPreview(code);
+        setOutput("HTML rendered in preview tab");
       } else if (selectedLanguage === "css") {
         const htmlWithCSS = `
           <!DOCTYPE html>
@@ -449,35 +487,41 @@ Doubled vector: 2 4 6 8 10 `,
             </div>
           </body>
           </html>
-        `
-        setHtmlPreview(htmlWithCSS)
-        setOutput("CSS applied to preview template")
+        `;
+        setHtmlPreview(htmlWithCSS);
+        setOutput("CSS applied to preview template");
       } else {
-        const languageConfig = languages[selectedLanguage as keyof typeof languages]
+        const languageConfig =
+          languages[selectedLanguage as keyof typeof languages];
 
         if (languageConfig.judgeId) {
           try {
-            const result = await executeCodeOnline(code, languageConfig.judgeId)
-            setOutput(result)
+            const result = await executeCodeOnline(
+              code,
+              languageConfig.judgeId
+            );
+            setOutput(result);
           } catch (error) {
-            setExecutionError("Online execution unavailable. Using local simulation.")
-            const result = await executeCodeLocally(code, selectedLanguage)
-            setOutput(result)
+            setExecutionError(
+              "Online execution unavailable. Using local simulation."
+            );
+            const result = await executeCodeLocally(code, selectedLanguage);
+            setOutput(result);
           }
         } else {
-          setOutput("Language not supported for execution")
+          setOutput("Language not supported for execution");
         }
       }
     } catch (error) {
-      setOutput(`Error: ${error}`)
+      setOutput(`Error: ${error}`);
     } finally {
-      setIsRunning(false)
+      setIsRunning(false);
     }
-  }
+  };
 
   const copyCode = () => {
-    navigator.clipboard.writeText(code)
-  }
+    navigator.clipboard.writeText(code);
+  };
 
   const downloadCode = () => {
     const extensions = {
@@ -487,38 +531,40 @@ Doubled vector: 2 4 6 8 10 `,
       cpp: "cpp",
       html: "html",
       css: "css",
-    }
+    };
 
-    const blob = new Blob([code], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `code.${extensions[selectedLanguage as keyof typeof extensions]}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
+    const blob = new Blob([code], {type: "text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `code.${
+      extensions[selectedLanguage as keyof typeof extensions]
+    }`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const resetCode = () => {
-    setCode(languages[selectedLanguage as keyof typeof languages].template)
-    setOutput("")
-    setHtmlPreview("")
-    setExecutionError("")
-  }
+    setCode(languages[selectedLanguage as keyof typeof languages].template);
+    setOutput("");
+    setHtmlPreview("");
+    setExecutionError("");
+  };
 
   const handleLanguageChange = (language: string) => {
-    setSelectedLanguage(language)
-    setCode(languages[language as keyof typeof languages].template)
-    setOutput("")
-    setHtmlPreview("")
-    setExecutionError("")
-  }
+    setSelectedLanguage(language);
+    setCode(languages[language as keyof typeof languages].template);
+    setOutput("");
+    setHtmlPreview("");
+    setExecutionError("");
+  };
 
   const handleCodeChange = (value: string) => {
-    setCode(value)
+    setCode(value);
     if (selectedLanguage === "html") {
-      setHtmlPreview(value)
+      setHtmlPreview(value);
     } else if (selectedLanguage === "css") {
       const htmlWithCSS = `
         <!DOCTYPE html>
@@ -541,27 +587,34 @@ Doubled vector: 2 4 6 8 10 `,
           </div>
         </body>
         </html>
-      `
-      setHtmlPreview(htmlWithCSS)
+      `;
+      setHtmlPreview(htmlWithCSS);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Spinner size="md" className="text-black" />
       </div>
-    )
+    );
   }
 
-  if (error === "Session expired" || error === "Not authenticated" || (status === "authenticated" && error === "Session expired")) {
+  if (
+    error === "Session expired" ||
+    error === "Not authenticated" ||
+    (status === "authenticated" && error === "Session expired")
+  ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">
+              Session Expired
+            </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log in again to continue.
+              Your session has expired or you are not authenticated. Please log
+              in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -572,7 +625,7 @@ Doubled vector: 2 4 6 8 10 `,
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -580,7 +633,8 @@ Doubled vector: 2 4 6 8 10 `,
       <div>
         <h1 className="text-3xl font-bold">Code IDE</h1>
         <p className="text-muted-foreground">
-          Write, run, and test your code in multiple programming languages with real-time execution
+          Write, run, and test your code in multiple programming languages with
+          real-time execution
         </p>
       </div>
 
@@ -597,7 +651,9 @@ Doubled vector: 2 4 6 8 10 `,
             <div className="flex items-center justify-between">
               <CardTitle>Code Editor</CardTitle>
               <div className="flex items-center gap-2">
-                <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+                <Select
+                  value={selectedLanguage}
+                  onValueChange={handleLanguageChange}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
@@ -623,7 +679,10 @@ Doubled vector: 2 4 6 8 10 `,
               className="flex-1 font-mono text-sm resize-none min-h-[400px]"
             />
             <div className="flex gap-2 mt-4">
-              <Button onClick={runCode} disabled={isRunning || !!error} className="flex-1">
+              <Button
+                onClick={runCode}
+                disabled={isRunning || !!error}
+                className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]">
                 <Play className="mr-2 h-4 w-4" />
                 {isRunning ? "Executing..." : "Run Code"}
               </Button>
@@ -640,11 +699,14 @@ Doubled vector: 2 4 6 8 10 `,
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>
-              {selectedLanguage === "html" || selectedLanguage === "css" ? "Preview & Output" : "Output"}
+              {selectedLanguage === "html" || selectedLanguage === "css"
+                ? "Preview & Output"
+                : "Output"}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1">
-            {(selectedLanguage === "html" || selectedLanguage === "css") && htmlPreview ? (
+            {(selectedLanguage === "html" || selectedLanguage === "css") &&
+            htmlPreview ? (
               <Tabs defaultValue="preview" className="h-full flex flex-col">
                 <TabsList>
                   <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -660,13 +722,17 @@ Doubled vector: 2 4 6 8 10 `,
                 </TabsContent>
                 <TabsContent value="output" className="flex-1">
                   <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                    <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
+                    <pre className="whitespace-pre-wrap">
+                      {output || "Run your code to see output here..."}
+                    </pre>
                   </div>
                 </TabsContent>
               </Tabs>
             ) : (
-              <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
+              <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
+                <pre className="whitespace-pre-wrap">
+                  {output || "Run your code to see output here..."}
+                </pre>
               </div>
             )}
           </CardContent>
@@ -675,10 +741,12 @@ Doubled vector: 2 4 6 8 10 `,
 
       <div className="text-sm text-muted-foreground">
         <p>
-          <strong>Note:</strong> Real-time code execution is powered by online compilers. For production use, you'll
-          need to configure API keys for the Judge0 service. Currently using fallback simulation for demonstration.
+          <strong>Note:</strong> Real-time code execution is powered by online
+          compilers. For production use, you'll need to configure API keys for
+          the Judge0 service. Currently using fallback simulation for
+          demonstration.
         </p>
       </div>
     </div>
-  )
+  );
 }

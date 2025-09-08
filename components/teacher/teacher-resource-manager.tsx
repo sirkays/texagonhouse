@@ -567,7 +567,7 @@ export function TeacherResourceManager() {
                     <p className="text-xs xs:text-sm sm:text-base font-medium">
                       Click to upload or drag and drop
                     </p>
-                    <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       {newResource.type === "pdf" && "PDF files only"}
                       {newResource.type === "video" &&
                         "MP4, MOV, AVI, MKV files"}
@@ -578,7 +578,7 @@ export function TeacherResourceManager() {
                   {newResource.file && (
                     <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
                       <File className="h-3 w-3 xs:h-4 xs:w-4" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {newResource.file.name}
                       </span>
                       <Button
@@ -684,7 +684,7 @@ export function TeacherResourceManager() {
           <TabsTrigger
             value="pdfs"
             className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             <FileText className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
             PDFs ({getFilteredResources(resources.pdfs).length})
           </TabsTrigger>
@@ -692,7 +692,7 @@ export function TeacherResourceManager() {
           <TabsTrigger
             value="videos"
             className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             <Video className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
             Videos ({getFilteredResources(resources.videos).length})
           </TabsTrigger>
@@ -700,7 +700,7 @@ export function TeacherResourceManager() {
           <TabsTrigger
             value="audio"
             className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             <Headphones className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
             Audio ({getFilteredResources(resources.audio).length})
           </TabsTrigger>
@@ -708,14 +708,14 @@ export function TeacherResourceManager() {
           <TabsTrigger
             value="journals"
             className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.65rem] xs:text-xs sm:text-sm md:text-base">
+               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
             <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
             Journals ({getFilteredResources(resources.journals).length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pdfs" className="space-y-3 xs:space-y-4">
-          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
             Showing{" "}
             {getPaginatedResources(resources.pdfs).paginatedResources.length} of{" "}
             {getPaginatedResources(resources.pdfs).filteredCount} PDFs
@@ -732,7 +732,7 @@ export function TeacherResourceManager() {
                         <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
                           {pdf.title}
                         </CardTitle>
-                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                           {pdf.description}
                         </CardDescription>
                       </div>
@@ -776,18 +776,18 @@ export function TeacherResourceManager() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="secondary"
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {pdf.category}
                       </Badge>
                       <Badge
                         variant={pdf.isPublic ? "default" : "outline"}
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {pdf.isPublic ? "Public" : "Private"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 xs:space-y-4">
-                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <div>Pages: {pdf.pages}</div>
                       <div>Size: {pdf.size}</div>
                       <div className="flex items-center gap-1">
@@ -802,7 +802,7 @@ export function TeacherResourceManager() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                           {pdf.rating}
                         </span>
                       </div>
@@ -838,7 +838,7 @@ export function TeacherResourceManager() {
               <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                 No PDFs found
               </h3>
-              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+              <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                 Try adjusting your search or filter criteria
               </p>
             </div>
@@ -894,7 +894,7 @@ export function TeacherResourceManager() {
         </TabsContent>
 
         <TabsContent value="videos" className="space-y-3 xs:space-y-4">
-          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
             Showing{" "}
             {getPaginatedResources(resources.videos).paginatedResources.length}{" "}
             of {getPaginatedResources(resources.videos).filteredCount} Videos
@@ -914,7 +914,7 @@ export function TeacherResourceManager() {
                         <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
                           {video.title}
                         </CardTitle>
-                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                           {video.description}
                         </CardDescription>
                       </div>
@@ -958,18 +958,18 @@ export function TeacherResourceManager() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="secondary"
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {video.category}
                       </Badge>
                       <Badge
                         variant={video.isPublic ? "default" : "outline"}
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {video.isPublic ? "Public" : "Private"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 xs:space-y-4">
-                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         {video.duration}
@@ -1012,7 +1012,7 @@ export function TeacherResourceManager() {
               <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                 No Videos found
               </h3>
-              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+              <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                 Try adjusting your search or filter criteria
               </p>
             </div>
@@ -1068,7 +1068,7 @@ export function TeacherResourceManager() {
         </TabsContent>
 
         <TabsContent value="audio" className="space-y-3 xs:space-y-4">
-          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
             Showing{" "}
             {getPaginatedResources(resources.audio).paginatedResources.length}{" "}
             of {getPaginatedResources(resources.audio).filteredCount} Audio
@@ -1085,7 +1085,7 @@ export function TeacherResourceManager() {
                         <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
                           {audio.title}
                         </CardTitle>
-                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                           {audio.description}
                         </CardDescription>
                       </div>
@@ -1129,18 +1129,18 @@ export function TeacherResourceManager() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="secondary"
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {audio.category}
                       </Badge>
                       <Badge
                         variant={audio.isPublic ? "default" : "outline"}
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {audio.isPublic ? "Public" : "Private"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 xs:space-y-4">
-                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         {audio.duration}
@@ -1182,7 +1182,7 @@ export function TeacherResourceManager() {
               <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                 No Audio found
               </h3>
-              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+              <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                 Try adjusting your search or filter criteria
               </p>
             </div>
@@ -1238,7 +1238,7 @@ export function TeacherResourceManager() {
         </TabsContent>
 
         <TabsContent value="journals" className="space-y-3 xs:space-y-4">
-          <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+          <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
             Showing{" "}
             {
               getPaginatedResources(resources.journals).paginatedResources
@@ -1259,7 +1259,7 @@ export function TeacherResourceManager() {
                         <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
                           {journal.title}
                         </CardTitle>
-                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm line-clamp-2">
+                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                           {journal.description}
                         </CardDescription>
                       </div>
@@ -1303,18 +1303,18 @@ export function TeacherResourceManager() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="secondary"
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {journal.category}
                       </Badge>
                       <Badge
                         variant={journal.isPublic ? "default" : "outline"}
-                        className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {journal.isPublic ? "Public" : "Private"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 xs:space-y-4">
-                    <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <p>
                         <strong>Journal:</strong> {journal.journal}
                       </p>
@@ -1356,7 +1356,7 @@ export function TeacherResourceManager() {
               <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
                 No Journals found
               </h3>
-              <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+              <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                 Try adjusting your search or filter criteria
               </p>
             </div>
@@ -1450,20 +1450,20 @@ export function TeacherResourceManager() {
                       <p className="text-base xs:text-lg sm:text-xl font-medium">
                         PDF Viewer
                       </p>
-                      <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                         {viewingResource.pages} pages • {viewingResource.size}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 xs:gap-3">
-                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <span>Author: {viewingResource.author}</span>
                       <span>Downloads: {viewingResource.downloads}</span>
                       <span>Views: {viewingResource.views}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3 xs:h-4 xs:w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {viewingResource.rating}
                       </span>
                     </div>
@@ -1480,20 +1480,20 @@ export function TeacherResourceManager() {
                       <p className="text-base xs:text-lg sm:text-xl font-medium">
                         Video Player
                       </p>
-                      <p className="text-[0.65rem] xs:text-xs sm:text-sm opacity-75">
+                      <p className="text-[0.85rem] xs:text-xs sm:text-sm opacity-75">
                         Duration: {viewingResource.duration}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 xs:gap-3">
-                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <span>Instructor: {viewingResource.instructor}</span>
                       <span>Views: {viewingResource.views}</span>
                       <span>Likes: {viewingResource.likes}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3 xs:h-4 xs:w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {viewingResource.rating}
                       </span>
                     </div>
@@ -1510,7 +1510,7 @@ export function TeacherResourceManager() {
                       <p className="text-base xs:text-lg sm:text-xl font-medium">
                         {viewingResource.title}
                       </p>
-                      <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                         Duration: {viewingResource.duration}
                       </p>
                     </div>
@@ -1555,13 +1555,13 @@ export function TeacherResourceManager() {
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 xs:gap-3">
-                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-2 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                       <span>Speaker: {viewingResource.speaker}</span>
                       <span>Listens: {viewingResource.listens}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3 xs:h-4 xs:w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                         {viewingResource.rating}
                       </span>
                     </div>
@@ -1578,7 +1578,7 @@ export function TeacherResourceManager() {
                         {" "}
                         {viewingResource.title}
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4 mb-4 xs:mb-6 text-[0.65rem] xs:text-xs sm:text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4 mb-4 xs:mb-6 text-[0.85rem] xs:text-xs sm:text-sm">
                         <div>
                           <strong>Journal:</strong> {viewingResource.journal}
                         </div>
@@ -1593,7 +1593,7 @@ export function TeacherResourceManager() {
                           {viewingResource.citations}
                         </div>
                       </div>
-                      <div className="space-y-3 xs:space-y-4 text-[0.65rem] xs:text-xs sm:text-sm leading-relaxed">
+                      <div className="space-y-3 xs:space-y-4 text-[0.85rem] xs:text-xs sm:text-sm leading-relaxed">
                         <p>
                           <strong>Abstract:</strong>
                         </p>

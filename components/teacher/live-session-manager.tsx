@@ -496,17 +496,17 @@ export function LiveSessionManager() {
                         <Badge
                           className={`${getStatusColor(
                             session.status
-                          )} text-[0.65rem] xs:text-xs sm:text-sm`}>
+                          )} text-[0.85rem] xs:text-xs sm:text-sm`}>
                           <div className="flex items-center gap-1">
                             {getStatusIcon(session.status)}
                             {session.status}
                           </div>
                         </Badge>
                       </div>
-                      <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                         {session.description}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <CalendarIcon className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                           {session.date}
@@ -780,7 +780,7 @@ export function LiveSessionManager() {
                           autoPlay
                           className="w-full h-full object-contain"
                         />
-                        <div className="absolute top-3 xs:top-4 right-3 xs:right-4 bg-red-600 text-white px-2 xs:px-3 py-1 rounded-full text-[0.65rem] xs:text-xs sm:text-sm flex items-center gap-1 xs:gap-2">
+                        <div className="absolute top-3 xs:top-4 right-3 xs:right-4 bg-red-600 text-white px-2 xs:px-3 py-1 rounded-full text-[0.85rem] xs:text-xs sm:text-sm flex items-center gap-1 xs:gap-2">
                           <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-white rounded-full animate-pulse" />
                           Sharing Screen
                         </div>
@@ -801,7 +801,7 @@ export function LiveSessionManager() {
                     )}
 
                     {isSessionStarted && (
-                      <div className="absolute top-3 xs:top-4 left-3 xs:left-4 bg-red-600 text-white px-2 xs:px-3 py-1 rounded-full text-[0.65rem] xs:text-xs sm:text-sm flex items-center gap-1 xs:gap-2">
+                      <div className="absolute top-3 xs:top-4 left-3 xs:left-4 bg-red-600 text-white px-2 xs:px-3 py-1 rounded-full text-[0.85rem] xs:text-xs sm:text-sm flex items-center gap-1 xs:gap-2">
                         <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-white rounded-full animate-pulse" />
                         LIVE
                       </div>
@@ -884,22 +884,22 @@ export function LiveSessionManager() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Status:</span>
                           <Badge
                             className={`${
                               isSessionStarted
                                 ? "bg-red-100 text-red-700"
                                 : "bg-gray-100 text-gray-700"
-                            } text-[0.65rem] xs:text-xs sm:text-sm`}>
+                            } text-[0.85rem] xs:text-xs sm:text-sm`}>
                             {isSessionStarted ? "Live" : "Not Started"}
                           </Badge>
                         </div>
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Duration:</span>
                           <span>00:00:00</span>
                         </div>
-                        <div className="flex justify-between text-[0.65rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                           <span>Participants:</span>
                           <span>
                             {
@@ -954,7 +954,7 @@ export function LiveSessionManager() {
                         <CardTitle className="text-sm xs:text-base sm:text-lg">
                           Live Chat
                         </CardTitle>
-                        <CardDescription className="text-[0.65rem] xs:text-xs sm:text-sm">
+                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
                           {
                             participants.filter((p) => p.status === "online")
                               .length
@@ -990,11 +990,11 @@ export function LiveSessionManager() {
                                   : "bg-gray-100 text-gray-900"
                               }`}>
                               {!message.isTeacher && (
-                                <div className="text-[0.65rem] xs:text-xs sm:text-sm font-medium text-blue-600 mb-1">
+                                <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium text-blue-600 mb-1">
                                   {message.user}
                                 </div>
                               )}
-                              <div className="text-[0.65rem] xs:text-xs sm:text-sm">
+                              <div className="text-[0.85rem] xs:text-xs sm:text-sm">
                                 {message.message}
                               </div>
                               <div
@@ -1072,7 +1072,7 @@ export function LiveSessionManager() {
                 <Monitor className="h-6 w-6 xs:h-8 xs:w-8 text-blue-600" />
                 <div className="text-left">
                   <div className="font-medium">Entire Screen</div>
-                  <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Share everything on your screen
                   </div>
                 </div>
@@ -1086,7 +1086,7 @@ export function LiveSessionManager() {
                 <Square className="h-6 w-6 xs:h-8 xs:w-8 text-green-600" />
                 <div className="text-left">
                   <div className="font-medium">Application Window</div>
-                  <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Share a specific application
                   </div>
                 </div>
@@ -1100,7 +1100,7 @@ export function LiveSessionManager() {
                 <Chrome className="h-6 w-6 xs:h-8 xs:w-8 text-orange-600" />
                 <div className="text-left">
                   <div className="font-medium">Browser Tab</div>
-                  <div className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Share a specific browser tab
                   </div>
                 </div>

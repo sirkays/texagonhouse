@@ -325,7 +325,7 @@ export function VideoLessonCreator() {
                     <Badge
                       key={tag}
                       variant="secondary"
-                      className="flex items-center gap-1 text-[0.65rem] xs:text-xs sm:text-sm">
+                      className="flex items-center gap-1 text-[0.85rem] xs:text-xs sm:text-sm">
                       {tag}
                       <X
                         className="h-2.5 w-2.5 xs:h-3 xs:w-3 cursor-pointer"
@@ -384,7 +384,7 @@ export function VideoLessonCreator() {
                       Choose Video File
                     </label>
                   </Button>
-                  <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground mt-2">
+                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-2">
                     Supported formats: MP4, MOV, AVI (Max 500MB)
                   </p>
                 </div>
@@ -396,7 +396,7 @@ export function VideoLessonCreator() {
                       <h4 className="font-medium text-xs xs:text-sm sm:text-base">
                         {videoFile.name}
                       </h4>
-                      <p className="text-[0.65rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                         {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
                       </p>
                     </div>
@@ -406,7 +406,7 @@ export function VideoLessonCreator() {
                           value={uploadProgress}
                           className="h-1.5 xs:h-2"
                         />
-                        <p className="text-[0.65rem] xs:text-xs sm:text-sm text-center mt-1">
+                        <p className="text-[0.85rem] xs:text-xs sm:text-sm text-center mt-1">
                           {uploadProgress}%
                         </p>
                       </div>
@@ -473,7 +473,7 @@ export function VideoLessonCreator() {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 xs:gap-3">
                     <Badge
                       variant="outline"
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      className="text-[0.85rem] xs:text-xs sm:text-sm">
                       Chapter {index + 1}
                     </Badge>
                     <Input
@@ -536,7 +536,7 @@ export function VideoLessonCreator() {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 xs:gap-3">
                     <Badge
                       variant="outline"
-                      className="text-[0.65rem] xs:text-xs sm:text-sm">
+                      className="text-[0.85rem] xs:text-xs sm:text-sm">
                       Question {index + 1}
                     </Badge>
                     <Input
