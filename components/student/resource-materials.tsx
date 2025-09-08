@@ -494,16 +494,16 @@ export function ResourceMaterials() {
         </p>
       </div>
 
-      <div className="flex gap-4">
-        <Select
+      <div className="flex flex-col sm:flex-row w-full gap-4">
+        <Select 
           value={selectedCourseId?.toString() || ""}
           onValueChange={(value) =>
             setSelectedCourseId(value ? parseInt(value) : null)
-          }>
-          <SelectTrigger className="w-[180px]">
+          } >
+          <SelectTrigger className="sm:w-[180px]">
             <SelectValue placeholder="Select course" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="w-full">
             {resources.courses.map((course) => (
               <SelectItem key={course.id} value={course.id.toString()}>
                 {course.name}
@@ -597,16 +597,16 @@ export function ResourceMaterials() {
                       </div>
                       <div>{pdf.downloads || 0} downloads</div>
                     </div>
-                    <div className="mt-auto pt-4 flex gap-2">
+                    <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
                       <Button
-                        size="sm"
+                        
                         className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
                         onClick={() => handlePreviewPdf(pdf)}>
                         <Eye className="mr-2 h-3 w-3" />
                         Preview
                       </Button>
                       <Button
-                        size="sm"
+                        
                         variant="outline"
                         onClick={() => handleDownloadPdf(pdf)}
                         className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500">
