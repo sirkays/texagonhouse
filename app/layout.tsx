@@ -42,7 +42,7 @@ import type {Metadata} from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Let's Talk - Texagon Educational Platform",
+  title: "Texagon Educational Platform",
   description:
     "A video conferencing and educational platform to help students learn and teachers teach.",
   generator: "Epic House",
