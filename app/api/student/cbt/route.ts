@@ -1,23 +1,22 @@
-// app/api/student/cbt/route.ts
-
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
-//const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 
-// ---------------------- GET ----------------------
 export async function GET(request: Request) {
   console.log("[Route] Received GET request to /api/student/cbt");
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    console.error("[Route] No session token found, session:", session);
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
+    console.log("[Route] Fetching tests from:", `${BASE_URL}/assessments/api/tests/available/`);
+    console.log("[Route] Using sessionToken:", session.user.sessionToken);
     const res = await fetch(`${BASE_URL}/assessments/api/tests/available/`, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -26,34 +25,41 @@ export async function GET(request: Request) {
       },
     });
 
-    const data = await res.json();
-
+    console.log("[Route] External API response status:", res.status);
     if (!res.ok) {
+      const errorText = await res.text();
+      console.error("[Route] External API error response:", errorText);
       return NextResponse.json(
-        {error: "Failed to fetch data"},
-        {status: res.status}
+        { error: `Failed to fetch data: ${errorText}` },
+        { status: res.status }
       );
     }
 
-    return NextResponse.json(data, {status: res.status});
+    const data = await res.json();
+    console.log("[Route] External API response data:", data);
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json(
+      { error: "Internal server error", details: error.message },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: Request) {
+  console.log("[Route] Received POST request to /api/student/cbt");
   const session = await getServerSession(authOptions);
   if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    console.error("[Route] No session token found, session:", session);
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
-    const body = await request.json().catch(() => ({}));
-    console.log(body.currentTest, "bjbhbjhjbhj");
-    console.log(
-      `${BASE_URL}/assessments/api/tests/${body.currentTest}/submit/`
-    );
+    const body = await request.json();
+    console.log("[Route] POST request body:", body);
+    console.log("[Route] Submitting to:", `${BASE_URL}/assessments/api/tests/${body.currentTest}/submit/`);
+
     const res = await fetch(
       `${BASE_URL}/assessments/api/tests/${body.currentTest}/submit/`,
       {
@@ -67,15 +73,24 @@ export async function POST(request: Request) {
       }
     );
 
-    const data = await res.json().catch(() => null);
-    if (!res.ok)
+    console.log("[Route] External API response status:", res.status);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("[Route] External API error response:", errorText);
       return NextResponse.json(
-        {error: "Failed to submit test"},
-        {status: res.status}
+        { error: `Failed to submit test: ${errorText}` },
+        { status: res.status }
       );
-    return NextResponse.json(data, {status: res.status});
+    }
+
+    const data = await res.json();
+    console.log("[Route] External API response data:", data);
+    return NextResponse.json(data, { status: 200 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Route] Error submitting test:", err);
+    return NextResponse.json(
+      { error: "Internal server error", details: err.message },
+      { status: 500 }
+    );
   }
 }

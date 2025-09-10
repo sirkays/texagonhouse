@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,13 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
-import {Label} from "@/components/ui/label";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Textarea} from "@/components/ui/textarea";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -42,11 +42,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {Spinner} from "@/components/ui/spinner";
-import {useSession} from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
+import { useSession } from "next-auth/react";
 
 export function CBTTest() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -84,7 +84,7 @@ export function CBTTest() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       console.log("[CBTTest] Logout API response status:", response.status);
       const data = await response.json();
@@ -93,34 +93,45 @@ export function CBTTest() {
         console.error("[CBTTest] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
+      document.cookie =
+        "next-auth.session-token=; Max-Age=0; path=/; secure; SameSite=Strict";
+      document.cookie =
+        "next-auth.csrf-token=; Max-Age=0; path=/; secure; SameSite=Strict";
       console.log("[CBTTest] Logout successful, redirecting to /login");
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
     } catch (error) {
       console.error("[CBTTest] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      document.cookie =
+        "next-auth.session-token=; Max-Age=0; path=/; secure; SameSite=Strict";
+      document.cookie =
+        "next-auth.csrf-token=; Max-Age=0; path=/; secure; SameSite=Strict";
       window.location.href = "/login";
     }
   };
 
   useEffect(() => {
-    const fetchTests = async () => {
-      console.log("[CBTTest] Initiating fetch for /api/student/cbt");
-      setLoading(true);
-      if (status !== "authenticated" || !session?.user?.sessionToken) {
-        console.log(
-          "[CBTTest] Session not authenticated, status:",
-          status,
-          "sessionToken:",
-          session?.user?.sessionToken
-        );
-        setError("Not authenticated");
-        setLoading(false);
-        return;
-      }
+    if (status === "loading") {
+      console.log("[CBTTest] Session still loading, skipping fetch");
+      return;
+    }
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      console.log(
+        "[CBTTest] Not authenticated or no session token, status:",
+        status,
+        "sessionToken:",
+        session?.user?.sessionToken
+      );
+      setError("Not authenticated");
+      setLoading(false);
+      return;
+    }
 
+    const fetchTests = async () => {
+      console.log(
+        "[CBTTest] Fetching tests with sessionToken:",
+        session.user.sessionToken
+      );
+      setLoading(true);
       try {
         const response = await fetch("/api/student/cbt", {
           headers: {
@@ -130,16 +141,25 @@ export function CBTTest() {
         });
         console.log("[CBTTest] Fetch response status:", response.status);
         if (!response.ok) {
-          console.error("[CBTTest] Fetch failed with status:", response.status);
+          const errorText = await response.text();
+          console.error(
+            "[CBTTest] Fetch failed with status:",
+            response.status,
+            "Response:",
+            errorText
+          );
           if (response.status === 401 || response.status === 403) {
             setError("Session expired");
-            setAvailableTests([]);
-            setLoading(false);
-            return;
+          } else if (response.status === 500) {
+            setError(
+              "Server error: Unable to fetch tests. Please try again later."
+            );
+          } else {
+            setError("Failed to fetch tests");
           }
-          setError("Failed to fetch tests");
           setAvailableTests([]);
-          throw new Error("Failed to fetch tests");
+          setLoading(false);
+          return;
         }
         const data = await response.json();
         console.log("[CBTTest] Fetch response data:", data);
@@ -147,7 +167,9 @@ export function CBTTest() {
         setError(null);
       } catch (err) {
         console.error("[CBTTest] Fetch error:", err);
-        setError("Session expired");
+        setError(
+          "Server error: Unable to fetch tests. Please try again later."
+        );
         setAvailableTests([]);
       } finally {
         setLoading(false);
@@ -165,7 +187,6 @@ export function CBTTest() {
 
   useEffect(() => {
     if (currentTest) {
-      // Secure mode for all tests (quizzes and exams)
       const handleVisibilityChange = () => {
         if (document.hidden) {
           setSuspiciousActivity((prev) => prev + 1);
@@ -257,7 +278,7 @@ export function CBTTest() {
       type: item.type === "scq" ? "multiple-choice" : item.type,
       question: item.question,
       options: item.choices
-        ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
+        ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
         : [],
       points: item.points,
     }));
@@ -338,9 +359,9 @@ export function CBTTest() {
       const ans = answers[i];
       if (ans !== undefined) {
         if (q.type === "multiple-choice") {
-          submitAnswers.push({question: q.id, choice: parseInt(ans)});
+          submitAnswers.push({ question: q.id, choice: parseInt(ans) });
         } else {
-          submitAnswers.push({question: q.id, text: ans});
+          submitAnswers.push({ question: q.id, text: ans });
         }
       }
     }
@@ -389,7 +410,7 @@ export function CBTTest() {
     setCurrentPage(page);
   };
 
-  if (loading) {
+  if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Spinner size="md" className="text-black" />
@@ -397,11 +418,30 @@ export function CBTTest() {
     );
   }
 
-  if (
-    error === "Session expired" ||
-    error === "Not authenticated" ||
-    (status === "authenticated" && error === "Session expired")
-  ) {
+  if (status === "unauthenticated" || error === "Not authenticated") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              Not Authenticated
+            </CardTitle>
+            <CardDescription className="text-center">
+              Please log in to access the assessments.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={handleLogout} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Log In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error === "Session expired") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
@@ -410,8 +450,7 @@ export function CBTTest() {
               Session Expired
             </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log
-              in again to continue.
+              Your session has expired. Please log in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -431,16 +470,29 @@ export function CBTTest() {
         <Card className="w-full max-w-md mx-auto">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">
-              Error
+              {error === "Session expired" ? "Session Expired" : "Error"}
             </CardTitle>
-            <CardDescription className="text-center">{error}</CardDescription>
+            <CardDescription className="text-center">
+              {error === "Session expired"
+                ? "Your session has expired. Please log in again to continue."
+                : error === "Not authenticated"
+                ? "Please log in to access the assessments."
+                : error}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2">
+              onClick={() =>
+                error === "Session expired" || error === "Not authenticated"
+                  ? handleLogout()
+                  : window.location.reload()
+              }
+              className="flex items-center gap-2"
+            >
               <LogIn className="h-4 w-4" />
-              Retry
+              {error === "Session expired" || error === "Not authenticated"
+                ? "Log In Again"
+                : "Retry"}
             </Button>
           </CardContent>
         </Card>
@@ -504,7 +556,8 @@ export function CBTTest() {
             <div className="flex gap-4 justify-center">
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setCurrentTest(null)}>
+                onClick={() => setCurrentTest(null)}
+              >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Take Another Test
               </Button>
@@ -525,7 +578,8 @@ export function CBTTest() {
       <div className="space-y-6">
         <Dialog
           open={showSecurityWarning}
-          onOpenChange={setShowSecurityWarning}>
+          onOpenChange={setShowSecurityWarning}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -542,7 +596,8 @@ export function CBTTest() {
             <DialogFooter>
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setShowSecurityWarning(false)}>
+                onClick={() => setShowSecurityWarning(false)}
+              >
                 I Understand
               </Button>
             </DialogFooter>
@@ -564,13 +619,15 @@ export function CBTTest() {
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                 variant="outline"
-                onClick={() => setShowLeaveDialog(false)}>
+                onClick={() => setShowLeaveDialog(false)}
+              >
                 Cancel
               </Button>
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                 variant="destructive"
-                onClick={confirmLeaveTest}>
+                onClick={confirmLeaveTest}
+              >
                 Leave Test
               </Button>
             </DialogFooter>
@@ -594,7 +651,8 @@ export function CBTTest() {
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               <span
-                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}
+              >
                 {formatTime(timeLeft)}
               </span>
             </div>
@@ -619,19 +677,22 @@ export function CBTTest() {
                 {currentQ?.type === "multiple-choice" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
-                    onValueChange={handleAnswerChange}>
+                    onValueChange={handleAnswerChange}
+                  >
                     {currentQ.options?.map(
-                      (option: {id: number; text: string}, index: number) => (
+                      (option: { id: number; text: string }, index: number) => (
                         <div
                           key={option.id}
-                          className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
+                          className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
+                        >
                           <RadioGroupItem
                             value={option.id.toString()}
                             id={`option-${option.id}`}
                           />
                           <Label
                             htmlFor={`option-${option.id}`}
-                            className="flex-1 cursor-pointer">
+                            className="flex-1 cursor-pointer"
+                          >
                             {option.text}
                           </Label>
                         </div>
@@ -666,27 +727,31 @@ export function CBTTest() {
                     className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                     variant="outline"
                     onClick={previousQuestion}
-                    disabled={currentQuestion === 0}>
+                    disabled={currentQuestion === 0}
+                  >
                     Previous
                   </Button>
                   <div className="flex gap-2">
                     {currentQuestion === questions.length - 1 ? (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={submitTest}>
+                        onClick={submitTest}
+                      >
                         Submit Test
                       </Button>
                     ) : (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={nextQuestion}>
+                        onClick={nextQuestion}
+                      >
                         Next
                       </Button>
                     )}
                     <Button
                       className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                       variant="destructive"
-                      onClick={handleLeaveTest}>
+                      onClick={handleLeaveTest}
+                    >
                       Leave Test
                     </Button>
                   </div>
@@ -713,7 +778,8 @@ export function CBTTest() {
                           : "outline"
                       }
                       size="sm"
-                      onClick={() => setCurrentQuestion(index)}>
+                      onClick={() => setCurrentQuestion(index)}
+                    >
                       {index + 1}
                     </Button>
                   ))}
@@ -788,13 +854,15 @@ export function CBTTest() {
               onClick={() => {
                 setShowStartDialog(false);
                 setPendingTestId(null);
-              }}>
+              }}
+            >
               Cancel
             </Button>
             {pendingTestId && (
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={confirmStartTest}>
+                onClick={confirmStartTest}
+              >
                 Start Test
               </Button>
             )}
@@ -813,7 +881,8 @@ export function CBTTest() {
         {currentTests.map((test) => (
           <Card
             key={test.pk}
-            className="hover:shadow-lg transition-shadow flex flex-col h-full">
+            className="hover:shadow-lg transition-shadow flex flex-col h-full"
+          >
             <CardHeader>
               <div className="sm:flex items-center justify-between">
                 <CardTitle className="text-lg">{test.title}</CardTitle>
@@ -825,14 +894,16 @@ export function CBTTest() {
                         : test.difficulty === "Intermediate"
                         ? "secondary"
                         : "destructive"
-                    }>
+                    }
+                  >
                     {test.difficulty}
                   </Badge>
 
                   {test.type === "exam" && (
                     <Badge
                       variant="outline"
-                      className="text-red-600 border-red-200">
+                      className="text-red-600 border-red-200"
+                    >
                       <Shield className="h-3 w-3 mr-1" />
                       Secure Exam
                     </Badge>
@@ -872,7 +943,8 @@ export function CBTTest() {
                   disabled={
                     (test.type === "exam" && examAttempts >= maxAttempts) ||
                     (test.requiresSubscription && !isSubscriber)
-                  }>
+                  }
+                >
                   <Play className="mr-2 h-4 w-4" />
                   {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
                 </Button>
@@ -906,7 +978,8 @@ export function CBTTest() {
                   onClick={(e) => {
                     e.preventDefault();
                     handlePageChange(page);
-                  }}>
+                  }}
+                >
                   {page}
                 </PaginationLink>
               </PaginationItem>

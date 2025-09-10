@@ -64,7 +64,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-lg border border-border bg-background shadow-md p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-primary" />
-          <h1 className="font-semibold text-base sm:text-lg lg:text-xl">EduPlatform</h1>
+          <h1 className="font-semibold text-base sm:text-lg lg:text-xl">TECHXAGON</h1>
           <h2 className="text-xs sm:text-sm lg:text-base text-muted-foreground">Sign in to your account</h2>
         </div>
 
