@@ -418,7 +418,7 @@ export function DashboardOverview() {
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{course.progress}% complete</span>
                   <Button
-                    className="border border-slate-300 hover:border-none hover:bg-[#EF7B55] hover:text-white mt-2 rounded-lg"
+                    className="bg-transparent shadow-md"
                     variant="ghost"
                     size="sm">
                     <Play className="mr-2 h-3 w-3" />
@@ -459,7 +459,7 @@ export function DashboardOverview() {
                   </div>
                 </div>
                 <Button
-                  className="border border-slate-300 hover:border-none hover:bg-[#EF7B55] hover:text-white mt-2 rounded-lg"
+                  className="bg-transparent shadow-md"
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation(); // Prevent parent div's onClick from firing
