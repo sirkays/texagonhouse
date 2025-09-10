@@ -716,7 +716,7 @@ export function TeacherLearningModules() {
         </TabsContent>
 
         <TabsContent value="manage" className="space-y-3 xs:space-y-4">
-          <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-3">
+          <div className="flex flex-wrap items-start xs:items-center justify-between gap-2 xs:gap-3">
             <div>
               <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
                 Manage Modules
