@@ -430,25 +430,25 @@ export function MyMaterials() {
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
-        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="saved"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Saved Items
           </TabsTrigger>
           <TabsTrigger
             value="downloads"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Downloads
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             My Notes
           </TabsTrigger>
           <TabsTrigger
             value="bookmarks"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Bookmarks
           </TabsTrigger>
         </TabsList>
@@ -514,7 +514,7 @@ export function MyMaterials() {
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
-                        className="w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                         onClick={() => handleWatchVideo(video)}>
                         <Play className="mr-2 h-3 w-3" />
                         Continue Watching
@@ -564,7 +564,7 @@ export function MyMaterials() {
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
-                        className="w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayAudio(audio)}>
                         <Play className="mr-2 h-3 w-3" />
                         Continue Listening
@@ -600,7 +600,7 @@ export function MyMaterials() {
                   <div className="mt-auto pt-4 flex gap-2">
                     <Button
                       size="sm"
-                      className="flex-1 h-10 w-full bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                      className="flex-1 h-10 w-full bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                       onClick={() => handlePreviewPdf(pdf)}>
                       <Eye className="mr-2 h-3 w-3" />
                       Preview
@@ -608,7 +608,7 @@ export function MyMaterials() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500"
+                      className="flex-1 w-full h-10 shadow-md"
                       onClick={() => {
                         if (!pdf.downloadUrl) {
                           console.error(
@@ -669,7 +669,7 @@ export function MyMaterials() {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                      className="flex-1 w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                       onClick={() => handleOpenNote(note)}>
                       <Edit className="mr-2 h-3 w-3" />
                       Open
@@ -678,7 +678,7 @@ export function MyMaterials() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDeleteNote(note.id)}
-                      className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500">
+                      className="flex-1 w-full h-10 shadow-md">
                       Delete
                     </Button>
                   </div>

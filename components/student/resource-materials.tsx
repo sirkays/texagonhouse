@@ -495,11 +495,11 @@ export function ResourceMaterials() {
       </div>
 
       <div className="flex flex-col sm:flex-row w-full gap-4">
-        <Select 
+        <Select
           value={selectedCourseId?.toString() || ""}
           onValueChange={(value) =>
             setSelectedCourseId(value ? parseInt(value) : null)
-          } >
+          }>
           <SelectTrigger className="sm:w-[180px]">
             <SelectValue placeholder="Select course" />
           </SelectTrigger>
@@ -542,28 +542,28 @@ export function ResourceMaterials() {
       </div>
 
       <Tabs defaultValue="pdfs" className="w-full">
-        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="pdfs"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
           <TabsTrigger
             value="videos"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Video className="h-4 w-4" />
             Videos
           </TabsTrigger>
           <TabsTrigger
             value="audio"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
           <TabsTrigger
             value="journals"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <BookOpen className="h-4 w-4" />
             Journals
           </TabsTrigger>
@@ -599,17 +599,15 @@ export function ResourceMaterials() {
                     </div>
                     <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
                       <Button
-                        
-                        className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePreviewPdf(pdf)}>
                         <Eye className="mr-2 h-3 w-3" />
                         Preview
                       </Button>
                       <Button
-                        
                         variant="outline"
                         onClick={() => handleDownloadPdf(pdf)}
-                        className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500">
+                        className="flex-1 w-full h-10 bg-transparent shadow-md">
                         <Download className="mr-2 h-3 w-3" />
                         Download
                       </Button>
@@ -661,7 +659,7 @@ export function ResourceMaterials() {
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
-                        className="w-full bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="w-full bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handleWatchVideo(video)}>
                         <Video className="mr-2 h-3 w-3" />
                         Watch Now
@@ -711,7 +709,7 @@ export function ResourceMaterials() {
                     <div className="mt-auto pt-4">
                       <Button
                         size="sm"
-                        className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayAudio(audio)}>
                         <Headphones className="mr-2 h-3 w-3" />
                         Listen Now
@@ -757,7 +755,7 @@ export function ResourceMaterials() {
                     <div className="mt-auto pt-4 flex gap-2">
                       <Button
                         size="sm"
-                        className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handleReadJournal(journal)}>
                         <BookOpen className="mr-2 h-3 w-3" />
                         Read
@@ -766,7 +764,7 @@ export function ResourceMaterials() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDownloadJournal(journal)}
-                        className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500">
+                        className="flex-1 w-full h-10bg-transparent shadow-md">
                         <Download className="mr-2 h-3 w-3" />
                         Download
                       </Button>

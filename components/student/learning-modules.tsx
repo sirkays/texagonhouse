@@ -679,26 +679,26 @@ export function LearningModules() {
       </div>
 
       <Tabs defaultValue="videos" className="w-full">
-        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="videos"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Video className="h-4 w-4" />
             Video
           </TabsTrigger>
           <TabsTrigger
             value="audio"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
           <TabsTrigger
             value="pdfs"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
-          {/* <TabsTrigger value="tutorials" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          {/* <TabsTrigger value="tutorials" className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <BookOpen className="h-4 w-4" />
             Live Session
           </TabsTrigger> */}
@@ -763,7 +763,7 @@ export function LearningModules() {
                     {/* Footer (sticks at bottom) */}
                     <div className="mt-auto  flex flex-wrap gap-3 pt-4">
                       <Button
-                        className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayVideo(video)}
                         disabled={!video.url}>
                         {video.progress === 100 ? (
@@ -788,7 +788,7 @@ export function LearningModules() {
                         variant={
                           savedLessons.has(video.id) ? "default" : "outline"
                         }
-                        className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500"
+                        className="flex-1 w-full h-10 bg-transparent shadow-md"
                         onClick={() => handleSaveLesson(video)}
                         disabled={
                           !session?.user?.sessionToken ||
@@ -858,7 +858,7 @@ export function LearningModules() {
                     </div>
                     <div className="mt-auto flex flex-wrap gap-2">
                       <Button
-                        className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayAudio(audio)}
                         disabled={!audio.url}>
                         <Headphones className="mr-2 h-4 w-4" />
@@ -870,7 +870,7 @@ export function LearningModules() {
                         variant={
                           savedLessons.has(audio.id) ? "default" : "outline"
                         }
-                        className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500"
+                        className="flex-1 w-full h-10 bg-transparent shadow-md"
                         onClick={() => handleSaveLesson(audio)}
                         disabled={
                           !session?.user?.sessionToken ||
@@ -929,7 +929,7 @@ export function LearningModules() {
                     </div>
                     <div className="mt-auto pt-4  flex flex-wrap gap-2">
                       <Button
-                        className="flex-1 w-full h-10 bg-[#EF7B55] text-white hover:bg-[#F79771]"
+                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePreviewPdf(pdf)}
                         disabled={!pdf.url}>
                         <Eye className="mr-2 h-3 w-3" />
@@ -943,7 +943,7 @@ export function LearningModules() {
                         variant={
                           savedLessons.has(pdf.id) ? "default" : "outline"
                         }
-                        className="flex-1 w-full h-10 shadow-sm shadow-[#f797715e] hover:bg-[#f797714e] border-none hover:text-slate-500"
+                        className="flex-1 w-full h-10 bg-transparent shadow-md"
                         onClick={() => handleSaveLesson(pdf)}
                         disabled={
                           !session?.user?.sessionToken ||

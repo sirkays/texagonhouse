@@ -118,7 +118,7 @@ function SidebarMenuContent() {
   };
 
   return (
-    <SidebarContent className="mt-4">
+    <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
         {/* <SidebarGroupLabel className="text-[0.85rem] xs:text-xs sm:text-sm">
           Welcome
@@ -132,9 +132,9 @@ function SidebarMenuContent() {
                   isActive={pathname === item.path}
                   className={`
                     py-5
-                hover:bg-[#F79771] hover:text-white
-                data-[active=true]:bg-[#EF7B55]
-                data-[active=true]:text-white
+                hover:bg-[#F797713a]
+                data-[active=true]:bg-[#EF7B553a]
+                data-[active=true]:text-slate-600
                 transition-colors
                 rounded-md
               `}>
@@ -142,7 +142,7 @@ function SidebarMenuContent() {
                     href={item.path}
                     onClick={handleLinkClick}
                     className="flex items-center gap-2">
-                    <item.icon className="h-3 w-3 xs:h-4 xs:w-4" />
+                    <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
                     <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                       {item.title}
                     </span>
@@ -213,9 +213,9 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="bg-white">
       <div className="flex min-h-screen w-full font-sans">
-        <Sidebar>
+        <Sidebar className="">
           <SidebarHeader className="bg-[#EF7B55] py-5">
             <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
               <GraduationCap className="h-5 w-5 xs:h-6 xs:w-6 text-white text-primary" />
@@ -225,7 +225,7 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
             </div>
           </SidebarHeader>
           <SidebarMenuContent />
-          <SidebarFooter className="border border-t-[#EF7B55] py-5">
+          <SidebarFooter className="border border-t-[#EF7B553a] py-5">
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
@@ -246,13 +246,8 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                   <DropdownMenuContent
                     side="top"
                     className="w-[--radix-popper-anchor-width]">
-                    <DropdownMenuLabel className="text-[0.85rem] xs:text-xs sm:text-sm">
-                      My Account
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F79771] hover:text-white focus:bg-[#F79771] focus:text-white"
+                      className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
                       onClick={handleLogout}>
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
