@@ -595,7 +595,7 @@ export function TeacherStudentAnalytics() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm bg-[#EF7B55] text-white hover:bg-[#f797713a] hover:text-[#F79771]"
+                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm shadow-md hover:bg-gray-200"
                         onClick={() => handleViewCourseDetails(course)}>
                         <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
@@ -742,7 +742,7 @@ export function TeacherStudentAnalytics() {
                     className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-4 border rounded-lg gap-3">
                     {/* Left: Avatar + Info */}
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#f797713a] rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="font-medium text-primary text-xs sm:text-sm">
                           #
                           {index + 1 + (currentPageStudents - 1) * itemsPerPage}
@@ -908,7 +908,7 @@ export function TeacherStudentAnalytics() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm"
+                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm shadow-md hover:bg-gray-200"
                         onClick={() => handleViewTestDetails(test)}>
                         <BarChart3 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
