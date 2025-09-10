@@ -397,26 +397,22 @@ export function TeacherCBTCreator() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList
-          className="
-    grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4
-    w-full mb-6
-  ">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="w-full text-sm sm:text-base"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Create New Test
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="w-full text-sm sm:text-base"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Manage Tests
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="w-full text-sm sm:text-base"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Test Analytics
           </TabsTrigger>
@@ -464,8 +460,8 @@ export function TeacherCBTCreator() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-2">
                     <Label htmlFor="duration">Duration (minutes)</Label>
                     <Input
                       id="duration"
@@ -477,20 +473,15 @@ export function TeacherCBTCreator() {
                           duration: Number.parseInt(e.target.value),
                         }))
                       }
-                      disabled={isSaving}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex-1 space-y-2">
                     <Label>Difficulty</Label>
                     <Select
                       value={currentTest.difficulty}
                       onValueChange={(value: "Easy" | "Medium" | "Hard") =>
-                        setCurrentTest((prev) => ({
-                          ...prev,
-                          difficulty: value,
-                        }))
-                      }
-                      disabled={isSaving}>
+                        setCurrentTest((prev) => ({...prev, difficulty: value}))
+                      }>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -537,10 +528,10 @@ export function TeacherCBTCreator() {
                   </div>
                 </div>
 
-                <div className="pt-4 space-y-2">
+                <div className="pt-4 flex flex-col md:flex-row gap-4">
                   <Button
                     onClick={saveTest}
-                    className="w-full"
+                    className="w-full bg-[#f79771] hover:bg-gray-300 shadow-md"
                     disabled={isSaving}>
                     {isSaving ? (
                       <Spinner className="mr-2 h-4 w-4" />
@@ -552,7 +543,7 @@ export function TeacherCBTCreator() {
                   <Button
                     onClick={publishTest}
                     variant="outline"
-                    className="w-full bg-transparent"
+                    className="w-full bg-transparent shadow-md"
                     disabled={isSaving}>
                     <TestTube className="mr-2 h-4 w-4" />
                     Publish Test
@@ -571,7 +562,11 @@ export function TeacherCBTCreator() {
                       Manage your test questions
                     </CardDescription>
                   </div>
-                  <Button onClick={addQuestion} size="sm" disabled={isSaving}>
+                  <Button
+                    className="bg-[#f79771] text-white hover:bg-gray-300"
+                    onClick={addQuestion}
+                    size="sm"
+                    disabled={isSaving}>
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -589,7 +584,7 @@ export function TeacherCBTCreator() {
                   currentTest.questions.map((question, index) => (
                     <div
                       key={question.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md ${
                         editingQuestion?.id === question.id
                           ? "border-primary bg-primary/5"
                           : "hover:bg-muted/50"
@@ -620,7 +615,7 @@ export function TeacherCBTCreator() {
                             deleteQuestion(question.id);
                           }}
                           disabled={isSaving}>
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3 text-[#DD2701]" />
                         </Button>
                       </div>
                     </div>
