@@ -1040,6 +1040,7 @@ export function TeacherLearningModules() {
           setCurrentPageManage(1);
           setCurrentPageAnalytics(1);
         }}
+<<<<<<< Updated upstream
         className="w-full"
       >
         <TabsList
@@ -1068,6 +1069,24 @@ export function TeacherLearningModules() {
             disabled={isSaving}
           >
             Test Analytics
+=======
+        className="w-full">
+        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger
+            value="create"
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Create Module
+          </TabsTrigger>
+          <TabsTrigger
+            value="manage"
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Manage Modules
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Module Analytics
+>>>>>>> Stashed changes
           </TabsTrigger>
         </TabsList>
 

@@ -397,6 +397,7 @@ export function TeacherCBTCreator() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
+<<<<<<< Updated upstream
         <TabsList
           className="
     grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4
@@ -408,20 +409,34 @@ export function TeacherCBTCreator() {
             className="w-full text-sm sm:text-base"
             disabled={isSaving}
           >
+=======
+        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger
+            value="create"
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+>>>>>>> Stashed changes
             Create New Test
           </TabsTrigger>
           <TabsTrigger
             value="manage"
+<<<<<<< Updated upstream
             className="w-full text-sm sm:text-base"
             disabled={isSaving}
           >
+=======
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+>>>>>>> Stashed changes
             Manage Tests
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
+<<<<<<< Updated upstream
             className="w-full text-sm sm:text-base"
             disabled={isSaving}
           >
+=======
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+>>>>>>> Stashed changes
             Test Analytics
           </TabsTrigger>
         </TabsList>
@@ -468,8 +483,8 @@ export function TeacherCBTCreator() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-2">
                     <Label htmlFor="duration">Duration (minutes)</Label>
                     <Input
                       id="duration"
@@ -484,7 +499,7 @@ export function TeacherCBTCreator() {
                       disabled={isSaving}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex-1 space-y-2">
                     <Label>Difficulty</Label>
                     <Select
                       value={currentTest.difficulty}
@@ -544,6 +559,7 @@ export function TeacherCBTCreator() {
                   </div>
                 </div>
 
+<<<<<<< Updated upstream
                 <div className="pt-4 space-y-2">
                   <Button
                     onClick={saveTest}
@@ -556,13 +572,25 @@ export function TeacherCBTCreator() {
                       <Save className="mr-2 h-4 w-4" />
                     )}
                     {isSaving ? "Saving..." : "Save Test"}
+=======
+                <div className="pt-4 flex flex-col md:flex-row gap-4">
+                  <Button
+                    onClick={saveTest}
+                    className="flex-1 bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]">
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Test
+>>>>>>> Stashed changes
                   </Button>
                   <Button
                     onClick={publishTest}
                     variant="outline"
+<<<<<<< Updated upstream
                     className="w-full bg-transparent"
                     disabled={isSaving}
                   >
+=======
+                    className="flex-1 text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
+>>>>>>> Stashed changes
                     <TestTube className="mr-2 h-4 w-4" />
                     Publish Test
                   </Button>
@@ -580,7 +608,14 @@ export function TeacherCBTCreator() {
                       Manage your test questions
                     </CardDescription>
                   </div>
+<<<<<<< Updated upstream
                   <Button onClick={addQuestion} size="sm" disabled={isSaving}>
+=======
+                  <Button
+                    className="bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]"
+                    onClick={addQuestion}
+                    size="sm">
+>>>>>>> Stashed changes
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -598,7 +633,7 @@ export function TeacherCBTCreator() {
                   currentTest.questions.map((question, index) => (
                     <div
                       key={question.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      className={`p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
                         editingQuestion?.id === question.id
                           ? "border-primary bg-primary/5"
                           : "hover:bg-muted/50"
@@ -628,10 +663,15 @@ export function TeacherCBTCreator() {
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteQuestion(question.id);
+<<<<<<< Updated upstream
                           }}
                           disabled={isSaving}
                         >
                           <Trash2 className="h-3 w-3" />
+=======
+                          }}>
+                          <Trash2 className="h-3 w-3 text-[#DD2701]" />
+>>>>>>> Stashed changes
                         </Button>
                       </div>
                     </div>
@@ -813,15 +853,21 @@ export function TeacherCBTCreator() {
               </p>
             </div>
             <Button
+<<<<<<< Updated upstream
               className="mt-2"
               onClick={() => setActiveTab("create")}
               disabled={isSaving}
             >
+=======
+              className="mt-2 bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a] shadow-md"
+              onClick={() => setActiveTab("create")}>
+>>>>>>> Stashed changes
               <Plus className="mr-2 h-4 w-4" />
               Create New Test
             </Button>
           </div>
 
+<<<<<<< Updated upstream
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-1 w-full sm:w-auto">
               <Input
@@ -847,6 +893,98 @@ export function TeacherCBTCreator() {
                 <SelectItem value="draft">Draft</SelectItem>
               </SelectContent>
             </Select>
+=======
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {currentTests.map((test) => (
+              <Card
+                key={test.id}
+                className="hover:shadow-lg transition-shadow shadow-md">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{test.title}</CardTitle>
+                      <CardDescription className="line-clamp-2">
+                        {test.description}
+                      </CardDescription>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleEditTest(test)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDuplicateTest(test)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handlePreviewTest(test)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Preview
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => handleDeleteTest(test.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={test.isPublished ? "default" : "secondary"}
+                      className={
+                        test.isPublished
+                          ? "bg-[#EF7B55] hover:bg-[#F79771]"
+                          : "bg-[#f7977181] text-slate-800 hover:bg-[#F797713a] hover:text-gray-900"
+                      }>
+                      {test.isPublished ? "Published" : "Draft"}
+                    </Badge>
+                    <Badge variant="outline">{test.difficulty}</Badge>
+                    <Badge variant="outline">{test.category}</Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {test.duration} mins
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <TestTube className="h-3 w-3" />
+                      {test.totalPoints} pts
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]  shadow-md"
+                      onClick={() => handleEditTest(test)}>
+                      <Edit className="mr-2 h-3 w-3" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handlePreviewTest(test)}
+                      className="flex-1 text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] shadow-md hover:border-none">
+                      <Eye className="mr-2 h-3 w-3" />
+                      Preview
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+>>>>>>> Stashed changes
           </div>
 
           {loadingTests ? (
@@ -1155,7 +1293,7 @@ export function TeacherCBTCreator() {
                       disabled={isSaving}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Duration (minutes)</Label>
                       <Input
@@ -1203,7 +1341,14 @@ export function TeacherCBTCreator() {
                     <CardTitle>
                       Questions ({currentTest.questions.length})
                     </CardTitle>
+<<<<<<< Updated upstream
                     <Button onClick={addQuestion} size="sm" disabled={isSaving}>
+=======
+                    <Button
+                      className="bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]"
+                      onClick={addQuestion}
+                      size="sm">
+>>>>>>> Stashed changes
                       <Plus className="mr-2 h-4 w-4" />
                       Add Question
                     </Button>
@@ -1499,6 +1644,7 @@ export function TeacherCBTCreator() {
 
           <div className="flex justify-end gap-2 pt-4">
             <Button
+<<<<<<< Updated upstream
               variant="outline"
               onClick={() => setIsEditTestOpen(false)}
               disabled={isSaving}
@@ -1512,6 +1658,18 @@ export function TeacherCBTCreator() {
                 <Save className="mr-2 h-4 w-4" />
               )}
               {isSaving ? "Saving..." : "Save Changes"}
+=======
+              className="text-slate-600"
+              variant="outline"
+              onClick={() => setIsEditTestOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]"
+              onClick={saveTest}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+>>>>>>> Stashed changes
             </Button>
           </div>
         </DialogContent>
