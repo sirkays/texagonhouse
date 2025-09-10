@@ -214,7 +214,7 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full font-sans ">
+      <div className="flex min-h-screen w-full font-sans">
         <Sidebar>
           <SidebarHeader className="bg-[#EF7B55] py-5">
             <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
@@ -250,17 +250,9 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                       My Account
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-[0.85rem] xs:text-xs sm:text-sm">
-                      <User className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-[0.85rem] xs:text-xs sm:text-sm">
-                      <Settings className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                      Settings
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-[0.85rem] xs:text-xs sm:text-sm"
+                      className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F79771] hover:text-white focus:bg-[#F79771] focus:text-white"
                       onClick={handleLogout}>
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
@@ -273,7 +265,7 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
         </Sidebar>
 
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-50 py-4 bg-[rgb(247,151,113)]">
+          <header className="sticky top-0 z-50 py-4">
             <style jsx>{`
               header {
                 background: rgba(
@@ -296,15 +288,7 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
             `}</style>
             <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
               <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
-              <div className="flex-1 max-w-[90vw] xs:max-w-md">
-                {/* <div className="relative">
-                  <Search className="absolute left-2 xs:left-2.5 top-2 xs:top-2.5 h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search courses, materials..."
-                    className="pl-7 xs:pl-8 text-[0.85rem] xs:text-xs sm:text-sm"
-                  />
-                </div> */}
-              </div>
+              <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
               <Button
                 variant="ghost"
                 size="icon"

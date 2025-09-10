@@ -521,25 +521,25 @@ export function TeacherStudentAnalytics() {
           setCurrentPageTests(1);
           setCurrentPageContent(1);
         }}>
-        <TabsList className="grid grid-cols-2 xs:grid-cols-4 w-full mb-14">
+        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="courses"
-            className="text-[0.85rem] xs:text-xs sm:text-sm">
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Course Performance
           </TabsTrigger>
           <TabsTrigger
             value="students"
-            className="text-[0.85rem] xs:text-xs sm:text-sm">
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Top Students
           </TabsTrigger>
           <TabsTrigger
             value="tests"
-            className="text-[0.85rem] xs:text-xs sm:text-sm">
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Test Analytics
           </TabsTrigger>
           <TabsTrigger
             value="engagement"
-            className="text-[0.85rem] xs:text-xs sm:text-sm">
+            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Engagement
           </TabsTrigger>
         </TabsList>
@@ -595,7 +595,7 @@ export function TeacherStudentAnalytics() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm"
+                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm bg-[#EF7B55] text-white hover:bg-[#f797713a] hover:text-[#F79771]"
                         onClick={() => handleViewCourseDetails(course)}>
                         <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         View Details
@@ -739,25 +739,28 @@ export function TeacherStudentAnalytics() {
                 ).paginatedItems.map((student, index) => (
                   <div
                     key={index}
-                    className="flex flex-col xs:flex-row items-start xs:items-center justify-between p-2 xs:p-3 sm:p-4 border rounded-lg">
-                    <div className="flex items-center gap-2 xs:gap-3">
-                      <div className="w-8 h-8 xs:w-10 xs:h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="font-medium text-primary text-[0.85rem] xs:text-xs sm:text-sm">
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-4 border rounded-lg gap-3">
+                    {/* Left: Avatar + Info */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#f797713a] rounded-full flex items-center justify-center">
+                        <span className="font-medium text-primary text-xs sm:text-sm">
                           #
                           {index + 1 + (currentPageStudents - 1) * itemsPerPage}
                         </span>
                       </div>
                       <div>
-                        <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
+                        <h4 className="font-medium text-xs sm:text-sm">
                           {student.name}
                         </h4>
-                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
+                        <p className="text-[0.65rem] sm:text-xs text-muted-foreground">
                           Last active: {student.lastActive}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-2 xs:mt-0 text-right">
-                      <div className="grid grid-cols-3 gap-2 xs:gap-3 sm:gap-4 text-[0.85rem] xs:text-xs sm:text-sm">
+
+                    {/* Right: Stats */}
+                    <div className="w-full sm:w-auto">
+                      <div className="grid grid-cols-3 sm:gap-4 gap-2 text-center text-xs sm:text-sm">
                         <div>
                           <div className="font-medium">
                             {student.coursesCompleted}

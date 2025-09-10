@@ -138,25 +138,25 @@ export function TeacherOverview() {
             <CardDescription>Common tasks to get you started</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start">
+            <Button className="w-full justify-start bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]">
               <TestTube className="mr-2 h-4 w-4" />
               Create New CBT Test
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
-              className="w-full justify-start bg-transparent">
+              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
               <Upload className="mr-2 h-4 w-4" />
               Upload Learning Material
-            </Button>
+            </Button> */}
             <Button
               variant="outline"
-              className="w-full justify-start bg-transparent">
+              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
               <BookOpen className="mr-2 h-4 w-4" />
               Create Learning Module
             </Button>
             <Button
               variant="outline"
-              className="w-full justify-start bg-transparent">
+              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
               <Users className="mr-2 h-4 w-4" />
               View Student Analytics
             </Button>

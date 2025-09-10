@@ -56,30 +56,30 @@ const menuItems = [
     id: "cbt-creator",
     path: "/teacher/create-cbt",
   },
-  {
-    title: "Video Lessons",
-    icon: Video,
-    id: "video-lessons",
-    path: "/teacher/video-lessons",
-  },
+  // {
+  //   title: "Video Lessons",
+  //   icon: Video,
+  //   id: "video-lessons",
+  //   path: "/teacher/video-lessons",
+  // },
   {
     title: "Live Sessions",
     icon: Calendar,
     id: "live-sessions",
     path: "/main/home",
   },
-  {
-    title: "Upload Materials",
-    icon: Upload,
-    id: "uploader",
-    path: "/teacher/uploader",
-  },
-  {
-    title: "Resource Manager",
-    icon: Book,
-    id: "resources",
-    path: "/teacher/resource-manager",
-  },
+  // {
+  //   title: "Upload Materials",
+  //   icon: Upload,
+  //   id: "uploader",
+  //   path: "/teacher/uploader",
+  // },
+  // {
+  //   title: "Resource Manager",
+  //   icon: Book,
+  //   id: "resources",
+  //   path: "/teacher/resource-manager",
+  // },
   {
     title: "Learning Modules",
     icon: GraduationCap,
@@ -112,17 +112,34 @@ function SidebarMenuContent() {
   };
 
   return (
-    <SidebarContent>
+    <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
-        <SidebarGroupLabel>Content Creation</SidebarGroupLabel>
+        {/* <SidebarGroupLabel className="text-[0.85rem] xs:text-xs sm:text-sm">
+          Welcome
+        </SidebarGroupLabel> */}
         <SidebarGroupContent>
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton asChild isActive={pathname === item.path}>
-                  <Link href={item.path} onClick={handleLinkClick}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.path}
+                  className={`
+                    py-5
+                hover:bg-[#F797713a]
+                data-[active=true]:bg-[#EF7B553a]
+                data-[active=true]:text-slate-600
+                transition-colors
+                rounded-md
+              `}>
+                  <Link
+                    href={item.path}
+                    onClick={handleLinkClick}
+                    className="flex items-center gap-2">
+                    <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+                    <span className="text-[0.85rem] xs:text-xs sm:text-sm">
+                      {item.title}
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -185,49 +202,41 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
     }
   };
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full ">
+    <SidebarProvider className="bg-white">
+      <div className="flex min-h-screen w-full font-sans">
         <Sidebar className="">
-          <SidebarHeader>
-            <div className="flex items-center gap-2 px-4 py-2">
-              <GraduationCap className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">EduPlatform</span>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                Teacher
+          <SidebarHeader className="bg-[#EF7B55] py-5">
+            <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
+              <GraduationCap className="h-5 w-5 xs:h-6 xs:w-6 text-white text-primary" />
+              <span className="font-semibold text-white text-base xs:text-lg">
+                TECHXAGON
               </span>
             </div>
           </SidebarHeader>
           <SidebarMenuContent />
-          <SidebarFooter>
+          <SidebarFooter className="border border-t-[#EF7B553a] py-5">
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton>
-                      <Avatar className="h-6 w-6">
+                      <Avatar className="h-5 w-5 xs:h-6 xs:w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback>{session?.user?.name?.[0] || "JD"}</AvatarFallback>
+                        <AvatarFallback className="xs:text-[0.65rem] sm:text-xs">
+                          {session?.user?.name?.[0] || "JD"}
+                        </AvatarFallback>
                       </Avatar>
-                      <span> {session?.user?.name || "John Doe"}</span>
-                      <ChevronDown className="ml-auto h-4 w-4" />
+                      <span className="xs:text-xs sm:text-sm">
+                        {session?.user?.name || "John Doe"}
+                      </span>
+                      <ChevronDown className="ml-auto h-3 w-3 xs:h-4 xs:w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
                     className="w-[--radix-popper-anchor-width]">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-[0.85rem] xs:text-xs sm:text-sm"
+                      className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F79771] hover:text-white focus:bg-[#F79771] focus:text-white"
                       onClick={handleLogout}>
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
@@ -240,16 +249,40 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
         </Sidebar>
 
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-14 items-center justify-between gap-4 px-6">
-              <SidebarTrigger />
-              <div className="flex-1"></div>
-              <Button variant="ghost" size="icon">
-                <Bell className="h-4 w-4" />
+          <header className="sticky top-0 z-50 py-4">
+            <style jsx>{`
+              header {
+                background: rgba(
+                  247,
+                  151,
+                  113,
+                  0.3
+                ); /* Semi-transparent #F19212 */
+                backdrop-filter: blur(8px); /* Frosted glass effect */
+                -webkit-backdrop-filter: blur(8px); /* Safari compatibility */
+                position: sticky;
+                top: 0;
+                z-index: 50;
+              }
+              header > div {
+                position: relative;
+                z-index: 10;
+                background: transparent;
+              }
+            `}</style>
+            <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
+              <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+              <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
+                <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-6">{children}</main>
+
+          <main className="flex-1 p-3 xs:p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>
