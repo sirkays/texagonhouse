@@ -230,25 +230,20 @@ export function TeacherLearningModules() {
           setCurrentPageAnalytics(1);
         }}
         className="w-full">
-        <TabsList
-          className="
-    grid grid-cols-2 xs:grid-cols-3 gap-2
-    sm:flex sm:justify-start sm:gap-4
-    w-full mb-14
-  ">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="flex-1 sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="flex-1 sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="flex-1 sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Module Analytics
           </TabsTrigger>
         </TabsList>
@@ -452,14 +447,14 @@ export function TeacherLearningModules() {
                 <div className="pt-2 xs:pt-3 space-y-2">
                   <Button
                     onClick={saveModule}
-                    className="w-full text-xs xs:text-sm sm:text-base">
+                    className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                     <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                     Save Module
                   </Button>
                   <Button
                     onClick={publishModule}
                     variant="outline"
-                    className="w-full bg-transparent text-xs xs:text-sm sm:text-base">
+                    className="w-full bg-transparent text-xs xs:text-sm sm:text-base  shadow-md">
                     <Upload className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                     Publish Module
                   </Button>
@@ -482,7 +477,7 @@ export function TeacherLearningModules() {
                   <Button
                     onClick={addLesson}
                     size="sm"
-                    className="text-xs xs:text-sm sm:text-base">
+                    className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300">
                     <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
                   </Button>
                 </div>
@@ -504,7 +499,7 @@ export function TeacherLearningModules() {
                     return (
                       <div
                         key={lesson.id}
-                        className={`p-2 xs:p-3 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
                           editingLesson?.id === lesson.id
                             ? "border-primary bg-primary/5"
                             : "hover:bg-muted/50"
@@ -541,7 +536,7 @@ export function TeacherLearningModules() {
                               e.stopPropagation();
                               deleteLesson(lesson.id);
                             }}>
-                            <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-[#DD2701]" />
                           </Button>
                         </div>
                       </div>

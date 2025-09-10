@@ -793,7 +793,7 @@ export function TeacherCBTCreator() {
               </p>
             </div>
             <Button
-              className="mt-2"
+              className="mt-2 bg-[#f79771] hover:bg-gray-300 shadow-md"
               onClick={() => setActiveTab("create")}
               disabled={isSaving}>
               <Plus className="mr-2 h-4 w-4" />
@@ -880,7 +880,12 @@ export function TeacherCBTCreator() {
                   <CardContent className="space-y-4">
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={test.isPublished ? "default" : "secondary"}>
+                        variant={test.isPublished ? "default" : "secondary"}
+                        className={
+                          test.isPublished
+                            ? "bg-[#EF7B55] text-white hover:bg-[#ef7c55b7]"
+                            : "bg-gray-800 text-white hover:bg-gray-600"
+                        }>
                         {test.isPublished ? "Published" : "Draft"}
                       </Badge>
                       <Badge variant="outline">{test.difficulty}</Badge>
@@ -901,7 +906,7 @@ export function TeacherCBTCreator() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handleEditTest(test)}
                         disabled={isSaving}>
                         <Edit className="mr-2 h-3 w-3" />
@@ -911,7 +916,8 @@ export function TeacherCBTCreator() {
                         size="sm"
                         variant="outline"
                         onClick={() => handlePreviewTest(test)}
-                        disabled={isSaving}>
+                        disabled={isSaving}
+                        className="flex-1 bg-transparent shadow-md">
                         <Eye className="mr-2 h-3 w-3" />
                         Preview
                       </Button>
