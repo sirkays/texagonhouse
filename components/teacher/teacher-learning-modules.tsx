@@ -1044,28 +1044,30 @@ export function TeacherLearningModules() {
       >
         <TabsList
           className="
-            grid grid-cols-2 xs:grid-cols-3 gap-2
-            sm:flex sm:justify-start sm:gap-4
-            w-full mb-14
-          "
+    grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4
+    w-full mb-6
+  "
         >
           <TabsTrigger
             value="create"
-            className="flex-1 w-full sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base"
+            className="w-full text-sm sm:text-base"
+            disabled={isSaving}
           >
-            Create Module
+            Create New Test
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="flex-1 w-full sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base"
+            className="w-full text-sm sm:text-base"
+            disabled={isSaving}
           >
-            Manage Modules
+            Manage Tests
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="flex-1 w-full sm:flex-none text-[0.85rem] xs:text-xs sm:text-sm md:text-base"
+            className="w-full text-sm sm:text-base"
+            disabled={isSaving}
           >
-            Module Analytics
+            Test Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -1158,7 +1160,7 @@ export function TeacherLearningModules() {
                   </div>
 
                   <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <Label className="text-xs xs:text-sm sm:text-base">
                         Module Type
                       </Label>
@@ -1198,7 +1200,7 @@ export function TeacherLearningModules() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
                     <div className="space-y-2">
                       <Label className="text-xs xs:text-sm sm:text-base">
                         Difficulty
@@ -1506,18 +1508,18 @@ export function TeacherLearningModules() {
                                   >
                                     Audio
                                   </SelectItem>
-                                  <SelectItem
+                                  {/* <SelectItem
                                     value="text"
                                     className="text-xs xs:text-sm sm:text-base"
                                   >
                                     Text/Article
-                                  </SelectItem>
-                                  <SelectItem
+                                  </SelectItem> */}
+                                  {/* <SelectItem
                                     value="quiz"
                                     className="text-xs xs:text-sm sm:text-base"
                                   >
                                     Quiz
-                                  </SelectItem>
+                                  </SelectItem> */}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1875,7 +1877,6 @@ export function TeacherLearningModules() {
 
                         <div className="flex gap-2 flex-col sm:flex-row">
                           <Button
-                           
                             className="flex-1 text-xs xs:text-sm sm:text-base"
                             onClick={async () => {
                               const moduleData = await getModuleDetails(
@@ -1891,7 +1892,6 @@ export function TeacherLearningModules() {
                             Edit
                           </Button>
                           <Button
-                            
                             variant="outline"
                             className="text-xs xs:text-sm sm:text-base"
                           >
@@ -1899,7 +1899,6 @@ export function TeacherLearningModules() {
                             Preview
                           </Button>
                           <Button
-                          
                             variant="destructive"
                             className="text-xs xs:text-sm sm:text-base"
                             onClick={() => deleteModule(module.id)}
