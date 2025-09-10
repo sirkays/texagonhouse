@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import {useState, useEffect, useCallback} from "react";
+import {useRouter} from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,10 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Textarea} from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsList, TabsTrigger, TabsContent} from "@/components/ui/tabs";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
 import {
   Plus,
   Trash2,
@@ -57,7 +57,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Question {
   id: string;
@@ -189,7 +189,7 @@ export function TeacherCBTCreator() {
       return;
     }
     setTests(data.tests || []);
-    setPagination(data.pagination || { page: 1, limit: 3, total: 0, pages: 1 });
+    setPagination(data.pagination || {page: 1, limit: 3, total: 0, pages: 1});
     setLoadingTests(false);
   }, [pagination.page, pagination.limit, searchQuery, filterPublished, router]);
 
@@ -239,11 +239,11 @@ export function TeacherCBTCreator() {
     setCurrentTest((prev) => ({
       ...prev,
       questions: prev.questions.map((q) =>
-        q.id === questionId ? { ...q, ...updates } : q
+        q.id === questionId ? {...q, ...updates} : q
       ),
     }));
     if (editingQuestion?.id === questionId) {
-      setEditingQuestion((prev) => (prev ? { ...prev, ...updates } : null));
+      setEditingQuestion((prev) => (prev ? {...prev, ...updates} : null));
     }
   };
 
@@ -330,7 +330,7 @@ export function TeacherCBTCreator() {
   };
 
   const publishTest = () => {
-    setCurrentTest((prev) => ({ ...prev, isPublished: true }));
+    setCurrentTest((prev) => ({...prev, isPublished: true}));
     alert("Test published successfully!");
   };
 
@@ -379,7 +379,7 @@ export function TeacherCBTCreator() {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination((prev) => ({ ...prev, page: newPage }));
+    setPagination((prev) => ({...prev, page: newPage}));
   };
 
   return (
@@ -397,46 +397,27 @@ export function TeacherCBTCreator() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-<<<<<<< Updated upstream
         <TabsList
           className="
     grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4
     w-full mb-6
-  "
-        >
+  ">
           <TabsTrigger
             value="create"
             className="w-full text-sm sm:text-base"
-            disabled={isSaving}
-          >
-=======
-        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
-          <TabsTrigger
-            value="create"
-            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
->>>>>>> Stashed changes
+            disabled={isSaving}>
             Create New Test
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-<<<<<<< Updated upstream
             className="w-full text-sm sm:text-base"
-            disabled={isSaving}
-          >
-=======
-            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
->>>>>>> Stashed changes
+            disabled={isSaving}>
             Manage Tests
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-<<<<<<< Updated upstream
             className="w-full text-sm sm:text-base"
-            disabled={isSaving}
-          >
-=======
-            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
->>>>>>> Stashed changes
+            disabled={isSaving}>
             Test Analytics
           </TabsTrigger>
         </TabsList>
@@ -483,8 +464,8 @@ export function TeacherCBTCreator() {
                   />
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label htmlFor="duration">Duration (minutes)</Label>
                     <Input
                       id="duration"
@@ -499,7 +480,7 @@ export function TeacherCBTCreator() {
                       disabled={isSaving}
                     />
                   </div>
-                  <div className="flex-1 space-y-2">
+                  <div className="space-y-2">
                     <Label>Difficulty</Label>
                     <Select
                       value={currentTest.difficulty}
@@ -509,8 +490,7 @@ export function TeacherCBTCreator() {
                           difficulty: value,
                         }))
                       }
-                      disabled={isSaving}
-                    >
+                      disabled={isSaving}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -528,10 +508,9 @@ export function TeacherCBTCreator() {
                   <Select
                     value={currentTest.courseId}
                     onValueChange={(value) =>
-                      setCurrentTest((prev) => ({ ...prev, courseId: value }))
+                      setCurrentTest((prev) => ({...prev, courseId: value}))
                     }
-                    disabled={isSaving}
-                  >
+                    disabled={isSaving}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
@@ -539,8 +518,7 @@ export function TeacherCBTCreator() {
                       {courses.map((course) => (
                         <SelectItem
                           key={course.id}
-                          value={course.id.toString()}
-                        >
+                          value={course.id.toString()}>
                           {course.name}
                         </SelectItem>
                       ))}
@@ -559,38 +537,23 @@ export function TeacherCBTCreator() {
                   </div>
                 </div>
 
-<<<<<<< Updated upstream
                 <div className="pt-4 space-y-2">
                   <Button
                     onClick={saveTest}
                     className="w-full"
-                    disabled={isSaving}
-                  >
+                    disabled={isSaving}>
                     {isSaving ? (
                       <Spinner className="mr-2 h-4 w-4" />
                     ) : (
                       <Save className="mr-2 h-4 w-4" />
                     )}
                     {isSaving ? "Saving..." : "Save Test"}
-=======
-                <div className="pt-4 flex flex-col md:flex-row gap-4">
-                  <Button
-                    onClick={saveTest}
-                    className="flex-1 bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Test
->>>>>>> Stashed changes
                   </Button>
                   <Button
                     onClick={publishTest}
                     variant="outline"
-<<<<<<< Updated upstream
                     className="w-full bg-transparent"
-                    disabled={isSaving}
-                  >
-=======
-                    className="flex-1 text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
->>>>>>> Stashed changes
+                    disabled={isSaving}>
                     <TestTube className="mr-2 h-4 w-4" />
                     Publish Test
                   </Button>
@@ -608,14 +571,7 @@ export function TeacherCBTCreator() {
                       Manage your test questions
                     </CardDescription>
                   </div>
-<<<<<<< Updated upstream
                   <Button onClick={addQuestion} size="sm" disabled={isSaving}>
-=======
-                  <Button
-                    className="bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]"
-                    onClick={addQuestion}
-                    size="sm">
->>>>>>> Stashed changes
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -633,13 +589,12 @@ export function TeacherCBTCreator() {
                   currentTest.questions.map((question, index) => (
                     <div
                       key={question.id}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                         editingQuestion?.id === question.id
                           ? "border-primary bg-primary/5"
                           : "hover:bg-muted/50"
                       }`}
-                      onClick={() => setEditingQuestion(question)}
-                    >
+                      onClick={() => setEditingQuestion(question)}>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -663,15 +618,9 @@ export function TeacherCBTCreator() {
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteQuestion(question.id);
-<<<<<<< Updated upstream
                           }}
-                          disabled={isSaving}
-                        >
+                          disabled={isSaving}>
                           <Trash2 className="h-3 w-3" />
-=======
-                          }}>
-                          <Trash2 className="h-3 w-3 text-[#DD2701]" />
->>>>>>> Stashed changes
                         </Button>
                       </div>
                     </div>
@@ -698,10 +647,9 @@ export function TeacherCBTCreator() {
                       <Select
                         value={editingQuestion.type}
                         onValueChange={(value: Question["type"]) =>
-                          updateQuestion(editingQuestion.id, { type: value })
+                          updateQuestion(editingQuestion.id, {type: value})
                         }
-                        disabled={isSaving}
-                      >
+                        disabled={isSaving}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -743,13 +691,11 @@ export function TeacherCBTCreator() {
                               correctAnswer: Number.parseInt(value),
                             })
                           }
-                          disabled={isSaving}
-                        >
+                          disabled={isSaving}>
                           {editingQuestion.options?.map((option, index) => (
                             <div
                               key={index}
-                              className="flex items-center space-x-2"
-                            >
+                              className="flex items-center space-x-2">
                               <RadioGroupItem
                                 value={index.toString()}
                                 id={`option-${index}`}
@@ -785,8 +731,7 @@ export function TeacherCBTCreator() {
                               correctAnswer: value,
                             })
                           }
-                          disabled={isSaving}
-                        >
+                          disabled={isSaving}>
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="true" id="true" />
                             <Label htmlFor="true">True</Label>
@@ -853,21 +798,14 @@ export function TeacherCBTCreator() {
               </p>
             </div>
             <Button
-<<<<<<< Updated upstream
               className="mt-2"
               onClick={() => setActiveTab("create")}
-              disabled={isSaving}
-            >
-=======
-              className="mt-2 bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a] shadow-md"
-              onClick={() => setActiveTab("create")}>
->>>>>>> Stashed changes
+              disabled={isSaving}>
               <Plus className="mr-2 h-4 w-4" />
               Create New Test
             </Button>
           </div>
 
-<<<<<<< Updated upstream
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-1 w-full sm:w-auto">
               <Input
@@ -882,8 +820,7 @@ export function TeacherCBTCreator() {
               onValueChange={(value: "all" | "published" | "draft") =>
                 setFilterPublished(value)
               }
-              disabled={isSaving}
-            >
+              disabled={isSaving}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -893,98 +830,6 @@ export function TeacherCBTCreator() {
                 <SelectItem value="draft">Draft</SelectItem>
               </SelectContent>
             </Select>
-=======
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {currentTests.map((test) => (
-              <Card
-                key={test.id}
-                className="hover:shadow-lg transition-shadow shadow-md">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{test.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {test.description}
-                      </CardDescription>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEditTest(test)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDuplicateTest(test)}>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handlePreviewTest(test)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDeleteTest(test.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={test.isPublished ? "default" : "secondary"}
-                      className={
-                        test.isPublished
-                          ? "bg-[#EF7B55] hover:bg-[#F79771]"
-                          : "bg-[#f7977181] text-slate-800 hover:bg-[#F797713a] hover:text-gray-900"
-                      }>
-                      {test.isPublished ? "Published" : "Draft"}
-                    </Badge>
-                    <Badge variant="outline">{test.difficulty}</Badge>
-                    <Badge variant="outline">{test.category}</Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {test.duration} mins
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TestTube className="h-3 w-3" />
-                      {test.totalPoints} pts
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]  shadow-md"
-                      onClick={() => handleEditTest(test)}>
-                      <Edit className="mr-2 h-3 w-3" />
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handlePreviewTest(test)}
-                      className="flex-1 text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] shadow-md hover:border-none">
-                      <Eye className="mr-2 h-3 w-3" />
-                      Preview
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
->>>>>>> Stashed changes
           </div>
 
           {loadingTests ? (
@@ -996,8 +841,7 @@ export function TeacherCBTCreator() {
               {tests.map((test) => (
                 <Card
                   key={test.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
+                  className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
@@ -1014,27 +858,23 @@ export function TeacherCBTCreator() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem
-                            onClick={() => handleEditTest(test)}
-                          >
+                            onClick={() => handleEditTest(test)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDuplicateTest(test)}
-                          >
+                            onClick={() => handleDuplicateTest(test)}>
                             <Copy className="mr-2 h-4 w-4" />
                             Duplicate
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handlePreviewTest(test)}
-                          >
+                            onClick={() => handlePreviewTest(test)}>
                             <Eye className="mr-2 h-4 w-4" />
                             Preview
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600"
-                            onClick={() => handleDeleteTest(test.id)}
-                          >
+                            onClick={() => handleDeleteTest(test.id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -1045,8 +885,7 @@ export function TeacherCBTCreator() {
                   <CardContent className="space-y-4">
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={test.isPublished ? "default" : "secondary"}
-                      >
+                        variant={test.isPublished ? "default" : "secondary"}>
                         {test.isPublished ? "Published" : "Draft"}
                       </Badge>
                       <Badge variant="outline">{test.difficulty}</Badge>
@@ -1069,8 +908,7 @@ export function TeacherCBTCreator() {
                         size="sm"
                         className="flex-1"
                         onClick={() => handleEditTest(test)}
-                        disabled={isSaving}
-                      >
+                        disabled={isSaving}>
                         <Edit className="mr-2 h-3 w-3" />
                         Edit
                       </Button>
@@ -1078,8 +916,7 @@ export function TeacherCBTCreator() {
                         size="sm"
                         variant="outline"
                         onClick={() => handlePreviewTest(test)}
-                        disabled={isSaving}
-                      >
+                        disabled={isSaving}>
                         <Eye className="mr-2 h-3 w-3" />
                         Preview
                       </Button>
@@ -1102,7 +939,7 @@ export function TeacherCBTCreator() {
                 disabled={isSaving}
               />
               {Array.from(
-                { length: pagination.pages },
+                {length: pagination.pages},
                 (_, index) => index + 1
               ).map((page) => (
                 <PaginationItem key={page}>
@@ -1113,8 +950,7 @@ export function TeacherCBTCreator() {
                       e.preventDefault();
                       handlePageChange(page);
                     }}
-                    disabled={isSaving}
-                  >
+                    disabled={isSaving}>
                     {page}
                   </PaginationLink>
                 </PaginationItem>
@@ -1215,8 +1051,7 @@ export function TeacherCBTCreator() {
                   {tests.map((test) => (
                     <div
                       key={test.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
+                      className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-1">
                         <h4 className="font-medium">{test.title}</h4>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -1234,8 +1069,7 @@ export function TeacherCBTCreator() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleViewAnalyticsDetails(test)}
-                        disabled={isSaving}
-                      >
+                        disabled={isSaving}>
                         <Eye className="mr-2 h-3 w-3" />
                         View Details
                       </Button>
@@ -1293,7 +1127,7 @@ export function TeacherCBTCreator() {
                       disabled={isSaving}
                     />
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Duration (minutes)</Label>
                       <Input
@@ -1318,8 +1152,7 @@ export function TeacherCBTCreator() {
                             difficulty: value,
                           }))
                         }
-                        disabled={isSaving}
-                      >
+                        disabled={isSaving}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -1341,14 +1174,7 @@ export function TeacherCBTCreator() {
                     <CardTitle>
                       Questions ({currentTest.questions.length})
                     </CardTitle>
-<<<<<<< Updated upstream
                     <Button onClick={addQuestion} size="sm" disabled={isSaving}>
-=======
-                    <Button
-                      className="bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]"
-                      onClick={addQuestion}
-                      size="sm">
->>>>>>> Stashed changes
                       <Plus className="mr-2 h-4 w-4" />
                       Add Question
                     </Button>
@@ -1368,8 +1194,7 @@ export function TeacherCBTCreator() {
                       currentTest.questions.map((question, index) => (
                         <Card
                           key={question.id}
-                          className="border-l-4 border-l-primary/20"
-                        >
+                          className="border-l-4 border-l-primary/20">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-2">
@@ -1387,8 +1212,7 @@ export function TeacherCBTCreator() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => deleteQuestion(question.id)}
-                                disabled={isSaving}
-                              >
+                                disabled={isSaving}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -1400,10 +1224,9 @@ export function TeacherCBTCreator() {
                               <Select
                                 value={question.type}
                                 onValueChange={(value: Question["type"]) =>
-                                  updateQuestion(question.id, { type: value })
+                                  updateQuestion(question.id, {type: value})
                                 }
-                                disabled={isSaving}
-                              >
+                                disabled={isSaving}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
@@ -1449,13 +1272,11 @@ export function TeacherCBTCreator() {
                                       correctAnswer: Number.parseInt(value),
                                     })
                                   }
-                                  disabled={isSaving}
-                                >
+                                  disabled={isSaving}>
                                   {question.options?.map((option, optIndex) => (
                                     <div
                                       key={optIndex}
-                                      className="flex items-center space-x-2"
-                                    >
+                                      className="flex items-center space-x-2">
                                       <RadioGroupItem
                                         value={optIndex.toString()}
                                         id={`q${question.id}-option-${optIndex}`}
@@ -1478,8 +1299,7 @@ export function TeacherCBTCreator() {
                                       {optIndex === question.correctAnswer && (
                                         <Badge
                                           variant="default"
-                                          className="text-xs"
-                                        >
+                                          className="text-xs">
                                           Correct
                                         </Badge>
                                       )}
@@ -1500,8 +1320,7 @@ export function TeacherCBTCreator() {
                                       correctAnswer: value,
                                     })
                                   }
-                                  disabled={isSaving}
-                                >
+                                  disabled={isSaving}>
                                   <div className="flex items-center space-x-2">
                                     <RadioGroupItem
                                       value="true"
@@ -1513,8 +1332,7 @@ export function TeacherCBTCreator() {
                                     {question.correctAnswer === "true" && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-2"
-                                      >
+                                        className="text-xs ml-2">
                                         Correct
                                       </Badge>
                                     )}
@@ -1530,8 +1348,7 @@ export function TeacherCBTCreator() {
                                     {question.correctAnswer === "false" && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-2"
-                                      >
+                                        className="text-xs ml-2">
                                         Correct
                                       </Badge>
                                     )}
@@ -1601,8 +1418,7 @@ export function TeacherCBTCreator() {
                                       difficulty: value,
                                     })
                                   }
-                                  disabled={isSaving}
-                                >
+                                  disabled={isSaving}>
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
@@ -1644,11 +1460,9 @@ export function TeacherCBTCreator() {
 
           <div className="flex justify-end gap-2 pt-4">
             <Button
-<<<<<<< Updated upstream
               variant="outline"
               onClick={() => setIsEditTestOpen(false)}
-              disabled={isSaving}
-            >
+              disabled={isSaving}>
               Cancel
             </Button>
             <Button onClick={saveTest} disabled={isSaving}>
@@ -1658,18 +1472,6 @@ export function TeacherCBTCreator() {
                 <Save className="mr-2 h-4 w-4" />
               )}
               {isSaving ? "Saving..." : "Save Changes"}
-=======
-              className="text-slate-600"
-              variant="outline"
-              onClick={() => setIsEditTestOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]"
-              onClick={saveTest}>
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
->>>>>>> Stashed changes
             </Button>
           </div>
         </DialogContent>
@@ -1725,8 +1527,7 @@ export function TeacherCBTCreator() {
                         selectedTestForPreview.isPublished
                           ? "default"
                           : "secondary"
-                      }
-                    >
+                      }>
                       {selectedTestForPreview.isPublished
                         ? "Published"
                         : "Draft"}
@@ -1773,16 +1574,14 @@ export function TeacherCBTCreator() {
                                     optIndex === question.correctAnswer
                                       ? "border-green-500 bg-green-50"
                                       : "border-gray-200"
-                                  }`}
-                                >
+                                  }`}>
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                     <span className="text-sm">{option}</span>
                                     {optIndex === question.correctAnswer && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-auto"
-                                      >
+                                        className="text-xs ml-auto">
                                         Correct Answer
                                       </Badge>
                                     )}
@@ -1799,16 +1598,14 @@ export function TeacherCBTCreator() {
                                 question.correctAnswer === "true"
                                   ? "border-green-500 bg-green-50"
                                   : "border-gray-200"
-                              }`}
-                            >
+                              }`}>
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                 <span className="text-sm">True</span>
                                 {question.correctAnswer === "true" && (
                                   <Badge
                                     variant="default"
-                                    className="text-xs ml-auto"
-                                  >
+                                    className="text-xs ml-auto">
                                     Correct Answer
                                   </Badge>
                                 )}
@@ -1819,16 +1616,14 @@ export function TeacherCBTCreator() {
                                 question.correctAnswer === "false"
                                   ? "border-green-500 bg-green-50"
                                   : "border-gray-200"
-                              }`}
-                            >
+                              }`}>
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                 <span className="text-sm">False</span>
                                 {question.correctAnswer === "false" && (
                                   <Badge
                                     variant="default"
-                                    className="text-xs ml-auto"
-                                  >
+                                    className="text-xs ml-auto">
                                     Correct Answer
                                   </Badge>
                                 )}
@@ -1886,8 +1681,7 @@ export function TeacherCBTCreator() {
       {/* Analytics Detail Modal */}
       <Dialog
         open={isAnalyticsDetailOpen}
-        onOpenChange={setIsAnalyticsDetailOpen}
-      >
+        onOpenChange={setIsAnalyticsDetailOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -2008,8 +1802,7 @@ export function TeacherCBTCreator() {
                         <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
                           <div
                             className={`${item.color} h-6 rounded-full flex items-center justify-end pr-2`}
-                            style={{ width: `${(item.count / 100) * 100}%` }}
-                          >
+                            style={{width: `${(item.count / 100) * 100}%`}}>
                             <span className="text-white text-xs font-medium">
                               {item.count}
                             </span>
@@ -2036,8 +1829,7 @@ export function TeacherCBTCreator() {
                       .map((question, index) => (
                         <div
                           key={question.id}
-                          className="flex items-center justify-between p-3 border rounded"
-                        >
+                          className="flex items-center justify-between p-3 border rounded">
                           <div className="flex-1">
                             <div className="font-medium text-sm">
                               Question {index + 1}
@@ -2070,8 +1862,7 @@ export function TeacherCBTCreator() {
                                   : Math.random() > 0.4
                                   ? "secondary"
                                   : "default"
-                              }
-                            >
+                              }>
                               {Math.random() > 0.7
                                 ? "Hard"
                                 : Math.random() > 0.4
@@ -2093,11 +1884,10 @@ export function TeacherCBTCreator() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Array.from({ length: 5 }).map((_, index) => (
+                    {Array.from({length: 5}).map((_, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 border rounded"
-                      >
+                        className="flex items-center justify-between p-3 border rounded">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                             <span className="text-xs font-medium">
@@ -2127,8 +1917,7 @@ export function TeacherCBTCreator() {
                           <Badge
                             variant={
                               Math.random() > 0.3 ? "default" : "secondary"
-                            }
-                          >
+                            }>
                             {Math.random() > 0.3 ? "Passed" : "Failed"}
                           </Badge>
                         </div>
