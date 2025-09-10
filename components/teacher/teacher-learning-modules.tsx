@@ -727,7 +727,7 @@ export function TeacherLearningModules() {
             </div>
             <Button
               onClick={() => setActiveTab("create")}
-              className="text-xs xs:text-sm sm:text-base">
+              className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
               <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
               Create New Module
             </Button>
@@ -771,17 +771,17 @@ export function TeacherLearningModules() {
                     <div className="flex items-center flex-wrap gap-2">
                       <Badge
                         variant={module.isPublished ? "default" : "secondary"}
-                        className="text-[0.85rem] xs:text-xs sm:text-sm">
+                        className={
+                          module.isPublished
+                            ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
+                            : "bg-gray-500 text-white hover:bg-gray-600"
+                        }>
                         {module.isPublished ? "Published" : "Draft"}
                       </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-[0.85rem] xs:text-xs sm:text-sm">
+                      <Badge variant="outline" className="">
                         {module.difficulty}
                       </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-[0.85rem] xs:text-xs sm:text-sm">
+                      <Badge variant="outline" className="">
                         {module.category}
                       </Badge>
                     </div>
@@ -805,14 +805,14 @@ export function TeacherLearningModules() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        className="flex-1 text-xs xs:text-sm sm:text-base">
+                        className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                         <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         Edit
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs xs:text-sm sm:text-base">
+                        className="flex-1 text-xs xs:text-sm sm:text-base shadow-md">
                         <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                         Preview
                       </Button>
