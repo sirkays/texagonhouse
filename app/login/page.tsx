@@ -68,12 +68,15 @@ export default function LoginPage() {
     <div
       className="flex min-h-screen w-full items-center justify-center px-4 sm:px-6 lg:px-8"
       style={{
-        backgroundImage: "url('./login-background.png')",
+        backgroundImage: "url('/login-background.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
+        backgroundColor: "#0f0f23",
       }}>
-      <div className="bg-[#ffffff19] w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-lg shadow-[#ffffff3f] shadow-lg p-4 sm:p-6 lg:p-8">
+      <div
+        className="bg-white/10 backdrop-blur-md w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-xl shadow-lg p-6 sm:p-8 border border-[#EF7B55]/20"
+        style={{boxShadow: "0 4px 15px rgba(239, 123, 85, 0.2)"}}>
         <div className="flex flex-col items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex flex-wrap justify-center gap-5">
             <Image
@@ -96,65 +99,60 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-3">
             <div className="relative">
-              <Mail className="absolute left-2.5 top-2.5 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-muted-foreground" />
+              <Mail className="absolute left-3 top-3 h-5 w-5 text-[#EF7B55]" />
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent text-[#e0c4be] pl-8 sm:pl-9 lg:pl-10 text-xs sm:text-sm lg:text-base h-9 sm:h-10 lg:h-11"
+                className="bg-transparent focus:bg-transparent text-white/90 pl-12 pr-3 py-2 border border-[#EF7B55]/30 rounded-lg focus:ring-2 focus:ring-[#EF7B55] focus:border-transparent transition-all duration-200"
                 required
               />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="relative">
-              <Lock className="absolute left-2.5 top-2.5 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-muted-foreground" />
+              <Lock className="absolute left-3 top-3 h-5 w-5 text-[#EF7B55]" />
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent text-[#e0c4be] pl-8 sm:pl-9 lg:pl-10 text-xs sm:text-sm lg:text-base h-9 sm:h-10 lg:h-11 pr-10"
+                className="bg-transparent focus:bg-transparent text-white/90 pl-12 pr-10 py-2 border border-[#EF7B55]/30 rounded-lg focus:ring-2 focus:ring-[#EF7B55] focus:border-transparent transition-all duration-200"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-2.5 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-muted-foreground hover:text-gray-300 focus:outline-none">
-                {showPassword ? <EyeOff /> : <Eye />}
+                className="absolute right-3 top-2.5 h-5 w-5 text-white/60 hover:text-white transition-colors">
+                {showPassword ? (
+                  <EyeOff className="h-4" />
+                ) : (
+                  <Eye className="h-4" />
+                )}
               </button>
             </div>
           </div>
 
           {error && (
-            <p className="text-xs sm:text-sm lg:text-base text-destructive text-center">
+            <p className="text-sm text-red-400 text-center bg-red-500/10 px-3 py-2 rounded-md">
               {error}
             </p>
           )}
 
           <Button
             type="submit"
-            className="w-full text-xs sm:text-sm lg:text-base bg-[#EF7B55] hover:bg-[#ef7c55d1] h-9 sm:h-10 lg:h-11"
+            className="w-full py-2 text-sm font-semibold bg-gradient-to-r from-[#EF7B55] to-[#FF8A65] hover:from-[#EF7B55]/90 hover:to-[#FF8A65]/90 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
             disabled={loading}>
             {loading ? <Spinner size="md" className="text-white" /> : "Sign In"}
           </Button>
         </form>
-
-        <div className="mt-3 sm:mt-4 lg:mt-5 text-center">
-          {/* <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
-            Don’t have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </p> */}
-        </div>
       </div>
     </div>
   );
