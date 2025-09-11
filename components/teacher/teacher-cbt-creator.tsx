@@ -774,7 +774,7 @@ const deleteQuestion = async (testId: string, questionId: string) => {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteQuestion(question.id, currentTest.id);
+                            deleteQuestion(currentTest.id, question.id);
                           }}
                           disabled={isSaving}
                         >
@@ -1394,7 +1394,7 @@ const deleteQuestion = async (testId: string, questionId: string) => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteQuestion(question.id, currentTest.id)}
+                                onClick={() => deleteQuestion( currentTest.id, question.id)}
                                 disabled={isSaving}
                               >
                                 <Trash2 className="h-4 w-4" />
