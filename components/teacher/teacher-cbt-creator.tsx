@@ -1,7 +1,7 @@
 "use client";
 
-import {useState, useEffect, useCallback} from "react";
-import {useRouter} from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,10 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsList, TabsTrigger, TabsContent} from "@/components/ui/tabs";
-import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Plus,
   Trash2,
@@ -57,7 +57,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {Spinner} from "@/components/ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Question {
   id: string;
@@ -189,7 +189,7 @@ export function TeacherCBTCreator() {
       return;
     }
     setTests(data.tests || []);
-    setPagination(data.pagination || {page: 1, limit: 3, total: 0, pages: 1});
+    setPagination(data.pagination || { page: 1, limit: 3, total: 0, pages: 1 });
     setLoadingTests(false);
   }, [pagination.page, pagination.limit, searchQuery, filterPublished, router]);
 
@@ -223,7 +223,7 @@ export function TeacherCBTCreator() {
       type: "multiple-choice",
       question: "",
       options: ["", "", "", ""],
-      correctAnswer: 0,
+      correctAnswer: 0, // Default for multiple-choice
       points: 5,
       difficulty: "Medium",
     };
@@ -231,6 +231,7 @@ export function TeacherCBTCreator() {
       ...prev,
       questions: [...prev.questions, newQuestion],
       totalPoints: prev.totalPoints + 5,
+      questionsCount: prev.questionsCount + 1,
     }));
     setEditingQuestion(newQuestion);
   };
@@ -238,24 +239,35 @@ export function TeacherCBTCreator() {
   const updateQuestion = (questionId: string, updates: Partial<Question>) => {
     setCurrentTest((prev) => ({
       ...prev,
-      questions: prev.questions.map((q) =>
-        q.id === questionId ? {...q, ...updates} : q
-      ),
+      questions: prev.questions.map((q) => {
+        if (q.id !== questionId) return q;
+        const updatedQuestion = { ...q, ...updates };
+        // Set default correctAnswer based on type if changed
+        if (updates.type && updates.type !== q.type) {
+          updatedQuestion.correctAnswer =
+            updates.type === "multiple-choice"
+              ? 0
+              : updates.type === "true-false"
+              ? "true"
+              : "";
+        }
+        return updatedQuestion;
+      }),
     }));
     if (editingQuestion?.id === questionId) {
-      setEditingQuestion((prev) => (prev ? {...prev, ...updates} : null));
-    }
-  };
-
-  const deleteQuestion = (questionId: string) => {
-    const question = currentTest.questions.find((q) => q.id === questionId);
-    setCurrentTest((prev) => ({
-      ...prev,
-      questions: prev.questions.filter((q) => q.id !== questionId),
-      totalPoints: prev.totalPoints - (question?.points || 0),
-    }));
-    if (editingQuestion?.id === questionId) {
-      setEditingQuestion(null);
+      setEditingQuestion((prev) => {
+        if (!prev) return null;
+        const updatedQuestion = { ...prev, ...updates };
+        if (updates.type && updates.type !== prev.type) {
+          updatedQuestion.correctAnswer =
+            updates.type === "multiple-choice"
+              ? 0
+              : updates.type === "true-false"
+              ? "true"
+              : "";
+        }
+        return updatedQuestion;
+      });
     }
   };
 
@@ -285,9 +297,7 @@ export function TeacherCBTCreator() {
 
       const response = await fetch(endpoint, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
@@ -302,18 +312,66 @@ export function TeacherCBTCreator() {
         );
       }
 
+      const updatedTestId = data.test.id;
+      if (!updatedTestId) throw new Error("Test ID not returned from backend");
+
+      const updatedQuestions = [...currentTest.questions];
+      for (let i = 0; i < updatedQuestions.length; i++) {
+        const question = updatedQuestions[i];
+        let questionEndpoint;
+        let questionMethod;
+        if (question.id.length > 10) {
+          questionEndpoint = `/api/teacher/assessments/tests/test/${updatedTestId}/questions/add`;
+          questionMethod = "POST";
+        } else {
+          questionEndpoint = `/api/teacher/assessments/tests/test/${updatedTestId}/questions/${question.id}/update`;
+          questionMethod = "PUT";
+        }
+        const questionResponse = await fetch(questionEndpoint, {
+          method: questionMethod,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: question.type,
+            question: question.question,
+            options: question.options || [],
+            correctAnswer:
+              question.correctAnswer ??
+              (question.type === "multiple-choice"
+                ? 0
+                : question.type === "true-false"
+                ? "true"
+                : ""),
+            points: question.points,
+            explanation: question.explanation || "",
+            difficulty: question.difficulty || "Medium",
+          }),
+        });
+        if (!questionResponse.ok) {
+          const questionData = await questionResponse.json();
+          console.error(
+            `Failed to ${
+              questionMethod === "POST" ? "create" : "update"
+            } question ${question.id}:`,
+            questionData.error
+          );
+        } else {
+          const questionData = await questionResponse.json();
+          updatedQuestions[i].id = questionData.question.id;
+        }
+      }
+
       setCurrentTest((prev) => ({
         ...prev,
-        id: data.test.id,
+        id: updatedTestId,
         createdAt: data.test.createdAt,
         updatedAt: data.test.updatedAt,
         questionsCount: data.test.questionsCount,
         isPublished: data.test.isPublished,
+        questions: updatedQuestions,
       }));
+
       alert(`Test ${isEditing ? "updated" : "created"} successfully!`);
-      if (isEditing) {
-        setIsEditTestOpen(false);
-      }
+      if (isEditing) setIsEditTestOpen(false);
     } catch (error) {
       console.error(
         `Error ${currentTest.id ? "updating" : "creating"} test:`,
@@ -327,11 +385,6 @@ export function TeacherCBTCreator() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const publishTest = () => {
-    setCurrentTest((prev) => ({...prev, isPublished: true}));
-    alert("Test published successfully!");
   };
 
   const handleEditTest = async (test: CBTTest) => {
@@ -355,21 +408,117 @@ export function TeacherCBTCreator() {
     setIsSaving(false);
   };
 
-  const handleDuplicateTest = (test: CBTTest) => {
-    const duplicatedTest = {
-      ...test,
-      id: Date.now().toString(),
-      title: `${test.title} (Copy)`,
-      isPublished: false,
-    };
-    console.log("Duplicating test:", duplicatedTest);
-    alert("Test duplicated successfully!");
+  const publishTest = async (testId: string, publish: boolean) => {
+    try {
+      const response = await fetch(
+        `/api/teacher/assessments/tests/test/${testId}/publish`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ published: publish }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === "Session expired") {
+          router.push("/login");
+          return;
+        }
+        throw new Error(
+          data.error || `Failed to ${publish ? "publish" : "unpublish"} test`
+        );
+      }
+      setCurrentTest((prev) => ({ ...prev, isPublished: publish }));
+      alert(`Test ${publish ? "published" : "unpublished"} successfully!`);
+    } catch (error) {
+      console.error(
+        `Error ${publish ? "publishing" : "unpublishing"} test:`,
+        error
+      );
+      alert(
+        `Failed to ${publish ? "publish" : "unpublish"} test: ${error.message}`
+      );
+    }
   };
 
-  const handleDeleteTest = (testId: string) => {
-    if (confirm("Are you sure you want to delete this test?")) {
-      console.log("Deleting test:", testId);
+  const duplicateTest = async (testId: string) => {
+    try {
+      const response = await fetch(
+        `/api/teacher/assessments/tests/test/${testId}/duplicate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === "Session expired") {
+          router.push("/login");
+          return;
+        }
+        throw new Error(data.error || "Failed to duplicate test");
+      }
+      alert("Test duplicated successfully!");
+      // Optionally redirect to the new test or update UI
+      router.push(`/teacher/create-cbt`);
+    } catch (error) {
+      console.error("Error duplicating test:", error);
+      alert(`Failed to duplicate test: ${error.message}`);
+    }
+  };
+
+const deleteQuestion = async (testId: string, questionId: string) => {
+  try {
+    const response = await fetch(`/api/teacher/assessments/tests/test/${testId}/questions/${questionId}/delete`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.error === "Session expired") {
+        router.push("/login");
+        return;
+      }
+      throw new Error(data.error || "Failed to delete question");
+    }
+    setCurrentTest((prev) => ({
+      ...prev,
+      questions: prev.questions.filter((q) => q.id !== questionId),
+      questionsCount: prev.questionsCount - 1,
+      totalPoints: prev.totalPoints - (prev.questions.find((q) => q.id === questionId)?.points || 0),
+    }));
+    console.log(currentTest.questions);
+    alert("Question deleted successfully!");
+  } catch (error) {
+    console.error("Error deleting question:", error);
+    alert(`Failed to delete question: ${error.message}`);
+  }
+};
+
+  const deleteTest = async (testId: string) => {
+    try {
+      const response = await fetch(
+        `/api/teacher/assessments/tests/test/${testId}/delete`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === "Session expired") {
+          router.push("/login");
+          return;
+        }
+        throw new Error(data.error || "Failed to delete test");
+      }
       alert("Test deleted successfully!");
+      router.push("/teacher/create-cbt"); // Redirect to tests list
+    } catch (error) {
+      console.error("Error deleting test:", error);
+      alert(`Failed to delete test: ${error.message}`);
     }
   };
 
@@ -379,15 +528,15 @@ export function TeacherCBTCreator() {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination((prev) => ({...prev, page: newPage}));
+    setPagination((prev) => ({ ...prev, page: newPage }));
   };
 
   return (
     <div className="space-y-6">
       {(loadingTests || isSaving) && (
-        <div className="flex justify-center items-center h-32">
-          <Spinner />
-        </div>
+          <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
       )}
       <div>
         <h1 className="text-3xl font-bold">CBT Test Creator</h1>
@@ -401,19 +550,22 @@ export function TeacherCBTCreator() {
           <TabsTrigger
             value="create"
             className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
+            disabled={isSaving}
+          >
             Create New Test
           </TabsTrigger>
           <TabsTrigger
             value="manage"
             className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
+            disabled={isSaving}
+          >
             Manage Tests
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
             className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
+            disabled={isSaving}
+          >
             Test Analytics
           </TabsTrigger>
         </TabsList>
@@ -480,8 +632,12 @@ export function TeacherCBTCreator() {
                     <Select
                       value={currentTest.difficulty}
                       onValueChange={(value: "Easy" | "Medium" | "Hard") =>
-                        setCurrentTest((prev) => ({...prev, difficulty: value}))
-                      }>
+                        setCurrentTest((prev) => ({
+                          ...prev,
+                          difficulty: value,
+                        }))
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -499,9 +655,10 @@ export function TeacherCBTCreator() {
                   <Select
                     value={currentTest.courseId}
                     onValueChange={(value) =>
-                      setCurrentTest((prev) => ({...prev, courseId: value}))
+                      setCurrentTest((prev) => ({ ...prev, courseId: value }))
                     }
-                    disabled={isSaving}>
+                    disabled={isSaving}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
@@ -509,7 +666,8 @@ export function TeacherCBTCreator() {
                       {courses.map((course) => (
                         <SelectItem
                           key={course.id}
-                          value={course.id.toString()}>
+                          value={course.id.toString()}
+                        >
                           {course.name}
                         </SelectItem>
                       ))}
@@ -532,7 +690,8 @@ export function TeacherCBTCreator() {
                   <Button
                     onClick={saveTest}
                     className="w-full bg-[#f79771] hover:bg-gray-300 shadow-md"
-                    disabled={isSaving}>
+                    disabled={isSaving}
+                  >
                     {isSaving ? (
                       <Spinner className="mr-2 h-4 w-4" />
                     ) : (
@@ -541,10 +700,11 @@ export function TeacherCBTCreator() {
                     {isSaving ? "Saving..." : "Save Test"}
                   </Button>
                   <Button
-                    onClick={publishTest}
+                    onClick={() => publishTest(currentTest.id, currentTest.isPublished ? false : true)}
                     variant="outline"
                     className="w-full bg-transparent shadow-md"
-                    disabled={isSaving}>
+                    disabled={isSaving}
+                  >
                     <TestTube className="mr-2 h-4 w-4" />
                     Publish Test
                   </Button>
@@ -566,7 +726,8 @@ export function TeacherCBTCreator() {
                     className="bg-[#f79771] text-white hover:bg-gray-300"
                     onClick={addQuestion}
                     size="sm"
-                    disabled={isSaving}>
+                    disabled={isSaving}
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -589,7 +750,8 @@ export function TeacherCBTCreator() {
                           ? "border-primary bg-primary/5"
                           : "hover:bg-muted/50"
                       }`}
-                      onClick={() => setEditingQuestion(question)}>
+                      onClick={() => setEditingQuestion(question)}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -612,9 +774,10 @@ export function TeacherCBTCreator() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteQuestion(question.id);
+                            deleteQuestion(question.id, currentTest.id);
                           }}
-                          disabled={isSaving}>
+                          disabled={isSaving}
+                        >
                           <Trash2 className="h-3 w-3 text-[#DD2701]" />
                         </Button>
                       </div>
@@ -642,9 +805,10 @@ export function TeacherCBTCreator() {
                       <Select
                         value={editingQuestion.type}
                         onValueChange={(value: Question["type"]) =>
-                          updateQuestion(editingQuestion.id, {type: value})
+                          updateQuestion(editingQuestion.id, { type: value })
                         }
-                        disabled={isSaving}>
+                        disabled={isSaving}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -686,11 +850,13 @@ export function TeacherCBTCreator() {
                               correctAnswer: Number.parseInt(value),
                             })
                           }
-                          disabled={isSaving}>
+                          disabled={isSaving}
+                        >
                           {editingQuestion.options?.map((option, index) => (
                             <div
                               key={index}
-                              className="flex items-center space-x-2">
+                              className="flex items-center space-x-2"
+                            >
                               <RadioGroupItem
                                 value={index.toString()}
                                 id={`option-${index}`}
@@ -726,7 +892,8 @@ export function TeacherCBTCreator() {
                               correctAnswer: value,
                             })
                           }
-                          disabled={isSaving}>
+                          disabled={isSaving}
+                        >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="true" id="true" />
                             <Label htmlFor="true">True</Label>
@@ -795,7 +962,8 @@ export function TeacherCBTCreator() {
             <Button
               className="mt-2 bg-[#f79771] hover:bg-gray-300 shadow-md"
               onClick={() => setActiveTab("create")}
-              disabled={isSaving}>
+              disabled={isSaving}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Create New Test
             </Button>
@@ -815,7 +983,8 @@ export function TeacherCBTCreator() {
               onValueChange={(value: "all" | "published" | "draft") =>
                 setFilterPublished(value)
               }
-              disabled={isSaving}>
+              disabled={isSaving}
+            >
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -829,14 +998,15 @@ export function TeacherCBTCreator() {
 
           {loadingTests ? (
             <div className="flex justify-center items-center h-32">
-              <Spinner />
+              <Spinner className="text-black"/>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {tests.map((test) => (
                 <Card
                   key={test.id}
-                  className="hover:shadow-lg transition-shadow">
+                  className="hover:shadow-lg transition-shadow"
+                >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
@@ -853,23 +1023,27 @@ export function TeacherCBTCreator() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem
-                            onClick={() => handleEditTest(test)}>
+                            onClick={() => handleEditTest(test)}
+                          >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDuplicateTest(test)}>
+                            onClick={() => duplicateTest(test.id)}
+                          >
                             <Copy className="mr-2 h-4 w-4" />
                             Duplicate
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handlePreviewTest(test)}>
+                            onClick={() => handlePreviewTest(test)}
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             Preview
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600"
-                            onClick={() => handleDeleteTest(test.id)}>
+                            onClick={() => deleteTest(test.id)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -885,7 +1059,8 @@ export function TeacherCBTCreator() {
                           test.isPublished
                             ? "bg-[#EF7B55] text-white hover:bg-[#ef7c55b7]"
                             : "bg-gray-800 text-white hover:bg-gray-600"
-                        }>
+                        }
+                      >
                         {test.isPublished ? "Published" : "Draft"}
                       </Badge>
                       <Badge variant="outline">{test.difficulty}</Badge>
@@ -908,7 +1083,8 @@ export function TeacherCBTCreator() {
                         size="sm"
                         className="flex-1 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handleEditTest(test)}
-                        disabled={isSaving}>
+                        disabled={isSaving}
+                      >
                         <Edit className="mr-2 h-3 w-3" />
                         Edit
                       </Button>
@@ -917,7 +1093,8 @@ export function TeacherCBTCreator() {
                         variant="outline"
                         onClick={() => handlePreviewTest(test)}
                         disabled={isSaving}
-                        className="flex-1 bg-transparent shadow-md">
+                        className="flex-1 bg-transparent shadow-md"
+                      >
                         <Eye className="mr-2 h-3 w-3" />
                         Preview
                       </Button>
@@ -940,7 +1117,7 @@ export function TeacherCBTCreator() {
                 disabled={isSaving}
               />
               {Array.from(
-                {length: pagination.pages},
+                { length: pagination.pages },
                 (_, index) => index + 1
               ).map((page) => (
                 <PaginationItem key={page}>
@@ -951,7 +1128,8 @@ export function TeacherCBTCreator() {
                       e.preventDefault();
                       handlePageChange(page);
                     }}
-                    disabled={isSaving}>
+                    disabled={isSaving}
+                  >
                     {page}
                   </PaginationLink>
                 </PaginationItem>
@@ -1052,7 +1230,8 @@ export function TeacherCBTCreator() {
                   {tests.map((test) => (
                     <div
                       key={test.id}
-                      className="flex items-center justify-between p-4 border rounded-lg">
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="space-y-1">
                         <h4 className="font-medium">{test.title}</h4>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -1070,7 +1249,8 @@ export function TeacherCBTCreator() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleViewAnalyticsDetails(test)}
-                        disabled={isSaving}>
+                        disabled={isSaving}
+                      >
                         <Eye className="mr-2 h-3 w-3" />
                         View Details
                       </Button>
@@ -1153,7 +1333,8 @@ export function TeacherCBTCreator() {
                             difficulty: value,
                           }))
                         }
-                        disabled={isSaving}>
+                        disabled={isSaving}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -1195,7 +1376,8 @@ export function TeacherCBTCreator() {
                       currentTest.questions.map((question, index) => (
                         <Card
                           key={question.id}
-                          className="border-l-4 border-l-primary/20">
+                          className="border-l-4 border-l-primary/20"
+                        >
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-2">
@@ -1212,8 +1394,9 @@ export function TeacherCBTCreator() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteQuestion(question.id)}
-                                disabled={isSaving}>
+                                onClick={() => deleteQuestion(question.id, currentTest.id)}
+                                disabled={isSaving}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -1225,9 +1408,10 @@ export function TeacherCBTCreator() {
                               <Select
                                 value={question.type}
                                 onValueChange={(value: Question["type"]) =>
-                                  updateQuestion(question.id, {type: value})
+                                  updateQuestion(question.id, { type: value })
                                 }
-                                disabled={isSaving}>
+                                disabled={isSaving}
+                              >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
@@ -1273,11 +1457,13 @@ export function TeacherCBTCreator() {
                                       correctAnswer: Number.parseInt(value),
                                     })
                                   }
-                                  disabled={isSaving}>
+                                  disabled={isSaving}
+                                >
                                   {question.options?.map((option, optIndex) => (
                                     <div
                                       key={optIndex}
-                                      className="flex items-center space-x-2">
+                                      className="flex items-center space-x-2"
+                                    >
                                       <RadioGroupItem
                                         value={optIndex.toString()}
                                         id={`q${question.id}-option-${optIndex}`}
@@ -1300,7 +1486,8 @@ export function TeacherCBTCreator() {
                                       {optIndex === question.correctAnswer && (
                                         <Badge
                                           variant="default"
-                                          className="text-xs">
+                                          className="text-xs"
+                                        >
                                           Correct
                                         </Badge>
                                       )}
@@ -1321,7 +1508,8 @@ export function TeacherCBTCreator() {
                                       correctAnswer: value,
                                     })
                                   }
-                                  disabled={isSaving}>
+                                  disabled={isSaving}
+                                >
                                   <div className="flex items-center space-x-2">
                                     <RadioGroupItem
                                       value="true"
@@ -1333,7 +1521,8 @@ export function TeacherCBTCreator() {
                                     {question.correctAnswer === "true" && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-2">
+                                        className="text-xs ml-2"
+                                      >
                                         Correct
                                       </Badge>
                                     )}
@@ -1349,7 +1538,8 @@ export function TeacherCBTCreator() {
                                     {question.correctAnswer === "false" && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-2">
+                                        className="text-xs ml-2"
+                                      >
                                         Correct
                                       </Badge>
                                     )}
@@ -1364,7 +1554,11 @@ export function TeacherCBTCreator() {
                               <div className="space-y-2">
                                 <Label>Sample Answer (Optional)</Label>
                                 <Textarea
-                                  value={question.correctAnswer.toString()}
+                                  value={
+                                    question.correctAnswer
+                                      ? question.correctAnswer.toString()
+                                      : ""
+                                  }
                                   onChange={(e) =>
                                     updateQuestion(question.id, {
                                       correctAnswer: e.target.value,
@@ -1419,7 +1613,8 @@ export function TeacherCBTCreator() {
                                       difficulty: value,
                                     })
                                   }
-                                  disabled={isSaving}>
+                                  disabled={isSaving}
+                                >
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
@@ -1463,7 +1658,8 @@ export function TeacherCBTCreator() {
             <Button
               variant="outline"
               onClick={() => setIsEditTestOpen(false)}
-              disabled={isSaving}>
+              disabled={isSaving}
+            >
               Cancel
             </Button>
             <Button onClick={saveTest} disabled={isSaving}>
@@ -1528,7 +1724,8 @@ export function TeacherCBTCreator() {
                         selectedTestForPreview.isPublished
                           ? "default"
                           : "secondary"
-                      }>
+                      }
+                    >
                       {selectedTestForPreview.isPublished
                         ? "Published"
                         : "Draft"}
@@ -1575,14 +1772,16 @@ export function TeacherCBTCreator() {
                                     optIndex === question.correctAnswer
                                       ? "border-green-500 bg-green-50"
                                       : "border-gray-200"
-                                  }`}>
+                                  }`}
+                                >
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                     <span className="text-sm">{option}</span>
                                     {optIndex === question.correctAnswer && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-auto">
+                                        className="text-xs ml-auto"
+                                      >
                                         Correct Answer
                                       </Badge>
                                     )}
@@ -1599,14 +1798,16 @@ export function TeacherCBTCreator() {
                                 question.correctAnswer === "true"
                                   ? "border-green-500 bg-green-50"
                                   : "border-gray-200"
-                              }`}>
+                              }`}
+                            >
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                 <span className="text-sm">True</span>
                                 {question.correctAnswer === "true" && (
                                   <Badge
                                     variant="default"
-                                    className="text-xs ml-auto">
+                                    className="text-xs ml-auto"
+                                  >
                                     Correct Answer
                                   </Badge>
                                 )}
@@ -1617,14 +1818,16 @@ export function TeacherCBTCreator() {
                                 question.correctAnswer === "false"
                                   ? "border-green-500 bg-green-50"
                                   : "border-gray-200"
-                              }`}>
+                              }`}
+                            >
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                 <span className="text-sm">False</span>
                                 {question.correctAnswer === "false" && (
                                   <Badge
                                     variant="default"
-                                    className="text-xs ml-auto">
+                                    className="text-xs ml-auto"
+                                  >
                                     Correct Answer
                                   </Badge>
                                 )}
@@ -1636,26 +1839,26 @@ export function TeacherCBTCreator() {
                         {(question.type === "short-answer" ||
                           question.type === "essay") && (
                           <div className="space-y-2">
-                            <div className="p-3 border rounded bg-gray-50">
-                              <Label className="text-xs text-muted-foreground">
-                                Answer Area
-                              </Label>
-                              <div className="mt-2 p-2 bg-white border rounded min-h-[60px]">
-                                <span className="text-xs text-muted-foreground">
-                                  Students will type their answer here...
-                                </span>
-                              </div>
-                            </div>
-                            {question.correctAnswer && (
-                              <div className="p-2 border border-green-500 bg-green-50 rounded">
-                                <Label className="text-xs font-medium text-green-700">
-                                  Sample Answer:
-                                </Label>
-                                <p className="text-sm mt-1">
-                                  {question.correctAnswer}
-                                </p>
-                              </div>
-                            )}
+                            <Label>Sample Answer (Optional)</Label>
+                            <Textarea
+                              value={
+                                question.correctAnswer
+                                  ? question.correctAnswer.toString()
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                updateQuestion(question.id, {
+                                  correctAnswer: e.target.value,
+                                })
+                              }
+                              placeholder={`Enter a sample ${
+                                question.type === "short-answer"
+                                  ? "short answer"
+                                  : "essay response"
+                              }`}
+                              rows={question.type === "essay" ? 4 : 2}
+                              disabled={isSaving}
+                            />
                           </div>
                         )}
 
@@ -1682,7 +1885,8 @@ export function TeacherCBTCreator() {
       {/* Analytics Detail Modal */}
       <Dialog
         open={isAnalyticsDetailOpen}
-        onOpenChange={setIsAnalyticsDetailOpen}>
+        onOpenChange={setIsAnalyticsDetailOpen}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -1803,7 +2007,8 @@ export function TeacherCBTCreator() {
                         <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
                           <div
                             className={`${item.color} h-6 rounded-full flex items-center justify-end pr-2`}
-                            style={{width: `${(item.count / 100) * 100}%`}}>
+                            style={{ width: `${(item.count / 100) * 100}%` }}
+                          >
                             <span className="text-white text-xs font-medium">
                               {item.count}
                             </span>
@@ -1830,7 +2035,8 @@ export function TeacherCBTCreator() {
                       .map((question, index) => (
                         <div
                           key={question.id}
-                          className="flex items-center justify-between p-3 border rounded">
+                          className="flex items-center justify-between p-3 border rounded"
+                        >
                           <div className="flex-1">
                             <div className="font-medium text-sm">
                               Question {index + 1}
@@ -1863,7 +2069,8 @@ export function TeacherCBTCreator() {
                                   : Math.random() > 0.4
                                   ? "secondary"
                                   : "default"
-                              }>
+                              }
+                            >
                               {Math.random() > 0.7
                                 ? "Hard"
                                 : Math.random() > 0.4
@@ -1885,10 +2092,11 @@ export function TeacherCBTCreator() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Array.from({length: 5}).map((_, index) => (
+                    {Array.from({ length: 5 }).map((_, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 border rounded">
+                        className="flex items-center justify-between p-3 border rounded"
+                      >
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                             <span className="text-xs font-medium">
@@ -1918,7 +2126,8 @@ export function TeacherCBTCreator() {
                           <Badge
                             variant={
                               Math.random() > 0.3 ? "default" : "secondary"
-                            }>
+                            }
+                          >
                             {Math.random() > 0.3 ? "Passed" : "Failed"}
                           </Badge>
                         </div>

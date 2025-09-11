@@ -12,8 +12,9 @@ const headers = (sessionToken: string) => ({
   "X-Session-Token": sessionToken,
 });
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   noStore();
+  const params = await context.params; // Await params
   const endpoint = `/assessments/api/teacher/tests/${params.id}/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[TestDetailAPI] Initiating GET request to:", fullUrl);
@@ -56,7 +57,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     console.log("[TestDetailAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[TestDetailAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error("[TestDetailAPI] Request failed:", response.status, rawResponse.slice(0, 100));
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired" },
@@ -124,8 +125,23 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       );
     }
 
-    console.log("[TestDetailAPI] Fetch successful:", data);
-    return NextResponse.json(data, {
+    // Ensure questions have defaults
+    const processedData = {
+      ...data,
+      test: {
+        ...data.test,
+        questions: data.test.questions?.map((q: any) => ({
+          ...q,
+          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+          options: q.options || [],
+          explanation: q.explanation || "",
+          difficulty: q.difficulty || "Medium",
+        })) || [],
+      },
+    };
+
+    console.log("[TestDetailAPI] Fetch successful:", processedData);
+    return NextResponse.json(processedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -135,7 +151,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       },
     });
   } catch (error) {
-    console.error("[TestDetailAPI] Fetch error:", error);
+    console.error("[TestDetailAPI] Request error:", error);
     return NextResponse.json(
       { error: "Failed to fetch test", details: error.message },
       {
