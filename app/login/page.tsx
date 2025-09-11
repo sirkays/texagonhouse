@@ -75,7 +75,7 @@ export default function LoginPage() {
         backgroundColor: "#0f0f23",
       }}>
       <div
-        className="bg-white/10 backdrop-blur-md w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-xl shadow-lg p-6 sm:p-8 border border-[#EF7B55]/20"
+        className="bg-white/10 backdrop-blur-md w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-xl shadow-lg p-6 sm:p-8"
         style={{boxShadow: "0 4px 15px rgba(239, 123, 85, 0.2)"}}>
         <div className="flex flex-col items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex flex-wrap justify-center gap-5">

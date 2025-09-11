@@ -739,14 +739,14 @@ Doubled vector: 2 4 6 8 10 `,
         </Card>
       </div>
 
-      <div className="text-sm text-muted-foreground">
+      {/* <div className="text-sm text-muted-foreground">
         <p>
           <strong>Note:</strong> Real-time code execution is powered by online
           compilers. For production use, you'll need to configure API keys for
           the Judge0 service. Currently using fallback simulation for
           demonstration.
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }
