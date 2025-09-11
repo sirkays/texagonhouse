@@ -42,8 +42,7 @@ const StatusBar = () => {
         <DateAndTime />
         <Button
           onClick={handleBackToDashboard}
-          className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-        >
+          className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
           Back to Dashboard
         </Button>
         <Image
@@ -66,8 +65,7 @@ const StatusBar = () => {
       <DateAndTime />
       <Button
         onClick={handleBackToDashboard}
-        className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-      >
+        className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
         Back to Dashboard
       </Button>
       <Image
