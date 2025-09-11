@@ -1,4 +1,3 @@
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Spinner({ size = "sm", className }: { size?: "sm" | "md" | "lg"; className?: string }) {
@@ -9,6 +8,13 @@ export function Spinner({ size = "sm", className }: { size?: "sm" | "md" | "lg";
   };
 
   return (
-    <Loader2 className={cn(`animate-spin ${sizeClasses[size]} text-orange-500`, className)} />
+    <img
+      src="/texagon-logo.png"
+      alt="Texagon Logo"
+      className={cn(
+        `animate-bounce ${sizeClasses[size]} object-contain`,
+        className
+      )}
+    />
   );
 }

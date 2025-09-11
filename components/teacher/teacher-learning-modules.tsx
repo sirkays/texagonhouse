@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/pagination";
 import { getSession } from "next-auth/react";
 import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import { Spinner } from "../ui/spinner";
 
 // Interfaces
 interface Course {
@@ -931,7 +932,8 @@ export function TeacherLearningModules() {
         <TabsContent value="create" className="space-y-3 xs:space-y-4">
           {isLoadingCourses || isLoadingCategories ? (
             <div className="flex justify-center items-center py-8 xs:py-12">
-              <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div>
+              {/* <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div> */}
+              <Spinner className="w-10 h-10 xs:w-12 xs:h-12 self-center text-[#EF7B55]" />
             </div>
           ) : error ? (
             <div className="text-center py-8 xs:py-12 text-red-500">
@@ -1634,7 +1636,8 @@ export function TeacherLearningModules() {
 
           {isLoadingModules ? (
             <div className="flex justify-center items-center py-8 xs:py-12">
-              <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div>
+              {/* <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div> */}
+              <Spinner className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center" />
             </div>
           ) : error ? (
             <div className="text-center py-8 xs:py-12 text-red-500">
@@ -1850,7 +1853,8 @@ export function TeacherLearningModules() {
         <TabsContent value="analytics" className="space-y-3 xs:space-y-4">
           {isLoadingModules ? (
             <div className="flex justify-center items-center py-8 xs:py-12">
-              <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div>
+              {/* <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div> */}
+              <Spinner className=" h-10 w-10 xs:h-12 xs:w-12 text-[#EF7B55]" />
             </div>
           ) : error ? (
             <div className="text-center py-8 xs:py-12 text-red-500">
