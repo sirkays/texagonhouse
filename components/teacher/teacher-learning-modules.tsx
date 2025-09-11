@@ -47,6 +47,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { getSession } from "next-auth/react";
+import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
 
 // Interfaces
 interface Course {
@@ -145,6 +146,8 @@ const formatDate = (dateString: string | undefined): string => {
 export function TeacherLearningModules() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("create");
+  const [previewModule, setPreviewModule] = useState<Module | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [currentModule, setCurrentModule] = useState<Module>({
     id: "",
     title: "",
@@ -586,7 +589,8 @@ export function TeacherLearningModules() {
         title: currentModule.title,
         description: currentModule.description,
         course_id: parseInt(currentModule.course.id),
-        categoryId: categories.find((c) => c.name === currentModule.category)?.id,
+        categoryId: categories.find((c) => c.name === currentModule.category)
+          ?.id,
         difficulty: currentModule.difficulty.toLowerCase(),
         estimatedDuration: durationToMinutes(currentModule.duration),
         order: currentModule.order,
@@ -1426,7 +1430,10 @@ export function TeacherLearningModules() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const url = await handleFileUpload(file, "video");
+                                const url = await handleFileUpload(
+                                  file,
+                                  "video"
+                                );
                                 if (url) {
                                   updateLesson(editingLesson.id, {
                                     videoUrl: url,
@@ -1470,7 +1477,10 @@ export function TeacherLearningModules() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const url = await handleFileUpload(file, "audio");
+                                const url = await handleFileUpload(
+                                  file,
+                                  "audio"
+                                );
                                 if (url) {
                                   updateLesson(editingLesson.id, {
                                     audioUrl: url,
@@ -1515,7 +1525,10 @@ export function TeacherLearningModules() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const url = await handleFileUpload(file, "text");
+                                const url = await handleFileUpload(
+                                  file,
+                                  "text"
+                                );
                                 if (url) {
                                   updateLesson(editingLesson.id, {
                                     content: url,
@@ -1666,7 +1679,9 @@ export function TeacherLearningModules() {
                       <CardContent className="space-y-3 xs:space-y-4">
                         <div className="flex items-center flex-wrap gap-2">
                           <Badge
-                            variant={module.isPublished ? "default" : "secondary"}
+                            variant={
+                              module.isPublished ? "default" : "secondary"
+                            }
                             className={
                               module.isPublished
                                 ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
@@ -1732,6 +1747,15 @@ export function TeacherLearningModules() {
                             size="sm"
                             variant="outline"
                             className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                            onClick={async () => {
+                              const moduleData = await getModuleDetails(
+                                module.id
+                              );
+                              if (moduleData) {
+                                setPreviewModule(moduleData);
+                                setIsPreviewOpen(true);
+                              }
+                            }}
                           >
                             <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Preview
@@ -1796,8 +1820,8 @@ export function TeacherLearningModules() {
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-                    {getPaginatedModules(modules, currentPageManage).totalPages >
-                      5 && <PaginationEllipsis />}
+                    {getPaginatedModules(modules, currentPageManage)
+                      .totalPages > 5 && <PaginationEllipsis />}
                     <PaginationNext
                       onClick={() =>
                         setCurrentPageManage((prev) =>
@@ -1907,7 +1931,7 @@ export function TeacherLearningModules() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                      $12,450
+                      12,450
                     </div>
                     <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                       +22% from last month
@@ -1968,7 +1992,7 @@ export function TeacherLearningModules() {
                         </div>
                         <div className="mt-2 sm:mt-0 text-right space-y-2">
                           <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium text-green-600">
-                            ${Math.floor(Math.random() * 5000) + 1000}
+                            {Math.floor(Math.random() * 5000) + 1000}
                           </div>
                           <Button
                             variant="outline"
@@ -2037,8 +2061,10 @@ export function TeacherLearningModules() {
                             setCurrentPageAnalytics((prev) =>
                               Math.min(
                                 prev + 1,
-                                getPaginatedModules(modules, currentPageAnalytics)
-                                  .totalPages
+                                getPaginatedModules(
+                                  modules,
+                                  currentPageAnalytics
+                                ).totalPages
                               )
                             )
                           }
@@ -2059,6 +2085,14 @@ export function TeacherLearningModules() {
           )}
         </TabsContent>
       </Tabs>
+      <PreviewModal
+        module={previewModule}
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPreviewModule(null);
+        }}
+      />
     </div>
   );
 }
