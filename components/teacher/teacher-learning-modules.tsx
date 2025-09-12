@@ -66,9 +66,13 @@ interface Lesson {
   title: string;
   type: "video" | "audio" | "text" | "quiz";
   duration: string;
-  content?: string;
   videoUrl?: string;
   audioUrl?: string;
+  content?: string;
+  file?: File | null;
+  order?: number;
+  active?: boolean;
+  meta?: { description: string; tags: string[] };
 }
 
 interface Module {
@@ -376,10 +380,13 @@ export function TeacherLearningModules() {
 
   const addLesson = () => {
     const newLesson: Lesson = {
-      id: Date.now().toString(),
+      id: `temp-${Date.now()}`,
       title: "",
       type: "video",
       duration: "",
+      content: "",
+      videoUrl: "",
+      audioUrl: "",
     };
     setCurrentModule((prev) => ({
       ...prev,
@@ -389,7 +396,7 @@ export function TeacherLearningModules() {
     setEditingLesson(newLesson);
   };
 
-  const updateLesson = (lessonId: string, updates: Partial<Lesson>) => {
+  const updateLessonFields = (lessonId: string, updates: Partial<Lesson>) => {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
@@ -792,86 +799,263 @@ export function TeacherLearningModules() {
     }
   };
 
+  const headers = (sessionToken: string) => ({
+    Authorization: `Api-Key ${API_KEY}`,
+    "X-Session-Token": sessionToken,
+  });
+
   const saveLesson = async () => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
+      console.error("[saveLesson] No session token");
       return;
     }
     if (!currentModule.id) {
       setError("No module selected. Please save the module first.");
+      console.error("[saveLesson] No module ID");
       return;
     }
     if (!editingLesson) {
       setError("No lesson selected for saving.");
+      console.error("[saveLesson] No editing lesson");
       return;
     }
     if (!editingLesson.title) {
       setError("Lesson title is required.");
+      console.error("[saveLesson] Missing lesson title");
       return;
     }
+
     try {
-      const payload = {
-        title: editingLesson.title,
-        content_type: editingLesson.type,
-        url: editingLesson.videoUrl || editingLesson.audioUrl || "",
-        duration_seconds: durationToMinutes(editingLesson.duration) * 60,
-        order: currentModule.lessons.length + 1,
-        meta: {
+      const formData = new FormData();
+      formData.append("title", editingLesson.title);
+      formData.append("content_type", editingLesson.type);
+      formData.append(
+        "duration_seconds",
+        (durationToMinutes(editingLesson.duration) * 60).toString()
+      );
+      formData.append("order", (currentModule.lessons.length + 1).toString());
+      formData.append(
+        "meta",
+        JSON.stringify({
           description: editingLesson.content || "",
           tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        },
-        active: true,
-      };
+        })
+      );
+      formData.append("active", "true");
+
+      if (
+        editingLesson.file &&
+        (editingLesson.type === "video" || editingLesson.type === "audio")
+      ) {
+        console.log("[saveLesson] File selected:", {
+          name: editingLesson.file.name,
+          type: editingLesson.file.type,
+          size: editingLesson.file.size,
+        });
+        formData.append("file", editingLesson.file, editingLesson.file.name);
+      } else if (
+        editingLesson.type === "text" &&
+        editingLesson.content &&
+        !editingLesson.content.startsWith("http")
+      ) {
+        console.log(
+          "[saveLesson] Text content provided:",
+          editingLesson.content.slice(0, 200)
+        );
+        formData.append("content", editingLesson.content);
+      } else if (
+        (editingLesson.videoUrl || editingLesson.audioUrl) &&
+        (editingLesson.videoUrl?.startsWith("http") ||
+          editingLesson.audioUrl?.startsWith("http"))
+      ) {
+        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
+        console.log("[saveLesson] External URL provided:", url);
+        formData.append("url", url);
+      } else {
+        console.log("[saveLesson] No file or valid URL provided");
+      }
+
+      // Log FormData contents for debugging
+      console.log("[saveLesson] FormData contents:");
+      for (const [key, value] of formData.entries()) {
+        console.log(
+          `[saveLesson] ${key}:`,
+          typeof value === "string" ? value : `[File: ${value.name}]`
+        );
+      }
+
+      console.log(
+        "[saveLesson] Sending POST to",
+        `${BASE_URL}/modules/${currentModule.id}/lessons/`
+      );
       const response = await fetch(
         `${BASE_URL}/modules/${currentModule.id}/lessons/`,
         {
           method: "POST",
           headers: headers(sessionToken),
-          body: JSON.stringify(payload),
+          body: formData,
         }
       );
+
+      console.log(`[saveLesson] Response status: ${response.status}`);
+      const responseText = await response.text();
+      console.log("[saveLesson] Raw response:", responseText.slice(0, 200));
+
       if (!response.ok) {
-        const errorData: APIError = await response.json();
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          console.error(
+            "[saveLesson] Failed to parse error response:",
+            responseText.slice(0, 200)
+          );
+          throw new Error("Invalid response format from server");
+        }
+        console.error("[saveLesson] Fetch failed:", errorData);
         if (response.status === 401 && errorData.redirect) {
           window.location.href = errorData.redirect;
           return;
         }
         throw new Error(errorData.error || "Failed to create lesson");
       }
-      const data: { lesson: Lesson } = await response.json();
-      const newLesson: Lesson = {
-        id: data.lesson.id,
-        title: data.lesson.title,
-        type: data.lesson.type,
-        duration: minutesToDuration(data.lesson.duration_seconds / 60),
-        videoUrl: data.lesson.videoUrl,
-        audioUrl: data.lesson.audioUrl,
-        content: data.lesson.textContent,
-      };
-      setCurrentModule((prev) => ({
-        ...prev,
-        lessons: [...prev.lessons, newLesson],
-        lessonCount: prev.lessonCount + 1,
-      }));
-      setModules((prev) =>
-        prev.map((m) =>
-          m.id === currentModule.id
-            ? {
-                ...m,
-                lessons: [...m.lessons, newLesson],
-                lessonCount: m.lessonCount + 1,
-              }
-            : m
-        )
-      );
-      alert(`Lesson created successfully! ID: ${newLesson.id}`);
+
+      const data: { lesson: Lesson } = JSON.parse(responseText);
+      console.log("[saveLesson] Lesson created:", data);
+
+      // Refresh module details to get updated lessons
+      const moduleData = await getModuleDetails(currentModule.id);
+      if (moduleData) {
+        setCurrentModule(moduleData);
+        setModules((prev) =>
+          prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+        );
+      }
+
       setEditingLesson(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset file input
+      }
+      alert(`Lesson created successfully! ID: ${data.lesson.id}`);
     } catch (err) {
       setError(
         (err as Error).message || "An error occurred while creating the lesson"
       );
+      console.error("[saveLesson] Error:", err);
     }
   };
+
+const updateLesson = async (lessonId: string) => {
+  if (!sessionToken) {
+    setError("No session token available. Please log in again.");
+    console.error("[updateLesson] No session token");
+    return;
+  }
+  if (!currentModule.id) {
+    setError("No module selected. Please save the module first.");
+    console.error("[updateLesson] No module ID");
+    return;
+  }
+  if (!editingLesson) {
+    setError("No lesson selected for updating.");
+    console.error("[updateLesson] No editing lesson");
+    return;
+  }
+  if (!editingLesson.title) {
+    setError("Lesson title is required.");
+    console.error("[updateLesson] Missing lesson title");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("title", editingLesson.title);
+    formData.append("content_type", editingLesson.type);
+    formData.append("duration_seconds", (durationToMinutes(editingLesson.duration) * 60).toString());
+    formData.append("order", editingLesson.order?.toString() || (currentModule.lessons.length + 1).toString());
+    formData.append(
+      "meta",
+      JSON.stringify({
+        description: editingLesson.content || "",
+        tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+      })
+    );
+    formData.append("active", editingLesson.active ? "true" : "false");
+
+    if (editingLesson.file && (editingLesson.type === "video" || editingLesson.type === "audio")) {
+      console.log("[updateLesson] File selected:", {
+        name: editingLesson.file.name,
+        type: editingLesson.file.type,
+        size: editingLesson.file.size,
+      });
+      formData.append("file", editingLesson.file, editingLesson.file.name);
+    } else if (editingLesson.type === "text" && editingLesson.content && !editingLesson.content.startsWith("http")) {
+      console.log("[updateLesson] Text content provided:", editingLesson.content.slice(0, 200));
+      formData.append("content", editingLesson.content);
+    } else if ((editingLesson.videoUrl || editingLesson.audioUrl) && (editingLesson.videoUrl?.startsWith("http") || editingLesson.audioUrl?.startsWith("http"))) {
+      const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
+      console.log("[updateLesson] External URL provided:", url);
+      formData.append("url", url);
+    } else {
+      console.log("[updateLesson] No file or valid URL provided");
+    }
+
+    // Log FormData contents for debugging
+    console.log("[updateLesson] FormData contents:");
+    for (const [key, value] of formData.entries()) {
+      console.log(`[updateLesson] ${key}:`, typeof value === "string" ? value : `[File: ${value.name}]`);
+    }
+
+    console.log("[updateLesson] Sending PATCH to", `${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`);
+    const response = await fetch(`${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`, {
+      method: "PATCH",
+      headers: headers(sessionToken),
+      body: formData,
+    });
+
+    console.log(`[updateLesson] Response status: ${response.status}`);
+    const responseText = await response.text();
+    console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (e) {
+        console.error("[updateLesson] Failed to parse error response:", responseText.slice(0, 200));
+        throw new Error("Invalid response format from server");
+      }
+      console.error("[updateLesson] Fetch failed:", errorData);
+      if (response.status === 401 && errorData.redirect) {
+        window.location.href = errorData.redirect;
+        return;
+      }
+      throw new Error(errorData.error || "Failed to update lesson");
+    }
+
+    const data: { lesson: Lesson } = JSON.parse(responseText);
+    console.log("[updateLesson] Lesson updated:", data);
+
+    // Refresh module details to get updated lessons
+    const moduleData = await getModuleDetails(currentModule.id);
+    if (moduleData) {
+      setCurrentModule(moduleData);
+      setModules((prev) =>
+        prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+      );
+    }
+
+    setEditingLesson(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset file input
+    }
+    alert(`Lesson updated successfully! ID: ${data.lesson.id}`);
+  } catch (err) {
+    setError((err as Error).message || "An error occurred while updating the lesson");
+    console.error("[updateLesson] Error:", err);
+  }
+};
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -1342,7 +1526,13 @@ export function TeacherLearningModules() {
                         <Select
                           value={editingLesson.type}
                           onValueChange={(value: Lesson["type"]) =>
-                            updateLesson(editingLesson.id, { type: value })
+                            updateLessonFields(editingLesson.id, {
+                              type: value,
+                              videoUrl: "",
+                              audioUrl: "",
+                              content: "",
+                              file: null, // Reset file
+                            })
                           }
                         >
                           <SelectTrigger className="text-xs xs:text-sm sm:text-base">
@@ -1361,18 +1551,8 @@ export function TeacherLearningModules() {
                             >
                               Audio
                             </SelectItem>
-                            <SelectItem
-                              value="text"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
-                              Text/Article
-                            </SelectItem>
-                            <SelectItem
-                              value="quiz"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
-                              Quiz
-                            </SelectItem>
+                            {/* <SelectItem value="text" className="text-xs xs:text-sm sm:text-base">Text/Article</SelectItem> */}
+                            {/* <SelectItem value="quiz" className="text-xs xs:text-sm sm:text-base">Quiz</SelectItem> */}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1384,7 +1564,7 @@ export function TeacherLearningModules() {
                         <Input
                           value={editingLesson.title}
                           onChange={(e) =>
-                            updateLesson(editingLesson.id, {
+                            updateLessonFields(editingLesson.id, {
                               title: e.target.value,
                             })
                           }
@@ -1400,7 +1580,7 @@ export function TeacherLearningModules() {
                         <Input
                           value={editingLesson.duration}
                           onChange={(e) =>
-                            updateLesson(editingLesson.id, {
+                            updateLessonFields(editingLesson.id, {
                               duration: e.target.value,
                             })
                           }
@@ -1412,151 +1592,223 @@ export function TeacherLearningModules() {
                       {editingLesson.type === "video" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
-                            Video URL
+                            Video{" "}
+                            {editingLesson.file ? "File (Selected)" : "Upload"}
                           </Label>
-                          <Input
-                            value={editingLesson.videoUrl || ""}
-                            onChange={(e) =>
-                              updateLesson(editingLesson.id, {
-                                videoUrl: e.target.value,
-                              })
-                            }
-                            placeholder="Enter video URL or upload"
-                            className="text-xs xs:text-sm sm:text-base"
-                          />
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="video/mp4,video/mpeg,video/ogg,video/webm,video/x-matroska"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const url = await handleFileUpload(
-                                  file,
-                                  "video"
-                                );
-                                if (url) {
-                                  updateLesson(editingLesson.id, {
-                                    videoUrl: url,
-                                  });
+                          {editingLesson.file ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingLesson.file.name}
+                                readOnly
+                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() =>
+                                  updateLessonFields(editingLesson.id, {
+                                    file: null,
+                                  })
                                 }
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Upload Video
-                          </Button>
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="video/mp4,video/mpeg,video/ogg,video/webm,video/x-matroska"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    console.log(
+                                      "[LessonEditor] File selected:",
+                                      {
+                                        name: file.name,
+                                        type: file.type,
+                                        size: file.size,
+                                      }
+                                    );
+                                    updateLessonFields(editingLesson.id, {
+                                      file, // Store the file object
+                                    });
+                                  }
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Upload Video
+                              </Button>
+                            </>
+                          )}
                         </div>
                       )}
 
                       {editingLesson.type === "audio" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
-                            Audio URL
+                            Audio{" "}
+                            {editingLesson.file ? "File (Selected)" : "Upload"}
                           </Label>
-                          <Input
-                            value={editingLesson.audioUrl || ""}
-                            onChange={(e) =>
-                              updateLesson(editingLesson.id, {
-                                audioUrl: e.target.value,
-                              })
-                            }
-                            placeholder="Enter audio URL or upload"
-                            className="text-xs xs:text-sm sm:text-base"
-                          />
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="audio/mpeg,audio/wav,audio/ogg,audio/mp3"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const url = await handleFileUpload(
-                                  file,
-                                  "audio"
-                                );
-                                if (url) {
-                                  updateLesson(editingLesson.id, {
-                                    audioUrl: url,
-                                  });
+                          {editingLesson.file ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingLesson.file.name}
+                                readOnly
+                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() =>
+                                  updateLessonFields(editingLesson.id, {
+                                    file: null,
+                                  })
                                 }
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Upload Audio
-                          </Button>
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="audio/mpeg,audio/wav,audio/ogg,audio/mp3"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    console.log(
+                                      "[LessonEditor] File selected:",
+                                      {
+                                        name: file.name,
+                                        type: file.type,
+                                        size: file.size,
+                                      }
+                                    );
+                                    updateLessonFields(editingLesson.id, {
+                                      file, // Store the file object
+                                    });
+                                  }
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Upload Audio
+                              </Button>
+                            </>
+                          )}
                         </div>
                       )}
 
                       {editingLesson.type === "text" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
-                            Content
+                            {editingLesson.content &&
+                            editingLesson.content.startsWith("http")
+                              ? "Document URL (Uploaded)"
+                              : "Content"}
                           </Label>
-                          <Textarea
-                            value={editingLesson.content || ""}
-                            onChange={(e) =>
-                              updateLesson(editingLesson.id, {
-                                content: e.target.value,
-                              })
-                            }
-                            placeholder="Write your lesson content here..."
-                            rows={4}
-                            className="text-xs xs:text-sm sm:text-base"
-                          />
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const url = await handleFileUpload(
-                                  file,
-                                  "text"
-                                );
-                                if (url) {
-                                  updateLesson(editingLesson.id, {
-                                    content: url,
-                                  });
+                          {editingLesson.content &&
+                          editingLesson.content.startsWith("http") ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingLesson.content}
+                                readOnly
+                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() =>
+                                  updateLessonFields(editingLesson.id, {
+                                    content: "",
+                                  })
                                 }
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Upload Document
-                          </Button>
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <Textarea
+                                value={editingLesson.content || ""}
+                                onChange={(e) =>
+                                  updateLessonFields(editingLesson.id, {
+                                    content: e.target.value,
+                                  })
+                                }
+                                placeholder="Write your lesson content here or upload a document..."
+                                rows={4}
+                                className="text-xs xs:text-sm sm:text-base"
+                              />
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    console.log(
+                                      "[LessonEditor] File selected:",
+                                      {
+                                        name: file.name,
+                                        type: file.type,
+                                        size: file.size,
+                                      }
+                                    );
+                                    updateLessonFields(editingLesson.id, {
+                                      file, // Store the file object
+                                    });
+                                  }
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Upload Document
+                              </Button>
+                            </>
+                          )}
                         </div>
                       )}
 
                       <Button
-                        onClick={saveLesson}
+                        onClick={() =>
+                          typeof editingLesson.id === "string" &&
+                          editingLesson.id.startsWith("temp")
+                            ? saveLesson()
+                            : updateLesson(editingLesson.id)
+                        }
                         className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
                       >
                         <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                        Save Lesson
+                        {typeof editingLesson.id === "string" &&
+                        editingLesson.id.startsWith("temp")
+                          ? "Save Lesson"
+                          : "Update Lesson"}
                       </Button>
                     </div>
                   ) : (

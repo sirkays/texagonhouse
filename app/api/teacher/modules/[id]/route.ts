@@ -6,15 +6,15 @@ import { unstable_noStore as noStore } from "next/cache";
 const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 
-const headers = (sessionToken) => ({
+const headers = (sessionToken: string | undefined) => ({
   "Authorization": `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function GET(req, { params }) {
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   noStore();
-  const { id } = params;
+  const params = await context.params; // Await params
+  const id = params.id;
   const endpoint = `/learning/api/teacher/modules/${id}/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[TeacherModuleDetailsAPI] Initiating fetch for:", fullUrl);
@@ -28,7 +28,7 @@ export async function GET(req, { params }) {
   if (!session?.user?.sessionToken) {
     console.log("[TeacherModuleDetailsAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated", redirect: "/login" },
+      { error: "Not authenticated", redirect: "/auth/signin" },
       {
         status: 401,
         headers: {
@@ -50,9 +50,10 @@ export async function GET(req, { params }) {
 
     console.log("[TeacherModuleDetailsAPI] Fetch response status:", response.status);
     console.log("[TeacherModuleDetailsAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[TeacherModuleDetailsAPI] Fetch response content-type:", response.headers.get("content-type"));
 
     const contentType = response.headers.get("content-type") || "";
+    console.log("[TeacherModuleDetailsAPI] Fetch response content-type:", contentType);
+
     const rawResponse = await response.text();
     console.log("[TeacherModuleDetailsAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
@@ -60,7 +61,7 @@ export async function GET(req, { params }) {
       console.error("[TeacherModuleDetailsAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
+          { error: "Session expired", redirect: "/auth/signin" },
           {
             status: 401,
             headers: {
@@ -72,7 +73,7 @@ export async function GET(req, { params }) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Module not found" },
+          { error: `Module with ID ${id} not found` },
           {
             status: 404,
             headers: {
@@ -83,7 +84,7 @@ export async function GET(req, { params }) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch module details" },
+        { error: "Failed to fetch module", details: rawResponse.slice(0, 100) },
         {
           status: response.status,
           headers: {
@@ -125,41 +126,22 @@ export async function GET(req, { params }) {
       );
     }
 
-    if (!data.module) {
-      console.error("[TeacherModuleDetailsAPI] Response does not contain a module object:", data);
-      return NextResponse.json(
-        { error: "Invalid response format, expected module object" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
+    // Normalize data if needed
     const normalizedData = {
       id: data.module.id.toString(),
       title: data.module.title,
       description: data.module.description,
       difficulty: data.module.difficulty,
-      category: {
-        id: data.module.category?.id?.toString() || "",
-        name: data.module.category?.name || "",
-      },
+      category: data.module.category,
       estimatedDuration: data.module.estimatedDuration,
       order: data.module.order,
       active: data.module.active,
       isPublished: data.module.isPublished,
-      course: {
-        id: data.module.course?.id?.toString() || "",
-        name: data.module.course?.name || "",
-      },
+      course: data.module.course,
       createdAt: data.module.createdAt,
       updatedAt: data.module.updatedAt,
       lessons: data.module.lessons || [],
-      lessonCount: data.module.lessonCount || 0,
+      lessonCount: data.module.lessons?.length || 0,
     };
 
     console.log("[TeacherModuleDetailsAPI] Fetch successful, normalized data:", normalizedData);
@@ -175,7 +157,7 @@ export async function GET(req, { params }) {
   } catch (error) {
     console.error("[TeacherModuleDetailsAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch module details", details: error.message },
+      { error: "Failed to fetch module", details: (error as Error).message },
       {
         status: 500,
         headers: {

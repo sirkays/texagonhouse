@@ -14,22 +14,26 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string; lessonId: string }> }
+) {
   noStore();
   const params = await context.params;
   const moduleId = params.id;
-  const endpoint = `/learning/api/teacher/modules/${moduleId}/lessons/`;
+  const lessonId = params.lessonId;
+  const endpoint = `/learning/api/teacher/modules/${moduleId}/lessons/${lessonId}/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[LessonCreateAPI] Initiating POST request for:", fullUrl);
+  console.log("[LessonUpdateAPI] Initiating PATCH request for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[LessonCreateAPI] Session retrieved:", {
+  console.log("[LessonUpdateAPI] Session retrieved:", {
     sessionToken: session?.user?.sessionToken,
     user: session?.user ? { id: session.user.id, role: session.user.role } : null,
   });
 
   if (!session?.user?.sessionToken) {
-    console.log("[LessonCreateAPI] No session token found");
+    console.log("[LessonUpdateAPI] No session token found");
     return NextResponse.json(
       { error: "Not authenticated", redirect: "/auth/signin" },
       {
@@ -46,18 +50,18 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
   try {
     const contentType = req.headers.get("content-type") || "";
-    console.log("[LessonCreateAPI] Content-Type received:", contentType);
+    console.log("[LessonUpdateAPI] Content-Type received:", contentType);
 
     let payload: any = {};
     let file: { path: string; name: string | null; type: string | null } | null = null;
 
     if (contentType.toLowerCase().includes("multipart/form-data")) {
-      console.log("[LessonCreateAPI] Processing multipart/form-data");
+      console.log("[LessonUpdateAPI] Processing multipart/form-data");
       const form = formidable({ multiples: false, keepExtensions: true });
       const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>((resolve, reject) => {
         req.arrayBuffer()
           .then(async (buffer) => {
-            console.log("[LessonCreateAPI] Request body length:", buffer.byteLength);
+            console.log("[LessonUpdateAPI] Request body length:", buffer.byteLength);
             const readableStream = new ReadableStream({
               start(controller) {
                 controller.enqueue(new Uint8Array(buffer));
@@ -71,8 +75,8 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
             };
             form.parse(nodeStream, (err, fields, files) => {
               if (err) reject(err);
-              console.log("[LessonCreateAPI] Formidable parsed fields:", fields);
-              console.log("[LessonCreateAPI] Formidable parsed files:", files);
+              console.log("[LessonUpdateAPI] Formidable parsed fields:", fields);
+              console.log("[LessonUpdateAPI] Formidable parsed files:", files);
               resolve([fields, files]);
             });
           })
@@ -86,7 +90,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       }
 
       if (!payload.title) {
-        console.error("[LessonCreateAPI] No title provided");
+        console.error("[LessonUpdateAPI] No title provided");
         return NextResponse.json(
           { error: "Lesson title is required" },
           { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
@@ -98,7 +102,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         try {
           payload.meta = JSON.parse(payload.meta);
         } catch (e) {
-          console.error("[LessonCreateAPI] Invalid meta JSON:", payload.meta);
+          console.error("[LessonUpdateAPI] Invalid meta JSON:", payload.meta);
           return NextResponse.json(
             { error: "Invalid meta JSON format" },
             { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
@@ -113,38 +117,37 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
           name: uploadedFile.name,
           type: uploadedFile.type,
         };
-        console.log("[LessonCreateAPI] File detected:", {
+        console.log("[LessonUpdateAPI] File detected:", {
           filename: file.name,
           contentType: file.type,
           size: uploadedFile.size,
         });
-        // Only set url if the API requires it as a filename
-        const filePath = `/media/${moduleId}/${file.name || "uploaded_file"}`;
+        const filePath = `/media/${moduleId}/${lessonId}/${file.name || "uploaded_file"}`;
         payload.url = `${BASE_URL}${filePath}`;
       } else {
-        console.log("[LessonCreateAPI] No file detected in FormData");
+        console.log("[LessonUpdateAPI] No file detected in FormData");
       }
     } else if (contentType.toLowerCase().includes("application/json")) {
-      console.log("[LessonCreateAPI] Processing application/json");
+      console.log("[LessonUpdateAPI] Processing application/json");
       try {
         payload = await req.json();
       } catch (e) {
         const bodyText = await req.text();
-        console.error("[LessonCreateAPI] Failed to parse JSON:", bodyText.slice(0, 200));
+        console.error("[LessonUpdateAPI] Failed to parse JSON:", bodyText.slice(0, 200));
         return NextResponse.json(
           { error: "Invalid JSON format", details: bodyText.slice(0, 200) },
           { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
         );
       }
     } else {
-      console.error("[LessonCreateAPI] Unsupported Content-Type:", contentType);
+      console.error("[LessonUpdateAPI] Unsupported Content-Type:", contentType);
       return NextResponse.json(
         { error: `Unsupported Content-Type: ${contentType}, expected multipart/form-data or application/json` },
         { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
 
-    console.log("[LessonCreateAPI] Sending POST to", fullUrl, "with payload:", payload);
+    console.log("[LessonUpdateAPI] Sending PATCH to", fullUrl, "with payload:", payload);
     const formData = new FormData();
     for (const key in payload) {
       formData.append(key, typeof payload[key] === "object" ? JSON.stringify(payload[key]) : payload[key]);
@@ -158,20 +161,20 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     }
 
     const response = await fetch(fullUrl, {
-      method: "POST",
+      method: "PATCH",
       headers: headers(session.user.sessionToken),
       body: formData,
     });
 
-    console.log("[LessonCreateAPI] Response status:", response.status);
-    console.log("[LessonCreateAPI] Response headers:", Object.fromEntries(response.headers));
+    console.log("[LessonUpdateAPI] Response status:", response.status);
+    console.log("[LessonUpdateAPI] Response headers:", Object.fromEntries(response.headers));
 
     const responseContentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[LessonCreateAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log("[LessonUpdateAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[LessonCreateAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error("[LessonUpdateAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired", redirect: "/auth/signin" },
@@ -186,7 +189,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: `Module with ID ${moduleId} not found` },
+          { error: `Lesson with ID ${lessonId} not found in module ${moduleId}` },
           {
             status: 404,
             headers: {
@@ -197,7 +200,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         );
       }
       return NextResponse.json(
-        { error: "Failed to create lesson", details: rawResponse.slice(0, 100) },
+        { error: "Failed to update lesson", details: rawResponse.slice(0, 100) },
         {
           status: response.status,
           headers: {
@@ -209,7 +212,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     }
 
     if (!responseContentType.includes("application/json")) {
-      console.error("[LessonCreateAPI] Non-JSON response received:", responseContentType);
+      console.error("[LessonUpdateAPI] Non-JSON response received:", responseContentType);
       return NextResponse.json(
         { error: "Invalid response format, expected JSON" },
         {
@@ -226,7 +229,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
-      console.error("[LessonCreateAPI] Failed to parse JSON:", parseError);
+      console.error("[LessonUpdateAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
         { error: "Invalid response format" },
         {
@@ -239,7 +242,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       );
     }
 
-    console.log("[LessonCreateAPI] Creation successful, data:", data);
+    console.log("[LessonUpdateAPI] Update successful, data:", data);
     return NextResponse.json(data, {
       status: 200,
       headers: {
@@ -250,9 +253,9 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       },
     });
   } catch (error) {
-    console.error("[LessonCreateAPI] Fetch error:", error);
+    console.error("[LessonUpdateAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to create lesson", details: (error as Error).message },
+      { error: "Failed to update lesson", details: (error as Error).message },
       {
         status: 500,
         headers: {

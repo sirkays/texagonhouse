@@ -8,12 +8,12 @@ const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 
 const headers = (sessionToken: string | undefined) => ({
   "Authorization": `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
   noStore();
+  const params = await context.params; // Await params
   const moduleId = params.id;
   const endpoint = `/learning/api/teacher/modules/${moduleId}/delete/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
@@ -51,9 +51,8 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     console.log("[ModuleDeleteAPI] Response status:", response.status);
     console.log("[ModuleDeleteAPI] Response headers:", Object.fromEntries(response.headers));
 
-    const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[ModuleDeleteAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log("[ModuleDeleteAPI] Raw response:", rawResponse);
 
     if (!response.ok) {
       console.error("[ModuleDeleteAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
@@ -82,23 +81,9 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
         );
       }
       return NextResponse.json(
-        { error: "Failed to delete module" },
+        { error: "Failed to delete module", details: rawResponse.slice(0, 100) },
         {
           status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    if (!contentType.includes("application/json")) {
-      console.error("[ModuleDeleteAPI] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
-        {
-          status: 500,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
