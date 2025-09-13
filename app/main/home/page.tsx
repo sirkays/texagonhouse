@@ -3,9 +3,9 @@ import StatusBar from "@/components/livesession/StatusBar";
 
 const HomePage = () => {
   return (
-    <div className="flex flex-col gap-32 pt-10 sm:pt-20 sm:pl-10 items-center max-md:gap-10 md:flex-row animate-fade-in">
-      <StatusBar />
+    <div className="flex flex-col gap-32 pt-10 sm:pt-20 sm:pl-10 items-center justify-evenly max-md:gap-10 md:flex-row animate-fade-in">
       <MainMenu />
+      <StatusBar />
     </div>
   );
 };
