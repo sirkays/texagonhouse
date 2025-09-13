@@ -249,6 +249,8 @@ export default function Home() {
           </Card>
         </div>
 
+        <a href="/login">Login</a>
+
         <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import {useState, useRef, useEffect} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Textarea} from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -46,9 +46,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getSession } from "next-auth/react";
-import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import { Spinner } from "../ui/spinner";
+import {getSession} from "next-auth/react";
+import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import {Spinner} from "../ui/spinner";
 
 // Interfaces
 interface Course {
@@ -72,7 +72,7 @@ interface Lesson {
   file?: File | null;
   order?: number;
   active?: boolean;
-  meta?: { description: string; tags: string[] };
+  meta?: {description: string; tags: string[]};
 }
 
 interface Module {
@@ -91,7 +91,7 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: { id?: string; name: string };
+  course: {id?: string; name: string};
 }
 
 interface APIModule {
@@ -99,12 +99,12 @@ interface APIModule {
   title: string;
   description: string;
   difficulty: string;
-  category: { id: string; name: string };
+  category: {id: string; name: string};
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: { id: string; name: string };
+  course: {id: string; name: string};
   createdAt: string;
   updatedAt: string;
   lessons: Lesson[];
@@ -122,7 +122,7 @@ const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 // Utilities
@@ -169,7 +169,7 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: { id: undefined, name: "" },
+    course: {id: undefined, name: ""},
   });
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [currentPageManage, setCurrentPageManage] = useState(1);
@@ -400,11 +400,11 @@ export function TeacherLearningModules() {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? { ...lesson, ...updates } : lesson
+        lesson.id === lessonId ? {...lesson, ...updates} : lesson
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
+      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
     }
   };
 
@@ -469,7 +469,7 @@ export function TeacherLearningModules() {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({ active }),
+        body: JSON.stringify({active}),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -482,10 +482,10 @@ export function TeacherLearningModules() {
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m))
+        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m))
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
+        setCurrentModule((prev) => ({...prev, isPublished: active}));
       }
       alert(`Module ${active ? "published" : "unpublished"} successfully!`);
     } catch (err) {
@@ -535,7 +535,7 @@ export function TeacherLearningModules() {
           createdDate: new Date().toISOString().split("T")[0],
           order: 1,
           active: true,
-          course: { id: undefined, name: "" },
+          course: {id: undefined, name: ""},
           lessons: [],
           lessonCount: 0,
         });
@@ -555,7 +555,7 @@ export function TeacherLearningModules() {
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({ course_id: courseId });
+      const query = new URLSearchParams({course_id: courseId});
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -656,7 +656,7 @@ export function TeacherLearningModules() {
         createdDate: new Date().toISOString().split("T")[0],
         order: 1,
         active: true,
-        course: { id: undefined, name: "" },
+        course: {id: undefined, name: ""},
         lessons: [],
         lessonCount: 0,
       });
@@ -712,7 +712,7 @@ export function TeacherLearningModules() {
         }
         throw new Error(errorData.error || "Failed to update module");
       }
-      const data: { module: APIModule } = await response.json();
+      const data: {module: APIModule} = await response.json();
       const updatedModule: Module = {
         id: data.module.id,
         title: data.module.title,
@@ -754,7 +754,7 @@ export function TeacherLearningModules() {
         createdDate: new Date().toISOString().split("T")[0],
         order: 1,
         active: true,
-        course: { id: undefined, name: "" },
+        course: {id: undefined, name: ""},
         lessons: [],
         lessonCount: 0,
       });
@@ -921,7 +921,7 @@ export function TeacherLearningModules() {
         throw new Error(errorData.error || "Failed to create lesson");
       }
 
-      const data: { lesson: Lesson } = JSON.parse(responseText);
+      const data: {lesson: Lesson} = JSON.parse(responseText);
       console.log("[saveLesson] Lesson created:", data);
 
       // Refresh module details to get updated lessons
@@ -946,116 +946,151 @@ export function TeacherLearningModules() {
     }
   };
 
-const updateLesson = async (lessonId: string) => {
-  if (!sessionToken) {
-    setError("No session token available. Please log in again.");
-    console.error("[updateLesson] No session token");
-    return;
-  }
-  if (!currentModule.id) {
-    setError("No module selected. Please save the module first.");
-    console.error("[updateLesson] No module ID");
-    return;
-  }
-  if (!editingLesson) {
-    setError("No lesson selected for updating.");
-    console.error("[updateLesson] No editing lesson");
-    return;
-  }
-  if (!editingLesson.title) {
-    setError("Lesson title is required.");
-    console.error("[updateLesson] Missing lesson title");
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append("title", editingLesson.title);
-    formData.append("content_type", editingLesson.type);
-    formData.append("duration_seconds", (durationToMinutes(editingLesson.duration) * 60).toString());
-    formData.append("order", editingLesson.order?.toString() || (currentModule.lessons.length + 1).toString());
-    formData.append(
-      "meta",
-      JSON.stringify({
-        description: editingLesson.content || "",
-        tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-      })
-    );
-    formData.append("active", editingLesson.active ? "true" : "false");
-
-    if (editingLesson.file && (editingLesson.type === "video" || editingLesson.type === "audio")) {
-      console.log("[updateLesson] File selected:", {
-        name: editingLesson.file.name,
-        type: editingLesson.file.type,
-        size: editingLesson.file.size,
-      });
-      formData.append("file", editingLesson.file, editingLesson.file.name);
-    } else if (editingLesson.type === "text" && editingLesson.content && !editingLesson.content.startsWith("http")) {
-      console.log("[updateLesson] Text content provided:", editingLesson.content.slice(0, 200));
-      formData.append("content", editingLesson.content);
-    } else if ((editingLesson.videoUrl || editingLesson.audioUrl) && (editingLesson.videoUrl?.startsWith("http") || editingLesson.audioUrl?.startsWith("http"))) {
-      const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-      console.log("[updateLesson] External URL provided:", url);
-      formData.append("url", url);
-    } else {
-      console.log("[updateLesson] No file or valid URL provided");
+  const updateLesson = async (lessonId: string) => {
+    if (!sessionToken) {
+      setError("No session token available. Please log in again.");
+      console.error("[updateLesson] No session token");
+      return;
+    }
+    if (!currentModule.id) {
+      setError("No module selected. Please save the module first.");
+      console.error("[updateLesson] No module ID");
+      return;
+    }
+    if (!editingLesson) {
+      setError("No lesson selected for updating.");
+      console.error("[updateLesson] No editing lesson");
+      return;
+    }
+    if (!editingLesson.title) {
+      setError("Lesson title is required.");
+      console.error("[updateLesson] Missing lesson title");
+      return;
     }
 
-    // Log FormData contents for debugging
-    console.log("[updateLesson] FormData contents:");
-    for (const [key, value] of formData.entries()) {
-      console.log(`[updateLesson] ${key}:`, typeof value === "string" ? value : `[File: ${value.name}]`);
-    }
-
-    console.log("[updateLesson] Sending PATCH to", `${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`);
-    const response = await fetch(`${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`, {
-      method: "PATCH",
-      headers: headers(sessionToken),
-      body: formData,
-    });
-
-    console.log(`[updateLesson] Response status: ${response.status}`);
-    const responseText = await response.text();
-    console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch (e) {
-        console.error("[updateLesson] Failed to parse error response:", responseText.slice(0, 200));
-        throw new Error("Invalid response format from server");
-      }
-      console.error("[updateLesson] Fetch failed:", errorData);
-      if (response.status === 401 && errorData.redirect) {
-        window.location.href = errorData.redirect;
-        return;
-      }
-      throw new Error(errorData.error || "Failed to update lesson");
-    }
-
-    const data: { lesson: Lesson } = JSON.parse(responseText);
-    console.log("[updateLesson] Lesson updated:", data);
-
-    // Refresh module details to get updated lessons
-    const moduleData = await getModuleDetails(currentModule.id);
-    if (moduleData) {
-      setCurrentModule(moduleData);
-      setModules((prev) =>
-        prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+    try {
+      const formData = new FormData();
+      formData.append("title", editingLesson.title);
+      formData.append("content_type", editingLesson.type);
+      formData.append(
+        "duration_seconds",
+        (durationToMinutes(editingLesson.duration) * 60).toString()
       );
-    }
+      formData.append(
+        "order",
+        editingLesson.order?.toString() ||
+          (currentModule.lessons.length + 1).toString()
+      );
+      formData.append(
+        "meta",
+        JSON.stringify({
+          description: editingLesson.content || "",
+          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+        })
+      );
+      formData.append("active", editingLesson.active ? "true" : "false");
 
-    setEditingLesson(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
+      if (
+        editingLesson.file &&
+        (editingLesson.type === "video" || editingLesson.type === "audio")
+      ) {
+        console.log("[updateLesson] File selected:", {
+          name: editingLesson.file.name,
+          type: editingLesson.file.type,
+          size: editingLesson.file.size,
+        });
+        formData.append("file", editingLesson.file, editingLesson.file.name);
+      } else if (
+        editingLesson.type === "text" &&
+        editingLesson.content &&
+        !editingLesson.content.startsWith("http")
+      ) {
+        console.log(
+          "[updateLesson] Text content provided:",
+          editingLesson.content.slice(0, 200)
+        );
+        formData.append("content", editingLesson.content);
+      } else if (
+        (editingLesson.videoUrl || editingLesson.audioUrl) &&
+        (editingLesson.videoUrl?.startsWith("http") ||
+          editingLesson.audioUrl?.startsWith("http"))
+      ) {
+        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
+        console.log("[updateLesson] External URL provided:", url);
+        formData.append("url", url);
+      } else {
+        console.log("[updateLesson] No file or valid URL provided");
+      }
+
+      // Log FormData contents for debugging
+      console.log("[updateLesson] FormData contents:");
+      for (const [key, value] of formData.entries()) {
+        console.log(
+          `[updateLesson] ${key}:`,
+          typeof value === "string" ? value : `[File: ${value.name}]`
+        );
+      }
+
+      console.log(
+        "[updateLesson] Sending PATCH to",
+        `${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`
+      );
+      const response = await fetch(
+        `${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`,
+        {
+          method: "PATCH",
+          headers: headers(sessionToken),
+          body: formData,
+        }
+      );
+
+      console.log(`[updateLesson] Response status: ${response.status}`);
+      const responseText = await response.text();
+      console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          console.error(
+            "[updateLesson] Failed to parse error response:",
+            responseText.slice(0, 200)
+          );
+          throw new Error("Invalid response format from server");
+        }
+        console.error("[updateLesson] Fetch failed:", errorData);
+        if (response.status === 401 && errorData.redirect) {
+          window.location.href = errorData.redirect;
+          return;
+        }
+        throw new Error(errorData.error || "Failed to update lesson");
+      }
+
+      const data: {lesson: Lesson} = JSON.parse(responseText);
+      console.log("[updateLesson] Lesson updated:", data);
+
+      // Refresh module details to get updated lessons
+      const moduleData = await getModuleDetails(currentModule.id);
+      if (moduleData) {
+        setCurrentModule(moduleData);
+        setModules((prev) =>
+          prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+        );
+      }
+
+      setEditingLesson(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset file input
+      }
+      alert(`Lesson updated successfully! ID: ${data.lesson.id}`);
+    } catch (err) {
+      setError(
+        (err as Error).message || "An error occurred while updating the lesson"
+      );
+      console.error("[updateLesson] Error:", err);
     }
-    alert(`Lesson updated successfully! ID: ${data.lesson.id}`);
-  } catch (err) {
-    setError((err as Error).message || "An error occurred while updating the lesson");
-    console.error("[updateLesson] Error:", err);
-  }
-};
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -1090,25 +1125,21 @@ const updateLesson = async (lessonId: string) => {
           setCurrentPageManage(1);
           setCurrentPageAnalytics(1);
         }}
-        className="w-full"
-      >
+        className="w-full">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Module Analytics
           </TabsTrigger>
         </TabsList>
@@ -1138,8 +1169,7 @@ const updateLesson = async (lessonId: string) => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="title"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Module Title
                     </Label>
                     <Input
@@ -1159,8 +1189,7 @@ const updateLesson = async (lessonId: string) => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="order"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Order
                     </Label>
                     <Input
@@ -1182,8 +1211,7 @@ const updateLesson = async (lessonId: string) => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="description"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Description
                     </Label>
                     <Textarea
@@ -1209,35 +1237,30 @@ const updateLesson = async (lessonId: string) => {
                       <Select
                         value={currentModule.type}
                         onValueChange={(value: Module["type"]) =>
-                          setCurrentModule((prev) => ({ ...prev, type: value }))
-                        }
-                      >
+                          setCurrentModule((prev) => ({...prev, type: value}))
+                        }>
                         <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem
                             value="video"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Video Course
                           </SelectItem>
                           <SelectItem
                             value="audio"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Audio Course
                           </SelectItem>
                           <SelectItem
                             value="document"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Document Series
                           </SelectItem>
                           <SelectItem
                             value="tutorial"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Interactive Tutorial
                           </SelectItem>
                         </SelectContent>
@@ -1254,28 +1277,24 @@ const updateLesson = async (lessonId: string) => {
                             ...prev,
                             difficulty: value,
                           }))
-                        }
-                      >
+                        }>
                         <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem
                             value="Beginner"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Beginner
                           </SelectItem>
                           <SelectItem
                             value="Intermediate"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Intermediate
                           </SelectItem>
                           <SelectItem
                             value="Advanced"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Advanced
                           </SelectItem>
                         </SelectContent>
@@ -1298,16 +1317,14 @@ const updateLesson = async (lessonId: string) => {
                               courses.find((c) => c.id === value)?.name || "",
                           },
                         }))
-                      }
-                    >
+                      }>
                       <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base"
-                        >
+                          className="text-xs xs:text-sm sm:text-base">
                           Select course
                         </SelectItem>
                         {courses
@@ -1316,8 +1333,7 @@ const updateLesson = async (lessonId: string) => {
                             <SelectItem
                               key={course.id}
                               value={course.id}
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               {course.name}
                             </SelectItem>
                           ))}
@@ -1336,16 +1352,14 @@ const updateLesson = async (lessonId: string) => {
                           ...prev,
                           category: value === "none" ? undefined : value,
                         }))
-                      }
-                    >
+                      }>
                       <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base"
-                        >
+                          className="text-xs xs:text-sm sm:text-base">
                           Select category
                         </SelectItem>
                         {categories
@@ -1354,8 +1368,7 @@ const updateLesson = async (lessonId: string) => {
                             <SelectItem
                               key={category.id}
                               value={category.name}
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               {category.name}
                             </SelectItem>
                           ))}
@@ -1366,8 +1379,7 @@ const updateLesson = async (lessonId: string) => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="duration"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Estimated Duration
                     </Label>
                     <Input
@@ -1394,8 +1406,7 @@ const updateLesson = async (lessonId: string) => {
                   <div className="pt-2 xs:pt-3 space-y-2">
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
-                      className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                    >
+                      className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                       <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       {currentModule.id ? "Update Module" : "Save Module"}
                     </Button>
@@ -1408,8 +1419,7 @@ const updateLesson = async (lessonId: string) => {
                       }
                       variant="outline"
                       className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                      disabled={!currentModule.id}
-                    >
+                      disabled={!currentModule.id}>
                       <Upload className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       {currentModule.isPublished
                         ? "Unpublish Module"
@@ -1433,8 +1443,7 @@ const updateLesson = async (lessonId: string) => {
                     <Button
                       onClick={addLesson}
                       size="sm"
-                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300"
-                    >
+                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300">
                       <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
                     </Button>
                   </div>
@@ -1461,8 +1470,7 @@ const updateLesson = async (lessonId: string) => {
                               ? "border-primary bg-primary/5"
                               : "hover:bg-muted/50"
                           }`}
-                          onClick={() => setEditingLesson(lesson)}
-                        >
+                          onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-1 xs:gap-2 mb-1">
@@ -1472,8 +1480,7 @@ const updateLesson = async (lessonId: string) => {
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
-                                >
+                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                                   {lesson.type}
                                 </Badge>
                               </div>
@@ -1493,8 +1500,7 @@ const updateLesson = async (lessonId: string) => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteLesson(lesson.id);
-                              }}
-                            >
+                              }}>
                               <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-[#DD2701]" />
                             </Button>
                           </div>
@@ -1533,23 +1539,25 @@ const updateLesson = async (lessonId: string) => {
                               content: "",
                               file: null, // Reset file
                             })
-                          }
-                        >
+                          }>
                           <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem
                               value="video"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               Video
                             </SelectItem>
                             <SelectItem
                               value="audio"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               Audio
+                            </SelectItem>
+                            <SelectItem
+                              value="pdf"
+                              className="text-xs xs:text-sm sm:text-base">
+                              PDF
                             </SelectItem>
                             {/* <SelectItem value="text" className="text-xs xs:text-sm sm:text-base">Text/Article</SelectItem> */}
                             {/* <SelectItem value="quiz" className="text-xs xs:text-sm sm:text-base">Quiz</SelectItem> */}
@@ -1558,18 +1566,24 @@ const updateLesson = async (lessonId: string) => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs xs:text-sm sm:text-base">
-                          Lesson Title
+                        <Label
+                          htmlFor="lesson-title"
+                          className="text-xs xs:text-sm sm:text-base font-medium">
+                          {`Lesson ${
+                            editingLesson.type.charAt(0).toUpperCase() +
+                            editingLesson.type.slice(1)
+                          }`}
                         </Label>
                         <Input
+                          id="lesson-title"
                           value={editingLesson.title}
                           onChange={(e) =>
                             updateLessonFields(editingLesson.id, {
                               title: e.target.value,
                             })
                           }
-                          placeholder="Enter lesson title"
-                          className="text-xs xs:text-sm sm:text-base"
+                          placeholder={`Enter ${editingLesson.type} title`}
+                          className="text-xs xs:text-sm sm:text-base w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
@@ -1610,8 +1624,7 @@ const updateLesson = async (lessonId: string) => {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -1643,8 +1656,7 @@ const updateLesson = async (lessonId: string) => {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Video
                               </Button>
@@ -1674,8 +1686,7 @@ const updateLesson = async (lessonId: string) => {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -1707,10 +1718,71 @@ const updateLesson = async (lessonId: string) => {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Audio
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {editingLesson.type === "pdf" && (
+                        <div className="space-y-2">
+                          <Label className="text-xs xs:text-sm sm:text-base">
+                            PDF{" "}
+                            {editingLesson.file ? "File (Selected)" : "Upload"}
+                          </Label>
+                          {editingLesson.file ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingLesson.file.name}
+                                readOnly
+                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() =>
+                                  updateLessonFields(editingLesson.id, {
+                                    file: null,
+                                  })
+                                }>
+                                Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="pdf/epub,pdf/pdf,pdf/txt,pdf/docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    console.log(
+                                      "[LessonEditor] File selected:",
+                                      {
+                                        name: file.name,
+                                        type: file.type,
+                                        size: file.size,
+                                      }
+                                    );
+                                    updateLessonFields(editingLesson.id, {
+                                      file, // Store the file object
+                                    });
+                                  }
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() => fileInputRef.current?.click()}>
+                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Upload PDF
                               </Button>
                             </>
                           )}
@@ -1741,8 +1813,7 @@ const updateLesson = async (lessonId: string) => {
                                   updateLessonFields(editingLesson.id, {
                                     content: "",
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -1785,8 +1856,7 @@ const updateLesson = async (lessonId: string) => {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Document
                               </Button>
@@ -1802,8 +1872,7 @@ const updateLesson = async (lessonId: string) => {
                             ? saveLesson()
                             : updateLesson(editingLesson.id)
                         }
-                        className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                      >
+                        className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                         <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                         {typeof editingLesson.id === "string" &&
                         editingLesson.id.startsWith("temp")
@@ -1850,36 +1919,31 @@ const updateLesson = async (lessonId: string) => {
               </div>
               <Select
                 value={difficultyFilter}
-                onValueChange={setDifficultyFilter}
-              >
+                onValueChange={setDifficultyFilter}>
                 <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
                   <SelectValue placeholder="Filter by difficulty" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
                     value="Beginner"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                    className="text-xs xs:text-sm sm:text-base">
                     Beginner
                   </SelectItem>
                   <SelectItem
                     value="Intermediate"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                    className="text-xs xs:text-sm sm:text-base">
                     Intermediate
                   </SelectItem>
                   <SelectItem
                     value="Advanced"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                    className="text-xs xs:text-sm sm:text-base">
                     Advanced
                   </SelectItem>
                 </SelectContent>
               </Select>
               <Button
                 onClick={() => setActiveTab("create")}
-                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-              >
+                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                 <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                 Create New Module
               </Button>
@@ -1916,8 +1980,7 @@ const updateLesson = async (lessonId: string) => {
                   return (
                     <Card
                       key={module.id}
-                      className="hover:shadow-lg transition-shadow"
-                    >
+                      className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
@@ -1941,26 +2004,22 @@ const updateLesson = async (lessonId: string) => {
                               module.isPublished
                                 ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
                                 : "bg-gray-500 text-white hover:bg-gray-600"
-                            }
-                          >
+                            }>
                             {module.isPublished ? "Published" : "Draft"}
                           </Badge>
                           <Badge
                             variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
+                            className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.difficulty}
                           </Badge>
                           <Badge
                             variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
+                            className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.category || "Uncategorized"}
                           </Badge>
                           <Badge
                             variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
+                            className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.course.name}
                           </Badge>
                         </div>
@@ -1993,8 +2052,7 @@ const updateLesson = async (lessonId: string) => {
                                 setCurrentModule(moduleData);
                                 setActiveTab("create");
                               }
-                            }}
-                          >
+                            }}>
                             <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Edit
                           </Button>
@@ -2010,8 +2068,7 @@ const updateLesson = async (lessonId: string) => {
                                 setPreviewModule(moduleData);
                                 setIsPreviewOpen(true);
                               }
-                            }}
-                          >
+                            }}>
                             <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Preview
                           </Button>
@@ -2019,8 +2076,7 @@ const updateLesson = async (lessonId: string) => {
                             size="sm"
                             variant="destructive"
                             className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={() => deleteModule(module.id)}
-                          >
+                            onClick={() => deleteModule(module.id)}>
                             <Trash2 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Delete
                           </Button>
@@ -2069,8 +2125,7 @@ const updateLesson = async (lessonId: string) => {
                           onClick={(e) => {
                             e.preventDefault();
                             setCurrentPageManage(page);
-                          }}
-                        >
+                          }}>
                           {page}
                         </PaginationLink>
                       </PaginationItem>
@@ -2226,8 +2281,7 @@ const updateLesson = async (lessonId: string) => {
                     ).paginatedModules.map((module) => (
                       <div
                         key={module.id}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg"
-                      >
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg">
                         <div className="space-y-1 flex-1">
                           <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.title}
@@ -2253,8 +2307,7 @@ const updateLesson = async (lessonId: string) => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-xs xs:text-sm sm:text-base shadow-md"
-                          >
+                            className="text-xs xs:text-sm sm:text-base shadow-md">
                             <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             View Details
                           </Button>
@@ -2304,8 +2357,7 @@ const updateLesson = async (lessonId: string) => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 setCurrentPageAnalytics(page);
-                              }}
-                            >
+                              }}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
