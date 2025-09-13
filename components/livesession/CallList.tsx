@@ -1,112 +1,157 @@
 "use client";
 
-import {useGetCalls} from "@/hooks/useGetCalls";
-import type {Call, CallRecording} from "@stream-io/video-react-sdk";
 import {useEffect, useState} from "react";
 import Loading from "./Loading";
 import Alert from "./Alert";
 import {useRouter} from "next/navigation";
 import MeetingCard from "./MeetingCard";
+import {Button} from "@/components/ui/button";
+import {toast} from "sonner";
+import {useSession} from "next-auth/react";
+import {Trash2} from "lucide-react";
 
-// Define CallList component with a prop 'type' that determines the type of calls to display
+interface Meeting {
+  id: string;
+  scheduled_at: string;
+  title?: string;
+  description?: string;
+  join_url?: string;
+}
+
 const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
-  const router = useRouter(); // Initialize router for navigation
-  const {endedCalls, upcomingCalls, callRecordings, isLoading} = useGetCalls(); // Destructure values from custom hook
-  const [recordings, setRecordings] = useState<CallRecording[]>([]); // State to store recordings
+  const router = useRouter();
+  const {data: session} = useSession();
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Function to determine which calls to return based on 'type' prop
-  const getCalls = () => {
-    switch (type) {
-      case "ended":
-        return endedCalls; // Return ended calls
-      case "recordings":
-        return recordings; // Return recordings
-      case "upcoming":
-        return upcomingCalls; // Return upcoming calls
-      default:
-        return []; // Return empty array if type is unknown
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      if (!session?.user || type !== "upcoming") {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const meetingResponse = await fetch("/api/teacher/live-session/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!meetingResponse.ok) {
+          const errorData = await meetingResponse.json().catch(() => ({}));
+          const errorMessage = errorData.error || "Failed to fetch upcoming meetings";
+          throw new Error(errorMessage);
+        }
+
+        const data = await meetingResponse.json();
+        const currentDate = new Date();
+        const meetings: Meeting[] = (data.live_sessions || []).map((meeting: any) => ({
+          id: meeting.id,
+          scheduled_at: meeting.scheduled_at,
+          title: meeting.title,
+          description: meeting.description || meeting.title,
+          join_url: meeting.join_url,
+        })).filter((meeting: Meeting) => new Date(meeting.scheduled_at) > currentDate);
+
+        setMeetings(meetings);
+        setIsLoading(false);
+      } catch (err: any) {
+        toast.error(`Failed to fetch meetings: ${err.message}`, {
+          duration: 4000,
+          className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+        });
+        console.error("[CallList] Error fetching meetings:", err);
+        setIsLoading(false);
+      }
+    };
+
+    fetchMeetings();
+  }, [session, type]);
+
+  const handleDeleteMeeting = async (meetingId: string) => {
+    try {
+      const response = await fetch(`/api/teacher/live-session/${meetingId}/delete`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || "Failed to delete live session";
+        if (response.status === 401) {
+          throw new Error(`Unauthorized: Session expired`);
+        } else if (response.status === 403) {
+          throw new Error(`Unauthorized: ${errorMessage}`);
+        } else if (response.status === 404) {
+          throw new Error("Live session not found");
+        } else {
+          throw new Error(errorMessage);
+        }
+      }
+
+      toast.success("Meeting deleted successfully", {
+        duration: 3000,
+        className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+      });
+      router.refresh(); // Refresh to update the UI
+    } catch (err: any) {
+      toast.error(`Failed to delete meeting: ${err.message}`, {
+        duration: 4000,
+        className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+      });
+      console.error("[CallList] Error deleting meeting:", err);
     }
   };
 
-  // Effect to fetch recordings when type is 'recordings'
-  useEffect(() => {
-    const fetchRecordings = async () => {
-      const callData = await Promise.all(
-        callRecordings?.map((meeting) => meeting.queryRecordings()) ?? [] // Fetch recordings for each call
-      );
+  if (isLoading) return <Loading />;
 
-      // Flatten and filter out empty recordings
-      const recordings = callData
-        .filter((call) => call.recordings.length > 0)
-        .flatMap((call) => call.recordings);
+  if (type !== "upcoming") {
+    return (
+      <Alert
+        title="No calls available"
+        iconUrl="/no-calls.svg"
+      />
+    );
+  }
 
-      setRecordings(recordings); // Update recordings state
-    };
-
-    if (type === "recordings") {
-      fetchRecordings(); // Fetch recordings only when type is 'recordings'
-    }
-  }, [type, callRecordings]); // Re-run effect when type or callRecordings changes
-
-  if (isLoading) return <Loading />; // Show loading component if data is still loading
-
-  const calls = getCalls(); // Get relevant calls based on type
-
-  // Render MeetingCards if calls exist
-  if (calls && calls.length > 0)
+  if (meetings.length > 0) {
     return (
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {" "}
-        {/* Grid layout for calls */}
-        {calls.map((meeting: Call | CallRecording) => {
-          // Map over calls
-          return (
+        {meetings.map((meeting: Meeting) => (
+          <div key={meeting.id} className="flex flex-col gap-3">
             <MeetingCard
-              call={meeting as Call} // Cast meeting as Call
-              key={(meeting as Call).id} // Use call ID as key
-              type={type} // Pass type prop
-              icon={
-                type === "ended"
-                  ? "/previous.svg" // Icon for ended calls
-                  : type === "recordings"
-                  ? "/recordings2.svg" // Icon for recordings
-                  : "/upcoming.svg" // Icon for upcoming calls
-              }
-              title={
-                (meeting as Call).state?.custom?.description || // Use custom description if available
-                (meeting as CallRecording).filename?.substring(0, 20) || // Use recording filename if available
-                "No Description" // Default title
-              }
-              date={
-                (meeting as Call).state?.startsAt?.toLocaleString() || // Use start time if available
-                (meeting as CallRecording).start_time?.toLocaleString() // Use recording start time if available
-              }
-              isPreviousMeeting={type === "ended"} // Indicate if meeting is previous
-              link={
-                type === "recordings"
-                  ? (meeting as CallRecording).url // Use recording URL if type is recordings
-                  : `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${
-                      (meeting as Call).id
-                    }` // Construct meeting URL with correct path
-              }
-              buttonIcon1={type === "recordings" ? "play.svg" : undefined} // Use play icon for recordings
-              buttonText={type === "recordings" ? "Play" : "Start"} // Use 'Play' for recordings, 'Start' otherwise
-              handleClick={
-                type === "recordings"
-                  ? () => router.push(`${(meeting as CallRecording).url}`) // Navigate to recording URL
-                  : () => router.push(`/main/meeting/${(meeting as Call).id}`) // Navigate to meeting page with correct path
-              }
+              call={{ id: meeting.id, state: { custom: { description: meeting.description || meeting.title || "No Description" }, startsAt: new Date(meeting.scheduled_at) } } as any}
+              type={type}
+              icon="/upcoming.svg"
+              title={meeting.description || meeting.title || "No Description"}
+              date={new Date(meeting.scheduled_at).toLocaleString()}
+              isPreviousMeeting={false}
+              link={meeting.join_url || `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${meeting.id}`}
+              buttonText="Start"
+              handleClick={() => router.push(meeting.join_url || `/main/meeting/${meeting.id}`)}
             />
-          );
-        })}
+            {session?.user?.role === "teacher" && (
+              <Button
+                onClick={() => handleDeleteMeeting(meeting.id)}
+                className="w-full font-extrabold text-sm text-white rounded-xl bg-red-600 py-2 px-4 hover:bg-red-800 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
+                <Trash2 className="inline-block mr-2" size={16} />
+                Delete Meeting
+              </Button>
+            )}
+          </div>
+        ))}
       </div>
     );
+  }
 
-  // If no calls exist, display an alert message
   return (
     <Alert
-      title="No calls available" // Alert title
-      iconUrl="/no-calls.svg" // Alert icon
+      title="No calls available"
+      iconUrl="/no-calls.svg"
     />
   );
 };

@@ -24,16 +24,27 @@ import {
   Medal,
   Zap,
   LogIn,
+  Video,
 } from "lucide-react";
 import {useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {Spinner} from "@/components/ui/spinner";
 
+interface LiveSession {
+  id: string;
+  title: string;
+  scheduled_at: string;
+  join_url?: string;
+}
+
 export function DashboardOverview() {
   const {data: session, status} = useSession();
   const [data, setData] = useState(null);
+  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liveSessionsLoading, setLiveSessionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liveSessionsError, setLiveSessionsError] = useState<string | null>(null);
   const router = useRouter();
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -83,6 +94,7 @@ export function DashboardOverview() {
     }
   };
 
+  // Fetch dashboard data
   useEffect(() => {
     const fetchData = async () => {
       console.log(
@@ -120,29 +132,94 @@ export function DashboardOverview() {
           );
           if (res.status === 401 || res.status === 403) {
             setError("Session expired");
-            setData(null); // Prevent fallback data on session expiry
+            setData(null);
             setLoading(false);
             return;
           }
           setError("Failed to fetch data");
-          setData(null); // Use null for other errors to trigger error state
+          setData(null);
           throw new Error("Fetch failed");
         }
         const json = await res.json();
         console.log("[DashboardOverview] Fetch response data:", json);
         setData(json);
-        setError(null); // Clear error on success
+        setError(null);
       } catch (e) {
         console.error("[DashboardOverview] Fetch error:", e);
-        setError("Session expired"); // Assume session expiry for any error when authenticated
+        setError("Session expired");
         setData(null);
       }
       setLoading(false);
     };
+
+    // Fetch live sessions
+    const fetchLiveSessions = async () => {
+      if (status !== "authenticated" || !session?.user?.sessionToken) {
+        console.log(
+          "[DashboardOverview] Session not authenticated for live sessions, status:",
+          status,
+          "sessionToken:",
+          session?.user?.sessionToken
+        );
+        setLiveSessionsError("Not authenticated");
+        setLiveSessionsLoading(false);
+        return;
+      }
+
+      try {
+        console.log(
+          "[DashboardOverview] Fetching live sessions from /api/teacher/live-session/ with token:",
+          session.user.sessionToken
+        );
+        const res = await fetch("/api/teacher/live-session/", {
+          headers: {
+            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[DashboardOverview] Live sessions fetch response status:", res.status);
+        if (!res.ok) {
+          console.error(
+            "[DashboardOverview] Live sessions fetch failed with status:",
+            res.status
+          );
+          const errorData = await res.json().catch(() => ({}));
+          const errorMessage = errorData.error || "Failed to fetch live sessions";
+          if (res.status === 401 || res.status === 403) {
+            setLiveSessionsError("Session expired");
+            setLiveSessions([]);
+            setLiveSessionsLoading(false);
+            return;
+          }
+          throw new Error(errorMessage);
+        }
+        const json = await res.json();
+        console.log("[DashboardOverview] Live sessions fetch response data:", json);
+        const currentDate = new Date();
+        const sessions: LiveSession[] = (json.live_sessions || [])
+          .filter((session) => new Date(session.scheduled_at) > currentDate)
+          .map((session) => ({
+            id: session.id,
+            title: session.title,
+            scheduled_at: session.scheduled_at,
+            join_url: session.join_url,
+          }));
+        setLiveSessions(sessions);
+        setLiveSessionsError(null);
+      } catch (e) {
+        console.error("[DashboardOverview] Live sessions fetch error:", e);
+        setLiveSessionsError("Failed to fetch live sessions");
+        setLiveSessions([]);
+      }
+      setLiveSessionsLoading(false);
+    };
+
     fetchData();
+    fetchLiveSessions();
   }, [sessionToken, status]);
 
-  if (loading) {
+  if (loading || liveSessionsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-transparent">
         <Spinner size="md" className="text-orange-500" />
@@ -153,7 +230,9 @@ export function DashboardOverview() {
   if (
     error === "Session expired" ||
     error === "Not authenticated" ||
-    (status === "authenticated" && error === "Session expired")
+    liveSessionsError === "Session expired" ||
+    liveSessionsError === "Not authenticated" ||
+    (status === "authenticated" && (error === "Session expired" || liveSessionsError === "Session expired"))
   ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
@@ -178,7 +257,7 @@ export function DashboardOverview() {
     );
   }
 
-  if (error && !data) {
+  if ((error && !data) || (liveSessionsError && !liveSessions.length)) {
     return (
       <div className="p-6">
         <Card className="w-full max-w-md mx-auto">
@@ -186,7 +265,9 @@ export function DashboardOverview() {
             <CardTitle className="text-2xl font-bold text-center">
               Error
             </CardTitle>
-            <CardDescription className="text-center">{error}</CardDescription>
+            <CardDescription className="text-center">
+              {error || liveSessionsError}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button
@@ -212,9 +293,9 @@ export function DashboardOverview() {
 
   const upcomingTests = data?.upcoming_tests?.map((test) => ({
     title: test.title,
-    date: new Date(test.date).toLocaleString(),
-    duration: test.duration,
-    testId: test.testId,
+    date: new Date(test.start_time).toLocaleString(),
+    duration: `${test.duration_minutes} minutes`,
+    testId: test.id,
   })) ?? [
     {
       title: "No Upcoming Tests",
@@ -233,6 +314,16 @@ export function DashboardOverview() {
     }
   };
 
+  const handleSessionClick = (joinUrl) => {
+    if (joinUrl) {
+      console.log("[DashboardOverview] Navigating to live session:", joinUrl);
+      window.location.href = joinUrl;
+    } else {
+      console.log("[DashboardOverview] No join_url, redirecting to /main/home");
+      router.push("/main/home");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -241,6 +332,7 @@ export function DashboardOverview() {
         </h1>
         <p className="text-muted-foreground">Continue your learning journey</p>
         {error && <p className="text-yellow-600 text-sm">{error}</p>}
+        {liveSessionsError && <p className="text-yellow-600 text-sm">{liveSessionsError}</p>}
       </div>
 
       {/* Stats Cards */}
@@ -434,7 +526,7 @@ export function DashboardOverview() {
         </Card>
 
         {/* Upcoming Tests */}
-        <Card className="bg-transparent border-none shadow-md ">
+        <Card className="bg-transparent border-none shadow-md">
           <CardHeader>
             <CardTitle>Upcoming Tests</CardTitle>
             <CardDescription>
@@ -462,7 +554,7 @@ export function DashboardOverview() {
                   className="bg-transparent shadow-md"
                   size="sm"
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent parent div's onClick from firing
+                    e.stopPropagation();
                     handleTestClick(test.testId);
                   }}>
                   <TestTube className="mr-2 h-3 w-3" />
@@ -472,31 +564,49 @@ export function DashboardOverview() {
             ))}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Quick Actions */}
-      {/* <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Jump into your favorite learning activities</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Button className="h-20 flex-col gap-2 bg-transparent" variant="outline">
-              <Code className="h-6 w-6" />
-              <span>Practice Coding</span>
-            </Button>
-            <Button className="h-20 flex-col gap-2 bg-transparent" variant="outline">
-              <TestTube className="h-6 w-6" />
-              <span>Take a Quiz</span>
-            </Button>
-            <Button className="h-20 flex-col gap-2 bg-transparent" variant="outline">
-              <BookOpen className="h-6 w-6" />
-              <span>Browse Resources</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card> */}
+        {/* Upcoming Live Sessions */}
+        <Card className="bg-transparent border-none shadow-md">
+          <CardHeader>
+            <CardTitle>Upcoming Live Sessions</CardTitle>
+            <CardDescription>
+              Join your scheduled live sessions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {liveSessions.length > 0 ? (
+              liveSessions.map((session, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSessionClick(session.join_url)}>
+                  <div className="space-y-1">
+                    <h4 className="font-medium">{session.title}</h4>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {new Date(session.scheduled_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <Button
+                    className="bg-transparent shadow-md"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSessionClick(session.join_url);
+                    }}>
+                    <Video className="mr-2 h-3 w-3" />
+                    Join
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                No upcoming live sessions
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
