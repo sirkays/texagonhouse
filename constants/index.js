@@ -1,27 +1,29 @@
+import {Home, Calendar, History, Video, DoorOpen} from "lucide-react";
+
 export const navLinks = [
   {
-    imgURL: "/home.png",
+    icon: Home,
     route: "/main/home",
     label: "Home",
   },
 
   {
-    imgURL: "/upcoming.png",
+    icon: Calendar,
     route: "/main/home/upcoming",
     label: "Upcoming",
   },
   {
-    imgURL: "/previous.png",
+    icon: History,
     route: "/main/home/previous",
     label: "Previous",
   },
   {
-    imgURL: "/recording.png",
+    icon: Video,
     route: "/main/home/recordings",
     label: "Recordings",
   },
   {
-    imgURL: "/room.png",
+    icon: DoorOpen,
     route: "/main/home/my-home",
     label: "My Room",
   },
