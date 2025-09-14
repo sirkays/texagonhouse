@@ -42,7 +42,7 @@ const MeetingCard = ({
         {/* Display meeting icon */}
         <Image
           src={icon || "/placeholder.svg"}
-          alt="upcoming"
+          alt={`${isPreviousMeeting ? "previous" : "upcoming"}`}
           width={28}
           height={28}
         />

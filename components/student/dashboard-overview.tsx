@@ -17,7 +17,6 @@ import {
   Trophy,
   TrendingUp,
   Play,
-  Code,
   TestTube,
   Calendar,
   Star,
@@ -37,14 +36,24 @@ interface LiveSession {
   join_url?: string;
 }
 
+interface Test {
+  title: string;
+  date: string;
+  duration: string;
+  testId: string;
+}
+
 export function DashboardOverview() {
   const {data: session, status} = useSession();
   const [data, setData] = useState(null);
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveSessionsLoading, setLiveSessionsLoading] = useState(true);
+  const [testsLoading, setTestsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liveSessionsError, setLiveSessionsError] = useState<string | null>(null);
+  const [testsError, setTestsError] = useState<string | null>(null);
   const router = useRouter();
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -215,11 +224,74 @@ export function DashboardOverview() {
       setLiveSessionsLoading(false);
     };
 
+    // Fetch upcoming tests
+    const fetchTests = async () => {
+      if (status !== "authenticated" || !session?.user?.sessionToken) {
+        console.log(
+          "[DashboardOverview] Session not authenticated for tests, status:",
+          status,
+          "sessionToken:",
+          session?.user?.sessionToken
+        );
+        setTestsError("Not authenticated");
+        setTestsLoading(false);
+        return;
+      }
+
+      try {
+        console.log(
+          "[DashboardOverview] Fetching tests from /api/student/cbt with token:",
+          session.user.sessionToken
+        );
+        const res = await fetch("/api/student/cbt", {
+          headers: {
+            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        });
+        console.log("[DashboardOverview] Tests fetch response status:", res.status);
+        if (!res.ok) {
+          console.error(
+            "[DashboardOverview] Tests fetch failed with status:",
+            res.status
+          );
+          const errorData = await res.json().catch(() => ({}));
+          const errorMessage = errorData.error || "Failed to fetch tests";
+          if (res.status === 401 || res.status === 403) {
+            setTestsError("Session expired");
+            setTests([]);
+            setTestsLoading(false);
+            return;
+          }
+          throw new Error(errorMessage);
+        }
+        const json = await res.json();
+        console.log("[DashboardOverview] Tests fetch response data:", json);
+        const currentDate = new Date();
+        const tests: Test[] = (json.tests || [])
+          .map((test) => ({
+            title: test.title,
+            date: test.startsAt ? new Date(test.startsAt).toLocaleString() : "Available Now",
+            duration: test.duration,
+            testId: test.id,
+          }));
+        setTests(tests);
+        setTestsError(null);
+      } catch (e) {
+        console.error("[DashboardOverview] Tests fetch error:", e);
+        setTestsError("Failed to fetch tests");
+        setTests([]);
+      }
+      setTestsLoading(false);
+    };
+
     fetchData();
     fetchLiveSessions();
+    fetchTests();
   }, [sessionToken, status]);
 
-  if (loading || liveSessionsLoading) {
+  if (loading || liveSessionsLoading || testsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-transparent">
         <Spinner size="md" className="text-orange-500" />
@@ -232,7 +304,9 @@ export function DashboardOverview() {
     error === "Not authenticated" ||
     liveSessionsError === "Session expired" ||
     liveSessionsError === "Not authenticated" ||
-    (status === "authenticated" && (error === "Session expired" || liveSessionsError === "Session expired"))
+    testsError === "Session expired" ||
+    testsError === "Not authenticated" ||
+    (status === "authenticated" && (error === "Session expired" || liveSessionsError === "Session expired" || testsError === "Session expired"))
   ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
@@ -257,7 +331,7 @@ export function DashboardOverview() {
     );
   }
 
-  if ((error && !data) || (liveSessionsError && !liveSessions.length)) {
+  if ((error && !data) || (liveSessionsError && !liveSessions.length) || (testsError && !tests.length)) {
     return (
       <div className="p-6">
         <Card className="w-full max-w-md mx-auto">
@@ -266,7 +340,7 @@ export function DashboardOverview() {
               Error
             </CardTitle>
             <CardDescription className="text-center">
-              {error || liveSessionsError}
+              {error || liveSessionsError || testsError}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -288,20 +362,6 @@ export function DashboardOverview() {
       progress: 0,
       duration: "N/A",
       nextLesson: "N/A",
-    },
-  ];
-
-  const upcomingTests = data?.upcoming_tests?.map((test) => ({
-    title: test.title,
-    date: new Date(test.start_time).toLocaleString(),
-    duration: `${test.duration_minutes} minutes`,
-    testId: test.id,
-  })) ?? [
-    {
-      title: "No Upcoming Tests",
-      date: "N/A",
-      duration: "N/A",
-      testId: null,
     },
   ];
 
@@ -333,6 +393,7 @@ export function DashboardOverview() {
         <p className="text-muted-foreground">Continue your learning journey</p>
         {error && <p className="text-yellow-600 text-sm">{error}</p>}
         {liveSessionsError && <p className="text-yellow-600 text-sm">{liveSessionsError}</p>}
+        {testsError && <p className="text-yellow-600 text-sm">{testsError}</p>}
       </div>
 
       {/* Stats Cards */}
@@ -534,34 +595,41 @@ export function DashboardOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {upcomingTests.map((test, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                onClick={() => handleTestClick(test.testId)}>
-                <div className="space-y-1">
-                  <h4 className="font-medium">{test.title}</h4>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Calendar className="mr-1 h-3 w-3" />
-                    {test.date}
+            {tests.length > 0 ? (
+              tests.map((test, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleTestClick(test.testId)}>
+                  <div className="space-y-1">
+                    <h4 className="font-medium">{test.title}</h4>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {test.date}
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="mr-1 h-3 w-3" />
+                      {test.duration}
+                    </div>
                   </div>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Clock className="mr-1 h-3 w-3" />
-                    {test.duration}
-                  </div>
+                  <Button
+                    className="bg-transparent  shadow-md"
+                    size="sm"
+                    variant={'ghost'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTestClick(test.testId);
+                    }}>
+                    <TestTube className="mr-2 h-3 w-3" />
+                    Start
+                  </Button>
                 </div>
-                <Button
-                  className="bg-transparent shadow-md"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTestClick(test.testId);
-                  }}>
-                  <TestTube className="mr-2 h-3 w-3" />
-                  Start
-                </Button>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                No upcoming tests
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
 
@@ -590,6 +658,7 @@ export function DashboardOverview() {
                   <Button
                     className="bg-transparent shadow-md"
                     size="sm"
+                    variant={'ghost'}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSessionClick(session.join_url);

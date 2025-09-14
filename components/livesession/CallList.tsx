@@ -1,14 +1,15 @@
 "use client";
 
-import {useEffect, useState, useMemo,} from "react";
+import { useEffect, useState, useMemo } from "react";
 import Loading from "./Loading";
 import Alert from "./Alert";
-import {useRouter} from "next/navigation";
+import { useRouter } from "next/navigation";
 import MeetingCard from "./MeetingCard";
-import {Button} from "@/components/ui/button";
-import {toast} from "sonner";
-import {useSession} from "next-auth/react";
-import {Trash2} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { Trash2 } from "lucide-react";
+import { Spinner } from "../ui/spinner";
 
 interface Meeting {
   id: string;
@@ -16,18 +17,22 @@ interface Meeting {
   title?: string;
   description?: string;
   join_url?: string;
+  recording_url?: string;
 }
 
-const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
+const CallList = ({ type }: { type: "ended" | "upcoming" | "recordings" }) => {
   const router = useRouter();
-  const {data: session} = useSession();
+  const { data: session } = useSession();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken])
+  const sessionToken = useMemo(
+    () => session?.user?.sessionToken || null,
+    [session?.user?.sessionToken]
+  );
 
   useEffect(() => {
     const fetchMeetings = async () => {
-      if (!session?.user || type !== "upcoming") {
+      if (!session?.user) {
         setIsLoading(false);
         return;
       }
@@ -37,30 +42,47 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            "X-Session-Token": sessionToken || "",
           },
         });
 
         if (!meetingResponse.ok) {
           const errorData = await meetingResponse.json().catch(() => ({}));
-          const errorMessage = errorData.error || "Failed to fetch upcoming meetings";
+          const errorMessage = errorData.error || "Failed to fetch meetings";
           throw new Error(errorMessage);
         }
 
         const data = await meetingResponse.json();
+        console.log("[CallList] Fetched meetings:", data);
         const currentDate = new Date();
-        const meetings: Meeting[] = (data.live_sessions || []).map((meeting: any) => ({
-          id: meeting.id,
-          scheduled_at: meeting.scheduled_at,
-          title: meeting.title,
-          description: meeting.description || meeting.title,
-          join_url: meeting.join_url,
-        })).filter((meeting: Meeting) => new Date(meeting.scheduled_at) > currentDate);
+        currentDate.setHours(0, 0, 0, 0); // Start of today in local time (WAT)
+        const meetings: Meeting[] = (data.live_sessions || [])
+          .map((meeting: any) => ({
+            id: meeting.id,
+            scheduled_at: meeting.scheduled_at,
+            title: meeting.title,
+            description: meeting.description || meeting.title,
+            join_url: meeting.join_url,
+            recording_url: meeting.recording_url,
+          }))
+          .filter((meeting: Meeting) => {
+            const meetingDate = new Date(meeting.scheduled_at);
+            if (type === "upcoming") {
+              return meetingDate >= currentDate;
+            } else if (type === "ended") {
+              return meetingDate < currentDate;
+            } else {
+              return !!meeting.recording_url; // For recordings
+            }
+          });
 
+        console.log("[CallList] Filtered meetings:", meetings);
         setMeetings(meetings);
         setIsLoading(false);
       } catch (err: any) {
         toast.error(`Failed to fetch meetings: ${err.message}`, {
-          duration: 4000,
+          duration: 4004,
           className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
         });
         console.error("[CallList] Error fetching meetings:", err);
@@ -73,12 +95,17 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
 
   const handleDeleteMeeting = async (meetingId: string) => {
     try {
-      const response = await fetch(`/api/teacher/live-session/${meetingId}/delete`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `/api/teacher/live-session/${meetingId}/delete`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            "X-Session-Token": sessionToken || "",
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -98,7 +125,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
         duration: 3000,
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
-      router.refresh(); // Refresh to update the UI
+      router.refresh();
     } catch (err: any) {
       toast.error(`Failed to delete meeting: ${err.message}`, {
         duration: 4000,
@@ -108,52 +135,77 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
     }
   };
 
-  if (isLoading) return <Loading />;
+  if (isLoading)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="lg" className="text-black" />
+      </div>
+    );
 
-  if (type !== "upcoming" && meetings.length < 0) {
+  if (meetings.length === 0) {
     return (
       <Alert
-        title="No calls available"
+        title={
+          type === "upcoming"
+            ? "No upcoming calls available"
+            : type === "ended"
+            ? "No previous calls available"
+            : "No recordings available"
+        }
         iconUrl="/no-calls.svg"
       />
     );
   }
 
-  if (meetings.length > 0) {
-    return (
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {meetings.map((meeting: Meeting) => (
-          <div key={meeting.id} className="flex flex-col gap-3">
-            <MeetingCard
-              call={{ id: meeting.id, state: { custom: { description: meeting.description || meeting.title || "No Description" }, startsAt: new Date(meeting.scheduled_at) } } as any}
-              type={type}
-              icon="/upcoming.svg"
-              title={meeting.description || meeting.title || "No Description"}
-              date={new Date(meeting.scheduled_at).toLocaleString()}
-              isPreviousMeeting={false}
-              link={meeting.join_url || `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${meeting.id}`}
-              buttonText="Start"
-              handleClick={() => router.push(meeting.join_url || `/main/meeting/${meeting.id}`)}
-            />
-            {session?.user?.role === "teacher" && (
-              <Button
-                onClick={() => handleDeleteMeeting(meeting.id)}
-                className="w-full font-extrabold text-sm text-white rounded-xl bg-red-600 py-2 px-4 hover:bg-red-800 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
-                <Trash2 className="inline-block mr-2" size={16} />
-                Delete Meeting
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <Alert
-      title="No calls available"
-      iconUrl="/no-calls.svg"
-    />
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+      {meetings.map((meeting: Meeting) => (
+        <div key={meeting.id} className="flex flex-col gap-3">
+          <MeetingCard
+            call={
+              {
+                id: meeting.id,
+                state: {
+                  custom: {
+                    description:
+                      meeting.description || meeting.title || "No Description",
+                  },
+                  startsAt: new Date(meeting.scheduled_at),
+                },
+              } as any
+            }
+            type={type}
+            icon={type === "ended" ? "/ended.svg" : "/upcoming.svg"}
+            title={meeting.description || meeting.title || "No Description"}
+            date={new Date(meeting.scheduled_at).toLocaleString()}
+            isPreviousMeeting={type === "ended"}
+            link={
+              type === "ended" && meeting.recording_url
+                ? meeting.recording_url
+                : meeting.join_url ||
+                  `${process.env.NEXT_PUBLIC_BASE_URL}/main/meeting/${meeting.id}`
+            }
+            buttonText={type === "ended" ? "View" : "Start"}
+            handleClick={() => {
+              if (type === "ended" && meeting.recording_url) {
+                window.location.href = meeting.recording_url;
+              } else {
+                router.push(meeting.join_url || `/main/meeting/${meeting.id}`);
+              }
+            }}
+          />
+          {session?.user?.role === "teacher" && type === "upcoming" && (
+            <Button
+              onClick={() => handleDeleteMeeting(meeting.id)}
+              className="w-full font-extrabold text-sm text-white rounded-xl bg-red-600 py-2 px-4 hover:bg-red-800 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
+            >
+              <Trash2 className="inline-block mr-2" size={16} />
+              Delete Meeting
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 };
 
