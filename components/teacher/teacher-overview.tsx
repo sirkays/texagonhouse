@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Progress} from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Users,
   BookOpen,
@@ -19,6 +19,7 @@ import {
   Download,
   Play,
 } from "lucide-react";
+import Link from "next/link";
 
 export function TeacherOverview() {
   const stats = [
@@ -137,29 +138,49 @@ export function TeacherOverview() {
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common tasks to get you started</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full justify-start bg-[#EF7B553a] text-slate-600 hover:bg-[#F797713a]">
-              <TestTube className="mr-2 h-4 w-4" />
-              Create New CBT Test
-            </Button>
+          <CardContent className="space-y-3 flex flex-col gap-3">
+            <Link
+              href={"/teacher/create-cbt"}
+              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border bg-white rounded-lg border-[#f797713d] hover:border-none"
+            >
+              <Button
+                
+                className="w-full justify-start bg-transparent hover:bg-[#F797713a]  text-slate-800"
+              >
+                <TestTube className="mr-2 h-4 w-4" />
+                Create CBT Test
+              </Button>
+            </Link>
             {/* <Button
               variant="outline"
               className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
               <Upload className="mr-2 h-4 w-4" />
               Upload Learning Material
             </Button> */}
-            <Button
-              variant="outline"
-              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
-              <BookOpen className="mr-2 h-4 w-4" />
-              Create Learning Module
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border border-[#f797713d] hover:border-none">
-              <Users className="mr-2 h-4 w-4" />
-              View Student Analytics
-            </Button>
+            <Link
+              href={"/teacher/learning-module"}
+              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] rounded-lg border bg-white border-[#f797713d] hover:border-none"
+            >
+              <Button
+                
+                className="w-full bg-transparent hover:bg-[#F797713a] justify-start text-slate-800"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Create Learning Module
+              </Button>
+            </Link>
+            <Link
+              href={"/teacher/learning-module"}
+              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] rounded-lg border bg-white border-[#f797713d] hover:border-none"
+            >
+              <Button
+                
+                className="w-full justify-start bg-transparent hover:bg-[#F797713a] text-slate-800"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                View Student Analysis
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -234,7 +255,8 @@ export function TeacherOverview() {
             {topCourses.map((course, index) => (
               <div
                 key={index}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg">
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg"
+              >
                 {/* Course Details */}
                 <div className="space-y-1 flex-1">
                   <h4 className="font-medium text-base">{course.title}</h4>

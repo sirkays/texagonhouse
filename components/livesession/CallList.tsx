@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import {useEffect, useState, useMemo,} from "react";
 import Loading from "./Loading";
 import Alert from "./Alert";
 import {useRouter} from "next/navigation";
@@ -23,6 +23,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
   const {data: session} = useSession();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken])
 
   useEffect(() => {
     const fetchMeetings = async () => {
@@ -68,7 +69,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
     };
 
     fetchMeetings();
-  }, [session, type]);
+  }, [sessionToken, type]);
 
   const handleDeleteMeeting = async (meetingId: string) => {
     try {
@@ -109,7 +110,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
 
   if (isLoading) return <Loading />;
 
-  if (type !== "upcoming") {
+  if (type !== "upcoming" && meetings.length < 0) {
     return (
       <Alert
         title="No calls available"

@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import {Textarea} from "../ui/textarea";
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {Input} from "../ui/input";
 import DatePicker from "react-datepicker";
 import Loading from "./Loading";
@@ -51,6 +51,7 @@ const MainMenu = () => {
     "Schedule" | "Instant" | undefined
   >(undefined);
   const client = useStreamVideoClient();
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken])
 
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)
@@ -241,7 +242,7 @@ const MainMenu = () => {
     if (session?.user) {
       fetchMeetings();
     }
-  }, [session]);
+  }, [sessionToken]);
 
   const nearestUpcomingMeeting = upcomingMeetings
     ?.filter((meeting) => meeting?.scheduled_at)

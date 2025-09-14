@@ -7,7 +7,7 @@ import {useRouter} from "next/navigation";
 import {Button} from "@/components/ui/button";
 import {toast} from "sonner";
 import {Trash2} from "lucide-react";
-import {useEffect, useState} from "react";
+import {useEffect, useState, useMemo,} from "react";
 
 interface Meeting {
   id: string;
@@ -22,6 +22,7 @@ const StatusBar = () => {
   const router = useRouter();
   const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken])
 
   // Fetch meetings directly
   useEffect(() => {
@@ -72,7 +73,7 @@ const StatusBar = () => {
     if (session?.user) {
       fetchMeetings();
     }
-  }, [session]);
+  }, [sessionToken]);
 
   const nearestUpcomingMeeting = upcomingMeetings
     ?.filter((meeting) => meeting?.scheduled_at)
