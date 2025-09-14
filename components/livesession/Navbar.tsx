@@ -9,71 +9,61 @@ const NavBar = () => {
   const pathname = usePathname();
 
   return (
-    <>
-      <nav className="flex justify-between items-center fixed z-50 w-full h-28 bg-[#DD2701] px-10 gap-4 shadow-2xl">
-        {/* Logo */}
-        <Link
-          href="/main/home"
-          className="flex items-center gap-1 hover:scale-150 duration-500 ">
-          {/* <Image
-                  src="/logo.svg"
-                  width={60}
-                  height={60}
-                  alt="Let's talk"
-                /> */}
-          <h1 className="text-[26px] font-extrabold text-white max-sm:hidden">
-            TECHXAGON
-          </h1>
-        </Link>
+    <nav className="flex justify-between items-center fixed z-50 w-full h-16 bg-white px-6 sm:px-10 shadow-md">
+      {/* Logo */}
+      <Link
+        href="/main/home"
+        className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          TECHXAGON
+        </h1>
+      </Link>
 
-        {/* Nav Links */}
-        <section className="sticky top-0 flex justify-between text-black ">
-          <div className="flex flex-1 max-sm:gap-0 sm:gap-6">
-            {navLinks.map((item) => {
-              const isActive =
-                pathname === item.route ||
-                pathname.startsWith(`${item.route}/`);
+      {/* Nav Links */}
+      <section className="hidden sm:flex items-center gap-6">
+        {navLinks.map((item) => {
+          const isActive =
+            pathname === item.route || pathname.startsWith(`${item.route}/`);
 
-              return (
-                <Link
-                  href={item.route}
-                  key={item.label}
-                  className={cn(
-                    "flex gap-4 items-center p-4 text-white ustify-start",
-                    isActive && "border-b-2 border-white"
-                  )}>
-                  <Image
-                    src={item.imgURL || "/placeholder.svg"}
-                    alt={item.label}
-                    width={24}
-                    height={24}
-                    className={cn("invert", isActive && "")}
-                  />
-
-                  <p className={cn("text-lg font-semibold max-lg:hidden")}>
-                    {item.label}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* User button */}
-        <div className="hover:scale-150 duration-500 ">
-          <div>
-            <div className="rounded-full">
+          return (
+            <Link
+              href={item.route}
+              key={item.label}
+              className={cn(
+                "flex text-gray-700 hover:text-blue-600 text-base font-medium transition-colors gap-2",
+                isActive && "text-blue-600 border-b-2 border-blue-600"
+              )}>
               <Image
-                src="/assets/images/avatar-1.svg"
-                width={40}
-                height={40}
-                alt="User Avatar"
+                src={item.imgURL || "/placeholder.svg"}
+                alt={item.label}
+                width={24}
+                height={20}
+                className={cn("", isActive && "")}
               />
-            </div>
-          </div>
+
+              <p className={cn("text-lg font-semibold max-lg:hidden")}>
+                {item.label}
+              </p>
+            </Link>
+          );
+        })}
+      </section>
+
+      {/* CTA and User Button */}
+      <div className="flex items-center gap-4">
+        <div className="hover:opacity-80 transition-opacity">
+          <Link href="/profile">
+            <Image
+              src="/assets/images/avatar-1.svg"
+              width={32}
+              height={32}
+              alt="User Avatar"
+              className="rounded-full"
+            />
+          </Link>
         </div>
-      </nav>
-    </>
+      </div>
+    </nav>
   );
 };
 
