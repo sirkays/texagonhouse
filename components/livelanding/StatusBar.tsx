@@ -89,6 +89,14 @@ const StatusBar = () => {
     ? new Date(nearestUpcomingMeeting.scheduled_at).toLocaleString()
     : null;
 
+  const handleBackToDashboard = () => {
+    if (session?.user?.role) {
+      router.push(`/${session.user.role}`);
+    } else {
+      router.push("/"); // Fallback if role is not available
+    }
+  };
+
   const handleDeleteMeeting = async () => {
     if (!nearestUpcomingMeeting?.id) {
       toast.error("No meeting selected for deletion", {
@@ -127,6 +135,9 @@ const StatusBar = () => {
         duration: 3000,
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
+      setUpcomingMeetings((prev) =>
+        prev.filter((meeting) => meeting.id !== nearestUpcomingMeeting.id)
+      ); // Update state to reflect deletion
     } catch (err: any) {
       toast.error(`Failed to delete meeting: ${err.message}`, {
         duration: 4000,
@@ -155,12 +166,28 @@ const StatusBar = () => {
   }
 
   return (
-    <section className="flex flex-col items-center justify-center gap-5 text-black md:items-start">
+    <section className="flex flex-col gap-5 text-black items-center md:items-start">
       {nearestUpcomingMeeting ? (
         <div className="flex flex-col gap-3 items-center md:items-start">
           <h2 className="bg-blue-100 max-w-[273px] rounded-2xl p-4 text-center text-base font-light">
-            {/* Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate} */}
+            Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
           </h2>
+          {nearestUpcomingMeeting.join_url && (
+            <Button
+              onClick={() =>
+                window.open(nearestUpcomingMeeting.join_url, "_blank")
+              }
+              className="bg-blue-500 text-white hover:bg-blue-600">
+              Join Meeting
+            </Button>
+          )}
+          <Button
+            onClick={handleDeleteMeeting}
+            variant="destructive"
+            className="flex items-center gap-2">
+            <Trash2 size={16} />
+            Delete Meeting
+          </Button>
         </div>
       ) : (
         <h2 className="bg-blue-100 max-w-[273px] rounded-2xl p-4 text-center text-base font-light">

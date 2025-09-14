@@ -51,10 +51,7 @@ const MainMenu = () => {
     "Schedule" | "Instant" | undefined
   >(undefined);
   const client = useStreamVideoClient();
-  const sessionToken = useMemo(
-    () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
-  );
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken])
 
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)
@@ -254,9 +251,18 @@ const MainMenu = () => {
         new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
     )[0];
 
-  const formattedDate = nearestUpcomingMeeting?.scheduled_at
-    ? new Date(nearestUpcomingMeeting.scheduled_at).toLocaleString()
-    : null;
+  const startsAt = nearestUpcomingMeeting?.scheduled_at;
+  const formattedDate = startsAt
+    ? new Date(startsAt).toLocaleString()
+    : "No upcoming meetings";
+
+  const handleBackToDashboard = () => {
+    if (session?.user?.role) {
+      router.push(`/${session.user.role}`);
+    } else {
+      router.push("/"); // Fallback if role is not available
+    }
+  };
 
   const handleDeleteMeeting = async () => {
     if (!nearestUpcomingMeeting?.id) {
@@ -296,11 +302,6 @@ const MainMenu = () => {
         duration: 3000,
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
-
-      setUpcomingMeetings((prev) =>
-        prev.filter((meeting) => meeting.id !== nearestUpcomingMeeting.id)
-      );
-      // Update state to reflect deletion
       router.refresh(); // Refresh to update the UI
     } catch (err: any) {
       toast.error(`Failed to delete meeting: ${err.message}`, {
@@ -313,48 +314,12 @@ const MainMenu = () => {
 
   return (
     <div>
-      {/* <Button
+      <Button
         onClick={handleBackToDashboard}
         className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
         Back to Dashboard
-      </Button> */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 items-center justify-center md:items-start menu-item-card">
-          {isLoading ? (
-            <p>Loading meetings...</p>
-          ) : nearestUpcomingMeeting ? (
-            <>
-              <h2 className="bg-blue-100 w-full max-w-[300px] sm:max-w-[273px] rounded-2xl p-3 sm:p-4 text-center text-sm sm:text-base font-light">
-                Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
-              </h2>
-              <div className="flex gap-2 sm:gap-3">
-                {nearestUpcomingMeeting.join_url &&
-                  (isTeacher === isTeacher ? (
-                    <a
-                      href="/main/home/upcoming"
-                      className="text-blue-700 text-sm sm:text-base">
-                      View More
-                    </a>
-                  ) : (
-                    <a
-                      href="/main/home/upcoming"
-                      className="text-blue-700 text-sm sm:text-base">
-                      Join Meeting
-                    </a>
-                  ))}
-                <button
-                  onClick={handleDeleteMeeting}
-                  className="bg-transparent flex text-destructive items-center gap-2 py-0 text-sm sm:text-base">
-                  <Trash2 size={16} />
-                  Delete
-                </button>
-              </div>
-            </>
-          ) : (
-            <p>No upcoming meetings</p>
-          )}
-        </div>
-
+      </Button>
+      <section className="grid grid-cols-2 gap-4 sm:gap-6">
         {/* New Meeting */}
         {isTeacher && (
           <Dialog>
@@ -366,17 +331,19 @@ const MainMenu = () => {
                 hoverColor="hover:bg-orange-800"
               />
             </DialogTrigger>
-            <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl">
+            <DialogContent className="bg-gray-200 w-[95%] sm:w-[90%] md:w-[600px] px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl sm:rounded-3xl">
               <DialogHeader>
-                <DialogTitle className="text-lg sm:text-2xl font-black leading-relaxed text-center">
+                <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black leading-relaxed text-center">
                   Start an Instant Meeting 🤝
                 </DialogTitle>
-                <DialogDescription className="text-center text-xs sm:text-sm">
+                <DialogDescription className="text-center text-xs sm:text-sm md:text-base">
                   Fill in the details to start an instant meeting
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 sm:gap-4 mt-4">
-                <span className="text-xs sm:text-sm">Meeting Title</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Meeting Title
+                </span>
                 <Input
                   type="text"
                   placeholder="Enter meeting title"
@@ -384,9 +351,11 @@ const MainMenu = () => {
                   onChange={(e) =>
                     setValues({...values, title: e.target.value})
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">Course ID</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Course ID
+                </span>
                 <Input
                   type="text"
                   placeholder="Enter course ID"
@@ -394,9 +363,11 @@ const MainMenu = () => {
                   onChange={(e) =>
                     setValues({...values, courseId: e.target.value})
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">Course Name</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Course Name
+                </span>
                 <Input
                   type="text"
                   placeholder="Enter course name"
@@ -404,20 +375,22 @@ const MainMenu = () => {
                   onChange={(e) =>
                     setValues({...values, courseName: e.target.value})
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">
+                <span className="text-xs sm:text-sm md:text-base">
                   Add a meeting description
                 </span>
                 <Textarea
-                  className="inputs w-full p-2 sm:p-3 text-sm sm:text-base"
+                  className="inputs w-full p-2 sm:p-3 md:p-5"
                   rows={4}
                   value={values.description}
                   onChange={(e) =>
                     setValues({...values, description: e.target.value})
                   }
                 />
-                <span className="text-xs sm:text-sm">Duration (minutes)</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Duration (minutes)
+                </span>
                 <Input
                   type="number"
                   placeholder="Enter duration in minutes"
@@ -428,10 +401,10 @@ const MainMenu = () => {
                       duration: parseInt(e.target.value) || 60,
                     })
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
                 <Button
-                  className="mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
+                  className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
                   onClick={() => setMeetingState("Instant")}>
                   Create Meeting
                 </Button>
@@ -439,7 +412,6 @@ const MainMenu = () => {
             </DialogContent>
           </Dialog>
         )}
-
         {/* Join Meeting */}
         <Dialog>
           <DialogTrigger>
@@ -450,12 +422,12 @@ const MainMenu = () => {
               hoverColor="hover:bg-blue-800"
             />
           </DialogTrigger>
-          <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl">
+          <DialogContent className="bg-gray-200 w-[95%] sm:w-[90%] md:w-[600px] px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl sm:rounded-3xl">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-2xl font-black text-center mb-3 sm:mb-4">
+              <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black text-center mb-3 sm:mb-4 md:mb-5">
                 Type the Meeting link here
               </DialogTitle>
-              <DialogDescription className="text-center text-xs sm:text-sm">
+              <DialogDescription className="text-center text-xs sm:text-sm md:text-base">
                 Enter the meeting link or ID to join
               </DialogDescription>
             </DialogHeader>
@@ -465,17 +437,16 @@ const MainMenu = () => {
                 placeholder="Meeting Link or Meeting ID"
                 value={values.link}
                 onChange={(e) => setValues({...values, link: e.target.value})}
-                className="inputs w-full text-sm sm:text-base"
+                className="inputs w-full"
               />
               <Button
-                className="mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
+                className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
                 onClick={joinMeeting}>
                 Join Meeting
               </Button>
             </div>
           </DialogContent>
         </Dialog>
-
         {/* Schedule */}
         {isTeacher && (
           <Dialog>
@@ -487,17 +458,19 @@ const MainMenu = () => {
                 hoverColor="hover:bg-blue-800"
               />
             </DialogTrigger>
-            <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl">
+            <DialogContent className="bg-gray-200 w-[95%] sm:w-[90%] md:w-[600px] px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-gray-900 rounded-2xl sm:rounded-3xl">
               <DialogHeader>
-                <DialogTitle className="text-lg sm:text-2xl font-black text-center mb-3 sm:mb-4">
+                <DialogTitle className="text-lg sm:text-2xl md:text-3xl font-black text-center mb-3 sm:mb-4 md:mb-5">
                   Schedule Meeting
                 </DialogTitle>
-                <DialogDescription className="text-center text-xs sm:text-sm">
+                <DialogDescription className="text-center text-xs sm:text-sm md:text-base">
                   Fill in the details to schedule a meeting
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 sm:gap-4">
-                <span className="text-xs sm:text-sm">Meeting Title</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Meeting Title
+                </span>
                 <Input
                   type="text"
                   placeholder="Enter meeting title"
@@ -505,9 +478,11 @@ const MainMenu = () => {
                   onChange={(e) =>
                     setValues({...values, title: e.target.value})
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">Course ID</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Course ID
+                </span>
                 <Input
                   type="text"
                   placeholder="Enter course ID"
@@ -515,9 +490,11 @@ const MainMenu = () => {
                   onChange={(e) =>
                     setValues({...values, courseId: e.target.value})
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">Course Name</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Course Name
+                </span>
                 <Input
                   type="text"
                   placeholder="Enter course name"
@@ -525,20 +502,22 @@ const MainMenu = () => {
                   onChange={(e) =>
                     setValues({...values, courseName: e.target.value})
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">
+                <span className="text-xs sm:text-sm md:text-base">
                   Add a meeting description
                 </span>
                 <Textarea
-                  className="inputs w-full p-2 sm:p-3 text-sm sm:text-base"
+                  className="inputs w-full p-2 sm:p-3 md:p-5"
                   rows={4}
                   value={values.description}
                   onChange={(e) =>
                     setValues({...values, description: e.target.value})
                   }
                 />
-                <span className="text-xs sm:text-sm">Duration (minutes)</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Duration (minutes)
+                </span>
                 <Input
                   type="number"
                   placeholder="Enter duration in minutes"
@@ -549,9 +528,11 @@ const MainMenu = () => {
                       duration: parseInt(e.target.value) || 60,
                     })
                   }
-                  className="inputs w-full text-sm sm:text-base"
+                  className="inputs w-full"
                 />
-                <span className="text-xs sm:text-sm">Select Date and Time</span>
+                <span className="text-xs sm:text-sm md:text-base">
+                  Select Date and Time
+                </span>
                 <DatePicker
                   preventOpenOnFocus
                   selected={values.dateTime}
@@ -560,10 +541,10 @@ const MainMenu = () => {
                   timeIntervals={15}
                   timeCaption="time"
                   dateFormat="MMMM d, yyyy h:mm aa"
-                  className="inputs w-full rounded p-2 text-sm sm:text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="inputs w-full rounded p-2 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <Button
-                  className="mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
+                  className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
                   onClick={() => setMeetingState("Schedule")}>
                   Submit
                 </Button>
@@ -571,6 +552,28 @@ const MainMenu = () => {
             </DialogContent>
           </Dialog>
         )}
+
+        <section className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
+          <h2 className="">
+            Upcoming Meeting at:
+            <p className="">
+              {formattedDate && ""}
+              {session?.user?.role === "teacher" && (
+                <span className="" onClick={handleDeleteMeeting}>
+                  <Trash2 className="inline-block mr-2" size={16} />
+                </span>
+              )}
+            </p>
+          </h2>
+        </section>
+        {/* Recordings */}
+        {/* <MenuItemCard
+          img="/recordings2.svg"
+          title="Recordings"
+          bgColor="bg-blue-600"
+          hoverColor="hover:bg-blue-800"
+          handleClick={() => router.push("/main/home/recordings")}
+        /> */}
       </section>
     </div>
   );
