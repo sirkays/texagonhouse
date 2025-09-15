@@ -17,11 +17,11 @@ export const navLinks = [
     route: "/main/home/previous",
     label: "Previous",
   },
-  {
-    icon: Video,
-    route: "/main/home/recordings",
-    label: "Recordings",
-  },
+  // {
+  //   icon: Video,
+  //   route: "/main/home/recordings",
+  //   label: "Recordings",
+  // },
   {
     icon: DoorOpen,
     route: "/main/home/my-home",
