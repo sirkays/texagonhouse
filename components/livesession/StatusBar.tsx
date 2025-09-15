@@ -6,7 +6,7 @@ import {useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {Button} from "@/components/ui/button";
 import {toast} from "sonner";
-import {Trash2} from "lucide-react";
+import {Loader, Loader2, Trash2} from "lucide-react";
 import {useEffect, useState, useMemo} from "react";
 
 interface Meeting {
@@ -143,13 +143,7 @@ const StatusBar = () => {
           Loading meetings...
         </h2>
         <DateAndTime />
-        <Image
-          src="/liveBanner.png"
-          width={400}
-          height={400}
-          alt="home image"
-          className="max-md:hidden -ml-16"
-        />
+        <Loader2 className="h-24 w-24 animate-spin" />
       </section>
     );
   }
@@ -159,22 +153,39 @@ const StatusBar = () => {
       {nearestUpcomingMeeting ? (
         <div className="flex flex-col gap-3 items-center md:items-start">
           <h2 className="bg-blue-100 max-w-[273px] rounded-2xl p-4 text-center text-base font-light">
-            {/* Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate} */}
+            Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
           </h2>
+          <DateAndTime />
+          <Image
+            src="/liveBanner.png"
+            width={400}
+            height={400}
+            alt="home image"
+            className="max-md:hidden -ml-16"
+          />
         </div>
       ) : (
-        <h2 className="bg-blue-100 max-w-[273px] rounded-2xl p-4 text-center text-base font-light">
-          No Upcoming Meetings
-        </h2>
+        <div className="">
+          <h2 className="bg-blue-100 max-w-[273px] rounded-2xl p-4 mb-8 text-center text-base font-light">
+            No Upcoming Meetings
+          </h2>
+          <DateAndTime />
+          <Image
+            src="/noMeeting.png"
+            width={400}
+            height={400}
+            alt="home image"
+            className="max-md:hidden -ml-16"
+          />
+        </div>
       )}
-      <DateAndTime />
-      <Image
+      {/* <Image
         src="/liveBanner.png"
         width={400}
         height={400}
         alt="home image"
         className="max-md:hidden -ml-16"
-      />
+      /> */}
     </section>
   );
 };
