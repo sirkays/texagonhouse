@@ -51,7 +51,10 @@ const MainMenu = () => {
     "Schedule" | "Instant" | undefined
   >(undefined);
   const client = useStreamVideoClient();
-  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken])
+  const sessionToken = useMemo(
+    () => session?.user?.sessionToken || null,
+    [session?.user?.sessionToken]
+  );
 
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)

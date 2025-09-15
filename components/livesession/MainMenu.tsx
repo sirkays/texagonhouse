@@ -313,11 +313,6 @@ const MainMenu = () => {
 
   return (
     <div>
-      {/* <Button
-        onClick={handleBackToDashboard}
-        className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
-        Back to Dashboard
-      </Button> */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 items-center justify-center md:items-start menu-item-card">
           {isLoading ? (
