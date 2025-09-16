@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../[...nextauth]/route";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
-const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 interface Headers {
   [key: string]: string;

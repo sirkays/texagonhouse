@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
-const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken) => ({
   "Authorization": `Api-Key ${API_KEY}`,

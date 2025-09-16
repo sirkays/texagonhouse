@@ -128,7 +128,7 @@ export function DashboardOverview() {
         );
         const res = await fetch("/api/student/dashboard-overview", {
           headers: {
-            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
@@ -182,7 +182,7 @@ export function DashboardOverview() {
         );
         const res = await fetch("/api/teacher/live-session/", {
           headers: {
-            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
@@ -245,7 +245,7 @@ export function DashboardOverview() {
         );
         const res = await fetch("/api/student/cbt", {
           headers: {
-            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },

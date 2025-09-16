@@ -501,9 +501,12 @@ export function CBTTest() {
   }
 
   if (testCompleted) {
-    const Icon = result?.result === "PASS" ? CheckCircle : XCircle;
-    const iconColor =
-      result?.result === "PASS" ? "text-green-500" : "text-red-500";
+    // const Icon = result?.result === "PASS" ? CheckCircle : XCircle;
+    // const iconColor =
+    //   result?.result === "PASS" ? "text-green-500" : "text-red-500";
+
+    const Icon = CheckCircle;
+    const iconColor = "text-green-500";
 
     return (
       <div className="space-y-6">
@@ -537,6 +540,14 @@ export function CBTTest() {
                 {result.pending_manual > 0 && (
                   <p>{result.pending_manual} questions pending manual review</p>
                 )}
+                <p className="">
+                  {result.result === "PASS"
+                    ? "Congratulations! You have passed the test." :
+                    "Unfortunately, you did not pass. Better luck next time!"}
+                </p>
+                {/* <p className="text-sm text-muted-foreground">
+                  Note: Detailed results will be available in your dashboard.
+                </p> */}
               </div>
             )}
 

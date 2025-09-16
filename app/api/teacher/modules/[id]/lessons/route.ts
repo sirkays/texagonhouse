@@ -6,7 +6,7 @@ import formidable from "formidable-serverless";
 import fs from "fs/promises";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
-const API_KEY = "GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 const FILE_FIELD_NAME = "file"; // Change to "media" or other if API requires
 
 const headers = (sessionToken: string | undefined) => ({

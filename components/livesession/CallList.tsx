@@ -42,7 +42,7 @@
 //           method: "GET",
 //           headers: {
 //             "Content-Type": "application/json",
-//             Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+//             Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
 //             "X-Session-Token": sessionToken || "",
 //           },
 //         });
@@ -101,7 +101,7 @@
 //           method: "DELETE",
 //           headers: {
 //             "Content-Type": "application/json",
-//             Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+//             Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
 //             "X-Session-Token": sessionToken || "",
 //           },
 //         }
@@ -253,7 +253,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "X-Session-Token": sessionToken || "",
           },
         });
@@ -309,7 +309,7 @@ const CallList = ({type}: {type: "ended" | "upcoming" | "recordings"}) => {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Api-Key GenYD7kB.PNsqar8GzuhbHjhDT7DesVvbUPeMD7Vl`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "X-Session-Token": sessionToken || "",
           },
         }
