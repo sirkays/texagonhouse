@@ -4,20 +4,26 @@ import Alert from "@/components/livesession/Alert";
 import Loading from "@/components/livesession/Loading";
 import MeetingRoom from "@/components/livesession/MeetingRoom";
 import MeetingSetup from "@/components/livesession/MeetingSetup";
-import {useGetCallById} from "@/hooks/useGetCallById";
-import {useSession} from "next-auth/react";
-import {StreamCall, StreamTheme} from "@stream-io/video-react-sdk";
-import {useParams} from "next/navigation";
-import {useState} from "react";
+import { useGetCallById } from "@/hooks/useGetCallById";
+import { useSession } from "next-auth/react";
+import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 const MeetingPage = () => {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   if (!id) return null;
-  const {data: session, status} = useSession();
-  const {call, isCallLoading} = useGetCallById(id);
+  const { data: session, status } = useSession();
+  const { call, isCallLoading } = useGetCallById(id);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
 
-  if (status !== "authenticated" || isCallLoading) return <Loading />;
+  if (status !== "authenticated" || isCallLoading)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Spinner size="lg" className="text-indigo-500" />
+      </div>
+    );
 
   if (!call)
     return (

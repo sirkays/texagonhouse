@@ -1,9 +1,9 @@
 "use client";
 
-import {useSession} from "next-auth/react";
-import {useRouter} from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import MenuItemCard from "./MenuItemCard";
-import {Button} from "../ui/button";
+import { Button } from "../ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,16 +12,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import {Textarea} from "../ui/textarea";
-import {useEffect, useMemo, useState} from "react";
-import {Input} from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { useEffect, useMemo, useState } from "react";
+import { Input } from "../ui/input";
 import DatePicker from "react-datepicker";
 import Loading from "./Loading";
-import {useStreamVideoClient} from "@stream-io/video-react-sdk";
-import {toast} from "sonner";
-import {Trash2} from "lucide-react";
+import { useStreamVideoClient } from "@stream-io/video-react-sdk";
+import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import DateAndTime from "./DateAndTime";
 import Image from "next/image";
+import { Spinner } from "../ui/spinner";
 
 const initialValues = {
   dateTime: new Date(),
@@ -42,7 +43,7 @@ interface Meeting {
 }
 
 const MainMenu = () => {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,7 +95,7 @@ const MainMenu = () => {
       });
 
       await call.updateCallMembers({
-        update_members: [{user_id: String(session.user.id)}],
+        update_members: [{ user_id: String(session.user.id) }],
       });
 
       // API call to create live session
@@ -192,7 +193,11 @@ const MainMenu = () => {
   }, [meetingState]);
 
   if (!client || status !== "authenticated" || !session?.user)
-    return <Loading />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Spinner size="lg" className="text-indigo-500" />
+      </div>
+    );
 
   const isTeacher = session.user.role === "teacher";
 
@@ -319,7 +324,8 @@ const MainMenu = () => {
     <div>
       <Button
         onClick={handleBackToDashboard}
-        className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer">
+        className="w-full sm:w-auto font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
+      >
         Back to Dashboard
       </Button>
       <section className="grid grid-cols-2 gap-4 sm:gap-6">
@@ -352,7 +358,7 @@ const MainMenu = () => {
                   placeholder="Enter meeting title"
                   value={values.title}
                   onChange={(e) =>
-                    setValues({...values, title: e.target.value})
+                    setValues({ ...values, title: e.target.value })
                   }
                   className="inputs w-full"
                 />
@@ -364,7 +370,7 @@ const MainMenu = () => {
                   placeholder="Enter course ID"
                   value={values.courseId}
                   onChange={(e) =>
-                    setValues({...values, courseId: e.target.value})
+                    setValues({ ...values, courseId: e.target.value })
                   }
                   className="inputs w-full"
                 />
@@ -376,7 +382,7 @@ const MainMenu = () => {
                   placeholder="Enter course name"
                   value={values.courseName}
                   onChange={(e) =>
-                    setValues({...values, courseName: e.target.value})
+                    setValues({ ...values, courseName: e.target.value })
                   }
                   className="inputs w-full"
                 />
@@ -388,7 +394,7 @@ const MainMenu = () => {
                   rows={4}
                   value={values.description}
                   onChange={(e) =>
-                    setValues({...values, description: e.target.value})
+                    setValues({ ...values, description: e.target.value })
                   }
                 />
                 <span className="text-xs sm:text-sm md:text-base">
@@ -408,7 +414,8 @@ const MainMenu = () => {
                 />
                 <Button
                   className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-                  onClick={() => setMeetingState("Instant")}>
+                  onClick={() => setMeetingState("Instant")}
+                >
                   Create Meeting
                 </Button>
               </div>
@@ -439,12 +446,13 @@ const MainMenu = () => {
                 type="text"
                 placeholder="Meeting Link or Meeting ID"
                 value={values.link}
-                onChange={(e) => setValues({...values, link: e.target.value})}
+                onChange={(e) => setValues({ ...values, link: e.target.value })}
                 className="inputs w-full"
               />
               <Button
                 className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-                onClick={joinMeeting}>
+                onClick={joinMeeting}
+              >
                 Join Meeting
               </Button>
             </div>
@@ -479,7 +487,7 @@ const MainMenu = () => {
                   placeholder="Enter meeting title"
                   value={values.title}
                   onChange={(e) =>
-                    setValues({...values, title: e.target.value})
+                    setValues({ ...values, title: e.target.value })
                   }
                   className="inputs w-full"
                 />
@@ -491,7 +499,7 @@ const MainMenu = () => {
                   placeholder="Enter course ID"
                   value={values.courseId}
                   onChange={(e) =>
-                    setValues({...values, courseId: e.target.value})
+                    setValues({ ...values, courseId: e.target.value })
                   }
                   className="inputs w-full"
                 />
@@ -503,7 +511,7 @@ const MainMenu = () => {
                   placeholder="Enter course name"
                   value={values.courseName}
                   onChange={(e) =>
-                    setValues({...values, courseName: e.target.value})
+                    setValues({ ...values, courseName: e.target.value })
                   }
                   className="inputs w-full"
                 />
@@ -515,7 +523,7 @@ const MainMenu = () => {
                   rows={4}
                   value={values.description}
                   onChange={(e) =>
-                    setValues({...values, description: e.target.value})
+                    setValues({ ...values, description: e.target.value })
                   }
                 />
                 <span className="text-xs sm:text-sm md:text-base">
@@ -539,7 +547,7 @@ const MainMenu = () => {
                 <DatePicker
                   preventOpenOnFocus
                   selected={values.dateTime}
-                  onChange={(date) => setValues({...values, dateTime: date!})}
+                  onChange={(date) => setValues({ ...values, dateTime: date! })}
                   showTimeSelect
                   timeIntervals={15}
                   timeCaption="time"
@@ -548,7 +556,8 @@ const MainMenu = () => {
                 />
                 <Button
                   className="mt-3 sm:mt-5 w-full sm:w-auto font-extrabold text-sm sm:text-base md:text-lg text-white rounded-xl bg-blue-700 py-2 sm:py-3 md:py-5 px-4 sm:px-6 md:px-10 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-                  onClick={() => setMeetingState("Schedule")}>
+                  onClick={() => setMeetingState("Schedule")}
+                >
                   Submit
                 </Button>
               </div>

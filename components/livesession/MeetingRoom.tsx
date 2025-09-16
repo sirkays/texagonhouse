@@ -1,6 +1,6 @@
 "use client";
 
-import {useSession} from "next-auth/react";
+import { useSession } from "next-auth/react";
 import {
   CallControls,
   CallingState,
@@ -10,12 +10,12 @@ import {
   SpeakerLayout,
   useCallStateHooks,
 } from "@stream-io/video-react-sdk";
-import {useState} from "react";
+import { useState } from "react";
 import Loading from "./Loading";
-import {usePathname, useRouter} from "next/navigation";
-import {Button} from "../ui/button";
-import {toast} from "sonner";
-import {cn} from "@/lib/utils";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "../ui/button";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,9 +23,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import {LayoutList, Users} from "lucide-react";
+import { LayoutList, Users } from "lucide-react";
 import EndCallButton from "./EndCallButton";
-import {Spinner} from "../ui/spinner";
+import { Spinner } from "../ui/spinner";
 
 type CallLayoutType = "grid" | "speaker-left" | "speaker-right";
 
@@ -34,11 +34,16 @@ const MeetingRoom = () => {
   const [showParticipants, setShowParticipants] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
 
-  if (status !== "authenticated" || !session?.user) return <Loading />;
+  if (status !== "authenticated" || !session?.user)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Spinner size="lg" className="text-indigo-500" />
+      </div>
+    );
 
-  const {useCallCallingState} = useCallStateHooks();
+  const { useCallCallingState } = useCallStateHooks();
   const callingState = useCallCallingState();
   if (callingState !== CallingState.JOINED)
     return (
@@ -71,7 +76,8 @@ const MeetingRoom = () => {
             className:
               "!bg-gray-300 !rounded-3xl !py-4 xs:!py-5 sm:!py-8 !px-3 xs:!px-4 sm:!px-5 !justify-center !text-xs xs:!text-sm sm:!text-base",
           });
-        }}>
+        }}
+      >
         Invite People
       </Button>
 
@@ -89,7 +95,8 @@ const MeetingRoom = () => {
             showParticipants
               ? "translate-x-0 block"
               : "translate-x-full lg:block"
-          )}>
+          )}
+        >
           <CallParticipantsList onClose={() => setShowParticipants(false)} />
         </div>
       </div>
@@ -115,7 +122,8 @@ const MeetingRoom = () => {
                   className="py-1 xs:py-1.5 sm:py-2"
                   onClick={() =>
                     setLayout(item.toLowerCase() as CallLayoutType)
-                  }>
+                  }
+                >
                   {item}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="border-black" />

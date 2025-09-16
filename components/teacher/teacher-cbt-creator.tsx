@@ -817,10 +817,10 @@ const deleteQuestion = async (testId: string, questionId: string) => {
                             Multiple Choice
                           </SelectItem>
                           <SelectItem value="true-false">True/False</SelectItem>
-                          <SelectItem value="short-answer">
+                          {/* <SelectItem value="short-answer">
                             Short Answer
                           </SelectItem>
-                          <SelectItem value="essay">Essay</SelectItem>
+                          <SelectItem value="essay">Essay</SelectItem> */}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1422,10 +1422,10 @@ const deleteQuestion = async (testId: string, questionId: string) => {
                                   <SelectItem value="true-false">
                                     True/False
                                   </SelectItem>
-                                  <SelectItem value="short-answer">
+                                  {/* <SelectItem value="short-answer">
                                     Short Answer
                                   </SelectItem>
-                                  <SelectItem value="essay">Essay</SelectItem>
+                                  <SelectItem value="essay">Essay</SelectItem> */}
                                 </SelectContent>
                               </Select>
                             </div>

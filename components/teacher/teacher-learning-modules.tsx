@@ -1230,7 +1230,7 @@ export function TeacherLearningModules() {
                   </div>
 
                   <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <Label className="text-xs xs:text-sm sm:text-base">
                         Module Type
                       </Label>
@@ -1265,7 +1265,7 @@ export function TeacherLearningModules() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
                     <div className="space-y-2">
                       <Label className="text-xs xs:text-sm sm:text-base">
                         Difficulty
