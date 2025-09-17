@@ -12,8 +12,8 @@ const NavBar = () => {
     "both"
   );
 
-  const handleStyleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setHeaderStyle(event.target.value as "icons" | "text" | "both");
+  const handleStyleChange = (style: "icons" | "text" | "both") => {
+    setHeaderStyle(style);
   };
 
   return (
@@ -56,16 +56,40 @@ const NavBar = () => {
           })}
         </section>
 
-        {/* Style Selector and CTA/User */}
+        {/* Style Toggle Buttons and CTA/User */}
         <div className="flex items-center gap-4">
-          <select
-            value={headerStyle}
-            onChange={handleStyleChange}
-            className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
-            <option value="both">Icons & Text</option>
-            <option value="icons">Icons Only</option>
-            <option value="text">Text Only</option>
-          </select>
+          <div className="flex border border-gray-300 rounded-md overflow-hidden">
+            <button
+              onClick={() => handleStyleChange("both")}
+              className={cn(
+                "px-3 py-1 text-sm font-medium",
+                headerStyle === "both"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              )}>
+              Icons & Text
+            </button>
+            <button
+              onClick={() => handleStyleChange("icons")}
+              className={cn(
+                "px-3 py-1 text-sm font-medium",
+                headerStyle === "icons"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              )}>
+              Icons
+            </button>
+            <button
+              onClick={() => handleStyleChange("text")}
+              className={cn(
+                "px-3 py-1 text-sm font-medium",
+                headerStyle === "text"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              )}>
+              Text
+            </button>
+          </div>
           <div className="hover:opacity-80 transition-opacity">
             <Link href="/profile">
               <Image
@@ -85,7 +109,7 @@ const NavBar = () => {
         <div className="flex justify-around items-center h-16">
           {navLinks.map((item) => {
             const isActive = pathname === item.route;
-            const Icon = item.icon; // Treat icon as a React component for consistency
+            const Icon = item.icon; // Treat icon as a React component
 
             return (
               <Link
@@ -95,8 +119,14 @@ const NavBar = () => {
                   "flex flex-col items-center justify-center text-xs text-gray-600",
                   isActive && "text-blue-600 font-semibold"
                 )}>
-                <Icon className={cn("w-6 h-6", isActive && "text-blue-600")} />
-                <span className="text-[11px]">{item.label}</span>
+                {headerStyle !== "text" && (
+                  <Icon
+                    className={cn("w-6 h-6", isActive && "text-blue-600")}
+                  />
+                )}
+                {headerStyle !== "icons" && (
+                  <span className="text-[11px]">{item.label}</span>
+                )}
               </Link>
             );
           })}
