@@ -68,15 +68,15 @@ export default function LoginPage() {
     <div
       className="flex min-h-screen w-full items-center justify-center px-4 sm:px-6 lg:px-8"
       style={{
-        backgroundImage: "url('/login-background.png')",
+        backgroundImage: "url('')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        backgroundColor: "#0f0f23",
+        backgroundColor: "#",
       }}>
       <div
         className="bg-white/10 backdrop-blur-md w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-xl shadow-lg p-6 sm:p-8"
-        style={{boxShadow: "0 4px 15px rgba(239, 123, 85, 0.2)"}}>
+        style={{boxShadow: "0 4px 15px rgba(220, 225, 220, 0.2)"}}>
         <div className="flex flex-col items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex flex-wrap justify-center gap-5">
             <Image
@@ -85,16 +85,12 @@ export default function LoginPage() {
               width={70}
               height={70}
             />
-            <div className="gap-5 pt-2">
-              <h1 className="font-bold sm:text-xl text-[#ffffff]">
-                TECHXAGON ACADEMY
-              </h1>
+            <div className="gap-5 pt-2 text-gray-800">
+              <h1 className="font-bold sm:text-xl">TECHXAGON ACADEMY</h1>
 
               <hr className="mt-1 mb-1" />
 
-              <h4 className=" text-[14px] text-[#ffffff]">
-                Readying the Future
-              </h4>
+              <h4 className=" text-[14px]">Readying the Future</h4>
             </div>
           </div>
         </div>
