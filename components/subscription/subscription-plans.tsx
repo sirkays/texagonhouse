@@ -181,7 +181,7 @@ export function SubscriptionPlans() {
           Access all semester lessons, quizzes, and exams with our comprehensive subscription plans.
         </p>
 
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-4 pb-8">
           <span className={billingCycle === "monthly" ? "font-semibold" : "text-muted-foreground"}>Monthly</span>
           <Switch
             checked={billingCycle === "yearly"}

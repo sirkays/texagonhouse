@@ -1,6 +1,7 @@
+// components/subscription/billing-management.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +21,8 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react"
+
+const API_BASE = "/api/billing"
 
 export function BillingManagement() {
   const [currentPlan] = useState({
@@ -51,65 +54,76 @@ export function BillingManagement() {
     },
   ])
 
-  const [billingHistory] = useState([
-    {
-      id: "inv_001",
-      date: "2024-01-15",
-      amount: 19.99,
-      status: "paid",
-      description: "Premium Plan - Monthly",
-      downloadUrl: "#",
-    },
-    {
-      id: "inv_002",
-      date: "2023-12-15",
-      amount: 19.99,
-      status: "paid",
-      description: "Premium Plan - Monthly",
-      downloadUrl: "#",
-    },
-    {
-      id: "inv_003",
-      date: "2023-11-15",
-      amount: 19.99,
-      status: "paid",
-      description: "Premium Plan - Monthly",
-      downloadUrl: "#",
-    },
-    {
-      id: "inv_004",
-      date: "2023-10-15",
-      amount: 19.99,
-      status: "failed",
-      description: "Premium Plan - Monthly",
-      downloadUrl: "#",
-    },
-  ])
+  const [billingHistory, setBillingHistory] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const getStatusColor = (status: string) => {
+  useEffect(() => {
+    fetchInvoices()
+  }, [])
+
+  const fetchInvoices = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(API_BASE)
+      const data = await response.json()
+      setBillingHistory(data.results.map(invoice => ({
+        id: invoice.number,
+        date: invoice.issued_at.split('T')[0],
+        amount: parseFloat(invoice.amount),
+        status: invoice.status,
+        description: "Subscription Invoice",
+        downloadUrl: "#",
+      })))
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error)
+    }
+    setLoading(false)
+  }
+
+  const handlePayInvoice = async (invoiceId) => {
+    try {
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice_id: invoiceId,
+          redirect_url: "https://texagon.epichouse.online/login",
+        }),
+      })
+      const data = await response.json()
+      if (data.payment_link) {
+        window.location.href = data.payment_link
+      }
+    } catch (error) {
+      console.error("Failed to create payment:", error)
+    }
+  }
+
+  const getStatusColor = (status) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-700"
+      case "open":
+        return "bg-yellow-100 text-yellow-700"
       case "paid":
         return "bg-green-100 text-green-700"
-      case "failed":
+      case "void":
+      case "uncollectible":
         return "bg-red-100 text-red-700"
-      case "pending":
-        return "bg-yellow-100 text-yellow-700"
       default:
         return "bg-gray-100 text-gray-700"
     }
   }
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status) => {
     switch (status) {
       case "active":
+      case "open":
+        return <Clock className="h-4 w-4" />
       case "paid":
         return <CheckCircle className="h-4 w-4" />
-      case "failed":
+      case "void":
+      case "uncollectible":
         return <AlertCircle className="h-4 w-4" />
-      case "pending":
-        return <Clock className="h-4 w-4" />
       default:
         return null
     }
@@ -122,7 +136,6 @@ export function BillingManagement() {
         <p className="text-muted-foreground">Manage your subscription and billing information</p>
       </div>
 
-      {/* Current Subscription Overview */}
       <Card>
         <CardHeader>
           <CardTitle>Current Subscription</CardTitle>
@@ -146,7 +159,7 @@ export function BillingManagement() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Price</span>
                 <span className="font-semibold">
-                  ${currentPlan.price}/{currentPlan.billingCycle}
+                  ₦{currentPlan.price}/{currentPlan.billingCycle}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -288,34 +301,43 @@ export function BillingManagement() {
               <CardDescription>View and download your invoices</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {billingHistory.map((invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{invoice.description}</span>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(invoice.status)}
-                            {invoice.status}
-                          </div>
-                        </Badge>
+              {loading ? (
+                <p>Loading invoices...</p>
+              ) : (
+                <div className="space-y-4">
+                  {billingHistory.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{invoice.description}</span>
+                          <Badge className={getStatusColor(invoice.status)}>
+                            <div className="flex items-center gap-1">
+                              {getStatusIcon(invoice.status)}
+                              {invoice.status}
+                            </div>
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{invoice.date}</span>
+                          <span>Invoice #{invoice.id}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{invoice.date}</span>
-                        <span>Invoice #{invoice.id}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold">₦{invoice.amount}</span>
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-3 w-3" />
+                          Download
+                        </Button>
+                        {["active", "open"].includes(invoice.status) && (
+                          <Button size="sm" onClick={() => handlePayInvoice(invoice.id)}>
+                            Pay Now
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-semibold">${invoice.amount}</span>
-                      <Button variant="outline" size="sm">
-                        <Download className="mr-2 h-3 w-3" />
-                        Download
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
