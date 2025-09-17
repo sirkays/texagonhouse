@@ -1,11 +1,11 @@
 "use client";
 
-import {useSession} from "next-auth/react";
-import {useStreamVideoClient} from "@stream-io/video-react-sdk";
-import {useRouter} from "next/navigation";
-import {Button} from "@/components/ui/button";
+import { useSession } from "next-auth/react";
+import { useStreamVideoClient } from "@stream-io/video-react-sdk";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import {toast} from "sonner";
+import { toast } from "sonner";
 
 const PersonalMeetingInfo = ({
   title,
@@ -28,28 +28,80 @@ const PersonalMeetingInfo = ({
 
 const MyRoomPage = () => {
   const router = useRouter();
-  const {data: session} = useSession();
+  const { data: session } = useSession();
   const client = useStreamVideoClient();
 
   const user = session?.user;
-  const meetingId = user?.id;
+  const meetingId = `personal-${user?.id}-${Date.now()}`; // Unique ID to avoid reusing ended calls
 
   const startRoom = async () => {
-    if (!client || !user || !meetingId) return;
+    if (!client || !user || !meetingId) {
+      toast.error("Cannot start meeting: Missing client, user, or meeting ID", {
+        duration: 4000,
+        className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+      });
+      console.error("[MyRoomPage] Missing data:", { client, user, meetingId });
+      return;
+    }
 
-    const personalCall = client.call("default", String(meetingId));
-    await personalCall.getOrCreate({
-      data: {
-        starts_at: new Date().toISOString(),
-      },
-    });
+    try {
+      const personalCall = client.call("default", meetingId);
+      console.log("[MyRoomPage] Creating call with ID:", meetingId);
+      await personalCall.getOrCreate({
+        data: {
+          starts_at: new Date().toISOString(),
+          custom: {
+            title: `${user.name || user.email?.split("@")[0] || "User"}'s Meeting`,
+            description: `${user.name || user.email?.split("@")[0] || "User"}'s Personal Meeting Room`,
+          },
+        },
+      });
+      console.log("[MyRoomPage] Call created, checking state...");
+      const callData = await personalCall.get();
+      console.log("[MyRoomPage] Call state:", {
+        createdAt: callData.call.created_at,
+        endedAt: callData.call.ended_at,
+      });
 
-    router.push(`/main/meeting/${meetingId}`);
+      if (callData.call.ended_at) {
+        toast.error("Meeting already ended, creating a new one", {
+          duration: 4000,
+          className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+        });
+        // Recreate the call with a new ID
+        const newMeetingId = `personal-${user.id}-${Date.now()}`;
+        const newCall = client.call("default", newMeetingId);
+        await newCall.getOrCreate({
+          data: {
+            starts_at: new Date().toISOString(),
+            custom: {
+              title: `${user.name || user.email?.split("@")[0] || "User"}'s Meeting`,
+              description: `${user.name || user.email?.split("@")[0] || "User"}'s Personal Meeting Room`,
+            },
+          },
+        });
+        await newCall.join({ create: false });
+        console.log("[MyRoomPage] New call created, navigating to:", `/main/meeting/${newMeetingId}`);
+        router.push(`/main/meeting/${newMeetingId}`);
+        return;
+      }
+
+      await personalCall.join({ create: false });
+      console.log("[MyRoomPage] Joined call, navigating to:", `/main/meeting/${meetingId}`);
+      router.push(`/main/meeting/${meetingId}`);
+    } catch (err: any) {
+      toast.error(`Failed to start meeting: ${err.message}`, {
+        duration: 4000,
+        className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+      });
+      console.error("[MyRoomPage] Error starting meeting:", err);
+      if (err.message.includes("Unauthorized") || err.message.includes("Session")) {
+        router.push("/login");
+      }
+    }
   };
 
-  const meetingLink = `https://texagon.epichouse.online/main/meeting/${
-    meetingId || "unknown"
-  }`;
+  const meetingLink = `https://texagon.epichouse.online/main/meeting/${meetingId || "unknown"}`;
 
   return (
     <section className="flex size-full flex-col gap-10 text-white animate-fade-in">
