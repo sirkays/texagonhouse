@@ -3,23 +3,28 @@
 import {useCall, useCallStateHooks} from "@stream-io/video-react-sdk";
 import {useRouter} from "next/navigation";
 import {Button} from "../ui/button";
+import {cn} from "@/lib/utils";
 
-const EndCallButton = () => {
+export type EndCallButtonProps = {
+  className?: string;
+};
+
+const EndCallButton = ({className}: EndCallButtonProps) => {
   const router = useRouter();
   const call = useCall();
-  if (!call)
+
+  if (!call) {
     throw new Error(
-      "useStreamCall must be used within a StreamCall component."
+      "EndCallButton must be used inside a StreamCall component."
     );
+  }
 
   const {useLocalParticipant} = useCallStateHooks();
-
   const localParticipant = useLocalParticipant();
 
   const isMeetingOwner =
-    localParticipant &&
-    call.state.createdBy &&
-    localParticipant.userId === call.state.createdBy.id;
+    localParticipant?.userId &&
+    call.state.createdBy?.id === localParticipant.userId;
 
   if (!isMeetingOwner) return null;
 
@@ -29,7 +34,10 @@ const EndCallButton = () => {
   };
 
   return (
-    <Button onClick={endCall} className="bg-red-500">
+    <Button
+      onClick={endCall}
+      variant="destructive"
+      className={cn("bg-red-600 hover:bg-red-700 text-white", className)}>
       End call for everyone
     </Button>
   );
