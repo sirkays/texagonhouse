@@ -533,8 +533,8 @@ const deleteQuestion = async (testId: string, questionId: string) => {
 
   return (
     <div className="space-y-6">
-      {(loadingTests || isSaving) && (
-          <div className="flex min-h-screen items-center justify-center bg-background">
+      {(loadingTests) && (
+          <div className="flex fixed inset-0 z-50 items-center justify-center bg-background">
         <Spinner size="md" className="text-black" />
       </div>
       )}
