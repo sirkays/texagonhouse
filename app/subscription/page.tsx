@@ -2,19 +2,27 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SubscriptionPlans } from "@/components/subscription/subscription-plans"
 import { BillingManagement } from "@/components/subscription/billing-management"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertTriangle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CheckCircle, AlertTriangle, X } from "lucide-react"
+
+// Force dynamic rendering to avoid SSG prerendering issues
+export const dynamic = "force-dynamic"
 
 const API_BASE = "/api/billing"
 
-export default function SubscriptionPage() {
+function SubscriptionContent() {
   const [activeTab, setActiveTab] = useState("plans")
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState(null)
+  const [confirmationStatus, setConfirmationStatus] = useState(null) // null, "success", or "error"
+  const [confirmationMessage, setConfirmationMessage] = useState("")
 
   useEffect(() => {
     const confirmPayment = async () => {
@@ -42,28 +50,41 @@ export default function SubscriptionPage() {
             if (data.status === "success") {
               console.log("[SubscriptionPage] Payment confirmed successfully")
               localStorage.removeItem("pendingInvoiceId") // Clear stored invoice_id
-              // Redirect to confirmation page with success status
-              router.push("/subscription/confirmation?status=success")
+              setConfirmationStatus("success")
+              setConfirmationMessage("Your payment has been successfully processed. Thank you for your subscription!")
+              // Clear query parameters
+              router.replace("/subscription")
             } else {
-              setError("Payment confirmation failed")
+              setConfirmationStatus("error")
+              setConfirmationMessage("Payment confirmation failed. Please try again or contact support.")
               console.error("[SubscriptionPage] Payment confirmation failed:", data)
-              router.push("/subscription/confirmation?status=error")
+              localStorage.removeItem("pendingInvoiceId")
+              router.replace("/subscription")
             }
           } catch (error) {
-            setError("Failed to confirm payment")
+            setConfirmationStatus("error")
+            setConfirmationMessage("Failed to confirm payment. Please try again or contact support.")
             console.error("[SubscriptionPage] Failed to confirm payment:", error)
-            router.push("/subscription/confirmation?status=error")
+            localStorage.removeItem("pendingInvoiceId")
+            router.replace("/subscription")
           }
         } else {
-          setError("Payment was not successful")
+          setConfirmationStatus("error")
+          setConfirmationMessage("Payment was not successful. Please try again or contact support.")
           console.error("[SubscriptionPage] Payment status:", status)
-          router.push("/subscription/confirmation?status=error")
+          localStorage.removeItem("pendingInvoiceId")
+          router.replace("/subscription")
         }
       }
     }
 
     confirmPayment()
   }, [searchParams, router])
+
+  const closeConfirmationModal = () => {
+    setConfirmationStatus(null)
+    setConfirmationMessage("")
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -89,7 +110,44 @@ export default function SubscriptionPage() {
             <BillingManagement />
           </TabsContent>
         </Tabs>
+
+        {confirmationStatus && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle>Payment Confirmation</CardTitle>
+                <Button variant="ghost" size="sm" onClick={closeConfirmationModal}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert variant={confirmationStatus === "success" ? "success" : "destructive"}>
+                  {confirmationStatus === "success" ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4" />
+                  )}
+                  <AlertTitle>
+                    {confirmationStatus === "success" ? "Payment Successful" : "Payment Failed"}
+                  </AlertTitle>
+                  <AlertDescription>{confirmationMessage}</AlertDescription>
+                </Alert>
+                <Button className="w-full" onClick={closeConfirmationModal}>
+                  Close
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <SubscriptionContent />
+    </Suspense>
   )
 }
