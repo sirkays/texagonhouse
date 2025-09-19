@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -45,8 +46,8 @@ export async function POST(req) {
     console.log("[TeacherModulesCreateAPI] Request body:", body);
 
     // Validate required fields
-    const { title, course_id, categoryId, difficulty, estimatedDuration } = body;
-    if (!title || !course_id || !categoryId || !difficulty || !estimatedDuration) {
+    const { title, course_id, categoryId, difficulty, estimatedDuration, order } = body;
+    if (!title || !course_id || !categoryId || !difficulty || !estimatedDuration || !order) {
       console.log("[TeacherModulesCreateAPI] Missing required fields");
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -101,8 +102,21 @@ export async function POST(req) {
           }
         );
       }
+      // Handle duplicate order error
+      if (response.status === 400 && rawResponse.includes("duplicate key value violates unique constraint")) {
+        return NextResponse.json(
+          { error: "Duplicate order for this course" },
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
+          }
+        );
+      }
       return NextResponse.json(
-        { error: "Failed to create module" },
+        { error: "Failed to create module", details: rawResponse },
         {
           status: response.status,
           headers: {

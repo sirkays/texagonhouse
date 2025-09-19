@@ -80,7 +80,7 @@ interface Module {
   title: string;
   description: string;
   type: "video" | "audio" | "document" | "tutorial";
-  duration: string;
+  duration: number; // Store duration as minutes internally
   difficulty: "Beginner" | "Intermediate" | "Advanced";
   category?: string;
   enrollments: number;
@@ -136,10 +136,10 @@ const durationToMinutes = (duration: string): number => {
 };
 
 const minutesToDuration = (minutes: number): string => {
-  if (!minutes) return "";
+  if (!minutes) return "0m";
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return `${hours}h ${mins}m`;
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
 const formatDate = (dateString: string | undefined): string => {
@@ -600,7 +600,7 @@ export function TeacherLearningModules() {
         categoryId: categories.find((c) => c.name === currentModule.category)
           ?.id,
         difficulty: currentModule.difficulty.toLowerCase(),
-        estimatedDuration: durationToMinutes(currentModule.duration),
+        estimatedDuration: minutesToDuration(currentModule.duration), // Convert to string
         order: currentModule.order,
         active: currentModule.active,
       };
@@ -615,6 +615,15 @@ export function TeacherLearningModules() {
           window.location.href = errorData.redirect;
           return;
         }
+        if (
+          response.status === 400 &&
+          errorData.error.includes("duplicate order")
+        ) {
+          setError(
+            "The specified order already exists for this course. Please choose a different order."
+          );
+          return;
+        }
         throw new Error(errorData.error || "Failed to create module");
       }
       const data: APIModule = await response.json();
@@ -623,7 +632,7 @@ export function TeacherLearningModules() {
         title: data.title,
         description: data.description,
         type: currentModule.type,
-        duration: minutesToDuration(data.estimatedDuration),
+        duration: durationToMinutes(data.estimatedDuration), // Convert back to number
         difficulty:
           data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1),
         category: data.category?.name || "Uncategorized",
@@ -647,7 +656,7 @@ export function TeacherLearningModules() {
         title: "",
         description: "",
         type: "video",
-        duration: "",
+        duration: 0, // Initialize as number
         difficulty: "Beginner",
         category: undefined,
         enrollments: 0,
@@ -694,7 +703,8 @@ export function TeacherLearningModules() {
         title: currentModule.title,
         description: currentModule.description,
         difficulty: currentModule.difficulty.toLowerCase(),
-        estimated_duration: durationToMinutes(currentModule.duration),
+        estimated_duration: minutesToDuration(currentModule.duration), // Convert to string
+        order: currentModule.order,
       };
       const response = await fetch(
         `${BASE_URL}/modules/${currentModule.id}/update/`,
@@ -710,6 +720,15 @@ export function TeacherLearningModules() {
           window.location.href = errorData.redirect;
           return;
         }
+        if (
+          response.status === 400 &&
+          errorData.error.includes("duplicate order")
+        ) {
+          setError(
+            "The specified order already exists for this course. Please choose a different order."
+          );
+          return;
+        }
         throw new Error(errorData.error || "Failed to update module");
       }
       const data: { module: APIModule } = await response.json();
@@ -718,7 +737,7 @@ export function TeacherLearningModules() {
         title: data.module.title,
         description: data.module.description,
         type: currentModule.type,
-        duration: minutesToDuration(data.module.estimatedDuration),
+        duration: durationToMinutes(data.module.estimatedDuration), // Convert back to number
         difficulty:
           data.module.difficulty.charAt(0).toUpperCase() +
           data.module.difficulty.slice(1),
@@ -745,7 +764,7 @@ export function TeacherLearningModules() {
         title: "",
         description: "",
         type: "video",
-        duration: "",
+        duration: 0, // Initialize as number
         difficulty: "Beginner",
         category: undefined,
         enrollments: 0,
@@ -1397,18 +1416,20 @@ export function TeacherLearningModules() {
                       htmlFor="duration"
                       className="text-xs xs:text-sm sm:text-base"
                     >
-                      Estimated Duration
+                      Estimated Duration (minutes)
                     </Label>
                     <Input
                       id="duration"
-                      value={currentModule.duration}
+                      type="number"
+                      min="0"
+                      value={currentModule.duration || ""}
                       onChange={(e) =>
                         setCurrentModule((prev) => ({
                           ...prev,
-                          duration: e.target.value,
+                          duration: parseInt(e.target.value) || 0,
                         }))
                       }
-                      placeholder="e.g., 4h 30m"
+                      placeholder="e.g., 270"
                       className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>

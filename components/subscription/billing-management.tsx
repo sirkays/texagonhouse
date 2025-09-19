@@ -1,7 +1,7 @@
-// components/subscription/billing-management.tsx
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   CreditCard,
   Download,
@@ -20,11 +21,14 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  AlertTriangle,
 } from "lucide-react"
 
 const API_BASE = "/api/billing"
 
 export function BillingManagement() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentPlan] = useState({
     name: "Premium",
     price: 19.99,
@@ -56,15 +60,72 @@ export function BillingManagement() {
 
   const [billingHistory, setBillingHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [paymentStatus, setPaymentStatus] = useState(null) // Track payment confirmation status
+  const [error, setError] = useState(null) // Track errors
 
   useEffect(() => {
+    const confirmPayment = async () => {
+      const status = searchParams.get("status")
+      const txRef = searchParams.get("tx_ref")
+      const transactionId = searchParams.get("transaction_id")
+      const invoiceId = searchParams.get("invoice_id")
+
+      // Log warning for malformed redirect URL
+      const currentUrl = window.location.href
+      if (currentUrl.includes("https://texagonbackend.epichouse.onlinehttps")) {
+        console.warn("[BillingManagement] Malformed redirect URL detected:", currentUrl)
+        console.warn("[BillingManagement] Expected redirect to:", "https://texagon.epichouse.online/login")
+      }
+
+      if (status && txRef && transactionId && invoiceId) {
+        if (status === "successful") {
+          try {
+            const response = await fetch(`${API_BASE}?action=confirm`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                invoice_id: invoiceId,
+                tx_ref: txRef,
+                transaction_id: transactionId,
+              }),
+            })
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`)
+            }
+            const data = await response.json()
+            if (data.status === "success") {
+              setPaymentStatus("Payment confirmed successfully")
+              console.log("[BillingManagement] Payment confirmed successfully")
+              // Refresh invoices to reflect updated status
+              await fetchInvoices()
+              // Clear query params
+              router.replace("/subscription")
+            } else {
+              setError("Payment confirmation failed")
+              console.error("[BillingManagement] Payment confirmation failed:", data)
+            }
+          } catch (error) {
+            setError("Failed to confirm payment")
+            console.error("[BillingManagement] Failed to confirm payment:", error)
+          }
+        } else {
+          setError("Payment was not successful")
+          console.error("[BillingManagement] Payment status:", status)
+        }
+      }
+    }
+
     fetchInvoices()
-  }, [])
+    confirmPayment()
+  }, [searchParams, router])
 
   const fetchInvoices = async () => {
     setLoading(true)
     try {
       const response = await fetch(API_BASE)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
       const data = await response.json()
       setBillingHistory(data.results.map(invoice => ({
         id: invoice.number,
@@ -75,7 +136,8 @@ export function BillingManagement() {
         downloadUrl: "#",
       })))
     } catch (error) {
-      console.error("Failed to fetch invoices:", error)
+      console.error("[BillingManagement] Failed to fetch invoices:", error)
+      setError("Failed to fetch invoices")
     }
     setLoading(false)
   }
@@ -90,12 +152,19 @@ export function BillingManagement() {
           redirect_url: "https://texagon.epichouse.online/login",
         }),
       })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
       const data = await response.json()
       if (data.payment_link) {
         window.location.href = data.payment_link
+      } else {
+        console.error("[BillingManagement] No payment link received:", data)
+        setError("Failed to create payment link")
       }
     } catch (error) {
-      console.error("Failed to create payment:", error)
+      console.error("[BillingManagement] Failed to create payment:", error)
+      setError("Failed to create payment")
     }
   }
 
@@ -135,6 +204,22 @@ export function BillingManagement() {
         <h1 className="text-3xl font-bold">Billing & Subscription</h1>
         <p className="text-muted-foreground">Manage your subscription and billing information</p>
       </div>
+
+      {paymentStatus && (
+        <Alert variant="success">
+          <CheckCircle className="h-4 w-4" />
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>{paymentStatus}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>

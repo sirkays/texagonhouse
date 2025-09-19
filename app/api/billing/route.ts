@@ -1,10 +1,9 @@
-// app/api/billing/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.epichouse.online"; // Local endpoint for testing
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
@@ -153,7 +152,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   noStore();
-  const endpoint = "/billing/api/create/subscription/payment/";
+  const { searchParams } = new URL(req.url);
+  const endpoint = searchParams.get("action") === "confirm" 
+    ? "/billing/api/confirm/payment/" 
+    : "/billing/api/create/subscription/payment/";
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[BillingAPI] Initiating POST for:", fullUrl);
 
@@ -227,7 +229,7 @@ export async function POST(req: Request) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to create payment" },
+        { error: `Failed to ${searchParams.get("action") === "confirm" ? "confirm payment" : "create payment"}` },
         {
           status: response.status,
           headers: {
@@ -271,7 +273,7 @@ export async function POST(req: Request) {
 
     console.log("[BillingAPI] Post successful:", data);
     return NextResponse.json(data, {
-      status: 200,
+      status: searchParams.get("action") === "confirm" ? 200 : 201, // Match expected status codes
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -282,7 +284,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("[BillingAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to create payment", details: (error as Error).message },
+      { error: `Failed to ${searchParams.get("action") === "confirm" ? "confirm payment" : "create payment"}`, details: (error as Error).message },
       {
         status: 500,
         headers: {
