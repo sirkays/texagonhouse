@@ -273,7 +273,7 @@ export async function POST(req: Request) {
 
     console.log("[BillingAPI] Post successful:", data);
     return NextResponse.json(data, {
-      status: searchParams.get("action") === "confirm" ? 200 : 201, // Match expected status codes
+      status: searchParams.get("action") === "confirm" ? 200 : 201,
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",

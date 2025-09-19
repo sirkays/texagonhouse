@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,8 +26,6 @@ import {
 const API_BASE = "/api/billing"
 
 export function BillingManagement() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const [currentPlan] = useState({
     name: "Premium",
     price: 19.99,
@@ -60,64 +57,11 @@ export function BillingManagement() {
 
   const [billingHistory, setBillingHistory] = useState([])
   const [loading, setLoading] = useState(true)
-  const [paymentStatus, setPaymentStatus] = useState(null) // Track payment confirmation status
-  const [error, setError] = useState(null) // Track errors
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const confirmPayment = async () => {
-      const status = searchParams.get("status")
-      const txRef = searchParams.get("tx_ref")
-      const transactionId = searchParams.get("transaction_id")
-      const invoiceId = searchParams.get("invoice_id")
-
-      // Log warning for malformed redirect URL
-      const currentUrl = window.location.href
-      if (currentUrl.includes("https://texagonbackend.epichouse.onlinehttps")) {
-        console.warn("[BillingManagement] Malformed redirect URL detected:", currentUrl)
-        console.warn("[BillingManagement] Expected redirect to:", "https://texagon.epichouse.online/login")
-      }
-
-      if (status && txRef && transactionId && invoiceId) {
-        if (status === "successful") {
-          try {
-            const response = await fetch(`${API_BASE}?action=confirm`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                invoice_id: invoiceId,
-                tx_ref: txRef,
-                transaction_id: transactionId,
-              }),
-            })
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const data = await response.json()
-            if (data.status === "success") {
-              setPaymentStatus("Payment confirmed successfully")
-              console.log("[BillingManagement] Payment confirmed successfully")
-              // Refresh invoices to reflect updated status
-              await fetchInvoices()
-              // Clear query params
-              router.replace("/subscription")
-            } else {
-              setError("Payment confirmation failed")
-              console.error("[BillingManagement] Payment confirmation failed:", data)
-            }
-          } catch (error) {
-            setError("Failed to confirm payment")
-            console.error("[BillingManagement] Failed to confirm payment:", error)
-          }
-        } else {
-          setError("Payment was not successful")
-          console.error("[BillingManagement] Payment status:", status)
-        }
-      }
-    }
-
     fetchInvoices()
-    confirmPayment()
-  }, [searchParams, router])
+  }, [])
 
   const fetchInvoices = async () => {
     setLoading(true)
@@ -144,12 +88,14 @@ export function BillingManagement() {
 
   const handlePayInvoice = async (invoiceId) => {
     try {
+      // Store invoice_id in localStorage before redirecting
+      localStorage.setItem("pendingInvoiceId", invoiceId)
       const response = await fetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           invoice_id: invoiceId,
-          redirect_url: "https://texagon.epichouse.online/login",
+          redirect_url: "https://texagon.epichouse.online/subscription",
         }),
       })
       if (!response.ok) {
@@ -165,6 +111,7 @@ export function BillingManagement() {
     } catch (error) {
       console.error("[BillingManagement] Failed to create payment:", error)
       setError("Failed to create payment")
+      localStorage.removeItem("pendingInvoiceId") // Clean up on error
     }
   }
 
@@ -204,14 +151,6 @@ export function BillingManagement() {
         <h1 className="text-3xl font-bold">Billing & Subscription</h1>
         <p className="text-muted-foreground">Manage your subscription and billing information</p>
       </div>
-
-      {paymentStatus && (
-        <Alert variant="success">
-          <CheckCircle className="h-4 w-4" />
-          <AlertTitle>Success</AlertTitle>
-          <AlertDescription>{paymentStatus}</AlertDescription>
-        </Alert>
-      )}
 
       {error && (
         <Alert variant="destructive">
