@@ -42,17 +42,17 @@ export default function Home() {
       <div
         className="min-h-screen bg-[#000000] flex flex-col items-center justify-center overflow-hidden relative"
         style={{
-          backgroundImage: "url(/banner_splash.png)",
+          backgroundImage: "url(/bck_banner.png)",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}>
         {/* Glassy Blur Overlay */}
-        <div className="absolute inset-0 backdrop-blur-sm bg-black/60 z-10"></div>
+        <div className="absolute inset-0 backdrop-blur-sm bg-black/30 z-10"></div>
 
         {/* Splash Screen */}
         {isSplashVisible && (
-          <div className="fixed inset-0 flex items-center justify-center bg-[#11111c] backdrop-blur-lg z-50 transition-opacity duration-500">
+          <div className="fixed inset-0 flex items-center justify-center bg-[#00000019] backdrop-blur-lg z-50 transition-opacity duration-500">
             <Image
               src="/T2.png"
               alt="TECHXAGON Logo"
@@ -69,7 +69,7 @@ export default function Home() {
           className={`w-full h-screen flex items-center justify-center transition-opacity duration-1000 relative z-20 ${
             isSplashVisible ? "opacity-0" : "opacity-100"
           }`}>
-          <div className="w-full max-w-4xl mx-4 p-6 sm:p-10 backdrop-blur-xl bg-[#49555]/10 rounded-2xl shadow-2xl">
+          <div className="w-full max-w-4xl mx-4 p-6 sm:p-10 backdrop-blur-xl bg-[#ffffff3a] rounded-2xl shadow-2xl">
             <Image
               src="/T2.png"
               alt="TECHXAGON Logo"
@@ -81,7 +81,7 @@ export default function Home() {
             <div className="flex items-center justify-center gap-4">
               <a
                 href="/login"
-                className={`inline-flex items-center px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg font-semibold text-white bg-[#1d4155]/70 backdrop-blur-md rounded-xl hover:bg-[#1d4164]/90 transition-all duration-300 shadow-lg ${
+                className={`inline-flex items-center px-6 py-3 sm:px-16 sm:py-3 text-base sm:text-lg font-semibold text-white bg-gradient-to-r from-[#EF7B55] to-[#F9D282] hover:from-[#EF7B55]/90 hover:to-[#F9D282]/90 backdrop-blur-md rounded-xl transition-all duration-300 shadow-lg ${
                   isBouncing ? "animate-[bounce_1s_ease-in-out_infinite]" : ""
                 }`}
                 aria-label="Sign in to TECHXAGON">
@@ -124,3 +124,32 @@ export default function Home() {
     </>
   );
 }
+
+// import Head from "next/head";
+
+// export default function Home() {
+//   return (
+//     <div
+//       className="min-h-screen flex items-center justify-center"
+//       style={{
+//         background: "linear-gradient(to right, #DD2701, #F79771, #EF7B55)",
+//       }}>
+//       <Head>
+//         <title>Gradient Landing Page</title>
+//         <meta name="description" content="A simple gradient landing page" />
+//       </Head>
+//       <main className="text-center text-white">
+//         <h1 className="text-4xl font-bold mb-4">Welcome</h1>
+//         <p className="text-lg">
+//           This is a gradient landing page built with Next.js and Tailwind CSS.
+//         </p>
+//       </main>
+//     </div>
+//   );
+// }
+
+//       `}</style>
+//     </div>
+//   </>
+// );
+// }

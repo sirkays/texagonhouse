@@ -68,15 +68,18 @@ export default function LoginPage() {
     <div
       className="flex min-h-screen w-full items-center justify-center px-4 sm:px-6 lg:px-8"
       style={{
-        backgroundImage: "url('')",
+        backgroundImage: "url('/landing.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         backgroundColor: "#",
       }}>
+      {/* Glassy Blur Overlay */}
+      <div className="absolute inset-0 backdrop-blur-sm bg-black/50"></div>
+
       <div
-        className="bg-white/10 backdrop-blur-md w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-xl shadow-lg p-6 sm:p-8"
-        style={{boxShadow: "0 4px 15px rgba(220, 225, 220, 0.2)"}}>
+        className="backdrop-blur-md bg-white w-full max-w-[90vw] sm:max-w-md lg:max-w-lg rounded-xl p-6 sm:p-8"
+        style={{boxShadow: "0 4px 15px rgba(225, 225, 225)"}}>
         <div className="flex flex-col items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex flex-wrap justify-center gap-5">
             <Image
@@ -88,7 +91,7 @@ export default function LoginPage() {
             <div className="gap-5 pt-2 text-gray-800">
               <h1 className="font-bold sm:text-xl">TECHXAGON ACADEMY</h1>
 
-              <hr className="mt-1 mb-1" />
+              <hr className="mt-1 mb-1 border-t border-gray-800 " />
 
               <h4 className=" text-[14px]">Readying the Future</h4>
             </div>
@@ -98,14 +101,14 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-3">
             <div className="relative">
-              <Mail className="absolute left-3 top-3 h-5 w-5 text-[#EF7B55]" />
+              <Mail className="absolute left-3 top-4 h-5 w-5" />
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent focus:bg-transparent text-black pl-12 pr-3 py-2 border border-[#EF7B55]/30 rounded-lg focus:ring-2 focus:ring-[#EF7B55] focus:border-transparent transition-all duration-200"
+                className="bg-transparent focus:bg-transparent md:text-md text-black pl-12 pr-3 py-6 border border-[#E95F39]/90 rounded-lg focus:ring-2 focus:ring-[#EF7B55] focus:border-transparent transition-all duration-200"
                 required
               />
             </div>
@@ -113,20 +116,20 @@ export default function LoginPage() {
 
           <div className="space-y-3">
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-[#EF7B55]" />
+              <Lock className="absolute left-3 top-4 h-5 w-5" />
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent focus:bg-transparent text-black pl-12 pr-10 py-2 border border-[#EF7B55]/30 rounded-lg focus:ring-2 focus:ring-[#EF7B55] focus:border-transparent transition-all duration-200"
+                className="bg-transparent focus:bg-transparent md:text-md text-black pl-12 pr-10 py-6 border border-[#E95F39]/90 rounded-lg focus:ring-2 focus:ring-[#EF7B55] focus:border-transparent transition-all duration-200"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 h-5 w-5 text-white/60 hover:text-white transition-colors">
+                className="absolute right-3 top-4 h-5 w-5 transition-colors">
                 {showPassword ? (
                   <EyeOff className="h-4" />
                 ) : (
@@ -144,7 +147,7 @@ export default function LoginPage() {
 
           <Button
             type="submit"
-            className="w-full py-2 text-sm font-semibold bg-gradient-to-r from-[#EF7B55] to-[#FF8A65] hover:from-[#EF7B55]/90 hover:to-[#FF8A65]/90 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+            className="w-full py-7 text-[18px] font-bold bg-gradient-to-r from-[#DD2701] to-[#F9D282] hover:from-[#DD2701]/90 hover:to-[#F9D282]/100 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
             disabled={loading}>
             {loading ? <Spinner size="md" className="text-white" /> : "Sign In"}
           </Button>
