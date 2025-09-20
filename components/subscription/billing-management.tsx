@@ -93,7 +93,7 @@ export function BillingManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           invoice_id: invoiceId,
-          redirect_url: `http://localhost:3000/subscription?invoice_id=${encodeURIComponent(invoiceId)}`,
+          redirect_url: `https://texagon.epichouse.online/subscription?invoice_id=${encodeURIComponent(invoiceId)}`,
         }),
       })
       if (!response.ok) {
