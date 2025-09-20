@@ -1,3 +1,4 @@
+// app/api/teacher/assessments/tests/test/[testId]/duplicate/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -27,7 +28,18 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
 
   if (!session?.user?.sessionToken) {
     console.log("[TestDuplicateAPI] No session token found");
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   }
 
   try {
@@ -37,20 +49,89 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
     });
 
     console.log("[TestDuplicateAPI] Response status:", response.status);
+    console.log("[TestDuplicateAPI] Response headers:", Object.fromEntries(response.headers));
+    console.log("[TestDuplicateAPI] Response content-type:", response.headers.get("content-type"));
+
+    const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
     console.log("[TestDuplicateAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
       console.error("[TestDuplicateAPI] Request failed:", response.status, rawResponse.slice(0, 100));
-      if (response.status === 401) return NextResponse.json({ error: "Session expired" }, { status: 401 });
-      return NextResponse.json({ error: "Failed to duplicate test" }, { status: response.status });
+      if (response.status === 401) {
+        return NextResponse.json(
+          { error: "Session expired" },
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
+          }
+        );
+      }
+      if (response.status === 404) {
+        return NextResponse.json(
+          { error: "Test not found" },
+          {
+            status: 404,
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
+          }
+        );
+      }
+      return NextResponse.json(
+        { error: "Failed to duplicate test" },
+        {
+          status: response.status,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
     }
 
-    const data = JSON.parse(rawResponse);
+    if (!contentType.includes("application/json")) {
+      console.error("[TestDuplicateAPI] Non-JSON response received:", contentType);
+      return NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    let data;
+    try {
+      data = JSON.parse(rawResponse);
+    } catch (parseError) {
+      console.error("[TestDuplicateAPI] Failed to parse JSON:", parseError);
+      return NextResponse.json(
+        { error: "Invalid response format" },
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
     const processedData = {
       ...data,
       test: {
         ...data.test,
+        start_at: data.test.start_at || "",
+        end_at: data.test.end_at || "",
+        total_marks: data.test.total_marks || 0,
         questions: data.test.questions?.map((q: any) => ({
           ...q,
           correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
@@ -62,9 +143,26 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
     };
 
     console.log("[TestDuplicateAPI] Test duplicated successfully:", processedData);
-    return NextResponse.json(processedData, { status: 201 });
+    return NextResponse.json(processedData, {
+      status: 201,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
   } catch (error) {
     console.error("[TestDuplicateAPI] Request error:", error);
-    return NextResponse.json({ error: "Failed to duplicate test", details: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to duplicate test", details: error.message },
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 }
