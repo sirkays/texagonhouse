@@ -29,7 +29,7 @@ function SubscriptionContent() {
       const status = searchParams.get("status")
       const txRef = searchParams.get("tx_ref")
       const transactionId = searchParams.get("transaction_id")
-      const invoiceId = localStorage.getItem("pendingInvoiceId") // Retrieve stored invoice_id
+      const invoiceId = searchParams.get("invoice_id") // Retrieve from URL query param
 
       if (status && txRef && transactionId && invoiceId) {
         if (status === "successful") {
@@ -49,7 +49,6 @@ function SubscriptionContent() {
             const data = await response.json()
             if (data.status === "success") {
               console.log("[SubscriptionPage] Payment confirmed successfully")
-              localStorage.removeItem("pendingInvoiceId") // Clear stored invoice_id
               setConfirmationStatus("success")
               setConfirmationMessage("Your payment has been successfully processed. Thank you for your subscription!")
               // Clear query parameters
@@ -58,21 +57,18 @@ function SubscriptionContent() {
               setConfirmationStatus("error")
               setConfirmationMessage("Payment confirmation failed. Please try again or contact support.")
               console.error("[SubscriptionPage] Payment confirmation failed:", data)
-              localStorage.removeItem("pendingInvoiceId")
               router.replace("/subscription")
             }
           } catch (error) {
             setConfirmationStatus("error")
             setConfirmationMessage("Failed to confirm payment. Please try again or contact support.")
             console.error("[SubscriptionPage] Failed to confirm payment:", error)
-            localStorage.removeItem("pendingInvoiceId")
             router.replace("/subscription")
           }
         } else {
           setConfirmationStatus("error")
           setConfirmationMessage("Payment was not successful. Please try again or contact support.")
           console.error("[SubscriptionPage] Payment status:", status)
-          localStorage.removeItem("pendingInvoiceId")
           router.replace("/subscription")
         }
       }

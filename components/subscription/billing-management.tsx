@@ -88,14 +88,12 @@ export function BillingManagement() {
 
   const handlePayInvoice = async (invoiceId) => {
     try {
-      // Store invoice_id in localStorage before redirecting
-      localStorage.setItem("pendingInvoiceId", invoiceId)
       const response = await fetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           invoice_id: invoiceId,
-          redirect_url: "https://texagon.epichouse.online/subscription",
+          redirect_url: `http://localhost:3000/subscription?invoice_id=${encodeURIComponent(invoiceId)}`,
         }),
       })
       if (!response.ok) {
@@ -111,7 +109,6 @@ export function BillingManagement() {
     } catch (error) {
       console.error("[BillingManagement] Failed to create payment:", error)
       setError("Failed to create payment")
-      localStorage.removeItem("pendingInvoiceId") // Clean up on error
     }
   }
 
