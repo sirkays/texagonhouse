@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = "https://texagonbackend.epichouse.online"; // Local endpoint for testing
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
@@ -184,6 +184,7 @@ export async function POST(req: Request) {
   let body;
   try {
     body = await req.json();
+    console.log("[BillingAPI] POST request body:", body);
   } catch (error) {
     console.error("[BillingAPI] Failed to parse request body:", error);
     return NextResponse.json(
