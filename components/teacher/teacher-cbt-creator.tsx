@@ -467,35 +467,39 @@ export function TeacherCBTCreator() {
     }
   };
 
-const deleteQuestion = async (testId: string, questionId: string) => {
-  try {
-    const response = await fetch(`/api/teacher/assessments/tests/test/${testId}/questions/${questionId}/delete`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-    });
+  const deleteQuestion = async (testId: string, questionId: string) => {
+    try {
+      const response = await fetch(
+        `/api/teacher/assessments/tests/test/${testId}/questions/${questionId}/delete`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
 
-
-    const data = await response.json();
-    if (!response.ok) {
-      if (data.error === "Session expired") {
-        router.push("/login");
-        return;
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === "Session expired") {
+          router.push("/login");
+          return;
+        }
+        throw new Error(data.error || "Failed to delete question");
       }
-      throw new Error(data.error || "Failed to delete question");
+      setCurrentTest((prev) => ({
+        ...prev,
+        questions: prev.questions.filter((q) => q.id !== questionId),
+        questionsCount: prev.questionsCount - 1,
+        totalPoints:
+          prev.totalPoints -
+          (prev.questions.find((q) => q.id === questionId)?.points || 0),
+      }));
+      console.log(currentTest.questions);
+      alert("Question deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting question:", error);
+      alert(`Failed to delete question: ${error.message}`);
     }
-    setCurrentTest((prev) => ({
-      ...prev,
-      questions: prev.questions.filter((q) => q.id !== questionId),
-      questionsCount: prev.questionsCount - 1,
-      totalPoints: prev.totalPoints - (prev.questions.find((q) => q.id === questionId)?.points || 0),
-    }));
-    console.log(currentTest.questions);
-    alert("Question deleted successfully!");
-  } catch (error) {
-    console.error("Error deleting question:", error);
-    alert(`Failed to delete question: ${error.message}`);
-  }
-};
+  };
 
   const deleteTest = async (testId: string) => {
     try {
@@ -533,11 +537,6 @@ const deleteQuestion = async (testId: string, questionId: string) => {
 
   return (
     <div className="space-y-6">
-      {(loadingTests) && (
-          <div className="flex fixed inset-0 z-50 items-center justify-center bg-background">
-        <Spinner size="md" className="text-black" />
-      </div>
-      )}
       <div>
         <h1 className="text-3xl font-bold">CBT Test Creator</h1>
         <p className="text-muted-foreground">
@@ -693,14 +692,19 @@ const deleteQuestion = async (testId: string, questionId: string) => {
                     disabled={isSaving}
                   >
                     {isSaving ? (
-                      <Spinner className="mr-2 h-4 w-4" />
+                      <Spinner size="sm" className="mr-2 text-white" />
                     ) : (
                       <Save className="mr-2 h-4 w-4" />
                     )}
                     {isSaving ? "Saving..." : "Save Test"}
                   </Button>
                   <Button
-                    onClick={() => publishTest(currentTest.id, currentTest.isPublished ? false : true)}
+                    onClick={() =>
+                      publishTest(
+                        currentTest.id,
+                        currentTest.isPublished ? false : true
+                      )
+                    }
                     variant="outline"
                     className="w-full bg-transparent shadow-md"
                     disabled={isSaving}
@@ -997,8 +1001,8 @@ const deleteQuestion = async (testId: string, questionId: string) => {
           </div>
 
           {loadingTests ? (
-            <div className="flex justify-center items-center h-32">
-              <Spinner className="text-black"/>
+            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+              <Spinner size="md" className="text-[#f79771]" />
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1222,8 +1226,8 @@ const deleteQuestion = async (testId: string, questionId: string) => {
             </CardHeader>
             <CardContent>
               {loadingTests ? (
-                <div className="flex justify-center items-center h-32">
-                  <Spinner />
+                <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+                  <Spinner size="md" className="text-[#f79771]" />
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1394,7 +1398,9 @@ const deleteQuestion = async (testId: string, questionId: string) => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteQuestion( currentTest.id, question.id)}
+                                onClick={() =>
+                                  deleteQuestion(currentTest.id, question.id)
+                                }
                                 disabled={isSaving}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1664,7 +1670,7 @@ const deleteQuestion = async (testId: string, questionId: string) => {
             </Button>
             <Button onClick={saveTest} disabled={isSaving}>
               {isSaving ? (
-                <Spinner className="mr-2 h-4 w-4" />
+                <Spinner size="sm" className="mr-2 text-white" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}

@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react" // Added to fix JSX parsing
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Spinner } from "@/components/ui/spinner"
 import {
   CreditCard,
   Download,
@@ -58,6 +60,7 @@ export function BillingManagement() {
   const [billingHistory, setBillingHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [payLoading, setPayLoading] = useState({}) // Track loading state for each invoice
 
   useEffect(() => {
     fetchInvoices()
@@ -87,6 +90,7 @@ export function BillingManagement() {
   }
 
   const handlePayInvoice = async (invoiceId) => {
+    setPayLoading(prev => ({ ...prev, [invoiceId]: true }))
     try {
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -109,6 +113,8 @@ export function BillingManagement() {
     } catch (error) {
       console.error("[BillingManagement] Failed to create payment:", error)
       setError("Failed to create payment")
+    } finally {
+      setPayLoading(prev => ({ ...prev, [invoiceId]: false }))
     }
   }
 
@@ -323,7 +329,9 @@ export function BillingManagement() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p>Loading invoices...</p>
+                <div className="flex items-center justify-center py-4">
+                  <Spinner size="md" />
+                </div>
               ) : (
                 <div className="space-y-4">
                   {billingHistory.map((invoice) => (
@@ -350,8 +358,16 @@ export function BillingManagement() {
                           Download
                         </Button>
                         {["active", "open"].includes(invoice.status) && (
-                          <Button size="sm" onClick={() => handlePayInvoice(invoice.id)}>
-                            Pay Now
+                          <Button
+                            size="sm"
+                            onClick={() => handlePayInvoice(invoice.id)}
+                            disabled={payLoading[invoice.id]}
+                          >
+                            {payLoading[invoice.id] ? (
+                              <Spinner size="sm" className="mr-2" />
+                            ) : (
+                              "Pay Now"
+                            )}
                           </Button>
                         )}
                       </div>

@@ -182,6 +182,8 @@ export function TeacherLearningModules() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingLesson, setIsSavingLesson] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState("Beginner");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const modulesPerPage = 3;
@@ -674,6 +676,8 @@ export function TeacherLearningModules() {
       setError(
         (err as Error).message || "An error occurred while saving the module"
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -782,6 +786,8 @@ export function TeacherLearningModules() {
       setError(
         (err as Error).message || "An error occurred while updating the module"
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1108,6 +1114,8 @@ export function TeacherLearningModules() {
         (err as Error).message || "An error occurred while updating the lesson"
       );
       console.error("[updateLesson] Error:", err);
+    } finally { 
+      setIsSavingLesson(false);
     }
   };
 
@@ -1169,8 +1177,8 @@ export function TeacherLearningModules() {
 
         <TabsContent value="create" className="space-y-3 xs:space-y-4">
           {isLoadingCourses || isLoadingCategories ? (
-            <div className="fixed inset-0 flex justify-center items-center bg-white z-50 top-0 left-0">
-              <Spinner className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center" />
+            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+              <Spinner size="md" className="text-[#EF7B55]" />
             </div>
           ) : error ? (
             <div className="text-center py-8 xs:py-12 text-red-500">
@@ -1445,9 +1453,21 @@ export function TeacherLearningModules() {
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
                       className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                      disabled={isSaving}
                     >
-                      <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                      {currentModule.id ? "Update Module" : "Save Module"}
+                      {isSaving ? (
+                        <Spinner
+                          size="sm"
+                          className="mr-1 xs:mr-2 text-white"
+                        />
+                      ) : (
+                        <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      )}
+                      {isSaving
+                        ? "Saving..."
+                        : currentModule.id
+                        ? "Update Module"
+                        : "Save Module"}
                     </Button>
                     <Button
                       onClick={() =>
@@ -1930,10 +1950,20 @@ export function TeacherLearningModules() {
                             : updateLesson(editingLesson.id)
                         }
                         className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                        disabled={isSavingLesson}
                       >
-                        <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                        {typeof editingLesson.id === "string" &&
-                        editingLesson.id.startsWith("temp")
+                        {isSavingLesson ? (
+                          <Spinner
+                            size="sm"
+                            className="mr-1 xs:mr-2 text-white"
+                          />
+                        ) : (
+                          <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                        )}
+                        {isSavingLesson
+                          ? "Saving..."
+                          : typeof editingLesson.id === "string" &&
+                            editingLesson.id.startsWith("temp")
                           ? "Save Lesson"
                           : "Update Lesson"}
                       </Button>
@@ -2014,8 +2044,8 @@ export function TeacherLearningModules() {
           </div>
 
           {isLoadingModules ? (
-            <div className="fixed inset-0 flex justify-center items-center bg-white z-50 -top-10 left-0 ">
-              <Spinner className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center" />
+            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+              <Spinner size="md" className="text-[#EF7B55]" />
             </div>
           ) : error ? (
             <div className="text-center py-8 xs:py-12 text-red-500">
@@ -2230,9 +2260,8 @@ export function TeacherLearningModules() {
 
         <TabsContent value="analytics" className="space-y-3 xs:space-y-4">
           {isLoadingModules ? (
-            <div className="flex justify-center items-center py-8 xs:py-12">
-              {/* <div className="animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-t-2 border-b-2 border-[#EF7B55]"></div> */}
-              <Spinner className=" h-10 w-10 xs:h-12 xs:w-12 text-[#EF7B55]" />
+            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+              <Spinner size="md" className="text-[#EF7B55]" />
             </div>
           ) : error ? (
             <div className="text-center py-8 xs:py-12 text-red-500">
