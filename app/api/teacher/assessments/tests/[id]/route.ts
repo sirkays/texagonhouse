@@ -1,3 +1,4 @@
+// app/api/teacher/assessments/tests/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -125,11 +126,14 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       );
     }
 
-    // Ensure questions have defaults
+    // Ensure questions and new fields have defaults
     const processedData = {
       ...data,
       test: {
         ...data.test,
+        start_at: data.test.start_at || "",
+        end_at: data.test.end_at || "",
+        total_marks: data.test.total_marks || 0,
         questions: data.test.questions?.map((q: any) => ({
           ...q,
           correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),

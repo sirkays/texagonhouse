@@ -1,3 +1,4 @@
+// app/api/teacher/assessments/tests/create/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -47,6 +48,9 @@ export async function POST(req: Request, { params }: { params: { path?: string[]
     // Ensure questions have default correctAnswer values
     const processedBody = {
       ...body,
+      start_at: body.start_at,
+      end_at: body.end_at,
+      total_marks: body.total_marks,
       questions: body.questions?.map((q: any) => ({
         ...q,
         correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
@@ -241,6 +245,9 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
     if (endpoint.includes("/tests/") && !endpoint.includes("/questions/")) {
       processedBody = {
         ...body,
+        start_at: body.start_at,
+        end_at: body.end_at,
+        total_marks: body.total_marks,
         questions: body.questions?.map((q: any) => ({
           ...q,
           correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),

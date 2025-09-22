@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, AlertTriangle, X } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 
 // Force dynamic rendering to avoid SSG prerendering issues
 export const dynamic = "force-dynamic"
@@ -23,57 +24,49 @@ function SubscriptionContent() {
   const [error, setError] = useState(null)
   const [confirmationStatus, setConfirmationStatus] = useState(null) // null, "success", or "error"
   const [confirmationMessage, setConfirmationMessage] = useState("")
+  const [isConfirming, setIsConfirming] = useState(false) // Track POST confirmation loading
 
   useEffect(() => {
     const confirmPayment = async () => {
       const status = searchParams.get("status")
       const txRef = searchParams.get("tx_ref")
       const transactionId = searchParams.get("transaction_id")
-      const invoiceId = localStorage.getItem("pendingInvoiceId") // Retrieve stored invoice_id
+      const invoiceId = searchParams.get("invoice_id") // Retrieve from URL query param
 
       if (status && txRef && transactionId && invoiceId) {
-        if (status === "successful") {
-          try {
-            const response = await fetch(`${API_BASE}?action=confirm`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                invoice_id: invoiceId,
-                tx_ref: txRef,
-                transaction_id: transactionId,
-              }),
-            })
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const data = await response.json()
-            if (data.status === "success") {
-              console.log("[SubscriptionPage] Payment confirmed successfully")
-              localStorage.removeItem("pendingInvoiceId") // Clear stored invoice_id
-              setConfirmationStatus("success")
-              setConfirmationMessage("Your payment has been successfully processed. Thank you for your subscription!")
-              // Clear query parameters
-              router.replace("/subscription")
-            } else {
-              setConfirmationStatus("error")
-              setConfirmationMessage("Payment confirmation failed. Please try again or contact support.")
-              console.error("[SubscriptionPage] Payment confirmation failed:", data)
-              localStorage.removeItem("pendingInvoiceId")
-              router.replace("/subscription")
-            }
-          } catch (error) {
+        setIsConfirming(true)
+        try {
+          const response = await fetch(`${API_BASE}?action=confirm`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              invoice_id: invoiceId,
+              tx_ref: txRef,
+              transaction_id: transactionId,
+            }),
+          })
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          const data = await response.json()
+          if (data.status === "success") {
+            console.log("[SubscriptionPage] Payment confirmed successfully")
+            setConfirmationStatus("success")
+            setConfirmationMessage("Your payment has been successfully processed. Thank you for your subscription!")
+            router.replace("/subscription")
+          } else {
             setConfirmationStatus("error")
-            setConfirmationMessage("Failed to confirm payment. Please try again or contact support.")
-            console.error("[SubscriptionPage] Failed to confirm payment:", error)
-            localStorage.removeItem("pendingInvoiceId")
+            setConfirmationMessage("Payment confirmation failed. Please try again or contact support.")
+            console.error("[SubscriptionPage] Payment confirmation failed:", data)
             router.replace("/subscription")
           }
-        } else {
+        } catch (error) {
           setConfirmationStatus("error")
-          setConfirmationMessage("Payment was not successful. Please try again or contact support.")
-          console.error("[SubscriptionPage] Payment status:", status)
-          localStorage.removeItem("pendingInvoiceId")
+          setConfirmationMessage("Failed to confirm payment. Please try again or contact support.")
+          console.error("[SubscriptionPage] Failed to confirm payment:", error)
           router.replace("/subscription")
+        } finally {
+          setIsConfirming(false)
         }
       }
     }
@@ -111,7 +104,13 @@ function SubscriptionContent() {
           </TabsContent>
         </Tabs>
 
-        {confirmationStatus && (
+        {isConfirming && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {confirmationStatus && !isConfirming && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <Card className="w-full max-w-md">
               <CardHeader className="flex justify-between items-center">

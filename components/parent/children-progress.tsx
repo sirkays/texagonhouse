@@ -243,8 +243,7 @@ export function ChildrenProgress() {
                 <SelectContent>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="term">This Term</SelectItem>
-                  <SelectItem value="year">This Year</SelectItem>
+                
                 </SelectContent>
               </Select>
             </div>
@@ -254,20 +253,7 @@ export function ChildrenProgress() {
 
       {/* Overall Stats */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">
-              Study Hours
-            </CardTitle>
-            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg sm:text-xl font-bold">
-              {overallStats.totalHours}
-            </div>
-            <p className="text-xs text-muted-foreground">This week</p>
-          </CardContent>
-        </Card>
+       
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
@@ -315,14 +301,12 @@ export function ChildrenProgress() {
       <Tabs defaultValue="subjects" className="space-y-4">
         <TabsList className="flex flex-col sm:flex-row gap-2">
           <TabsTrigger className="flex-1 text-xs sm:text-sm" value="subjects">
-            Subject Performance
+            Courses Performance
           </TabsTrigger>
           <TabsTrigger className="flex-1 text-xs sm:text-sm" value="timeline">
             Progress Timeline
           </TabsTrigger>
-          <TabsTrigger className="flex-1 text-xs sm:text-sm" value="comparison">
-            Child Comparison
-          </TabsTrigger>
+          
         </TabsList>
 
         {/* Subjects */}
@@ -425,20 +409,7 @@ export function ChildrenProgress() {
                       {child.name}
                     </h3>
                     <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-4">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
-                          <span className="text-xs sm:text-sm font-medium">
-                            Study Hours
-                          </span>
-                        </div>
-                        <div className="text-base sm:text-lg font-bold">
-                          {child.weeklyStats.hoursStudied}h
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          This week
-                        </div>
-                      </div>
+                     
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
@@ -488,100 +459,7 @@ export function ChildrenProgress() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Comparison */}
-        <TabsContent value="comparison" className="space-y-4">
-          {selectedChild === "all" && children.length > 1 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base sm:text-lg">
-                  Child Comparison
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Compare performance across your children
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-                    {children.map((child) => (
-                      <div
-                        key={child.id}
-                        className="p-4 border rounded-lg space-y-3 bg-background">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                            <AvatarImage
-                              src={child.avatar || "/placeholder.svg"}
-                            />
-                            <AvatarFallback className="text-xs">
-                              {child.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h3 className="font-semibold text-sm sm:text-base">
-                              {child.name}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground">
-                              {child.grade}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs sm:text-sm">
-                            <span>Average Score</span>
-                            <span className="font-medium">
-                              {child.weeklyStats.averageScore}%
-                            </span>
-                          </div>
-                          <Progress
-                            value={child.weeklyStats.averageScore}
-                            className="h-2"
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
-                          <div>
-                            <div className="font-medium">
-                              {child.weeklyStats.hoursStudied}h
-                            </div>
-                            <div className="text-muted-foreground">
-                              Study Time
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium">
-                              {child.weeklyStats.testsCompleted}
-                            </div>
-                            <div className="text-muted-foreground">Tests</div>
-                          </div>
-                          <div>
-                            <div className="font-medium">
-                              {child.weeklyStats.streak}
-                            </div>
-                            <div className="text-muted-foreground">Streak</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="flex items-center justify-center h-32">
-                <div className="text-center text-muted-foreground">
-                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2" />
-                  <p className="text-xs sm:text-sm">
-                    Select "All Children" to compare performance
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+        
       </Tabs>
     </div>
   );

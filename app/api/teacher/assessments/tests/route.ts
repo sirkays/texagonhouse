@@ -1,5 +1,4 @@
 // app/api/teacher/assessments/tests/route.ts
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -9,7 +8,7 @@ const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
@@ -19,7 +18,7 @@ export async function GET(req: Request) {
   const endpoint = "/assessments/api/teacher/tests/";
   const { searchParams } = new URL(req.url);
   const queryString = searchParams.toString();
-  const fullUrl = `${BASE_URL}${endpoint}${queryString ? `?${queryString}` : ''}`;
+  const fullUrl = `${BASE_URL}${endpoint}${queryString ? `?${queryString}` : ""}`;
   console.log("[TeacherTestsAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
@@ -128,8 +127,26 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log("[TeacherTestsAPI] Fetch successful, data:", data);
-    return NextResponse.json(data, {
+    // Ensure tests have defaults for new fields
+    const processedData = {
+      ...data,
+      tests: data.tests?.map((test: any) => ({
+        ...test,
+        start_at: test.start_at || "",
+        end_at: test.end_at || "",
+        total_marks: test.total_marks || 0,
+        questions: test.questions?.map((q: any) => ({
+          ...q,
+          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+          options: q.options || [],
+          explanation: q.explanation || "",
+          difficulty: q.difficulty || "Medium",
+        })) || [],
+      })) || [],
+    };
+
+    console.log("[TeacherTestsAPI] Fetch successful:", processedData);
+    return NextResponse.json(processedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
