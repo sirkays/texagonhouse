@@ -1,11 +1,11 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { useStreamVideoClient } from "@stream-io/video-react-sdk";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import {useSession} from "next-auth/react";
+import {useStreamVideoClient} from "@stream-io/video-react-sdk";
+import {useRouter} from "next/navigation";
+import {Button} from "@/components/ui/button";
 import Image from "next/image";
-import { toast } from "sonner";
+import {toast} from "sonner";
 
 const PersonalMeetingInfo = ({
   title,
@@ -28,7 +28,7 @@ const PersonalMeetingInfo = ({
 
 const MyRoomPage = () => {
   const router = useRouter();
-  const { data: session } = useSession();
+  const {data: session} = useSession();
   const client = useStreamVideoClient();
 
   const user = session?.user;
@@ -40,7 +40,7 @@ const MyRoomPage = () => {
         duration: 4000,
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
-      console.error("[MyRoomPage] Missing data:", { client, user, meetingId });
+      console.error("[MyRoomPage] Missing data:", {client, user, meetingId});
       return;
     }
 
@@ -51,8 +51,12 @@ const MyRoomPage = () => {
         data: {
           starts_at: new Date().toISOString(),
           custom: {
-            title: `${user.name || user.email?.split("@")[0] || "User"}'s Meeting`,
-            description: `${user.name || user.email?.split("@")[0] || "User"}'s Personal Meeting Room`,
+            title: `${
+              user.name || user.email?.split("@")[0] || "User"
+            }'s Meeting`,
+            description: `${
+              user.name || user.email?.split("@")[0] || "User"
+            }'s Personal Meeting Room`,
           },
         },
       });
@@ -75,19 +79,29 @@ const MyRoomPage = () => {
           data: {
             starts_at: new Date().toISOString(),
             custom: {
-              title: `${user.name || user.email?.split("@")[0] || "User"}'s Meeting`,
-              description: `${user.name || user.email?.split("@")[0] || "User"}'s Personal Meeting Room`,
+              title: `${
+                user.name || user.email?.split("@")[0] || "User"
+              }'s Meeting`,
+              description: `${
+                user.name || user.email?.split("@")[0] || "User"
+              }'s Personal Meeting Room`,
             },
           },
         });
-        await newCall.join({ create: false });
-        console.log("[MyRoomPage] New call created, navigating to:", `/main/meeting/${newMeetingId}`);
+        await newCall.join({create: false});
+        console.log(
+          "[MyRoomPage] New call created, navigating to:",
+          `/main/meeting/${newMeetingId}`
+        );
         router.push(`/main/meeting/${newMeetingId}`);
         return;
       }
 
-      await personalCall.join({ create: false });
-      console.log("[MyRoomPage] Joined call, navigating to:", `/main/meeting/${meetingId}`);
+      await personalCall.join({create: false});
+      console.log(
+        "[MyRoomPage] Joined call, navigating to:",
+        `/main/meeting/${meetingId}`
+      );
       router.push(`/main/meeting/${meetingId}`);
     } catch (err: any) {
       toast.error(`Failed to start meeting: ${err.message}`, {
@@ -95,13 +109,18 @@ const MyRoomPage = () => {
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
       console.error("[MyRoomPage] Error starting meeting:", err);
-      if (err.message.includes("Unauthorized") || err.message.includes("Session")) {
+      if (
+        err.message.includes("Unauthorized") ||
+        err.message.includes("Session")
+      ) {
         router.push("/login");
       }
     }
   };
 
-  const meetingLink = `https://texagon.epichouse.online/main/meeting/${meetingId || "unknown"}`;
+  const meetingLink = `https://texagon.epichouse.online/main/meeting/${
+    meetingId || "unknown"
+  }`;
 
   return (
     <section className="flex size-full flex-col gap-10 text-white animate-fade-in">
