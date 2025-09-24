@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   BookOpen,
@@ -24,148 +25,101 @@ import {
   Target,
 } from "lucide-react";
 
+interface Child {
+  id: number;
+  name: string;
+  grade: string;
+  school: string;
+  avatar: string;
+  coursesEnrolled: number;
+  coursesCompleted: number;
+  averageScore: number;
+  weeklyHours: number;
+  lastActive: string;
+  upcomingTest: string;
+  currentStreak: number;
+  totalRewards: number;
+}
+
+interface FamilyStat {
+  title: string;
+  value: string;
+  change: string;
+  icon: string;
+  color: string;
+  bgColor: string;
+}
+
+interface Activity {
+  type: string;
+  child: string;
+  title: string;
+  description: string;
+  time: string;
+  icon: string;
+  color: string;
+}
+
+interface Event {
+  child: string;
+  event: string;
+  date: string;
+  type: string;
+  importance: string;
+}
+
+interface DashboardData {
+  children: Child[];
+  familyStats: FamilyStat[];
+  recentActivity: Activity[];
+  upcomingEvents: Event[];
+}
+
+// Map string icon names to Lucide React components
+const iconMap: { [key: string]: React.ComponentType<any> } = {
+  Baby,
+  Clock,
+  Trophy,
+  CreditCard,
+  Target,
+  AlertCircle,
+  BookOpen,
+  Calendar,
+  TrendingUp,
+  Users,
+};
+
 export function ParentOverview() {
-  const children = [
-    {
-      id: 1,
-      name: "John Adebayo",
-      grade: "SS3",
-      school: "Lagos State Model College",
-      avatar: "/placeholder.svg?height=40&width=40",
-      coursesEnrolled: 8,
-      coursesCompleted: 6,
-      averageScore: 85,
-      weeklyHours: 12,
-      lastActive: "2 hours ago",
-      upcomingTest: "Mathematics Quiz - Tomorrow 2:00 PM",
-      currentStreak: 15,
-      totalRewards: 3,
-    },
-    {
-      id: 2,
-      name: "Mary Adebayo",
-      grade: "SS1",
-      school: "Lagos State Model College",
-      avatar: "/placeholder.svg?height=40&width=40",
-      coursesEnrolled: 6,
-      coursesCompleted: 4,
-      averageScore: 92,
-      weeklyHours: 10,
-      lastActive: "1 hour ago",
-      upcomingTest: "English Literature Test - Friday 10:00 AM",
-      currentStreak: 22,
-      totalRewards: 5,
-    },
-  ];
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const familyStats = [
-    {
-      title: "Total Children",
-      value: children.length.toString(),
-      change: "All active",
-      icon: Baby,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-    {
-      title: "Combined Study Hours",
-      value: children
-        .reduce((sum, child) => sum + child.weeklyHours, 0)
-        .toString(),
-      change: "This week",
-      icon: Clock,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
-    },
-    // {
-    //   title: "Average Performance",
-    //   value: Math.round(children.reduce((sum, child) => sum + child.averageScore, 0) / children.length) + "%",
-    //   change: "+5% this month",
-    //   icon: TrendingUp,
-    //   color: "text-green-600",
-    //   bgColor: "bg-green-100",
-    // },
-    {
-      title: "Total Rewards Earned",
-      value: children
-        .reduce((sum, child) => sum + child.totalRewards, 0)
-        .toString(),
-      change: "Across all children",
-      icon: Trophy,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
-    },
-  ];
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const response = await fetch("/api/parent/overview", {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-  const recentActivity = [
-    {
-      type: "achievement",
-      child: "John Adebayo",
-      title: "Completed Advanced React Course",
-      description: "Scored 95% on final assessment",
-      time: "2 hours ago",
-      icon: Trophy,
-      color: "text-green-600",
-    },
-    {
-      type: "test",
-      child: "Mary Adebayo",
-      title: "Took Mathematics Quiz",
-      description: "Scored 88% - Above class average",
-      time: "1 day ago",
-      icon: Target,
-      color: "text-blue-600",
-    },
-    {
-      type: "payment",
-      child: "Both Children",
-      title: "Monthly Subscription Renewed",
-      description: "Premium plan - ₦25,000 paid successfully",
-      time: "3 days ago",
-      icon: CreditCard,
-      color: "text-purple-600",
-    },
-    {
-      type: "alert",
-      child: "John Adebayo",
-      title: "Upcoming Test Reminder",
-      description: "Mathematics Quiz scheduled for tomorrow",
-      time: "5 hours ago",
-      icon: AlertCircle,
-      color: "text-yellow-600",
-    },
-  ];
+        const result = await response.json();
 
-  const upcomingEvents = [
-    {
-      child: "John Adebayo",
-      event: "Mathematics Quiz",
-      date: "Tomorrow, 2:00 PM",
-      type: "Test",
-      importance: "high",
-    },
-    {
-      child: "Mary Adebayo",
-      event: "English Literature Test",
-      date: "Friday, 10:00 AM",
-      type: "Test",
-      importance: "medium",
-    },
-    {
-      child: "John Adebayo",
-      event: "Private Tutoring Session",
-      date: "Saturday, 3:00 PM",
-      type: "Tutoring",
-      importance: "low",
-    },
-    {
-      child: "Mary Adebayo",
-      event: "Science Project Submission",
-      date: "Next Monday",
-      type: "Assignment",
-      importance: "high",
-    },
-  ];
+        if (!response.ok) {
+          throw new Error(result.detail || "Failed to fetch dashboard data");
+        }
+
+        setData(result);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message || "An error occurred while fetching data");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
 
   const getImportanceBadge = (importance: string) => {
     switch (importance) {
@@ -191,6 +145,20 @@ export function ParentOverview() {
     return "text-red-600";
   };
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-600">Error: {error}</div>;
+  }
+
+  if (!data) {
+    return <div>No data available</div>;
+  }
+
+  const { children, familyStats, recentActivity, upcomingEvents } = data;
+
   return (
     <div className="space-y-6">
       <div>
@@ -203,30 +171,37 @@ export function ParentOverview() {
 
       {/* Family Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {familyStats.map((stat, index) => (
-          <Card key={index} className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <div className={`p-2 rounded-full ${stat.bgColor}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.change}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {familyStats.map((stat, index) => {
+          const IconComponent = iconMap[stat.icon];
+          return (
+            <Card key={index} className="hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-full ${stat.bgColor}`}>
+                  {IconComponent ? (
+                    <IconComponent className={`h-4 w-4 ${stat.color}`} />
+                  ) : (
+                    <Users className={`h-4 w-4 ${stat.color}`} />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground">{stat.change}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Children Overview */}
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Children&apos;s Progress Overview</CardTitle>
+          <CardTitle>Children's Progress Overview</CardTitle>
           <CardDescription>
-            Quick summary of each child&apos;s learning journey
+            Quick summary of each child's learning journey
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -234,7 +209,8 @@ export function ParentOverview() {
             {children.map((child) => (
               <div
                 key={child.id}
-                className="p-4 border rounded-lg space-y-4 bg-card shadow-sm hover:shadow-md transition-shadow">
+                className="p-4 border rounded-lg space-y-4 bg-card shadow-sm hover:shadow-md transition-shadow"
+              >
                 {/* Avatar + Info */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <Avatar className="h-12 w-12">
@@ -281,7 +257,8 @@ export function ParentOverview() {
                       <span
                         className={`font-medium truncate ${getScoreColor(
                           child.averageScore
-                        )}`}>
+                        )}`}
+                      >
                         Avg: {child.averageScore}%
                       </span>
                     </div>
@@ -329,35 +306,43 @@ export function ParentOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div
-                key={index}
-                className="flex flex-col sm:flex-row sm:items-start gap-3">
-                {/* Icon */}
-                <div className="p-2 bg-muted rounded-full self-start sm:self-center shrink-0">
-                  <activity.icon className={`h-4 w-4 ${activity.color}`} />
-                </div>
-
-                {/* Details */}
-                <div className="flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">{activity.title}</p>
-                    <Badge variant="outline" className="text-xs">
-                      {activity.child}
-                    </Badge>
+            {recentActivity.map((activity, index) => {
+              const IconComponent = iconMap[activity.icon];
+              return (
+                <div
+                  key={index}
+                  className="flex flex-col sm:flex-row sm:items-start gap-3"
+                >
+                  {/* Icon */}
+                  <div className="p-2 bg-muted rounded-full self-start sm:self-center shrink-0">
+                    {IconComponent ? (
+                      <IconComponent className={`h-4 w-4 ${activity.color}`} />
+                    ) : (
+                      <Users className={`h-4 w-4 ${activity.color}`} />
+                    )}
                   </div>
 
-                  <p className="text-xs text-muted-foreground break-words">
-                    {activity.description}
-                  </p>
+                  {/* Details */}
+                  <div className="flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium">{activity.title}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {activity.child}
+                      </Badge>
+                    </div>
 
-                  <p className="text-xs text-muted-foreground flex items-center">
-                    <Clock className="mr-1 h-3 w-3 shrink-0" />
-                    <span className="truncate">{activity.time}</span>
-                  </p>
+                    <p className="text-xs text-muted-foreground break-words">
+                      {activity.description}
+                    </p>
+
+                    <p className="text-xs text-muted-foreground flex items-center">
+                      <Clock className="mr-1 h-3 w-3 shrink-0" />
+                      <span className="truncate">{activity.time}</span>
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -373,7 +358,8 @@ export function ParentOverview() {
             {upcomingEvents.map((event, index) => (
               <div
                 key={index}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
+              >
                 {/* Left section */}
                 <div className="space-y-1 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -402,42 +388,6 @@ export function ParentOverview() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      {/* <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common tasks and shortcuts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Button
-              className="h-20 flex-col gap-2 bg-transparent"
-              variant="outline">
-              <Calendar className="h-6 w-6" />
-              <span>Book Tutoring</span>
-            </Button>
-            <Button
-              className="h-20 flex-col gap-2 bg-transparent"
-              variant="outline">
-              <CreditCard className="h-6 w-6" />
-              <span>View Payments</span>
-            </Button>
-            <Button
-              className="h-20 flex-col gap-2 bg-transparent"
-              variant="outline">
-              <Trophy className="h-6 w-6" />
-              <span>Check Rewards</span>
-            </Button>
-            <Button
-              className="h-20 flex-col gap-2 bg-transparent"
-              variant="outline">
-              <Users className="h-6 w-6" />
-              <span>Manage Children</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card> */}
     </div>
   );
 }
