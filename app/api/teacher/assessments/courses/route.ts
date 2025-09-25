@@ -1,5 +1,3 @@
-// app/api/assessments/teacher/courses/route.ts
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -126,8 +124,19 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log("[TeacherCoursesAPI] Fetch successful, data:", data);
-    return NextResponse.json(data, {
+    // Validate and transform response to match expected structure
+    const processedData = {
+      courses: Array.isArray(data.courses) ? data.courses.map((course: any) => ({
+        id: course.id || 0,
+        name: course.name || "",
+        subject: course.subject || "",
+        classroom: course.classroom || "",
+        description: course.description || "",
+      })) : [],
+    };
+
+    console.log("[TeacherCoursesAPI] Fetch successful, data:", processedData);
+    return NextResponse.json(processedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",

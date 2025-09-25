@@ -7,9 +7,9 @@ const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  "X-Session-Token": sessionToken,
 });
 
 export async function POST(req: Request, context: { params: Promise<{ testId: string }> }) {
@@ -45,10 +45,13 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
     const body = await req.json();
     console.log("[QuestionAddAPI] Request body:", body);
 
+    // Validate and transform request body
     const processedBody = {
-      ...body,
-      correctAnswer: body.correctAnswer ?? (body.type === "multiple-choice" ? 0 : body.type === "true-false" ? "true" : ""),
+      type: body.type || "",
+      question: body.question || "",
       options: body.options || [],
+      correctAnswer: body.correctAnswer ?? (body.type === "multiple-choice" ? 0 : body.type === "true-false" ? false : body.type === "short-answer" ? "" : ""),
+      points: body.points || 0,
       explanation: body.explanation || "",
       difficulty: body.difficulty || "Medium",
     };
@@ -137,15 +140,19 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
       );
     }
 
+    // Validate and transform response to match test specification
     const processedData = {
-      ...data,
       question: {
-        ...data.question,
-        correctAnswer: data.question.correctAnswer ?? (data.question.type === "multiple-choice" ? 0 : data.question.type === "true-false" ? "true" : ""),
-        options: data.question.options || [],
-        explanation: data.question.explanation || "",
-        difficulty: data.question.difficulty || "Medium",
+        id: data.question?.id || "",
+        type: data.question?.type || "",
+        question: data.question?.question || "",
+        points: data.question?.points || 0,
+        options: data.question?.options || [],
+        explanation: data.question?.explanation || "",
+        difficulty: data.question?.difficulty || "Medium",
+        correctAnswer: data.question?.correctAnswer ?? (data.question?.type === "multiple-choice" ? 0 : data.question?.type === "true-false" ? false : data.question?.type === "short-answer" ? "" : ""),
       },
+      message: data.message || "Question added successfully.",
     };
 
     console.log("[QuestionAddAPI] Question added successfully:", processedData);
@@ -161,7 +168,7 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
   } catch (error) {
     console.error("[QuestionAddAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to add question", details: error.message },
+      { error: "Failed to add question", details: (error as Error).message },
       {
         status: 500,
         headers: {

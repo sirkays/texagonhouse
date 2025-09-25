@@ -1,4 +1,3 @@
-// app/api/teacher/assessments/tests/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -127,22 +126,30 @@ export async function GET(req: Request) {
       );
     }
 
-    // Ensure tests have defaults for new fields
+    // Validate and transform response to match expected structure
     const processedData = {
-      ...data,
-      tests: data.tests?.map((test: any) => ({
-        ...test,
-        start_at: test.start_at || "",
-        end_at: test.end_at || "",
+      tests: Array.isArray(data.tests) ? data.tests.map((test: any) => ({
+        id: test.id || "",
+        title: test.title || "",
+        instructions: test.instructions || "",
+        duration: test.duration || 0,
         total_marks: test.total_marks || 0,
-        questions: test.questions?.map((q: any) => ({
-          ...q,
-          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
-          options: q.options || [],
-          explanation: q.explanation || "",
-          difficulty: q.difficulty || "Medium",
-        })) || [],
-      })) || [],
+        totalPoints: test.totalPoints || 0,
+        difficulty: test.difficulty || "Medium",
+        category: test.category || "",
+        isPublished: test.isPublished || false,
+        questionsCount: test.questionsCount || 0,
+        createdAt: test.createdAt || "",
+        updatedAt: test.updatedAt || "",
+        start_at: test.start_at || null,
+        end_at: test.end_at || null,
+      })) : [],
+      pagination: {
+        page: data.pagination?.page || 1,
+        limit: data.pagination?.limit || 20,
+        total: data.pagination?.total || 0,
+        pages: data.pagination?.pages || 0,
+      },
     };
 
     console.log("[TeacherTestsAPI] Fetch successful:", processedData);

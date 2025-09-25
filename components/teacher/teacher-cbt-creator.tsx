@@ -58,13 +58,12 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
-
 interface Question {
   id: string;
   type: "multiple-choice" | "true-false" | "short-answer" | "essay";
   question: string;
   options?: string[];
-  correctAnswer: string | number;
+  correctAnswer: string | number | boolean; // Update to include boolean
   points: number;
   explanation?: string;
   difficulty?: "Easy" | "Medium" | "Hard";
@@ -81,7 +80,8 @@ interface Course {
 interface CBTTest {
   id: string;
   title: string;
-  description: string;
+  description: string; // Keep for backward compatibility if needed
+  instructions: string; // Add this
   duration: number;
   totalPoints: number;
   questions: Question[];
@@ -213,9 +213,19 @@ export function TeacherCBTCreator() {
     setLoadingTests(false);
     return {
       ...data.test,
+      instructions: data.test.instructions || data.test.description || "", // Map instructions
       start_at: data.test.start_at || "",
       end_at: data.test.end_at || "",
       total_marks: data.test.total_marks || 0,
+      questions: data.test.questions.map((q: any) => ({
+        ...q,
+        correctAnswer:
+          q.type === "multiple-choice"
+            ? Number(q.correctAnswer) || 0
+            : q.type === "true-false"
+            ? q.correctAnswer === "true" || q.correctAnswer === true
+            : q.correctAnswer?.toString() || "",
+      })),
     };
   };
 
@@ -256,7 +266,7 @@ export function TeacherCBTCreator() {
             updates.type === "multiple-choice"
               ? 0
               : updates.type === "true-false"
-              ? "true"
+              ? false // Changed from "true" to boolean false
               : "";
         }
         return updatedQuestion;
@@ -271,7 +281,7 @@ export function TeacherCBTCreator() {
             updates.type === "multiple-choice"
               ? 0
               : updates.type === "true-false"
-              ? "true"
+              ? false // Changed from "true" to boolean false
               : "";
         }
         return updatedQuestion;
@@ -352,12 +362,12 @@ export function TeacherCBTCreator() {
             question: question.question,
             options: question.options || [],
             correctAnswer:
-              question.correctAnswer ??
-              (question.type === "multiple-choice"
-                ? 0
+              question.type === "multiple-choice"
+                ? Number(question.correctAnswer) || 0
                 : question.type === "true-false"
-                ? "true"
-                : ""),
+                ? question.correctAnswer === "true" ||
+                  question.correctAnswer === true
+                : question.correctAnswer?.toString() || "", // Handle short-answer/essay
             points: question.points,
             explanation: question.explanation || "",
             difficulty: question.difficulty || "Medium",
@@ -380,7 +390,11 @@ export function TeacherCBTCreator() {
             } successfully:`,
             questionData
           );
-          updatedQuestions[i].id = questionData.question.id;
+          updatedQuestions[i] = {
+            ...question,
+            id: questionData.question.id,
+            correctAnswer: questionData.question.correctAnswer,
+          };
         }
       }
 
@@ -438,14 +452,14 @@ export function TeacherCBTCreator() {
     setIsSaving(false);
   };
 
-  const publishTest = async (testId: string, publish: boolean) => {
+  const publishTest = async (testId: string, isPublished: boolean) => {
     try {
       const response = await fetch(
         `/api/teacher/assessments/tests/test/${testId}/publish`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ published: publish }),
+          body: JSON.stringify({ isPublished }), // Changed from `published`
         }
       );
       const data = await response.json();
@@ -455,18 +469,36 @@ export function TeacherCBTCreator() {
           return;
         }
         throw new Error(
-          data.error || `Failed to ${publish ? "publish" : "unpublish"} test`
+          data.error ||
+            `Failed to ${isPublished ? "publish" : "unpublish"} test`
         );
       }
-      setCurrentTest((prev) => ({ ...prev, isPublished: publish }));
-      alert(`Test ${publish ? "published" : "unpublished"} successfully!`);
+      setCurrentTest((prev) => ({
+        ...prev,
+        isPublished: data.test.isPublished,
+        instructions: data.test.instructions || prev.description || "", // Map instructions
+        total_marks: data.test.total_marks || prev.total_marks || 0,
+        questionsCount: data.test.questionsCount || prev.questionsCount || 0,
+        start_at: data.test.start_at || prev.start_at || "",
+        end_at: data.test.end_at || prev.end_at || "",
+      }));
+      setTests((prev) =>
+        prev.map((test) =>
+          test.id === testId
+            ? { ...test, isPublished: data.test.isPublished }
+            : test
+        )
+      );
+      alert(data.message); // Use backend message
     } catch (error) {
       console.error(
-        `Error ${publish ? "publishing" : "unpublishing"} test:`,
+        `Error ${isPublished ? "publishing" : "unpublishing"} test:`,
         error
       );
       alert(
-        `Failed to ${publish ? "publish" : "unpublish"} test: ${error.message}`
+        `Failed to ${isPublished ? "publish" : "unpublish"} test: ${
+          (error as Error).message
+        }`
       );
     }
   };
@@ -515,19 +547,33 @@ export function TeacherCBTCreator() {
         }
         throw new Error(data.error || "Failed to delete question");
       }
-      setCurrentTest((prev) => ({
-        ...prev,
-        questions: prev.questions.filter((q) => q.id !== questionId),
-        questionsCount: prev.questionsCount - 1,
-        totalPoints:
-          prev.totalPoints -
-          (prev.questions.find((q) => q.id === questionId)?.points || 0),
-      }));
-      console.log(currentTest.questions);
-      alert("Question deleted successfully!");
+      setCurrentTest((prev) => {
+        const deletedQuestion = prev.questions.find((q) => q.id === questionId);
+        return {
+          ...prev,
+          questions: prev.questions.filter((q) => q.id !== questionId),
+          questionsCount: prev.questionsCount - 1,
+          totalPoints: prev.totalPoints - (deletedQuestion?.points || 0),
+        };
+      });
+      setTests((prev) =>
+        prev.map((test) =>
+          test.id === testId
+            ? {
+                ...test,
+                questionsCount: test.questionsCount - 1,
+                totalPoints:
+                  test.totalPoints -
+                  (currentTest.questions.find((q) => q.id === questionId)
+                    ?.points || 0),
+              }
+            : test
+        )
+      );
+      alert(data.message); // Use backend message
     } catch (error) {
       console.error("Error deleting question:", error);
-      alert(`Failed to delete question: ${error.message}`);
+      alert(`Failed to delete question: ${(error as Error).message}`);
     }
   };
 
@@ -548,11 +594,12 @@ export function TeacherCBTCreator() {
         }
         throw new Error(data.error || "Failed to delete test");
       }
-      alert("Test deleted successfully!");
-      router.push("/teacher/create-cbt"); // Redirect to tests list
+      setTests((prev) => prev.filter((test) => test.id !== testId));
+      alert(data.message); // Use backend message
+      router.push("/teacher/create-cbt");
     } catch (error) {
       console.error("Error deleting test:", error);
-      alert(`Failed to delete test: ${error.message}`);
+      alert(`Failed to delete test: ${(error as Error).message}`);
     }
   };
 
@@ -1634,51 +1681,46 @@ export function TeacherCBTCreator() {
                             {/* True/False Options */}
                             {question.type === "true-false" && (
                               <div className="space-y-2">
-                                <Label>Correct Answer</Label>
-                                <RadioGroup
-                                  value={question.correctAnswer.toString()}
-                                  onValueChange={(value) =>
-                                    updateQuestion(question.id, {
-                                      correctAnswer: value,
-                                    })
-                                  }
-                                  disabled={isSaving}
+                                <div
+                                  className={`p-2 border rounded ${
+                                    question.correctAnswer === true
+                                      ? "border-green-500 bg-green-50"
+                                      : "border-gray-200"
+                                  }`}
                                 >
                                   <div className="flex items-center space-x-2">
-                                    <RadioGroupItem
-                                      value="true"
-                                      id={`q${question.id}-true`}
-                                    />
-                                    <Label htmlFor={`q${question.id}-true`}>
-                                      True
-                                    </Label>
-                                    {question.correctAnswer === "true" && (
+                                    <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                    <span className="text-sm">True</span>
+                                    {question.correctAnswer === true && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-2"
+                                        className="text-xs ml-auto"
                                       >
-                                        Correct
+                                        Correct Answer
                                       </Badge>
                                     )}
                                   </div>
+                                </div>
+                                <div
+                                  className={`p-2 border rounded ${
+                                    question.correctAnswer === false
+                                      ? "border-green-500 bg-green-50"
+                                      : "border-gray-200"
+                                  }`}
+                                >
                                   <div className="flex items-center space-x-2">
-                                    <RadioGroupItem
-                                      value="false"
-                                      id={`q${question.id}-false`}
-                                    />
-                                    <Label htmlFor={`q${question.id}-false`}>
-                                      False
-                                    </Label>
-                                    {question.correctAnswer === "false" && (
+                                    <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                    <span className="text-sm">False</span>
+                                    {question.correctAnswer === false && (
                                       <Badge
                                         variant="default"
-                                        className="text-xs ml-2"
+                                        className="text-xs ml-auto"
                                       >
-                                        Correct
+                                        Correct Answer
                                       </Badge>
                                     )}
                                   </div>
-                                </RadioGroup>
+                                </div>
                               </div>
                             )}
 
@@ -1831,7 +1873,8 @@ export function TeacherCBTCreator() {
                         {selectedTestForPreview.title}
                       </CardTitle>
                       <CardDescription className="mt-2">
-                        {selectedTestForPreview.description}
+                        {selectedTestForPreview.instructions ||
+                          selectedTestForPreview.description}
                       </CardDescription>
                     </div>
                     <div className="text-right text-sm text-muted-foreground">

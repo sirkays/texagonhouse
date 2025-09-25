@@ -1,4 +1,3 @@
-// app/api/teacher/assessments/tests/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -15,7 +14,7 @@ const headers = (sessionToken: string) => ({
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   noStore();
-  const params = await context.params; // Await params
+  const params = await context.params;
   const endpoint = `/assessments/api/teacher/tests/${params.id}/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[TestDetailAPI] Initiating GET request to:", fullUrl);
@@ -126,21 +125,33 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       );
     }
 
-    // Ensure questions and new fields have defaults
+    // Validate and transform response to match test specification
     const processedData = {
-      ...data,
       test: {
-        ...data.test,
-        start_at: data.test.start_at || "",
-        end_at: data.test.end_at || "",
-        total_marks: data.test.total_marks || 0,
-        questions: data.test.questions?.map((q: any) => ({
-          ...q,
-          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+        id: data.test?.id || "",
+        title: data.test?.title || "",
+        instructions: data.test?.instructions || "",
+        duration: data.test?.duration || 0,
+        total_marks: data.test?.total_marks || 0,
+        totalPoints: data.test?.totalPoints || 0,
+        difficulty: data.test?.difficulty || "Medium",
+        category: data.test?.category || "",
+        isPublished: data.test?.isPublished || false,
+        questionsCount: data.test?.questionsCount || 0,
+        createdAt: data.test?.createdAt || "",
+        updatedAt: data.test?.updatedAt || "",
+        start_at: data.test?.start_at || null,
+        end_at: data.test?.end_at || null,
+        questions: Array.isArray(data.test?.questions) ? data.test.questions.map((q: any) => ({
+          id: q.id || "",
+          type: q.type || "",
+          question: q.question || "",
+          points: q.points || 0,
           options: q.options || [],
           explanation: q.explanation || "",
           difficulty: q.difficulty || "Medium",
-        })) || [],
+          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? false : q.type === "short-answer" ? "" : ""),
+        })) : [],
       },
     };
 
@@ -157,7 +168,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
   } catch (error) {
     console.error("[TestDetailAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch test", details: error.message },
+      { error: "Failed to fetch test", details: (error as Error).message },
       {
         status: 500,
         headers: {

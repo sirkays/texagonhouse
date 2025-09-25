@@ -1,4 +1,3 @@
-// app/api/teacher/assessments/tests/test/[testId]/duplicate/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -10,7 +9,7 @@ const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 const headers = (sessionToken: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  "X-Session-Token": sessionToken,
 });
 
 export async function POST(req: Request, context: { params: Promise<{ testId: string }> }) {
@@ -125,21 +124,35 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
       );
     }
 
+    // Validate and transform response to match test specification
     const processedData = {
-      ...data,
       test: {
-        ...data.test,
-        start_at: data.test.start_at || "",
-        end_at: data.test.end_at || "",
-        total_marks: data.test.total_marks || 0,
-        questions: data.test.questions?.map((q: any) => ({
-          ...q,
-          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+        id: data.test?.id || "",
+        title: data.test?.title || "",
+        instructions: data.test?.instructions || "",
+        duration: data.test?.duration || 0,
+        total_marks: data.test?.total_marks || 0,
+        totalPoints: data.test?.totalPoints || 0,
+        difficulty: data.test?.difficulty || "Medium",
+        category: data.test?.category || "",
+        isPublished: data.test?.isPublished || false,
+        questionsCount: data.test?.questionsCount || 0,
+        createdAt: data.test?.createdAt || "",
+        updatedAt: data.test?.updatedAt || "",
+        start_at: data.test?.start_at || null,
+        end_at: data.test?.end_at || null,
+        questions: Array.isArray(data.test?.questions) ? data.test.questions.map((q: any) => ({
+          id: q.id || "",
+          type: q.type || "",
+          question: q.question || "",
+          points: q.points || 0,
           options: q.options || [],
           explanation: q.explanation || "",
           difficulty: q.difficulty || "Medium",
-        })) || [],
+          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? false : q.type === "short-answer" ? "" : ""),
+        })) : [],
       },
+      message: data.message || "Test duplicated successfully.",
     };
 
     console.log("[TestDuplicateAPI] Test duplicated successfully:", processedData);
@@ -155,7 +168,7 @@ export async function POST(req: Request, context: { params: Promise<{ testId: st
   } catch (error) {
     console.error("[TestDuplicateAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to duplicate test", details: error.message },
+      { error: "Failed to duplicate test", details: (error as Error).message },
       {
         status: 500,
         headers: {

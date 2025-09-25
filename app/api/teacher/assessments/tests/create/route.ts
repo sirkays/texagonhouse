@@ -1,4 +1,3 @@
-// app/api/teacher/assessments/tests/create/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -45,19 +44,18 @@ export async function POST(req: Request, { params }: { params: { path?: string[]
     const body = await req.json();
     console.log("[TestCreateAPI] Request body:", body);
 
-    // Ensure questions have default correctAnswer values
+    // Validate and transform request body
     const processedBody = {
-      ...body,
-      start_at: body.start_at,
-      end_at: body.end_at,
-      total_marks: body.total_marks,
-      questions: body.questions?.map((q: any) => ({
-        ...q,
-        correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
-        options: q.options || [],
-        explanation: q.explanation || "",
-        difficulty: q.difficulty || "Medium",
-      })) || [],
+      title: body.title || "",
+      description: body.description || "",
+      instructions: body.instructions || "",
+      duration: body.duration || 0,
+      difficulty: body.difficulty || "Medium",
+      course_id: body.course_id || 0,
+      category: body.category || "",
+      start_at: body.start_at || null,
+      end_at: body.end_at || null,
+      total_marks: body.total_marks || 0,
     };
 
     console.log("[TestCreateAPI] Sending request to", fullUrl, "with token:", session.user.sessionToken);
@@ -144,19 +142,35 @@ export async function POST(req: Request, { params }: { params: { path?: string[]
       );
     }
 
-    // Ensure questions in response have default correctAnswer
+    // Validate and transform response
     const processedData = {
-      ...data,
       test: {
-        ...data.test,
-        questions: data.test.questions?.map((q: any) => ({
-          ...q,
-          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+        id: data.test?.id || "",
+        title: data.test?.title || "",
+        instructions: data.test?.instructions || "",
+        duration: data.test?.duration || 0,
+        total_marks: data.test?.total_marks || 0,
+        totalPoints: data.test?.totalPoints || 0,
+        difficulty: data.test?.difficulty || "Medium",
+        category: data.test?.category || "",
+        isPublished: data.test?.isPublished || false,
+        questionsCount: data.test?.questionsCount || 0,
+        createdAt: data.test?.createdAt || "",
+        updatedAt: data.test?.updatedAt || "",
+        start_at: data.test?.start_at || null,
+        end_at: data.test?.end_at || null,
+        questions: Array.isArray(data.test?.questions) ? data.test.questions.map((q: any) => ({
+          id: q.id || "",
+          type: q.type || "",
+          question: q.question || "",
+          points: q.points || 0,
           options: q.options || [],
           explanation: q.explanation || "",
           difficulty: q.difficulty || "Medium",
-        })) || [],
+          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? false : ""),
+        })) : [],
       },
+      message: data.message || "Test created successfully.",
     };
 
     console.log("[TestCreateAPI] Test created successfully:", processedData);
@@ -172,7 +186,7 @@ export async function POST(req: Request, { params }: { params: { path?: string[]
   } catch (error) {
     console.error("[TestCreateAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to create test", details: error.message },
+      { error: "Failed to create test", details: (error as Error).message },
       {
         status: 500,
         headers: {
@@ -191,11 +205,9 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
   let logPrefix: string;
 
   if (segment1 === "assessments" && segment2 === "questions") {
-    // Handle PUT /assessments/api/teacher/tests/[testId]/questions/[questionId]/update/
     endpoint = `/assessments/api/teacher/tests/${testId}/questions/${questionId}/update/`;
     logPrefix = "[QuestionUpdateAPI]";
-  } else if (segment1 === testId && !segment2) {
-    // Handle PUT /api/teacher/assessments/tests/[testId]/update
+  } else if (segment1 === "assessments" && !segment2) {
     endpoint = `/assessments/api/teacher/tests/${testId}/update/`;
     logPrefix = "[TestUpdateAPI]";
   } else {
@@ -240,27 +252,20 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
     const body = await req.json();
     console.log(`${logPrefix} Request body:`, body);
 
-    // Process questions for test update, or single question for question update
+    // Process request body
     let processedBody = body;
     if (endpoint.includes("/tests/") && !endpoint.includes("/questions/")) {
       processedBody = {
-        ...body,
-        start_at: body.start_at,
-        end_at: body.end_at,
-        total_marks: body.total_marks,
-        questions: body.questions?.map((q: any) => ({
-          ...q,
-          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
-          options: q.options || [],
-          explanation: q.explanation || "",
-          difficulty: q.difficulty || "Medium",
-        })) || [],
+        start_at: body.start_at || null,
+        end_at: body.end_at || null,
       };
     } else if (endpoint.includes("/questions/")) {
       processedBody = {
-        ...body,
-        correctAnswer: body.correctAnswer ?? (body.type === "multiple-choice" ? 0 : body.type === "true-false" ? "true" : ""),
+        type: body.type || "",
+        question: body.question || "",
         options: body.options || [],
+        correctAnswer: body.correctAnswer ?? (body.type === "multiple-choice" ? 0 : body.type === "true-false" ? false : ""),
+        points: body.points || 0,
         explanation: body.explanation || "",
         difficulty: body.difficulty || "Medium",
       };
@@ -350,32 +355,51 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
       );
     }
 
-    // Process response to ensure consistent question data
+    // Process response
     let processedData = data;
     if (endpoint.includes("/tests/") && !endpoint.includes("/questions/")) {
       processedData = {
-        ...data,
         test: {
-          ...data.test,
-          questions: data.test.questions?.map((q: any) => ({
-            ...q,
-            correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+          id: data.test?.id || "",
+          title: data.test?.title || "",
+          instructions: data.test?.instructions || "",
+          duration: data.test?.duration || 0,
+          total_marks: data.test?.total_marks || 0,
+          totalPoints: data.test?.totalPoints || 0,
+          difficulty: data.test?.difficulty || "Medium",
+          category: data.test?.category || "",
+          isPublished: data.test?.isPublished || false,
+          questionsCount: data.test?.questionsCount || 0,
+          createdAt: data.test?.createdAt || "",
+          updatedAt: data.test?.updatedAt || "",
+          start_at: data.test?.start_at || null,
+          end_at: data.test?.end_at || null,
+          questions: Array.isArray(data.test?.questions) ? data.test.questions.map((q: any) => ({
+            id: q.id || "",
+            type: q.type || "",
+            question: q.question || "",
+            points: q.points || 0,
             options: q.options || [],
             explanation: q.explanation || "",
             difficulty: q.difficulty || "Medium",
-          })) || [],
+            correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? false : ""),
+          })) : [],
         },
+        message: data.message || "Test updated successfully.",
       };
     } else if (endpoint.includes("/questions/")) {
       processedData = {
-        ...data,
         question: {
-          ...data.question,
-          correctAnswer: data.question.correctAnswer ?? (data.question.type === "multiple-choice" ? 0 : data.question.type === "true-false" ? "true" : ""),
-          options: data.question.options || [],
-          explanation: data.question.explanation || "",
-          difficulty: data.question.difficulty || "Medium",
+          id: data.question?.id || "",
+          type: data.question?.type || "",
+          question: data.question?.question || "",
+          points: data.question?.points || 0,
+          options: data.question?.options || [],
+          explanation: data.question?.explanation || "",
+          difficulty: data.question?.difficulty || "Medium",
+          correctAnswer: data.question?.correctAnswer ?? (data.question?.type === "multiple-choice" ? 0 : data.question?.type === "true-false" ? false : ""),
         },
+        message: data.message || "Question updated successfully.",
       };
     }
 
@@ -392,7 +416,7 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
   } catch (error) {
     console.error(`${logPrefix} Request error:`, error);
     return NextResponse.json(
-      { error: `Failed to ${endpoint.includes("/questions/") ? "update question" : "update test"}`, details: error.message },
+      { error: `Failed to ${endpoint.includes("/questions/") ? "update question" : "update test"}`, details: (error as Error).message },
       {
         status: 500,
         headers: {

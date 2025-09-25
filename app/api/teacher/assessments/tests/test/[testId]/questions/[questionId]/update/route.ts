@@ -9,12 +9,12 @@ const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 const headers = (sessionToken: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  "X-Session-Token": sessionToken,
 });
 
 export async function PUT(req: Request, context: { params: Promise<{ testId: string; questionId: string }> }) {
   noStore();
-  const params = await context.params; // Await params
+  const params = await context.params;
   const endpoint = `/assessments/api/teacher/tests/${params.testId}/questions/${params.questionId}/update/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[QuestionUpdateAPI] Initiating PUT request to:", fullUrl);
@@ -45,10 +45,13 @@ export async function PUT(req: Request, context: { params: Promise<{ testId: str
     const body = await req.json();
     console.log("[QuestionUpdateAPI] Request body:", body);
 
+    // Validate and transform request body
     const processedBody = {
-      ...body,
-      correctAnswer: body.correctAnswer ?? (body.type === "multiple-choice" ? 0 : body.type === "true-false" ? "true" : ""),
+      type: body.type || "",
+      question: body.question || "",
       options: body.options || [],
+      correctAnswer: body.correctAnswer ?? (body.type === "multiple-choice" ? 0 : body.type === "true-false" ? false : body.type === "short-answer" ? "" : ""),
+      points: body.points || 0,
       explanation: body.explanation || "",
       difficulty: body.difficulty || "Medium",
     };
@@ -137,15 +140,19 @@ export async function PUT(req: Request, context: { params: Promise<{ testId: str
       );
     }
 
+    // Validate and transform response to match test specification
     const processedData = {
-      ...data,
       question: {
-        ...data.question,
-        correctAnswer: data.question.correctAnswer ?? (data.question.type === "multiple-choice" ? 0 : data.question.type === "true-false" ? "true" : ""),
-        options: data.question.options || [],
-        explanation: data.question.explanation || "",
-        difficulty: data.question.difficulty || "Medium",
+        id: data.question?.id || "",
+        type: data.question?.type || "",
+        question: data.question?.question || "",
+        points: data.question?.points || 0,
+        options: data.question?.options || [],
+        explanation: data.question?.explanation || "",
+        difficulty: data.question?.difficulty || "Medium",
+        correctAnswer: data.question?.correctAnswer ?? (data.question?.type === "multiple-choice" ? 0 : data.question?.type === "true-false" ? false : data.question?.type === "short-answer" ? "" : ""),
       },
+      message: data.message || "Question updated successfully.",
     };
 
     console.log("[QuestionUpdateAPI] Question updated successfully:", processedData);
@@ -161,7 +168,7 @@ export async function PUT(req: Request, context: { params: Promise<{ testId: str
   } catch (error) {
     console.error("[QuestionUpdateAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to update question", details: error.message },
+      { error: "Failed to update question", details: (error as Error).message },
       {
         status: 500,
         headers: {

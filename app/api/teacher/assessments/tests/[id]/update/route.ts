@@ -14,7 +14,7 @@ const headers = (sessionToken: string) => ({
 
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
   noStore();
-  const params = await context.params; // Await params
+  const params = await context.params;
   const endpoint = `/assessments/api/teacher/tests/${params.id}/update/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[TestUpdateAPI] Initiating PUT request to:", fullUrl);
@@ -45,16 +45,10 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
     const body = await req.json();
     console.log("[TestUpdateAPI] Request body:", body);
 
-    // Ensure questions have default correctAnswer values
+    // Restrict request body to match test specification
     const processedBody = {
-      ...body,
-      questions: body.questions?.map((q: any) => ({
-        ...q,
-        correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
-        options: q.options || [],
-        explanation: q.explanation || "",
-        difficulty: q.difficulty || "Medium",
-      })) || [],
+      start_at: body.start_at || null,
+      end_at: body.end_at || null,
     };
 
     console.log("[TestUpdateAPI] Sending request to", fullUrl, "with token:", session.user.sessionToken);
@@ -141,19 +135,35 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
       );
     }
 
-    // Ensure questions in response have default correctAnswer
+    // Validate and transform response to match test specification
     const processedData = {
-      ...data,
       test: {
-        ...data.test,
-        questions: data.test.questions?.map((q: any) => ({
-          ...q,
-          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? "true" : ""),
+        id: data.test?.id || "",
+        title: data.test?.title || "",
+        instructions: data.test?.instructions || "",
+        duration: data.test?.duration || 0,
+        total_marks: data.test?.total_marks || 0,
+        totalPoints: data.test?.totalPoints || 0,
+        difficulty: data.test?.difficulty || "Medium",
+        category: data.test?.category || "",
+        isPublished: data.test?.isPublished || false,
+        questionsCount: data.test?.questionsCount || 0,
+        createdAt: data.test?.createdAt || "",
+        updatedAt: data.test?.updatedAt || "",
+        start_at: data.test?.start_at || null,
+        end_at: data.test?.end_at || null,
+        questions: Array.isArray(data.test?.questions) ? data.test.questions.map((q: any) => ({
+          id: q.id || "",
+          type: q.type || "",
+          question: q.question || "",
+          points: q.points || 0,
           options: q.options || [],
           explanation: q.explanation || "",
           difficulty: q.difficulty || "Medium",
-        })) || [],
+          correctAnswer: q.correctAnswer ?? (q.type === "multiple-choice" ? 0 : q.type === "true-false" ? false : ""),
+        })) : [],
       },
+      message: data.message || "Test updated successfully.",
     };
 
     console.log("[TestUpdateAPI] Test updated successfully:", processedData);
@@ -169,7 +179,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
   } catch (error) {
     console.error("[TestUpdateAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to update test", details: error.message },
+      { error: "Failed to update test", details: (error as Error).message },
       {
         status: 500,
         headers: {
