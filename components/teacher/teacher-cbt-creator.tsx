@@ -110,7 +110,7 @@ export function TeacherCBTCreator() {
   const [currentTest, setCurrentTest] = useState<CBTTest>({
     id: "",
     title: "",
-    description: "",
+    instructions: "", // Changed from description
     duration: 30,
     totalPoints: 0,
     questions: [],
@@ -213,7 +213,7 @@ export function TeacherCBTCreator() {
     setLoadingTests(false);
     return {
       ...data.test,
-      instructions: data.test.instructions || data.test.description || "", // Map instructions
+      instructions: data.test.instructions || "", // Changed from mapping description
       start_at: data.test.start_at || "",
       end_at: data.test.end_at || "",
       total_marks: data.test.total_marks || 0,
@@ -300,7 +300,7 @@ export function TeacherCBTCreator() {
       const body = isEditing
         ? {
             title: currentTest.title,
-            description: currentTest.description,
+            instructions: currentTest.instructions, // Changed from description
             duration: currentTest.duration,
             difficulty: currentTest.difficulty,
             start_at: currentTest.start_at,
@@ -309,7 +309,7 @@ export function TeacherCBTCreator() {
           }
         : {
             title: currentTest.title,
-            description: currentTest.description,
+            instructions: currentTest.instructions, // Changed from description
             duration: currentTest.duration,
             difficulty: currentTest.difficulty,
             course_id: parseInt(currentTest.courseId || "0"),
@@ -406,11 +406,10 @@ export function TeacherCBTCreator() {
         questionsCount: data.test.questionsCount,
         isPublished: data.test.isPublished,
         questions: updatedQuestions,
-        // Retain local values if backend omits them
+        instructions: data.test.instructions || prev.instructions || "", // Changed from description
         start_at: data.test.start_at || prev.start_at || "",
         end_at: data.test.end_at || prev.end_at || "",
         total_marks: data.test.total_marks || prev.total_marks || 0,
-        description: data.test.description || prev.description || "",
         category: data.test.category || prev.category || "General",
       }));
 
@@ -476,7 +475,7 @@ export function TeacherCBTCreator() {
       setCurrentTest((prev) => ({
         ...prev,
         isPublished: data.test.isPublished,
-        instructions: data.test.instructions || prev.description || "", // Map instructions
+        instructions: data.test.instructions || prev.instructions || "", // Changed from description
         total_marks: data.test.total_marks || prev.total_marks || 0,
         questionsCount: data.test.questionsCount || prev.questionsCount || 0,
         start_at: data.test.start_at || prev.start_at || "",
@@ -672,17 +671,17 @@ export function TeacherCBTCreator() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="instructions">Instructions</Label>
                   <Textarea
-                    id="description"
-                    value={currentTest.description}
+                    id="instructions"
+                    value={currentTest.instructions}
                     onChange={(e) =>
                       setCurrentTest((prev) => ({
                         ...prev,
-                        description: e.target.value,
+                        instructions: e.target.value,
                       }))
                     }
-                    placeholder="Describe what this test covers"
+                    placeholder="Provide instructions for this test"
                     rows={3}
                     disabled={isSaving}
                   />
@@ -1142,7 +1141,7 @@ export function TeacherCBTCreator() {
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{test.title}</CardTitle>
                         <CardDescription className="line-clamp-2">
-                          {test.description}
+                          {test.instructions || "No description provided."}
                         </CardDescription>
                       </div>
                       <DropdownMenu>
@@ -1425,15 +1424,16 @@ export function TeacherCBTCreator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Description</Label>
+                    <Label>Instructions</Label>
                     <Textarea
-                      value={currentTest.description}
+                      value={currentTest.instructions}
                       onChange={(e) =>
                         setCurrentTest((prev) => ({
                           ...prev,
-                          description: e.target.value,
+                          instructions: e.target.value,
                         }))
                       }
+                      placeholder="Provide instructions for this test"
                       rows={3}
                       disabled={isSaving}
                     />
@@ -1873,8 +1873,7 @@ export function TeacherCBTCreator() {
                         {selectedTestForPreview.title}
                       </CardTitle>
                       <CardDescription className="mt-2">
-                        {selectedTestForPreview.instructions ||
-                          selectedTestForPreview.description}
+                        {selectedTestForPreview.instructions}
                       </CardDescription>
                     </div>
                     <div className="text-right text-sm text-muted-foreground">
