@@ -110,7 +110,7 @@ export function TeacherCBTCreator() {
   const [currentTest, setCurrentTest] = useState<CBTTest>({
     id: "",
     title: "",
-    instructions: "", // Changed from description
+    instructions: "",
     duration: 30,
     totalPoints: 0,
     questions: [],
@@ -121,6 +121,9 @@ export function TeacherCBTCreator() {
     questionsCount: 0,
     createdAt: "",
     updatedAt: "",
+    start_at: "", // Explicit default
+    end_at: "", // Explicit default
+    total_marks: 0, // Explicit default
   });
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [isEditTestOpen, setIsEditTestOpen] = useState(false);
@@ -200,7 +203,7 @@ export function TeacherCBTCreator() {
     setLoadingTests(true);
     const res = await fetch(`/api/teacher/assessments/tests/${testId}`);
     if (!res.ok) {
-      console.error(`Failed to fetch test ${testId}`);
+      console.error(`Failed to fetch test ${testId}: ${res.status}`);
       setLoadingTests(false);
       return null;
     }
@@ -211,21 +214,33 @@ export function TeacherCBTCreator() {
       return null;
     }
     setLoadingTests(false);
+    console.log("[fetchTestById] Response data:", data); // Debug log
     return {
-      ...data.test,
-      instructions: data.test.instructions || "", // Changed from mapping description
-      start_at: data.test.start_at || "",
-      end_at: data.test.end_at || "",
-      total_marks: data.test.total_marks || 0,
-      questions: data.test.questions.map((q: any) => ({
-        ...q,
-        correctAnswer:
-          q.type === "multiple-choice"
-            ? Number(q.correctAnswer) || 0
-            : q.type === "true-false"
-            ? q.correctAnswer === "true" || q.correctAnswer === true
-            : q.correctAnswer?.toString() || "",
-      })),
+      id: data.test.id || "",
+      title: data.test.title || "",
+      instructions: data.test.instructions || "", // Explicitly map instructions
+      duration: data.test.duration || 30,
+      totalPoints: data.test.totalPoints || 0,
+      questions:
+        data.test.questions?.map((q: any) => ({
+          ...q,
+          correctAnswer:
+            q.type === "multiple-choice"
+              ? Number(q.correctAnswer) || 0
+              : q.type === "true-false"
+              ? q.correctAnswer === "true" || q.correctAnswer === true
+              : q.correctAnswer?.toString() || "",
+        })) || [],
+      difficulty: data.test.difficulty || "Medium",
+      category: data.test.category || "General",
+      courseId: data.test.course_id?.toString() || "",
+      isPublished: data.test.isPublished || false,
+      questionsCount: data.test.questionsCount || 0,
+      createdAt: data.test.createdAt || "",
+      updatedAt: data.test.updatedAt || "",
+      start_at: data.test.start_at || "", // Explicitly map start_at
+      end_at: data.test.end_at || "", // Explicitly map end_at
+      total_marks: Number(data.test.total_marks) || 0, // Explicitly map total_marks
     };
   };
 
@@ -401,17 +416,23 @@ export function TeacherCBTCreator() {
       setCurrentTest((prev) => ({
         ...prev,
         id: updatedTestId,
-        createdAt: data.test.createdAt,
-        updatedAt: data.test.updatedAt,
-        questionsCount: data.test.questionsCount,
-        isPublished: data.test.isPublished,
+        title: data.test.title || prev.title,
+        instructions: data.test.instructions || prev.instructions || "", // Ensure instructions update
+        duration: data.test.duration || prev.duration,
+        totalPoints: data.test.totalPoints || prev.totalPoints,
         questions: updatedQuestions,
-        instructions: data.test.instructions || prev.instructions || "", // Changed from description
-        start_at: data.test.start_at || prev.start_at || "",
-        end_at: data.test.end_at || prev.end_at || "",
-        total_marks: data.test.total_marks || prev.total_marks || 0,
+        difficulty: data.test.difficulty || prev.difficulty,
         category: data.test.category || prev.category || "General",
+        courseId: data.test.course_id?.toString() || prev.courseId || "",
+        isPublished: data.test.isPublished || prev.isPublished,
+        questionsCount: data.test.questionsCount || prev.questionsCount,
+        createdAt: data.test.createdAt || prev.createdAt,
+        updatedAt: data.test.updatedAt || prev.updatedAt,
+        start_at: data.test.start_at || prev.start_at || "", // Ensure start_at update
+        end_at: data.test.end_at || prev.end_at || "", // Ensure end_at update
+        total_marks: Number(data.test.total_marks) || prev.total_marks || 0, // Ensure total_marks update
       }));
+      alert(data.message); // Use backend message
 
       alert(`Test ${isEditing ? "updated" : "created"} successfully!`);
       if (isEditing) setIsEditTestOpen(false);
@@ -475,20 +496,36 @@ export function TeacherCBTCreator() {
       setCurrentTest((prev) => ({
         ...prev,
         isPublished: data.test.isPublished,
-        instructions: data.test.instructions || prev.instructions || "", // Changed from description
-        total_marks: data.test.total_marks || prev.total_marks || 0,
-        questionsCount: data.test.questionsCount || prev.questionsCount || 0,
-        start_at: data.test.start_at || prev.start_at || "",
-        end_at: data.test.end_at || prev.end_at || "",
+        title: data.test.title || prev.title,
+        instructions: data.test.instructions || prev.instructions || "", // Ensure instructions update
+        duration: data.test.duration || prev.duration,
+        totalPoints: data.test.totalPoints || prev.totalPoints,
+        difficulty: data.test.difficulty || prev.difficulty,
+        category: data.test.category || prev.category || "General",
+        courseId: data.test.course_id?.toString() || prev.courseId || "",
+        questionsCount: data.test.questionsCount || prev.questionsCount,
+        createdAt: data.test.createdAt || prev.createdAt,
+        updatedAt: data.test.updatedAt || prev.updatedAt,
+        start_at: data.test.start_at || prev.start_at || "", // Ensure start_at update
+        end_at: data.test.end_at || prev.end_at || "", // Ensure end_at update
+        total_marks: Number(data.test.total_marks) || prev.total_marks || 0, // Ensure total_marks update
       }));
       setTests((prev) =>
         prev.map((test) =>
           test.id === testId
-            ? { ...test, isPublished: data.test.isPublished }
+            ? {
+                ...test,
+                isPublished: data.test.isPublished,
+                instructions: data.test.instructions || test.instructions || "", // Update instructions
+                start_at: data.test.start_at || test.start_at || "", // Update start_at
+                end_at: data.test.end_at || test.end_at || "", // Update end_at
+                total_marks:
+                  Number(data.test.total_marks) || test.total_marks || 0, // Update total_marks
+              }
             : test
         )
       );
-      alert(data.message); // Use backend message
+      alert(data.message);
     } catch (error) {
       console.error(
         `Error ${isPublished ? "publishing" : "unpublishing"} test:`,
@@ -730,11 +767,19 @@ export function TeacherCBTCreator() {
                     <Input
                       id="start_at"
                       type="datetime-local"
-                      value={currentTest.start_at || ""}
+                      value={
+                        currentTest.start_at
+                          ? new Date(currentTest.start_at)
+                              .toISOString()
+                              .slice(0, 16)
+                          : ""
+                      }
                       onChange={(e) =>
                         setCurrentTest((prev) => ({
                           ...prev,
-                          start_at: e.target.value,
+                          start_at: e.target.value
+                            ? new Date(e.target.value).toISOString()
+                            : "",
                         }))
                       }
                       disabled={isSaving}
@@ -745,11 +790,19 @@ export function TeacherCBTCreator() {
                     <Input
                       id="end_at"
                       type="datetime-local"
-                      value={currentTest.end_at || ""}
+                      value={
+                        currentTest.end_at
+                          ? new Date(currentTest.end_at)
+                              .toISOString()
+                              .slice(0, 16)
+                          : ""
+                      }
                       onChange={(e) =>
                         setCurrentTest((prev) => ({
                           ...prev,
-                          end_at: e.target.value,
+                          end_at: e.target.value
+                            ? new Date(e.target.value).toISOString()
+                            : "",
                         }))
                       }
                       disabled={isSaving}
@@ -765,7 +818,7 @@ export function TeacherCBTCreator() {
                     onChange={(e) =>
                       setCurrentTest((prev) => ({
                         ...prev,
-                        total_marks: Number.parseInt(e.target.value),
+                        total_marks: Number(e.target.value) || 0,
                       }))
                     }
                     min="1"
@@ -1440,90 +1493,68 @@ export function TeacherCBTCreator() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Duration (minutes)</Label>
+                      <Label htmlFor="start_at">Start Date & Time</Label>
                       <Input
-                        type="number"
-                        value={currentTest.duration}
+                        id="start_at"
+                        type="datetime-local"
+                        value={
+                          currentTest.start_at
+                            ? new Date(currentTest.start_at)
+                                .toISOString()
+                                .slice(0, 16)
+                            : ""
+                        }
                         onChange={(e) =>
                           setCurrentTest((prev) => ({
                             ...prev,
-                            duration: Number.parseInt(e.target.value),
+                            start_at: e.target.value
+                              ? new Date(e.target.value).toISOString()
+                              : "",
                           }))
                         }
                         disabled={isSaving}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Difficulty</Label>
-                      <Select
-                        value={currentTest.difficulty}
-                        onValueChange={(value: "Easy" | "Medium" | "Hard") =>
-                          setCurrentTest((prev) => ({
-                            ...prev,
-                            difficulty: value,
-                          }))
-                        }
-                        disabled={isSaving}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Easy">Easy</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="Hard">Hard</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-col gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="start_at">Start Date & Time</Label>
-                        <Input
-                          id="start_at"
-                          type="datetime-local"
-                          value={currentTest.start_at || ""}
-                          onChange={(e) =>
-                            setCurrentTest((prev) => ({
-                              ...prev,
-                              start_at: e.target.value,
-                            }))
-                          }
-                          disabled={isSaving}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="end_at">End Date & Time</Label>
-                        <Input
-                          id="end_at"
-                          type="datetime-local"
-                          value={currentTest.end_at || ""}
-                          onChange={(e) =>
-                            setCurrentTest((prev) => ({
-                              ...prev,
-                              end_at: e.target.value,
-                            }))
-                          }
-                          disabled={isSaving}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="total_marks">Total Marks</Label>
+                      <Label htmlFor="end_at">End Date & Time</Label>
                       <Input
-                        id="total_marks"
-                        type="number"
-                        value={currentTest.total_marks || ""}
+                        id="end_at"
+                        type="datetime-local"
+                        value={
+                          currentTest.end_at
+                            ? new Date(currentTest.end_at)
+                                .toISOString()
+                                .slice(0, 16)
+                            : ""
+                        }
                         onChange={(e) =>
                           setCurrentTest((prev) => ({
                             ...prev,
-                            total_marks: Number.parseInt(e.target.value),
+                            end_at: e.target.value
+                              ? new Date(e.target.value).toISOString()
+                              : "",
                           }))
                         }
-                        min="1"
-                        placeholder="Enter total marks"
                         disabled={isSaving}
                       />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="total_marks">Total Marks</Label>
+                    <Input
+                      id="total_marks"
+                      type="number"
+                      value={currentTest.total_marks || ""}
+                      onChange={(e) =>
+                        setCurrentTest((prev) => ({
+                          ...prev,
+                          total_marks: Number(e.target.value) || 0,
+                        }))
+                      }
+                      min="1"
+                      placeholder="Enter total marks"
+                      disabled={isSaving}
+                    />
                   </div>
                 </CardContent>
               </Card>
