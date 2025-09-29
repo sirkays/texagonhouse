@@ -53,7 +53,7 @@ interface CourseDetail {
   totalLessons: number;
   completedLessons: number;
   enrollmentTrend: number[];
-  weeklyActivity: {day: string; active: number; hours: string}[];
+  weeklyActivity: {day: string; active: number}[]; // removed hours
   topPerformers: {name: string; score: number; progress: number}[];
   strugglingStudents: {
     name: string;
@@ -106,13 +106,6 @@ export function TeacherStudentAnalytics() {
       color: "text-green-600",
     },
     {
-      title: "Avg. Study Time",
-      value: "4.2h",
-      change: "+15min",
-      icon: Clock,
-      color: "text-purple-600",
-    },
-    {
       title: "Course Completions",
       value: "156",
       change: "+23",
@@ -134,13 +127,13 @@ export function TeacherStudentAnalytics() {
       completedLessons: 35,
       enrollmentTrend: [20, 35, 45, 52, 48, 56, 62],
       weeklyActivity: [
-        {day: "Monday", active: 89, hours: "2.3h"},
-        {day: "Tuesday", active: 76, hours: "1.8h"},
-        {day: "Wednesday", active: 94, hours: "2.7h"},
-        {day: "Thursday", active: 82, hours: "2.1h"},
-        {day: "Friday", active: 67, hours: "1.6h"},
-        {day: "Saturday", active: 34, hours: "0.9h"},
-        {day: "Sunday", active: 45, hours: "1.2h"},
+        {day: "Monday", active: 89},
+        {day: "Tuesday", active: 76},
+        {day: "Wednesday", active: 94},
+        {day: "Thursday", active: 82},
+        {day: "Friday", active: 67},
+        {day: "Saturday", active: 34},
+        {day: "Sunday", active: 45},
       ],
       topPerformers: [
         {name: "Alice Johnson", score: 94, progress: 95},
@@ -175,13 +168,13 @@ export function TeacherStudentAnalytics() {
       completedLessons: 25,
       enrollmentTrend: [15, 28, 32, 38, 42, 45, 48],
       weeklyActivity: [
-        {day: "Monday", active: 67, hours: "2.1h"},
-        {day: "Tuesday", active: 54, hours: "1.6h"},
-        {day: "Wednesday", active: 72, hours: "2.4h"},
-        {day: "Thursday", active: 61, hours: "1.9h"},
-        {day: "Friday", active: 48, hours: "1.4h"},
-        {day: "Saturday", active: 23, hours: "0.7h"},
-        {day: "Sunday", active: 31, hours: "1.0h"},
+        {day: "Monday", active: 67},
+        {day: "Tuesday", active: 54},
+        {day: "Wednesday", active: 72},
+        {day: "Thursday", active: 61},
+        {day: "Friday", active: 48},
+        {day: "Saturday", active: 23},
+        {day: "Sunday", active: 31},
       ],
       topPerformers: [
         {name: "Grace Lee", score: 96, progress: 89},
@@ -221,13 +214,13 @@ export function TeacherStudentAnalytics() {
       completedLessons: 43,
       enrollmentTrend: [12, 22, 28, 35, 41, 44, 47],
       weeklyActivity: [
-        {day: "Monday", active: 58, hours: "2.0h"},
-        {day: "Tuesday", active: 49, hours: "1.5h"},
-        {day: "Wednesday", active: 64, hours: "2.2h"},
-        {day: "Thursday", active: 55, hours: "1.8h"},
-        {day: "Friday", active: 42, hours: "1.3h"},
-        {day: "Saturday", active: 19, hours: "0.6h"},
-        {day: "Sunday", active: 27, hours: "0.9h"},
+        {day: "Monday", active: 58},
+        {day: "Tuesday", active: 49},
+        {day: "Wednesday", active: 64},
+        {day: "Thursday", active: 55},
+        {day: "Friday", active: 42},
+        {day: "Saturday", active: 19},
+        {day: "Sunday", active: 27},
       ],
       topPerformers: [
         {name: "Maya Patel", score: 97, progress: 94},
@@ -262,13 +255,13 @@ export function TeacherStudentAnalytics() {
       completedLessons: 20,
       enrollmentTrend: [8, 15, 19, 23, 26, 28, 31],
       weeklyActivity: [
-        {day: "Monday", active: 39, hours: "1.8h"},
-        {day: "Tuesday", active: 33, hours: "1.4h"},
-        {day: "Wednesday", active: 42, hours: "2.0h"},
-        {day: "Thursday", active: 37, hours: "1.6h"},
-        {day: "Friday", active: 28, hours: "1.1h"},
-        {day: "Saturday", active: 14, hours: "0.5h"},
-        {day: "Sunday", active: 18, hours: "0.7h"},
+        {day: "Monday", active: 39},
+        {day: "Tuesday", active: 33},
+        {day: "Wednesday", active: 42},
+        {day: "Thursday", active: 37},
+        {day: "Friday", active: 28},
+        {day: "Saturday", active: 14},
+        {day: "Sunday", active: 18},
       ],
       topPerformers: [
         {name: "Sam Wilson", score: 95, progress: 86},
@@ -303,28 +296,24 @@ export function TeacherStudentAnalytics() {
       name: "Alice Johnson",
       coursesCompleted: 8,
       avgScore: 94,
-      studyTime: "45h",
       lastActive: "2 hours ago",
     },
     {
       name: "Bob Smith",
       coursesCompleted: 6,
       avgScore: 91,
-      studyTime: "38h",
       lastActive: "1 day ago",
     },
     {
       name: "Carol Davis",
       coursesCompleted: 7,
       avgScore: 89,
-      studyTime: "42h",
       lastActive: "3 hours ago",
     },
     {
       name: "David Wilson",
       coursesCompleted: 5,
       avgScore: 87,
-      studyTime: "35h",
       lastActive: "5 hours ago",
     },
   ];
@@ -760,7 +749,7 @@ export function TeacherStudentAnalytics() {
 
                     {/* Right: Stats */}
                     <div className="w-full sm:w-auto">
-                      <div className="grid grid-cols-3 sm:gap-4 gap-2 text-center text-xs sm:text-sm">
+                      <div className="grid grid-cols-2 sm:gap-4 gap-2 text-center text-xs sm:text-sm">
                         <div>
                           <div className="font-medium">
                             {student.coursesCompleted}
@@ -770,12 +759,6 @@ export function TeacherStudentAnalytics() {
                         <div>
                           <div className="font-medium">{student.avgScore}%</div>
                           <div className="text-muted-foreground">Avg Score</div>
-                        </div>
-                        <div>
-                          <div className="font-medium">{student.studyTime}</div>
-                          <div className="text-muted-foreground">
-                            Study Time
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -1026,13 +1009,13 @@ export function TeacherStudentAnalytics() {
               <CardContent>
                 <div className="space-y-2 xs:space-y-3">
                   {[
-                    {day: "Monday", active: 234, hours: "2.3h"},
-                    {day: "Tuesday", active: 189, hours: "1.8h"},
-                    {day: "Wednesday", active: 267, hours: "2.7h"},
-                    {day: "Thursday", active: 198, hours: "2.1h"},
-                    {day: "Friday", active: 156, hours: "1.6h"},
-                    {day: "Saturday", active: 89, hours: "0.9h"},
-                    {day: "Sunday", active: 123, hours: "1.2h"},
+                    {day: "Monday", active: 234},
+                    {day: "Tuesday", active: 189},
+                    {day: "Wednesday", active: 267},
+                    {day: "Thursday", active: 198},
+                    {day: "Friday", active: 156},
+                    {day: "Saturday", active: 89},
+                    {day: "Sunday", active: 123},
                   ].map((day, index) => (
                     <div
                       key={index}
@@ -1045,7 +1028,6 @@ export function TeacherStudentAnalytics() {
                       </div>
                       <div className="flex items-center gap-2 xs:gap-3 sm:gap-4 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
                         <span>{day.active} active students</span>
-                        <span>{day.hours} avg study time</span>
                       </div>
                     </div>
                   ))}
@@ -1193,29 +1175,13 @@ export function TeacherStudentAnalytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 xs:grid-cols-3">
+              <div className="grid gap-3 xs:gap-4 grid-cols-1">
                 <div className="text-center">
                   <div className="text-lg xs:text-xl sm:text-2xl font-bold text-blue-600">
                     68%
                   </div>
                   <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                     Prefer video content
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">
-                    4.2h
-                  </div>
-                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    Average session length
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg xs:text-xl sm:text-2xl font-bold text-purple-600">
-                    Evening
-                  </div>
-                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    Peak learning time
                   </p>
                 </div>
               </div>
@@ -1326,10 +1292,6 @@ export function TeacherStudentAnalytics() {
                           <div className="flex items-center gap-1 xs:gap-2">
                             <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             <span>{day.active} active</span>
-                          </div>
-                          <div className="flex items-center gap-1 xs:gap-2">
-                            <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            <span>{day.hours} avg time</span>
                           </div>
                         </div>
                       </div>
