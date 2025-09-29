@@ -36,6 +36,7 @@ import {
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -226,16 +227,14 @@ export function LearningModules() {
   const openDB = async () => {
     const dbName = "studentDB";
     const storeName = "media";
-    const version = 3;
+    const version = 3; // Incremented to ensure schema update
 
     return new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(dbName, version);
 
       request.onupgradeneeded = (event) => {
         const db = request.result;
-        console.log(
-          `[LearningModules] Upgrading database ${dbName} to version ${version}`
-        );
+        console.log(`[LearningModules] Upgrading database ${dbName} to version ${version}`);
         if (!db.objectStoreNames.contains("dashboard")) {
           db.createObjectStore("dashboard", { keyPath: "key" });
         }
@@ -263,10 +262,7 @@ export function LearningModules() {
       };
 
       request.onerror = () => {
-        console.error(
-          `[LearningModules] Error opening database ${dbName}:`,
-          request.error
-        );
+        console.error(`[LearningModules] Error opening database ${dbName}:`, request.error);
         reject(request.error);
       };
     });
@@ -303,28 +299,16 @@ export function LearningModules() {
     }
   };
 
-  // Update headers to accept contentType
-  const headers = (sessionToken: string | undefined, contentType: string) => ({
+  const headers = (sessionToken: string | undefined) => ({
     Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-    "Content-Type":
-      contentType === "video"
-        ? "video/mp4"
-        : contentType === "audio"
-        ? "audio/mpeg"
-        : "application/pdf",
+    "Content-Type": "video/mp4",
     ...(sessionToken && { "X-Session-Token": sessionToken }),
   });
 
-  const cacheMedia = async (
-    moduleId: number,
-    url: string,
-    contentType: string
-  ) => {
+  const cacheMedia = async (moduleId: number, url: string, contentType: string) => {
     try {
       const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(url)}`;
-      console.log(
-        `[LearningModules] Attempting to cache ${contentType} for module ${moduleId}: ${proxyUrl}`
-      );
+      console.log(`[LearningModules] Attempting to cache ${contentType} for module ${moduleId}: ${proxyUrl}`);
       const response = await fetch(proxyUrl, {
         headers: headers(sessionToken),
       });
@@ -343,27 +327,23 @@ export function LearningModules() {
           body: rawResponse.slice(0, 200),
           url: proxyUrl,
         });
-        throw new Error(
-          `Failed to fetch ${contentType}: ${response.status} ${response.statusText}`
-        );
+        throw new Error(`Failed to fetch ${contentType}: ${response.status} ${response.statusText}`);
       }
 
       const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      console.log(`[LearningModules] Created blob URL for module ${moduleId}: ${objectUrl}`);
+
       const db = await openDB();
       const tx = db.transaction("media", "readwrite");
       const store = tx.objectStore("media");
       await store.put({ moduleId, content: blob, contentType });
       await tx.done;
-      console.log(
-        `[LearningModules] Successfully cached ${contentType} for module ${moduleId}`
-      );
+      console.log(`[LearningModules] Successfully cached ${contentType} for module ${moduleId}`);
       return true;
     } catch (error) {
-      console.error(
-        `[LearningModules] Error caching ${contentType} for module ${moduleId}:`,
-        error
-      );
-      toast.error(`Failed to cache ${contentType} for module ${moduleId}.`);
+      console.error(`[LearningModules] Error caching ${contentType} for module ${moduleId}:`, error);
+      toast.error(`Failed to cache ${contentType}. It may not be available offline.`);
       return false;
     }
   };
@@ -376,20 +356,13 @@ export function LearningModules() {
       const data = await store.get(moduleId);
       if (data?.content) {
         const blobUrl = URL.createObjectURL(data.content);
-        console.log(
-          `[LearningModules] Loaded blob URL for module ${moduleId}: ${blobUrl}`
-        );
+        console.log(`[LearningModules] Loaded blob URL for module ${moduleId}: ${blobUrl}`);
         return blobUrl;
       }
-      console.log(
-        `[LearningModules] No cached media found for module ${moduleId}`
-      );
+      console.log(`[LearningModules] No cached media found for module ${moduleId}`);
       return null;
     } catch (error) {
-      console.error(
-        `[LearningModules] Error loading media for module ${moduleId}:`,
-        error
-      );
+      console.error(`[LearningModules] Error loading media for module ${moduleId}:`, error);
       return null;
     }
   };
@@ -407,9 +380,7 @@ export function LearningModules() {
         console.log("[LearningModules] Loaded modules from IndexedDB");
       } else {
         setModules(fallbackData);
-        console.warn(
-          "[LearningModules] No cached modules found, using fallback data"
-        );
+        console.warn("[LearningModules] No cached modules found, using fallback data");
       }
     } catch (error) {
       console.error("[LearningModules] Error loading modules from DB:", error);
@@ -431,104 +402,9 @@ export function LearningModules() {
         console.log("[LearningModules] Loaded active modules from IndexedDB");
       }
     } catch (error) {
-      console.error(
-        "[LearningModules] Error loading active modules from DB:",
-        error
-      );
+      console.error("[LearningModules] Error loading active modules from DB:", error);
     }
     setLoading(false);
-  };
-
-  const cacheAllMedia = async (modules: ModulesData) => {
-    if (!navigator.onLine) {
-      console.log("[LearningModules] Offline, skipping media caching");
-      return;
-    }
-
-    const mediaTypes: { key: keyof ModulesData; contentType: string }[] = [
-      { key: "videos", contentType: "video" },
-      { key: "audio", contentType: "audio" },
-      { key: "pdfs", contentType: "pdf" },
-    ];
-
-    try {
-      const db = await openDB();
-      let totalSize = 0;
-
-      // Estimate current storage size with a separate transaction
-      const sizeTx = db.transaction("media", "readonly");
-      const sizeStore = sizeTx.objectStore("media");
-      const cursorRequest = sizeStore.openCursor();
-      await new Promise<void>((resolve, reject) => {
-        cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result;
-          if (cursor) {
-            if (cursor.value.content instanceof Blob) {
-              totalSize += cursor.value.content.size;
-            }
-            cursor.continue();
-          } else {
-            resolve();
-          }
-        };
-        cursorRequest.onerror = () => reject(cursorRequest.error);
-      });
-      await sizeTx.done;
-      console.log(
-        `[LearningModules] Estimated current storage size: ${totalSize} bytes`
-      );
-
-      // Cache media files with individual transactions
-      for (const { key, contentType } of mediaTypes) {
-        for (const module of modules[key]) {
-          if (module.url && totalSize < MAX_CACHE_SIZE) {
-            console.log(
-              `[LearningModules] Pre-caching ${contentType} for module ${module.id}`
-            );
-            const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(
-              module.url
-            )}`;
-            const response = await fetch(proxyUrl, {
-              headers: headers(sessionToken, contentType),
-            });
-            if (response.ok) {
-              const blob = await response.blob();
-              totalSize += blob.size;
-              if (totalSize <= MAX_CACHE_SIZE) {
-                // Use a new transaction for each store operation
-                const tx = db.transaction("media", "readwrite");
-                const store = tx.objectStore("media");
-                await store.put({
-                  moduleId: module.id,
-                  content: blob,
-                  contentType,
-                });
-                await tx.done;
-                console.log(
-                  `[LearningModules] Pre-cached ${contentType} for module ${module.id}`
-                );
-              } else {
-                console.warn(
-                  `[LearningModules] Cache limit reached, skipping ${contentType} for module ${module.id}`
-                );
-                toast.error(
-                  `Storage limit reached, some ${contentType}s may not be available offline.`
-                );
-                break;
-              }
-            } else {
-              console.error(
-                `[LearningModules] Failed to pre-cache ${contentType} for module ${module.id}: ${response.status}`
-              );
-            }
-          }
-        }
-      }
-      console.log("[LearningModules] All media caching completed");
-    } catch (error) {
-      console.error("[LearningModules] Error during media pre-caching:", error);
-      toast.error("Failed to cache some media for offline use.");
-    }
   };
 
   const handleLogout = async () => {
@@ -592,10 +468,7 @@ export function LearningModules() {
             "X-Session-Token": sessionToken,
           },
         });
-        console.log(
-          "[LearningModules] Fetch response status:",
-          response.status
-        );
+        console.log("[LearningModules] Fetch response status:", response.status);
         if (!response.ok) {
           console.error(
             "[LearningModules] Fetch failed with status:",
@@ -615,8 +488,6 @@ export function LearningModules() {
         console.log("[LearningModules] Fetch response data:", data);
         setModules(data);
         await cacheModulesData(data);
-        // Cache all media files after fetching modules
-        await cacheAllMedia(data);
         setError(null);
       } catch (e) {
         console.error("[LearningModules] Fetch error:", e);
@@ -777,7 +648,8 @@ export function LearningModules() {
       return;
     }
 
-    let finalUrl: string | undefined;
+    let finalUrl: string | undefined = video.url;
+
     if (isOffline) {
       const cachedUrl = await loadMediaFromDB(video.id);
       if (cachedUrl) {
@@ -788,9 +660,20 @@ export function LearningModules() {
         return;
       }
     } else {
-      const cachedUrl = await loadMediaFromDB(video.id);
-      finalUrl =
-        cachedUrl || `/api/proxy-video?url=${encodeURIComponent(video.url)}`;
+      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(video.url)}`;
+      console.log(`[LearningModules] Using proxy URL for video: ${proxyUrl}`);
+
+      // Cache video using proxy
+      console.log(`[LearningModules] Caching video for module ${video.id}`);
+      const cached = await cacheMedia(video.id, video.url, "video");
+      if (cached) {
+        const cachedUrl = await loadMediaFromDB(video.id);
+        if (cachedUrl) {
+          finalUrl = cachedUrl;
+        }
+      }
+
+      finalUrl = proxyUrl;
     }
 
     if (!finalUrl) {
@@ -811,32 +694,27 @@ export function LearningModules() {
       toast.error("No audio URL available");
       return;
     }
-
-    let finalUrl: string | undefined;
     if (isOffline) {
       const cachedUrl = await loadMediaFromDB(audio.id);
       if (cachedUrl) {
-        finalUrl = cachedUrl;
+        setSelectedAudio({ ...audio, url: cachedUrl });
+        setAudioPlayerOpen(true);
       } else {
         setError("Audio not available offline");
         toast.error("Audio not available offline");
         return;
       }
     } else {
-      const cachedUrl = await loadMediaFromDB(audio.id);
-      finalUrl =
-        cachedUrl || `/api/proxy-video?url=${encodeURIComponent(audio.url)}`;
+      // Cache audio when played online
+      console.log(`[LearningModules] Caching audio for module ${audio.id}`);
+      await cacheMedia(audio.id, audio.url, "audio");
+      const url = new URL(audio.url);
+      if (session?.user?.sessionToken) {
+        url.searchParams.append("sessionToken", session.user.sessionToken);
+      }
+      setSelectedAudio({ ...audio, url: url.toString() });
+      setAudioPlayerOpen(true);
     }
-
-    if (!finalUrl) {
-      console.error("[LearningModules] No valid URL for audio:", audio.title);
-      setError("Failed to load audio URL");
-      toast.error("Failed to load audio URL");
-      return;
-    }
-
-    setSelectedAudio({ ...audio, url: finalUrl });
-    setAudioPlayerOpen(true);
   };
 
   const handlePreviewPdf = async (pdf: Module) => {
@@ -846,32 +724,27 @@ export function LearningModules() {
       toast.error("No PDF URL available");
       return;
     }
-
-    let finalUrl: string | undefined;
     if (isOffline) {
       const cachedUrl = await loadMediaFromDB(pdf.id);
       if (cachedUrl) {
-        finalUrl = cachedUrl;
+        setSelectedPdf({ ...pdf, url: cachedUrl });
+        setPdfViewerOpen(true);
       } else {
         setError("PDF not available offline");
         toast.error("PDF not available offline");
         return;
       }
     } else {
-      const cachedUrl = await loadMediaFromDB(pdf.id);
-      finalUrl =
-        cachedUrl || `/api/proxy-video?url=${encodeURIComponent(pdf.url)}`;
+      // Cache PDF when previewed online
+      console.log(`[LearningModules] Caching PDF for module ${pdf.id}`);
+      await cacheMedia(pdf.id, pdf.url, "pdf");
+      const url = new URL(pdf.url);
+      if (session?.user?.sessionToken) {
+        url.searchParams.append("sessionToken", session.user.sessionToken);
+      }
+      setSelectedPdf({ ...pdf, url: url.toString() });
+      setPdfViewerOpen(true);
     }
-
-    if (!finalUrl) {
-      console.error("[LearningModules] No valid URL for PDF:", pdf.title);
-      setError("Failed to load PDF URL");
-      toast.error("Failed to load PDF URL");
-      return;
-    }
-
-    setSelectedPdf({ ...pdf, url: finalUrl });
-    setPdfViewerOpen(true);
   };
 
   const handleDownloadPdf = (pdf: Module) => {
@@ -945,9 +818,7 @@ export function LearningModules() {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() =>
-                  setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))
-                }
+                onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}
               >
                 1
               </PaginationLink>
@@ -1071,9 +942,7 @@ export function LearningModules() {
           Structured learning paths with videos, audio, PDFs, and tutorials
         </p>
         {isOffline && (
-          <p className="text-yellow-600 text-sm">
-            Offline Mode: Using cached data
-          </p>
+          <p className="text-yellow-600 text-sm">Offline Mode: Using cached data</p>
         )}
         {error && <p className="text-yellow-600 text-sm">{error}</p>}
       </div>

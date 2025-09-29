@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useMemo } from "react";
 import {
   Card,
@@ -26,12 +24,12 @@ import {
 import {
   Clock,
   CheckCircle,
-  XCircle,
   Play,
   RotateCcw,
   Shield,
   AlertTriangle,
   LogIn,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Pagination,
@@ -45,42 +43,245 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
 
+async function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("studentDB", 4);
+    request.onupgradeneeded = (event) => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("tests")) {
+        db.createObjectStore("tests", { keyPath: "pk" });
+      }
+      if (!db.objectStoreNames.contains("answers")) {
+        db.createObjectStore("answers", { keyPath: "testPk" });
+      }
+      if (!db.objectStoreNames.contains("pendingSubmissions")) {
+        db.createObjectStore("pendingSubmissions", { keyPath: "testPk" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+async function cacheTests(tests) {
+  if (!Array.isArray(tests)) {
+    console.error("[CBTTest] cacheTests: Input is not an array:", tests);
+    return;
+  }
+  console.log("[CBTTest] cacheTests: Raw input tests:", JSON.stringify(tests, null, 2));
+  const validTests = tests
+    .filter((test) => {
+      const isValid =
+        test &&
+        typeof test === "object" &&
+        (typeof test.pk === "number" || typeof test.pk === "string") &&
+        typeof test.id === "string" &&
+        typeof test.title === "string" &&
+        Array.isArray(test.items) &&
+        typeof test.duration === "string" &&
+        typeof test.difficulty === "string" &&
+        typeof test.description === "string" &&
+        typeof test.type === "string" &&
+        typeof test.requiresSubscription === "boolean";
+      if (!isValid) {
+        console.warn("[CBTTest] Invalid test filtered out:", test);
+      }
+      return isValid;
+    })
+    .map((test) => ({
+      pk: test.pk,
+      id: test.id,
+      title: test.title,
+      questions: Array.isArray(test.items) ? test.items : [],
+      duration: test.duration || "30 minutes",
+      difficulty: test.difficulty || "Unknown",
+      description: test.description || "",
+      type: test.type || "quiz",
+      requiresSubscription: test.requiresSubscription || false,
+      course: test.course || null,
+      startsAt: test.startsAt || null,
+      endsAt: test.endsAt || null,
+      cachedAt: Date.now(),
+    }));
+  if (validTests.length === 0) {
+    console.log("[CBTTest] cacheTests: No valid tests to cache");
+    return;
+  }
+  try {
+    const db = await openDB();
+    const tx = db.transaction("tests", "readwrite");
+    const store = tx.objectStore("tests");
+    const existingKeysRequest = store.getAllKeys();
+    const existingKeys = await new Promise((resolve, reject) => {
+      existingKeysRequest.onsuccess = () => resolve(existingKeysRequest.result || []);
+      existingKeysRequest.onerror = () => reject(existingKeysRequest.error);
+    });
+    const testsToStore = validTests.filter((test) => !existingKeys.includes(test.pk));
+    if (testsToStore.length === 0) {
+      console.log("[CBTTest] cacheTests: All tests already cached, skipping");
+      await tx.done;
+      return;
+    }
+    console.log("[CBTTest] cacheTests: Storing tests:", JSON.stringify(testsToStore, null, 2));
+    await Promise.all(
+      testsToStore.map((test) => {
+        console.log("[CBTTest] Attempting to store test with pk:", test.pk, "Data:", JSON.stringify(test, null, 2));
+        return store.put(test).catch((err) => {
+          console.error("[CBTTest] Error caching test with pk:", test.pk, "Error:", err);
+          throw err;
+        });
+      })
+    );
+    await tx.done;
+    console.log("[CBTTest] Cached tests:", testsToStore.length);
+  } catch (err) {
+    console.error("[CBTTest] cacheTests: Failed to cache tests:", err);
+  }
+}
+
+async function loadTestsFromCache() {
+  const db = await openDB();
+  const tx = db.transaction("tests", "readonly");
+  const store = tx.objectStore("tests");
+  const cachedTests = await store.getAll();
+  await tx.done;
+  console.log("[CBTTest] Loaded cached tests:", cachedTests?.length || 0);
+  return Array.isArray(cachedTests) ? cachedTests : [];
+}
+
+async function saveAnswers(testPk, answers, startTime, initialTime, timeLeft, suspiciousActivity) {
+  const db = await openDB();
+  const tx = db.transaction("answers", "readwrite");
+  const store = tx.objectStore("answers");
+  await store.put({
+    testPk,
+    answers,
+    startTime,
+    duration: initialTime - timeLeft,
+    suspiciousActivity,
+  });
+  await tx.done;
+  console.log("[CBTTest] Saved answers for test:", testPk);
+}
+
+async function queueSubmission(body) {
+  const db = await openDB();
+  const tx = db.transaction("pendingSubmissions", "readwrite");
+  const store = tx.objectStore("pendingSubmissions");
+  await store.put({ testPk: body.currentTest, ...body, queuedAt: Date.now() });
+  await tx.done;
+  console.log("[CBTTest] Queued submission for test:", body.currentTest);
+}
+
 export function CBTTest() {
   const { data: session, status } = useSession();
-  const [currentTest, setCurrentTest] = useState<string | null>(null);
+  const [currentTest, setCurrentTest] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes
+  const [answers, setAnswers] = useState({});
+  const [timeLeft, setTimeLeft] = useState(1800);
   const [initialTime, setInitialTime] = useState(0);
-  const [startTime, setStartTime] = useState<string | null>(null);
+  const [startTime, setStartTime] = useState(null);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState(null);
   const [isSecureMode, setIsSecureMode] = useState(false);
   const [browserLocked, setBrowserLocked] = useState(false);
   const [suspiciousActivity, setSuspiciousActivity] = useState(0);
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
-  const [isSubscriber, setIsSubscriber] = useState(true); // Mock subscription status
+  const [isSubscriber, setIsSubscriber] = useState(true);
   const [examAttempts, setExamAttempts] = useState(0);
   const [maxAttempts] = useState(3);
   const [currentPage, setCurrentPage] = useState(1);
-  const [testsPerPage] = useState(3); // Show 3 tests per page
+  const [testsPerPage] = useState(3);
   const [showStartDialog, setShowStartDialog] = useState(false);
-  const [pendingTestId, setPendingTestId] = useState<string | null>(null);
+  const [pendingTestId, setPendingTestId] = useState(null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [availableTests, setAvailableTests] = useState<any[]>([]);
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [availableTests, setAvailableTests] = useState([]);
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const sessionToken = useMemo(
-    () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
-  );
+  const [error, setError] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const sessionToken = useMemo(() => session?.user?.sessionToken || null, [session?.user?.sessionToken]);
+
+  async function syncSubmissions() {
+    if (!navigator.onLine || !sessionToken) return;
+    const db = await openDB();
+    const tx = db.transaction("pendingSubmissions", "readwrite");
+    const store = tx.objectStore("pendingSubmissions");
+    const pending = await store.getAll();
+    const submissions = Array.isArray(pending) ? pending : [];
+    if (submissions.length === 0) {
+      console.log("[CBTTest] syncSubmissions: No pending submissions");
+      setError(null);
+      return;
+    }
+    let allSynced = true;
+    for (const submission of submissions) {
+      try {
+        const res = await fetchWithTimeout(`/api/student/cbt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+          },
+          body: JSON.stringify(submission),
+          timeout: 5000,
+        });
+        if (res.ok) {
+          await store.delete(submission.testPk);
+          console.log("[CBTTest] Synced submission for test:", submission.testPk);
+          setError(null);
+          setTestCompleted(true);
+        } else {
+          allSynced = false;
+          console.error("[CBTTest] Sync failed for test:", submission.testPk, "Status:", res.status);
+        }
+      } catch (err) {
+        allSynced = false;
+        console.error("[CBTTest] Error syncing submission:", submission.testPk, err);
+      }
+    }
+    await tx.done;
+    if (allSynced && submissions.length > 0) {
+      setShowSuccessModal(true);
+    }
+  }
+
+  const handleSuccessModalClose = (refresh = false) => {
+    setShowSuccessModal(false);
+    if (refresh) {
+      window.location.reload();
+    } else {
+      setCurrentTest(null);
+      setTestCompleted(false);
+      setResult(null);
+      setQuestions([]);
+      setAnswers({});
+      setCurrentQuestion(0);
+      setTimeLeft(1800);
+      setInitialTime(0);
+      setStartTime(null);
+      setSuspiciousActivity(0);
+      setIsSecureMode(false);
+      setBrowserLocked(false);
+    }
+  };
 
   const handleLogout = async () => {
-    console.log(
-      "[CBTTest] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
+    console.log("[CBTTest] Initiating logout, sessionToken:", session?.user?.sessionToken);
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
@@ -93,21 +294,32 @@ export function CBTTest() {
         console.error("[CBTTest] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      document.cookie =
-        "next-auth.session-token=; Max-Age=0; path=/; secure; SameSite=Strict";
-      document.cookie =
-        "next-auth.csrf-token=; Max-Age=0; path=/; secure; SameSite=Strict";
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure; SameSite=Strict";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure; SameSite=Strict";
       console.log("[CBTTest] Logout successful, redirecting to /login");
       window.location.href = "/login";
     } catch (error) {
       console.error("[CBTTest] Logout error:", error);
-      document.cookie =
-        "next-auth.session-token=; Max-Age=0; path=/; secure; SameSite=Strict";
-      document.cookie =
-        "next-auth.csrf-token=; Max-Age=0; path=/; secure; SameSite=Strict";
+      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure; SameSite=Strict";
+      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure; SameSite=Strict";
       window.location.href = "/login";
     }
   };
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      syncSubmissions();
+    };
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    syncSubmissions();
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [sessionToken]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -115,62 +327,44 @@ export function CBTTest() {
       return;
     }
     if (status !== "authenticated" || !session?.user?.sessionToken) {
-      console.log(
-        "[CBTTest] Not authenticated or no session token, status:",
-        status,
-        "sessionToken:",
-        session?.user?.sessionToken
-      );
+      console.log("[CBTTest] Not authenticated or no session token, status:", status, "sessionToken:", session?.user?.sessionToken);
       setError("Not authenticated");
       setLoading(false);
       return;
     }
 
     const fetchTests = async () => {
-      console.log(
-        "[CBTTest] Fetching tests with sessionToken:",
-        session.user.sessionToken
-      );
+      console.log("[CBTTest] Fetching tests with sessionToken:", session.user.sessionToken);
       setLoading(true);
       try {
-        const response = await fetch("/api/student/cbt", {
+        const response = await fetchWithTimeout("/api/student/cbt", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
+          timeout: 5000,
         });
-        console.log("[CBTTest] Fetch response status:", response.status);
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(
-            "[CBTTest] Fetch failed with status:",
-            response.status,
-            "Response:",
-            errorText
-          );
+          console.error("[CBTTest] Fetch failed with status:", response.status, "Response:", errorText);
           if (response.status === 401 || response.status === 403) {
             setError("Session expired");
-          } else if (response.status === 500) {
-            setError(
-              "Server error: Unable to fetch tests. Please try again later."
-            );
           } else {
-            setError("Failed to fetch tests");
+            throw new Error("Failed to fetch tests");
           }
-          setAvailableTests([]);
-          setLoading(false);
-          return;
+        } else {
+          const data = await response.json();
+          console.log("[CBTTest] Fetch response data:", data);
+          const tests = Array.isArray(data.tests) ? data.tests : [];
+          await cacheTests(tests);
+          setAvailableTests(tests);
+          setError(null);
         }
-        const data = await response.json();
-        console.log("[CBTTest] Fetch response data:", data);
-        setAvailableTests(data.tests || []);
-        setError(null);
       } catch (err) {
         console.error("[CBTTest] Fetch error:", err);
-        setError(
-          "Server error: Unable to fetch tests. Please try again later."
-        );
-        setAvailableTests([]);
+        const cachedTests = await loadTestsFromCache();
+        setAvailableTests(cachedTests);
+        setError("Offline mode: Showing cached tests");
       } finally {
         setLoading(false);
       }
@@ -179,17 +373,15 @@ export function CBTTest() {
     fetchTests();
   }, [sessionToken, status]);
 
-  // Pagination logic
-  const indexOfLastTest = currentPage * testsPerPage;
-  const indexOfFirstTest = indexOfLastTest - testsPerPage;
-  const currentTests = availableTests.slice(indexOfFirstTest, indexOfLastTest);
-  const totalPages = Math.ceil(availableTests.length / testsPerPage);
-
   useEffect(() => {
     if (currentTest) {
       const handleVisibilityChange = () => {
         if (document.hidden) {
-          setSuspiciousActivity((prev) => prev + 1);
+          setSuspiciousActivity((prev) => {
+            const newCount = prev + 1;
+            saveAnswers(currentTest, answers, startTime, initialTime, timeLeft, newCount);
+            return newCount;
+          });
           setShowSecurityWarning(true);
           if (suspiciousActivity >= 2) {
             submitTest();
@@ -198,30 +390,34 @@ export function CBTTest() {
       };
 
       const handleBlur = () => {
-        setSuspiciousActivity((prev) => prev + 1);
+        setSuspiciousActivity((prev) => {
+          const newCount = prev + 1;
+          saveAnswers(currentTest, answers, startTime, initialTime, timeLeft, newCount);
+          return newCount;
+        });
         setShowSecurityWarning(true);
         if (suspiciousActivity >= 2) {
           submitTest();
         }
       };
 
-      const handleKeyDown = (e: KeyboardEvent) => {
+      const handleKeyDown = (e) => {
         if (
           e.key === "F12" ||
-          (e.ctrlKey &&
-            (e.key === "u" ||
-              e.key === "i" ||
-              e.key === "s" ||
-              e.key === "t")) ||
+          (e.ctrlKey && (e.key === "u" || e.key === "i" || e.key === "s" || e.key === "t")) ||
           (e.ctrlKey && e.shiftKey && e.key === "I")
         ) {
           e.preventDefault();
-          setSuspiciousActivity((prev) => prev + 1);
+          setSuspiciousActivity((prev) => {
+            const newCount = prev + 1;
+            saveAnswers(currentTest, answers, startTime, initialTime, timeLeft, newCount);
+            return newCount;
+          });
           setShowSecurityWarning(true);
         }
       };
 
-      const handleContextMenu = (e: MouseEvent) => {
+      const handleContextMenu = (e) => {
         e.preventDefault();
       };
 
@@ -231,16 +427,13 @@ export function CBTTest() {
       document.addEventListener("contextmenu", handleContextMenu);
 
       return () => {
-        document.removeEventListener(
-          "visibilitychange",
-          handleVisibilityChange
-        );
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
         window.removeEventListener("blur", handleBlur);
         document.removeEventListener("keydown", handleKeyDown);
         document.removeEventListener("contextmenu", handleContextMenu);
       };
     }
-  }, [currentTest, suspiciousActivity]);
+  }, [currentTest, suspiciousActivity, answers, startTime, initialTime, timeLeft]);
 
   useEffect(() => {
     if (currentTest && timeLeft > 0) {
@@ -250,54 +443,54 @@ export function CBTTest() {
             submitTest();
             return 0;
           }
+          saveAnswers(currentTest, answers, startTime, initialTime, prev - 1, suspiciousActivity);
           return prev - 1;
         });
       }, 1000);
-
       return () => clearInterval(timer);
     }
-  }, [currentTest, timeLeft]);
+  }, [currentTest, timeLeft, answers, startTime, initialTime, suspiciousActivity]);
 
-  const startTest = (testPk: string) => {
+  const startTest = async (testPk) => {
     const test = availableTests.find((t) => t.pk.toString() === testPk);
-
     if (test?.requiresSubscription && !isSubscriber) {
       setShowStartDialog(true);
       setPendingTestId(null);
       return;
     }
-
     if (test?.type === "exam" && examAttempts >= maxAttempts) {
       setShowStartDialog(true);
       setPendingTestId(null);
       return;
     }
 
-    const mappedQuestions = test.items.map((item: any) => ({
+    const mappedQuestions = test.items.map((item) => ({
       id: item.id,
       type: item.type === "scq" ? "multiple-choice" : item.type,
       question: item.question,
-      options: item.choices
-        ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
-        : [],
+      options: item.choices ? item.choices.map((c) => ({ id: c.id, text: c.text })) : [],
       points: item.points,
     }));
+
+    const db = await openDB();
+    const tx = db.transaction("answers", "readonly");
+    const store = tx.objectStore("answers");
+    const saved = await store.get(testPk);
+    await tx.done;
 
     setQuestions(mappedQuestions);
     setCurrentTest(testPk);
     setCurrentQuestion(0);
-    setAnswers({});
+    setAnswers(saved?.answers || {});
     setTestCompleted(false);
     const duration =
-      test?.id === "semester-exam-math"
-        ? 7200
-        : test?.id === "semester-exam-physics"
-        ? 5400
-        : parseInt(test.duration) * 60 || 1800;
+      test?.id === "semester-exam-math" ? 7200 :
+      test?.id === "semester-exam-physics" ? 5400 :
+      parseInt(test.duration) * 60 || 1800;
     setInitialTime(duration);
-    setTimeLeft(duration);
-    setStartTime(new Date().toISOString());
-
+    setTimeLeft(saved?.duration || duration);
+    setStartTime(saved?.startTime || new Date().toISOString());
+    setSuspiciousActivity(saved?.suspiciousActivity || 0);
     setIsSecureMode(true);
     setBrowserLocked(true);
     if (test?.type === "exam") {
@@ -305,7 +498,7 @@ export function CBTTest() {
     }
   };
 
-  const handleStartTest = (testPk: string) => {
+  const handleStartTest = (testPk) => {
     setPendingTestId(testPk);
     setShowStartDialog(true);
   };
@@ -322,7 +515,7 @@ export function CBTTest() {
     setShowLeaveDialog(true);
   };
 
-  const confirmLeaveTest = () => {
+  const confirmLeaveTest = async () => {
     setShowLeaveDialog(false);
     setCurrentTest(null);
     setIsSecureMode(false);
@@ -331,13 +524,19 @@ export function CBTTest() {
     setCurrentQuestion(0);
     setAnswers({});
     setQuestions([]);
+    if (currentTest) {
+      await saveAnswers(currentTest, answers, startTime, initialTime, timeLeft, suspiciousActivity);
+    }
   };
 
-  const handleAnswerChange = (value: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion]: value,
-    }));
+  const handleAnswerChange = async (value) => {
+    setAnswers((prev) => {
+      const newAnswers = { ...prev, [currentQuestion]: value };
+      if (currentTest) {
+        saveAnswers(currentTest, newAnswers, startTime, initialTime, timeLeft, suspiciousActivity);
+      }
+      return newAnswers;
+    });
   };
 
   const nextQuestion = () => {
@@ -371,44 +570,59 @@ export function CBTTest() {
       started_at: startTime,
       duration_seconds: initialTime - timeLeft,
       suspicious_activity: suspiciousActivity,
-      currentTest: currentTest,
+      currentTest,
     };
 
-    try {
-      const res = await fetch(`/api/student/cbt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": session?.user?.sessionToken || "",
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to submit test");
+    if (navigator.onLine && sessionToken) {
+      try {
+        const res = await fetchWithTimeout(`/api/student/cbt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+          },
+          body: JSON.stringify(body),
+          timeout: 5000,
+        });
+        if (!res.ok) throw new Error("Failed to submit test");
+        const data = await res.json();
+        setResult(data);
+        const db = await openDB();
+        const tx = db.transaction("answers", "readwrite");
+        await tx.objectStore("answers").delete(currentTest);
+        await tx.done;
+      } catch (err) {
+        console.error("[CBTTest] Error submitting test:", err);
+        await queueSubmission(body);
+        setError("Offline mode: Test saved locally, will submit when online");
       }
-
-      const data = await res.json();
-      setResult(data);
-    } catch (err) {
-      console.error("[CBTTest] Error submitting test:", err);
-    } finally {
-      setTestCompleted(true);
-      setIsSecureMode(false);
-      setBrowserLocked(false);
-      setSuspiciousActivity(0);
+    } else {
+      await queueSubmission(body);
+      setError("Offline mode: Test saved locally, will submit when online");
     }
+
+    setTestCompleted(true);
+    setIsSecureMode(false);
+    setBrowserLocked(false);
+    setSuspiciousActivity(0);
   };
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = (page) => {
     setCurrentPage(page);
   };
+
+  const indexOfLastTest = currentPage * testsPerPage;
+  const indexOfFirstTest = indexOfLastTest - testsPerPage;
+  const currentTests = Array.isArray(availableTests)
+    ? availableTests.slice(indexOfFirstTest, indexOfLastTest)
+    : [];
+  const totalPages = Math.ceil((availableTests?.length || 0) / testsPerPage);
 
   if (status === "loading") {
     return (
@@ -485,7 +699,7 @@ export function CBTTest() {
               onClick={() =>
                 error === "Session expired" || error === "Not authenticated"
                   ? handleLogout()
-                  : window.location.reload()
+                  : syncSubmissions()
               }
               className="flex items-center gap-2"
             >
@@ -501,19 +715,49 @@ export function CBTTest() {
   }
 
   if (testCompleted) {
-    // const Icon = result?.result === "PASS" ? CheckCircle : XCircle;
-    // const iconColor =
-    //   result?.result === "PASS" ? "text-green-500" : "text-red-500";
-
     const Icon = CheckCircle;
     const iconColor = "text-green-500";
 
     return (
       <div className="space-y-6">
+        {isOffline && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">Offline mode: Test saved locally, will submit when online.</p>
+          </div>
+        )}
+        <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-green-600">
+                <CheckCircle className="h-5 w-5" />
+                Submission Successful
+              </DialogTitle>
+              <DialogDescription>
+                Your test has been successfully submitted. You can refresh to load updated data or return to the test selection.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                variant="outline"
+                onClick={() => handleSuccessModalClose(false)}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={() => handleSuccessModalClose(true)}
+              >
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {result
+            {navigator.onLine && result
               ? `Your result: ${result.result}`
               : "Your test has been submitted. Results will be available soon."}
           </p>
@@ -526,31 +770,27 @@ export function CBTTest() {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              Thank you for completing the test.
+              {navigator.onLine
+                ? "Thank you for completing the test."
+                : "Test saved locally. It will be submitted when your connection is restored."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {result && (
+            {result && navigator.onLine && (
               <div className="text-center space-y-2">
                 <p className="text-4xl font-bold">{result.percentage}%</p>
-                <p className="text-xl">
-                  Score: {result.score} / {result.total_points}
-                </p>
+                <p className="text-xl">Score: {result.score} / {result.total_points}</p>
                 <p>Answered: {result.answered}</p>
                 {result.pending_manual > 0 && (
                   <p>{result.pending_manual} questions pending manual review</p>
                 )}
-                <p className="">
+                <p>
                   {result.result === "PASS"
-                    ? "Congratulations! You have passed the test." :
-                    "Unfortunately, you did not pass. Better luck next time!"}
+                    ? "Congratulations! You have passed the test."
+                    : "Unfortunately, you did not pass. Better luck next time!"}
                 </p>
-                {/* <p className="text-sm text-muted-foreground">
-                  Note: Detailed results will be available in your dashboard.
-                </p> */}
               </div>
             )}
-
             {suspiciousActivity > 0 && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-center gap-2 text-yellow-800">
@@ -558,12 +798,10 @@ export function CBTTest() {
                   <span className="font-medium">Security Notice</span>
                 </div>
                 <p className="text-sm text-yellow-700 mt-1">
-                  {suspiciousActivity} suspicious activities detected during the
-                  test.
+                  {suspiciousActivity} suspicious activities detected during the test.
                 </p>
               </div>
             )}
-
             <div className="flex gap-4 justify-center">
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
@@ -572,7 +810,9 @@ export function CBTTest() {
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Take Another Test
               </Button>
-              <Button variant="outline">View Submitted Answers</Button>
+              {navigator.onLine && (
+                <Button variant="outline">View Submitted Answers</Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -587,10 +827,12 @@ export function CBTTest() {
 
     return (
       <div className="space-y-6">
-        <Dialog
-          open={showSecurityWarning}
-          onOpenChange={setShowSecurityWarning}
-        >
+        {isOffline && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">Offline mode: Answers will be saved locally.</p>
+          </div>
+        )}
+        <Dialog open={showSecurityWarning} onOpenChange={setShowSecurityWarning}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -598,10 +840,8 @@ export function CBTTest() {
                 Security Warning
               </DialogTitle>
               <DialogDescription>
-                Suspicious activity detected! Switching tabs, opening new tabs,
-                or using keyboard shortcuts is not allowed during the test.
-                {suspiciousActivity >= 2 &&
-                  " Your test will be auto-submitted if this continues."}
+                Suspicious activity detected! Switching tabs, opening new tabs, or using keyboard shortcuts is not allowed during the test.
+                {suspiciousActivity >= 2 && " Your test will be auto-submitted if this continues."}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -623,7 +863,7 @@ export function CBTTest() {
                 Leave Test
               </DialogTitle>
               <DialogDescription>
-                Are you sure you want to leave? Your test progress will be lost.
+                Are you sure you want to leave? Your test progress will be saved locally.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -661,9 +901,7 @@ export function CBTTest() {
             )}
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              <span
-                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}
-              >
+              <span className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
                 {formatTime(timeLeft)}
               </span>
             </div>
@@ -690,25 +928,23 @@ export function CBTTest() {
                     value={answers[currentQuestion] || ""}
                     onValueChange={handleAnswerChange}
                   >
-                    {currentQ.options?.map(
-                      (option: { id: number; text: string }, index: number) => (
-                        <div
-                          key={option.id}
-                          className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
+                    {currentQ.options?.map((option) => (
+                      <div
+                        key={option.id}
+                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
+                      >
+                        <RadioGroupItem
+                          value={option.id.toString()}
+                          id={`option-${option.id}`}
+                        />
+                        <Label
+                          htmlFor={`option-${option.id}`}
+                          className="flex-1 cursor-pointer"
                         >
-                          <RadioGroupItem
-                            value={option.id.toString()}
-                            id={`option-${option.id}`}
-                          />
-                          <Label
-                            htmlFor={`option-${option.id}`}
-                            className="flex-1 cursor-pointer"
-                          >
-                            {option.text}
-                          </Label>
-                        </div>
-                      )
-                    )}
+                          {option.text}
+                        </Label>
+                      </div>
+                    ))}
                   </RadioGroup>
                 ) : currentQ?.type === "short-answer" ? (
                   <div className="space-y-2">
@@ -831,6 +1067,11 @@ export function CBTTest() {
 
   return (
     <div className="space-y-6">
+      {isOffline && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">Offline mode: Using cached tests. Answers will be saved locally.</p>
+        </div>
+      )}
       <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
         <DialogContent>
           <DialogHeader>
@@ -838,9 +1079,7 @@ export function CBTTest() {
               <Play className="h-5 w-5" />
               {pendingTestId
                 ? `Start ${
-                    availableTests.find(
-                      (t) => t.pk.toString() === pendingTestId
-                    )?.type === "exam"
+                    availableTests.find((t) => t.pk.toString() === pendingTestId)?.type === "exam"
                       ? "Secure Exam"
                       : "Quiz"
                   }`
@@ -849,9 +1088,7 @@ export function CBTTest() {
             <DialogDescription>
               {pendingTestId
                 ? `Are you ready to start the ${
-                    availableTests.find(
-                      (t) => t.pk.toString() === pendingTestId
-                    )?.title
+                    availableTests.find((t) => t.pk.toString() === pendingTestId)?.title
                   }? During the test, you must remain on this tab. Switching tabs or opening new tabs will be flagged as suspicious activity.`
                 : examAttempts >= maxAttempts
                 ? `You have reached the maximum number of attempts (${maxAttempts}) for this exam.`
@@ -909,7 +1146,6 @@ export function CBTTest() {
                   >
                     {test.difficulty}
                   </Badge>
-
                   {test.type === "exam" && (
                     <Badge
                       variant="outline"
@@ -923,13 +1159,11 @@ export function CBTTest() {
               </div>
               <CardDescription>{test.description}</CardDescription>
             </CardHeader>
-
             <CardContent className="flex-1 flex flex-col gap-4">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{test.questions} questions</span>
                 <span>{test.duration}</span>
               </div>
-
               {test.requiresSubscription && !isSubscriber && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
@@ -938,7 +1172,6 @@ export function CBTTest() {
                   </p>
                 </div>
               )}
-
               {test.type === "exam" && (
                 <div className="text-sm text-muted-foreground">
                   <p>
@@ -946,7 +1179,6 @@ export function CBTTest() {
                   </p>
                 </div>
               )}
-
               <div className="mt-auto">
                 <Button
                   onClick={() => handleStartTest(test.pk.toString())}
