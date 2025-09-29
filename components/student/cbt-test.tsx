@@ -468,7 +468,11 @@ export function CBTTest() {
       id: item.id,
       type: item.type === "scq" ? "multiple-choice" : item.type,
       question: item.question,
-      options: item.choices ? item.choices.map((c) => ({ id: c.id, text: c.text })) : [],
+      options: item.type === "true-false" 
+        ? [{ id: "true", text: "True" }, { id: "false", text: "False" }]
+        : item.choices 
+          ? item.choices.map((c) => ({ id: c.id, text: c.text })) 
+          : [],
       points: item.points,
     }));
 
@@ -557,8 +561,8 @@ export function CBTTest() {
       const q = questions[i];
       const ans = answers[i];
       if (ans !== undefined) {
-        if (q.type === "multiple-choice") {
-          submitAnswers.push({ question: q.id, choice: parseInt(ans) });
+        if (q.type === "multiple-choice" || q.type === "true-false") {
+          submitAnswers.push({ question: q.id, choice: ans });
         } else {
           submitAnswers.push({ question: q.id, text: ans });
         }
@@ -923,7 +927,7 @@ export function CBTTest() {
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
 
-                {currentQ?.type === "multiple-choice" ? (
+                {currentQ?.type === "multiple-choice" || currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={handleAnswerChange}
