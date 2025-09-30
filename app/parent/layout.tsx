@@ -12,6 +12,7 @@ import {
   Baby,
   Calendar,
   Trophy,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -89,9 +90,11 @@ function SidebarMenuContent() {
   };
 
   return (
-    <SidebarContent>
+    <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
-        <SidebarGroupLabel>Parent Portal</SidebarGroupLabel>
+        {/* <SidebarGroupLabel className="text-[0.85rem] xs:text-xs sm:text-sm">
+          Welcome
+        </SidebarGroupLabel> */}
         <SidebarGroupContent>
           <SidebarMenu>
             {menuItems.map((item) => (
@@ -99,10 +102,22 @@ function SidebarMenuContent() {
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.path}
-                  className="w-full">
-                  <Link href={item.path} onClick={handleLinkClick}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                  className={`
+                    py-5
+                hover:bg-[#F797713a]
+                data-[active=true]:bg-[#EF7B553a]
+                data-[active=true]:text-slate-600
+                transition-colors
+                rounded-md
+              `}>
+                  <Link
+                    href={item.path}
+                    onClick={handleLinkClick}
+                    className="flex items-center gap-2">
+                    <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+                    <span className="text-[0.85rem] xs:text-xs sm:text-sm">
+                      {item.title}
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -166,48 +181,43 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar className="border-r">
-          <SidebarHeader>
-            <div className="flex items-center gap-2 px-4 py-2">
-              <GraduationCap className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">TECHXAGON</span>
-              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                Parent
+    <SidebarProvider className="bg-white">
+      <div className="flex min-h-screen w-full font-sans">
+        <Sidebar className="">
+          <SidebarHeader className="bg-[#EF7B55] py-5">
+            <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
+              <GraduationCap className="h-5 w-5 xs:h-6 xs:w-6 text-white text-primary" />
+              <span className="font-semibold text-white text-base xs:text-lg">
+                TECHXAGON
               </span>
             </div>
           </SidebarHeader>
           <SidebarMenuContent />
-          <SidebarFooter>
+          <SidebarFooter className="border border-t-[#EF7B553a] py-5">
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton>
-                      <Avatar className="h-6 w-6">
+                      <Avatar className="h-5 w-5 xs:h-6 xs:w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback>PT</AvatarFallback>
+                        <AvatarFallback className="xs:text-[0.65rem] sm:text-xs">
+                          {session?.user?.name?.[0] || "JD"}
+                        </AvatarFallback>
                       </Avatar>
-                      <span>Parent User</span>
-                      <ChevronDown className="ml-auto h-4 w-4" />
+                      <span className="xs:text-xs sm:text-sm">
+                        {session?.user?.name || "John Doe"}
+                      </span>
+                      <ChevronDown className="ml-auto h-3 w-3 xs:h-4 xs:w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
                     className="w-[--radix-popper-anchor-width]">
-                    <DropdownMenuLabel>Parent Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
+                    <DropdownMenuItem
+                      className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
+                      onClick={handleLogout}>
+                      <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -216,16 +226,17 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
+
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-50 py-2 shadow-md border-b">
+          <header className="sticky top-0 z-50 py-4">
             <style jsx>{`
               header {
                 background: rgba(
-                  221,
-                  38,
-                  1,
+                  247,
+                  151,
+                  113,
                   0.3
-                ); /* Semi-transparent white for glassy effect */
+                ); /* Semi-transparent #F19212 */
                 backdrop-filter: blur(8px); /* Frosted glass effect */
                 -webkit-backdrop-filter: blur(8px); /* Safari compatibility */
                 position: sticky;
@@ -238,15 +249,19 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
                 background: transparent;
               }
             `}</style>
-            <div className="flex h-14 items-center justify-between gap-4 px-6">
-              <SidebarTrigger />
-              <div className="flex-1"></div>
-              <Button variant="ghost" size="icon">
-                <Bell className="h-4 w-4" />
+            <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
+              <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+              <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
+                <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
+
+          <main className="flex-1 p-3 xs:p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>

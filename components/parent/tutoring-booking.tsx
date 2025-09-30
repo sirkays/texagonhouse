@@ -689,23 +689,19 @@ export function TutoringBooking() {
         value={activeTab}
         onValueChange={setActiveTab}
         className="space-y-4 xs:space-y-6">
-        <TabsList
-          className="
-    grid grid-cols-2 xs:grid-cols-4 gap-2
-    sm:flex sm:justify-start sm:gap-4
-    w-full mb-14">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="upcoming">
             Upcoming Sessions
           </TabsTrigger>
           <TabsTrigger
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="past">
             Past Sessions
           </TabsTrigger>
           <TabsTrigger
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="tutors">
             Find Tutors
           </TabsTrigger>

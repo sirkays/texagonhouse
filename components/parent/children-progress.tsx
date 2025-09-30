@@ -159,9 +159,9 @@ export function ChildrenProgress() {
   };
 
   const getGradeColor = (grade: any) => {
-    if (grade.startsWith("A")) return "text-green-600";
-    if (grade.startsWith("B")) return "text-blue-600";
-    if (grade.startsWith("C")) return "text-yellow-600";
+    if (grade.startsWith("A")) return "text-green-600 bg-transparent";
+    if (grade.startsWith("B")) return "text-blue-600 bg-transparent";
+    if (grade.startsWith("C")) return "text-yellow-600 bg-transparent";
     return "text-red-600";
   };
 
@@ -243,7 +243,6 @@ export function ChildrenProgress() {
                 <SelectContent>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
-                
                 </SelectContent>
               </Select>
             </div>
@@ -253,7 +252,6 @@ export function ChildrenProgress() {
 
       {/* Overall Stats */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-       
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
@@ -299,14 +297,21 @@ export function ChildrenProgress() {
       </div>
 
       <Tabs defaultValue="subjects" className="space-y-4">
-        <TabsList className="flex flex-col sm:flex-row gap-2">
-          <TabsTrigger className="flex-1 text-xs sm:text-sm" value="subjects">
+        <TabsList
+          className="
+    flex flex-col sm:flex-row 
+    gap-2 sm:gap-4 
+    w-full sm:w-auto">
+          <TabsTrigger
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            value="subjects">
             Courses Performance
           </TabsTrigger>
-          <TabsTrigger className="flex-1 text-xs sm:text-sm" value="timeline">
+          <TabsTrigger
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            value="timeline">
             Progress Timeline
           </TabsTrigger>
-          
         </TabsList>
 
         {/* Subjects */}
@@ -409,7 +414,6 @@ export function ChildrenProgress() {
                       {child.name}
                     </h3>
                     <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-4">
-                     
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
@@ -459,7 +463,6 @@ export function ChildrenProgress() {
             </CardContent>
           </Card>
         </TabsContent>
-        
       </Tabs>
     </div>
   );
