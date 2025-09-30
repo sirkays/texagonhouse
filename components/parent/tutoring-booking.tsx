@@ -438,7 +438,7 @@ export function TutoringBooking() {
             open={isBookingDialogOpen}
             onOpenChange={setIsBookingDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
+              <Button className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                 <Plus className="h-4 w-4" />
                 Book New Session
               </Button>
@@ -675,7 +675,7 @@ export function TutoringBooking() {
                 </Button>
                 <Button
                   onClick={() => setIsBookingDialogOpen(false)}
-                  className="w-full sm:w-auto">
+                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                   <CreditCard className="h-4 w-4 mr-2" />
                   Book & Pay Session
                 </Button>
