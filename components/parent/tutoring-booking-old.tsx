@@ -37,13 +37,18 @@ import {
   Video,
   Star,
   Plus,
+  Edit,
+  Trash2,
   CheckCircle,
   AlertCircle,
   CreditCard,
   Bell,
+  Calendar,
   Users,
   BookOpen,
+  PlayCircle,
   Download,
+  MessageSquare,
   Shield,
   Zap,
   ChevronLeft,
@@ -330,12 +335,13 @@ export function TutoringBooking() {
     },
   ];
 
-  // Pagination helpers
+  // Pagination calculations
   const paginate = (items: any[], page: number, itemsPerPage: number) => {
     const startIndex = (page - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return items.slice(startIndex, endIndex);
   };
+
   const totalPages = (items: any[], itemsPerPage: number) =>
     Math.ceil(items.length / itemsPerPage);
 
@@ -351,10 +357,12 @@ export function TutoringBooking() {
   // Pagination navigation handlers
   const handlePageChange = (
     setPage: React.Dispatch<React.SetStateAction<number>>,
-    total: number,
+    totalPages: number,
     newPage: number
   ) => {
-    if (newPage >= 1 && newPage <= total) setPage(newPage);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -599,8 +607,6 @@ export function TutoringBooking() {
                       </Select>
                     </div>
                   </div>
-
-                  {/* Keeping booking Session Type (not part of Find Tutors) */}
                   <div className="space-y-2">
                     <Label htmlFor="session-type">Session Type</Label>
                     <Select>
@@ -620,7 +626,6 @@ export function TutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="session-notes">
                       Learning Objectives & Notes
@@ -702,7 +707,6 @@ export function TutoringBooking() {
           </TabsTrigger>
         </TabsList>
 
-        {/* UPCOMING */}
         <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
@@ -753,7 +757,19 @@ export function TutoringBooking() {
                                   {session.time} ({session.duration}min)
                                 </span>
                               </div>
-                              {/* Removed type and sessionType badges */}
+                              <Badge
+                                variant="outline"
+                                className="text-xs sm:text-sm">
+                                {session.type}
+                              </Badge>
+                              <Badge
+                                className={
+                                  session.sessionType === "Premium"
+                                    ? "bg-yellow-100 text-yellow-800 text-xs sm:text-sm"
+                                    : "bg-gray-100 text-gray-800 text-xs sm:text-sm"
+                                }>
+                                {session.sessionType}
+                              </Badge>
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground break-words">
                               {session.notes}
@@ -844,7 +860,6 @@ export function TutoringBooking() {
           </Card>
         </TabsContent>
 
-        {/* PAST */}
         <TabsContent value="past" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
@@ -852,7 +867,8 @@ export function TutoringBooking() {
                 Past Sessions ({pastSessions.length})
               </CardTitle>
               <CardDescription className="text-sm">
-                History of completed tutoring sessions with recordings
+                History of completed tutoring sessions with recordings and
+                materials
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3">
@@ -893,7 +909,19 @@ export function TutoringBooking() {
                                 <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                                 {session.time} ({session.actualDuration}min)
                               </div>
-                              {/* Removed type and sessionType badges */}
+                              <Badge
+                                variant="outline"
+                                className="text-xs sm:text-sm">
+                                {session.type}
+                              </Badge>
+                              <Badge
+                                className={
+                                  session.sessionType === "Premium"
+                                    ? "bg-yellow-100 text-yellow-800 text-xs sm:text-sm"
+                                    : "bg-gray-100 text-gray-800 text-xs sm:text-sm"
+                                }>
+                                {session.sessionType}
+                              </Badge>
                             </div>
                             <div className="flex items-center gap-1">
                               {renderStars(session.rating)}
@@ -904,7 +932,20 @@ export function TutoringBooking() {
                             <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
                               "{session.feedback}"
                             </div>
-                            {/* Removed Materials button */}
+                            {(session.hasRecording || session.materials) && (
+                              <div className="flex flex-wrap items-center gap-2 pt-2">
+                                {session.materials &&
+                                  session.materials.length > 0 && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex items-center gap-1 bg-transparent text-xs sm:text-sm">
+                                      <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                                      Materials ({session.materials.length})
+                                    </Button>
+                                  )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -947,8 +988,7 @@ export function TutoringBooking() {
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
                         (page === pastPage + 2 &&
-                          pastPage <
-                            totalPages(pastSessions, itemsPerPage) - 2)
+                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -976,7 +1016,6 @@ export function TutoringBooking() {
           </Card>
         </TabsContent>
 
-        {/* FIND TUTORS */}
         <TabsContent value="tutors" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
@@ -992,7 +1031,7 @@ export function TutoringBooking() {
                 {paginatedTutors.map((tutor) => (
                   <div
                     key={tutor.id}
-                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]"
+                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]" // Added min-h for consistent height
                   >
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
@@ -1025,6 +1064,8 @@ export function TutoringBooking() {
                       </div>
                     </div>
                     <div className="space-y-3 text-xs sm:text-sm flex-grow">
+                      {" "}
+                      {/* Added flex-grow to content */}
                       <div>
                         <span className="font-medium">Subjects:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -1050,7 +1091,10 @@ export function TutoringBooking() {
                           </div>
                         </div>
                       </div>
-                      {/* Removed Response time line (per Find Tutors change) */}
+                      <div>
+                        <span className="font-medium">Response time:</span>{" "}
+                        {tutor.responseTime}
+                      </div>
                       <div>
                         <span className="font-medium">Languages:</span>{" "}
                         {tutor.languages.join(", ")}
@@ -1059,7 +1103,19 @@ export function TutoringBooking() {
                         <span className="font-medium">Available:</span>
                         <div>{tutor.availability}</div>
                       </div>
-                      {/* Removed Session Types section (per Find Tutors change) */}
+                      <div>
+                        <span className="font-medium">Session Types:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {tutor.sessionTypes.map((type: any, index: any) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs">
+                              {type}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                       <div className="text-xs text-muted-foreground break-words">
                         <span className="font-medium">Technologies:</span>{" "}
                         {tutor.technologies.join(", ")}
@@ -1069,8 +1125,10 @@ export function TutoringBooking() {
                       </div>
                     </div>
                     <div className="mt-auto">
+                      {" "}
+                      {/* Pushes button to the bottom */}
                       <Button
-                        className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full"
+                        className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full" // Added w-full for consistent button width
                         size="sm">
                         <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Book Session
@@ -1079,7 +1137,7 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
-
+              {/* Pagination remains unchanged */}
               {availableTutors.length > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
