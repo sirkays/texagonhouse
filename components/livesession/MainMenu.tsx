@@ -24,15 +24,14 @@ import DateAndTime from "./DateAndTime";
 import Image from "next/image";
 import { Spinner } from "../ui/spinner";
 
-const initialValues = {
-  dateTime: new Date(),
-  description: "",
-  link: "",
-  courseId: "",
-  courseName: "",
-  title: "",
-  duration: 60,
-};
+interface Course {
+  id: number | string;
+  name: string;
+  subject: string;
+  classroom: string;
+  description: string;
+  isActive?: boolean;
+}
 
 interface Meeting {
   id: string;
@@ -41,6 +40,15 @@ interface Meeting {
   description?: string;
   join_url?: string;
 }
+
+const initialValues = {
+  dateTime: new Date(),
+  description: "",
+  link: "",
+  courseId: null as number | null,
+  title: "",
+  duration: 60,
+};
 
 const MainMenu = () => {
   const { data: session, status } = useSession();
@@ -51,11 +59,66 @@ const MainMenu = () => {
   const [meetingState, setMeetingState] = useState<
     "Schedule" | "Instant" | undefined
   >(undefined);
+  const [courses, setCourses] = useState<Course[]>([]);
   const client = useStreamVideoClient();
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
+
+  // Fetch courses from the endpoint
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!session?.user?.sessionToken) {
+        console.log("[MainMenu] No session token, skipping fetch");
+        return;
+      }
+
+      try {
+        console.log("[MainMenu] Fetching courses from /api/teacher/courses/");
+        const response = await fetch("/api/teacher/courses/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            sessionToken: session.user.sessionToken,
+          },
+        });
+
+        console.log("[MainMenu] Fetch response status:", response.status);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to fetch courses");
+        }
+
+        const data = await response.json();
+        console.log("[MainMenu] Raw response data:", data);
+
+        // Handle case where data is an array directly
+        const fetchedCourses = (Array.isArray(data) ? data : data.courses || []).map(
+          (course: any) => ({
+            ...course,
+            id: Number(course.id), // Convert id to number
+          })
+        );
+        console.log("[MainMenu] Normalized courses:", fetchedCourses);
+
+        setCourses(fetchedCourses);
+        console.log("[MainMenu] Courses state updated:", fetchedCourses);
+      } catch (err: any) {
+        toast.error(`Failed to fetch courses: ${err.message}`, {
+          duration: 4000,
+          className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+        });
+        console.error("[MainMenu] Error fetching courses:", err);
+      }
+    };
+
+    if (session?.user) {
+      fetchCourses();
+    }
+  }, [session?.user]);
+
+  console.log("[MainMenu] Current courses state:", courses);
 
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)
@@ -63,14 +126,9 @@ const MainMenu = () => {
     if (!client) return router.push("/");
 
     try {
-      if (
-        !values.dateTime ||
-        !values.courseId ||
-        !values.title ||
-        !values.courseName
-      ) {
+      if (!values.dateTime || !values.courseId || !values.title) {
         toast.error(
-          "Please provide all required fields: date, course ID, course name, and title",
+          "Please provide all required fields: date, course, and title",
           {
             duration: 3000,
             className: "bg-gray-300 rounded-3xl py-8 px-5 justify-center",
@@ -105,7 +163,7 @@ const MainMenu = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          course_id: parseInt(values.courseId),
+          course_id: values.courseId,
           title: values.title,
           scheduled_at: startsAt,
           duration_minutes: values.duration,
@@ -191,15 +249,6 @@ const MainMenu = () => {
       createMeeting();
     }
   }, [meetingState]);
-
-  if (!client || status !== "authenticated" || !session?.user)
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Spinner size="lg" className="text-indigo-500" />
-      </div>
-    );
-
-  const isTeacher = session.user.role === "teacher";
 
   // Fetch meetings directly
   useEffect(() => {
@@ -305,8 +354,7 @@ const MainMenu = () => {
       setUpcomingMeetings((prev) =>
         prev.filter((meeting) => meeting.id !== nearestUpcomingMeeting.id)
       );
-      // Update state to reflect deletion
-      router.refresh(); // Refresh to update the UI
+      router.refresh();
     } catch (err: any) {
       toast.error(`Failed to delete meeting: ${err.message}`, {
         duration: 4000,
@@ -315,6 +363,15 @@ const MainMenu = () => {
       console.error("[StatusBar] Error deleting meeting:", err);
     }
   };
+
+  if (!client || status !== "authenticated" || !session?.user)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Spinner size="lg" className="text-indigo-500" />
+      </div>
+    );
+
+  const isTeacher = session.user.role === "teacher";
 
   return (
     <div>
@@ -329,7 +386,7 @@ const MainMenu = () => {
               </h2>
               <div className="flex gap-2 sm:gap-3">
                 {nearestUpcomingMeeting.join_url &&
-                  (isTeacher === isTeacher ? (
+                  (isTeacher ? (
                     <a
                       href="/main/home/upcoming"
                       className="text-blue-700 text-sm sm:text-base"
@@ -389,26 +446,24 @@ const MainMenu = () => {
                   }
                   className="inputs w-full text-sm sm:text-base"
                 />
-                <span className="text-xs sm:text-sm">Course ID</span>
-                <Input
-                  type="text"
-                  placeholder="Enter course ID"
-                  value={values.courseId}
+                <span className="text-xs sm:text-sm">Course</span>
+                <select
+                  value={values.courseId || ""}
                   onChange={(e) =>
-                    setValues({ ...values, courseId: e.target.value })
+                    setValues({ ...values, courseId: Number(e.target.value) })
                   }
-                  className="inputs w-full text-sm sm:text-base"
-                />
-                <span className="text-xs sm:text-sm">Course Name</span>
-                <Input
-                  type="text"
-                  placeholder="Enter course name"
-                  value={values.courseName}
-                  onChange={(e) =>
-                    setValues({ ...values, courseName: e.target.value })
-                  }
-                  className="inputs w-full text-sm sm:text-base"
-                />
+                  className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                >
+                  <option value="" disabled>
+                    Select a course
+                  </option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name} ({course.classroom})
+                    </option>
+                  ))}
+                </select>
                 <span className="text-xs sm:text-sm">
                   Add a meeting description
                 </span>
@@ -512,26 +567,24 @@ const MainMenu = () => {
                   }
                   className="inputs w-full text-sm sm:text-base"
                 />
-                <span className="text-xs sm:text-sm">Course ID</span>
-                <Input
-                  type="text"
-                  placeholder="Enter course ID"
-                  value={values.courseId}
+                <span className="text-xs sm:text-sm">Course</span>
+                <select
+                  value={values.courseId || ""}
                   onChange={(e) =>
-                    setValues({ ...values, courseId: e.target.value })
+                    setValues({ ...values, courseId: Number(e.target.value) })
                   }
-                  className="inputs w-full text-sm sm:text-base"
-                />
-                <span className="text-xs sm:text-sm">Course Name</span>
-                <Input
-                  type="text"
-                  placeholder="Enter course name"
-                  value={values.courseName}
-                  onChange={(e) =>
-                    setValues({ ...values, courseName: e.target.value })
-                  }
-                  className="inputs w-full text-sm sm:text-base"
-                />
+                  className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                >
+                  <option value="" disabled>
+                    Select a course
+                  </option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name} ({course.classroom})
+                    </option>
+                  ))}
+                </select>
                 <span className="text-xs sm:text-sm">
                   Add a meeting description
                 </span>
