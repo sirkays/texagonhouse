@@ -294,8 +294,8 @@ export function TutoringBooking() {
       languages: ["English", "Yoruba"],
       verified: true,
       premiumTutor: true,
-      sessionTypes: ["One-on-One", "Group", "Intensive"],
-      technologies: ["Interactive Whiteboard", "Screen Sharing", "Recording"],
+      sessionTypes: [],
+      technologies: [],
     },
     {
       id: 2,
@@ -1031,7 +1031,8 @@ export function TutoringBooking() {
                 {paginatedTutors.map((tutor) => (
                   <div
                     key={tutor.id}
-                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full overflow-hidden">
+                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]" // Added min-h for consistent height
+                  >
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
                         <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
@@ -1062,7 +1063,9 @@ export function TutoringBooking() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-3 text-xs sm:text-sm">
+                    <div className="space-y-3 text-xs sm:text-sm flex-grow">
+                      {" "}
+                      {/* Added flex-grow to content */}
                       <div>
                         <span className="font-medium">Subjects:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -1121,9 +1124,11 @@ export function TutoringBooking() {
                         {tutor.specialization}
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="mt-auto">
+                      {" "}
+                      {/* Pushes button to the bottom */}
                       <Button
-                        className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm"
+                        className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full" // Added w-full for consistent button width
                         size="sm">
                         <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Book Session
@@ -1132,6 +1137,7 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
+              {/* Pagination remains unchanged */}
               {availableTutors.length > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
