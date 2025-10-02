@@ -32,8 +32,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,15 +42,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMediaQuery } from "react-responsive";
-import { useSession, signOut } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
+import {usePathname} from "next/navigation";
+import {useMediaQuery} from "react-responsive";
+import {useSession, signOut} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
 
 const menuItems = [
-  { title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher" },
+  {title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher"},
   {
     title: "Create CBT",
     icon: TestTube,
@@ -88,6 +88,12 @@ const menuItems = [
     path: "/teacher/learning-module",
   },
   {
+    title: "Tutoring Booking",
+    icon: Calendar,
+    id: "tutoring-booking",
+    path: "/teacher/tutoring",
+  },
+  {
     title: "Student Analytics",
     icon: BarChart3,
     id: "analytics",
@@ -103,8 +109,8 @@ const menuItems = [
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
-  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
+  const isMobile = useMediaQuery({maxWidth: 639});
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -132,13 +138,11 @@ function SidebarMenuContent() {
                 data-[active=true]:text-slate-600
                 transition-colors
                 rounded-md
-              `}
-                >
+              `}>
                   <Link
                     href={item.path}
                     onClick={handleLinkClick}
-                    className="flex items-center gap-2"
-                  >
+                    className="flex items-center gap-2">
                     <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
                     <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                       {item.title}
@@ -154,12 +158,8 @@ function SidebarMenuContent() {
   );
 }
 
-export default function TeacherLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { data: session, status } = useSession();
+export default function TeacherLayout({children}: {children: React.ReactNode}) {
+  const {data: session, status} = useSession();
 
   console.log("[TeacherLayout] Session status:", status);
   console.log("[TeacherLayout] Session data:", session);
@@ -186,7 +186,7 @@ export default function TeacherLayout({
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
 
       console.log(
@@ -245,12 +245,10 @@ export default function TeacherLayout({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
-                    className="w-[--radix-popper-anchor-width]"
-                  >
+                    className="w-[--radix-popper-anchor-width]">
                     <DropdownMenuItem
                       className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F79771] hover:text-white focus:bg-[#F79771] focus:text-white"
-                      onClick={handleLogout}
-                    >
+                      onClick={handleLogout}>
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
                     </DropdownMenuItem>
@@ -289,8 +287,7 @@ export default function TeacherLayout({
               <Button
                 variant="ghost"
                 size="icon"
-                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent"
-              >
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
                 <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
               </Button>
             </div>

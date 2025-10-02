@@ -778,8 +778,7 @@ export function TutoringBooking() {
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
                         (page === pastPage + 2 &&
-                          pastPage <
-                            totalPages(pastSessions, itemsPerPage) - 2)
+                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -823,8 +822,7 @@ export function TutoringBooking() {
                 {paginatedTutors.map((tutor) => (
                   <div
                     key={tutor.id}
-                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]"
-                  >
+                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
                         <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
