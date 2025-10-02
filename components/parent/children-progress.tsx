@@ -215,25 +215,25 @@ export default function ChildrenProgress() {
   const getOverallStats = () => {
     const childrenData = getSelectedChildData();
     const statsKey = getStatsKey(selectedPeriod);
-    const totalHours = childrenData.reduce(
-      (sum, child) => sum + (child[statsKey]?.hoursStudied || 0),
-      0
-    );
-    const totalTests = childrenData.reduce(
-      (sum, child) => sum + (child[statsKey]?.testsCompleted || 0),
-      0
-    );
+    const totalHours = childrenData.reduce((sum, child) => {
+      const stats = child[statsKey] as Stats | undefined;
+      return sum + (stats?.hoursStudied || 0);
+    }, 0);
+    const totalTests = childrenData.reduce((sum, child) => {
+      const stats = child[statsKey] as Stats | undefined;
+      return sum + (stats?.testsCompleted || 0);
+    }, 0);
     const avgScore = Math.round(
-      childrenData.reduce(
-        (sum, child) => sum + (child[statsKey]?.averageScore || 0),
-        0
-      ) / Math.max(childrenData.length, 1)
+      childrenData.reduce((sum, child) => {
+        const stats = child[statsKey] as Stats | undefined;
+        return sum + (stats?.averageScore || 0);
+      }, 0) / Math.max(childrenData.length, 1)
     );
     const avgStreak = Math.round(
-      childrenData.reduce(
-        (sum, child) => sum + (child[statsKey]?.streak || 0),
-        0
-      ) / Math.max(childrenData.length, 1)
+      childrenData.reduce((sum, child) => {
+        const stats = child[statsKey] as Stats | undefined;
+        return sum + (stats?.streak || 0);
+      }, 0) / Math.max(childrenData.length, 1)
     );
 
     return {totalHours, totalTests, avgScore, avgStreak};
@@ -528,7 +528,11 @@ export default function ChildrenProgress() {
                 <div className="space-y-6">
                   {selectedData.map((child) => {
                     const statsKey = getStatsKey(selectedPeriod);
-                    const stats = child[statsKey] || {};
+                    const stats = (child[statsKey] as Stats | undefined) || {
+                      testsCompleted: 0,
+                      averageScore: 0,
+                      streak: 0,
+                    };
                     return (
                       <div key={child.id} className="space-y-4">
                         <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
@@ -554,7 +558,7 @@ export default function ChildrenProgress() {
                               </span>
                             </div>
                             <div className="text-base sm:text-lg font-bold">
-                              {stats.testsCompleted || 0}
+                              {stats.testsCompleted}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Completed
@@ -568,7 +572,7 @@ export default function ChildrenProgress() {
                               </span>
                             </div>
                             <div className="text-base sm:text-lg font-bold">
-                              {stats.averageScore || 0}%
+                              {stats.averageScore}%
                             </div>
                             <div className="text-xs text-muted-foreground">
                               This period
@@ -582,7 +586,7 @@ export default function ChildrenProgress() {
                               </span>
                             </div>
                             <div className="text-base sm:text-lg font-bold">
-                              {stats.streak || 0}
+                              {stats.streak}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Days
