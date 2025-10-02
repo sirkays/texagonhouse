@@ -277,7 +277,7 @@ export function TutoringBooking() {
     {
       id: 1,
       name: "Dr. Sarah Wilson",
-      subjects: ["Mathematics", "Physics"],
+      courses: ["Mathematics", "Physics"],
       rating: 4.9,
       experience: "10+ years",
       rate: "₦8,000/hour",
@@ -295,7 +295,7 @@ export function TutoringBooking() {
     {
       id: 2,
       name: "Prof. Michael Johnson",
-      subjects: ["English Literature", "Essay Writing"],
+      courses: ["English Literature", "Essay Writing"],
       rating: 4.8,
       experience: "15+ years",
       rate: "₦7,500/hour",
@@ -313,7 +313,7 @@ export function TutoringBooking() {
     {
       id: 3,
       name: "Mrs. Adebayo Funmi",
-      subjects: ["Physics", "Chemistry"],
+      courses: ["Physics", "Chemistry"],
       rating: 4.7,
       experience: "8+ years",
       rate: "₦7,000/hour",
@@ -420,7 +420,7 @@ export function TutoringBooking() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Private Tutoring Sessions</h1>
+          <h1 className="text-3xl font-bold">Private Tutoring</h1>
           <p className="text-muted-foreground">
             Book and manage premium one-on-one tutoring with expert educators
           </p>
@@ -432,12 +432,12 @@ export function TutoringBooking() {
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                 <Plus className="h-4 w-4" />
-                Book New Session
+                Book Tutoring
               </Button>
             </DialogTrigger>
             <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
               <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
-                <DialogTitle>Book Premium Tutoring Session</DialogTitle>
+                <DialogTitle>Book Premium Tutoring</DialogTitle>
                 <DialogDescription>
                   Schedule a personalized tutoring session with our expert
                   educators
@@ -532,8 +532,7 @@ export function TutoringBooking() {
                                 )}
                               </div>
                               <p>
-                                Experience: {tutor.experience} •{" "}
-                                {tutor.totalSessions} sessions completed
+                                Experience: {tutor.experience} • {tutor.totalSessions} sessions completed
                               </p>
                               <p>
                                 Response time: {tutor.responseTime} • Languages:{" "}
@@ -602,20 +601,20 @@ export function TutoringBooking() {
 
                   {/* Keeping booking Session Type (not part of Find Tutors) */}
                   <div className="space-y-2">
-                    <Label htmlFor="session-type">Session Type</Label>
+                    <Label htmlFor="session-type">Tutoring Type</Label>
                     <Select>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose session type" />
+                        <SelectValue placeholder="Choose tutoring type" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="one-on-one">
                           One-on-One (₦8,000/hour)
                         </SelectItem>
                         <SelectItem value="group">
-                          Group Session (₦5,000/hour)
+                          Group Tutoring (₦5,000/hour)
                         </SelectItem>
                         <SelectItem value="intensive">
-                          Intensive Session (₦12,000/hour)
+                          Intensive Tutoring (₦12,000/hour)
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -648,14 +647,14 @@ export function TutoringBooking() {
                   </div>
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <h4 className="font-medium text-blue-800 mb-2">
-                      Session Features:
+                      Tutoring Features:
                     </h4>
                     <ul className="text-sm text-blue-700 space-y-1">
                       <li>• HD video calling with screen sharing</li>
                       <li>• Interactive whiteboard and drawing tools</li>
-                      <li>• Session recording for later review</li>
+                      <li>• Tutoring recording for later review</li>
                       <li>• Real-time chat and file sharing</li>
-                      <li>• Post-session materials and homework</li>
+                      <li>• Post-tutoring materials and homework</li>
                       <li>• Progress tracking and feedback</li>
                     </ul>
                   </div>
@@ -672,7 +671,7 @@ export function TutoringBooking() {
                   onClick={() => setIsBookingDialogOpen(false)}
                   className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                   <CreditCard className="h-4 w-4 mr-2" />
-                  Book & Pay Session
+                  Book & Pay Tutoring
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -688,12 +687,12 @@ export function TutoringBooking() {
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="upcoming">
-            Upcoming Sessions
+            Current Tutoring
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="past">
-            Past Sessions
+            Past Tutoring
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
@@ -707,10 +706,10 @@ export function TutoringBooking() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
-                Upcoming Sessions ({upcomingSessions.length})
+                Current Tutoring ({upcomingSessions.length})
               </CardTitle>
               <CardDescription className="text-sm">
-                Your scheduled tutoring sessions
+                Your scheduled tutoring
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3">
@@ -759,12 +758,6 @@ export function TutoringBooking() {
                               {session.notes}
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              {session.reminderSent && (
-                                <Badge variant="outline" className="text-xs">
-                                  <Bell className="h-3 w-3 mr-1" />
-                                  Reminder sent
-                                </Badge>
-                              )}
                               {getPaymentStatusBadge(session.paymentStatus)}
                             </div>
                           </div>
@@ -849,10 +842,10 @@ export function TutoringBooking() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
-                Past Sessions ({pastSessions.length})
+                Past Tutoring ({pastSessions.length})
               </CardTitle>
               <CardDescription className="text-sm">
-                History of completed tutoring sessions with recordings
+                History of completed tutoring with recordings
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3">
@@ -1026,9 +1019,9 @@ export function TutoringBooking() {
                     </div>
                     <div className="space-y-3 text-xs sm:text-sm flex-grow">
                       <div>
-                        <span className="font-medium">Subjects:</span>
+                        <span className="font-medium">Courses:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {tutor.subjects.map((subject: any, index: any) => (
+                          {tutor.courses.map((subject: any, index: any) => (
                             <Badge
                               key={index}
                               variant="secondary"
@@ -1073,7 +1066,7 @@ export function TutoringBooking() {
                         className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full"
                         size="sm">
                         <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                        Book Session
+                        Book Tutoring
                       </Button>
                     </div>
                   </div>
@@ -1149,7 +1142,7 @@ export function TutoringBooking() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Sessions
+              Total Tutoring
             </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -1158,7 +1151,7 @@ export function TutoringBooking() {
               {upcomingSessions.length + pastSessions.length}
             </div>
             <p className="text-xs text-muted-foreground">
-              {upcomingSessions.length} upcoming
+              {upcomingSessions.length} upcoming tutoring
             </p>
           </CardContent>
         </Card>
@@ -1195,7 +1188,7 @@ export function TutoringBooking() {
               ).toFixed(1)}
             </div>
             <p className="text-xs text-muted-foreground">
-              From {pastSessions.length} sessions
+              From {pastSessions.length} tutoring
             </p>
           </CardContent>
         </Card>
