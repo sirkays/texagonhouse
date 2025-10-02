@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {useState} from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +19,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {Label} from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -29,32 +28,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Textarea} from "@/components/ui/textarea";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CalendarIcon,
   Clock,
   Video,
   Star,
-  Plus,
   CheckCircle,
   AlertCircle,
-  CreditCard,
-  Bell,
   Users,
   BookOpen,
-  Download,
   Shield,
   Zap,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
-import {cn} from "@/lib/utils";
-import {ButtonProps, buttonVariants} from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ButtonProps, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Pagination Components
-const Pagination = ({className, ...props}: React.ComponentProps<"nav">) => (
+const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
     aria-label="pagination"
@@ -67,7 +63,7 @@ Pagination.displayName = "Pagination";
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
   React.ComponentProps<"ul">
->(({className, ...props}, ref) => (
+>(({ className, ...props }, ref) => (
   <ul
     ref={ref}
     className={cn("flex flex-row items-center gap-1", className)}
@@ -79,7 +75,7 @@ PaginationContent.displayName = "PaginationContent";
 const PaginationItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
->(({className, ...props}, ref) => (
+>(({ className, ...props }, ref) => (
   <li ref={ref} className={cn("", className)} {...props} />
 ));
 PaginationItem.displayName = "PaginationItem";
@@ -117,7 +113,8 @@ const PaginationPrevious = ({
     aria-label="Go to previous page"
     size="default"
     className={cn("gap-1 pl-2.5", className)}
-    {...props}>
+    {...props}
+  >
     <ChevronLeft className="h-4 w-4" />
     <span>Previous</span>
   </PaginationLink>
@@ -132,7 +129,8 @@ const PaginationNext = ({
     aria-label="Go to next page"
     size="default"
     className={cn("gap-1 pr-2.5", className)}
-    {...props}>
+    {...props}
+  >
     <span>Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
@@ -146,7 +144,8 @@ const PaginationEllipsis = ({
   <span
     aria-hidden
     className={cn("flex h-9 w-9 items-center justify-center", className)}
-    {...props}>
+    {...props}
+  >
     <MoreHorizontal className="h-4 w-4" />
     <span className="sr-only">More pages</span>
   </span>
@@ -155,15 +154,35 @@ PaginationEllipsis.displayName = "PaginationEllipsis";
 
 // TutoringBooking Component
 export function TutoringBooking() {
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
-  const [selectedTutor, setSelectedTutor] = useState<number | null>(null);
+  // Removed global “+ Book Tutoring” modal state
   const [activeTab, setActiveTab] = useState("upcoming");
+
+  // New: card-level booking modal controls
+  const [isCardBookingOpen, setIsCardBookingOpen] = useState(false);
+  const [bookingTutorId, setBookingTutorId] = useState<number | null>(null);
+
+  // Booking form state
+  const [child, setChild] = useState<string>("");
+  const [preferredTime, setPreferredTime] = useState<string>("");
+  const [duration, setDuration] = useState<string>("");
+  const [learningObjectives, setLearningObjectives] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [preferredDays, setPreferredDays] = useState<string[]>([]);
+
+  const resetBookingForm = () => {
+    setChild("");
+    setPreferredTime("");
+    setDuration("");
+    setLearningObjectives("");
+    setNotes("");
+    setPreferredDays([]);
+  };
 
   // Pagination state for each tab
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
   const [tutorsPage, setTutorsPage] = useState(1);
-  const itemsPerPage = 3; // Changed to 3 as per request
+  const itemsPerPage = 3; // showing 3 per page
 
   const upcomingSessions = [
     {
@@ -277,7 +296,14 @@ export function TutoringBooking() {
     {
       id: 1,
       name: "Dr. Sarah Wilson",
-      courses: ["Mathematics", "Physics"],
+      course: "Mathematics",
+      modules: [
+        "Algebra & Functions",
+        "Calculus",
+        "Probability & Statistics",
+        "Vectors",
+        "Mechanics",
+      ],
       rating: 4.9,
       experience: "10+ years",
       rate: "₦8,000/hour",
@@ -295,7 +321,14 @@ export function TutoringBooking() {
     {
       id: 2,
       name: "Prof. Michael Johnson",
-      courses: ["English Literature", "Essay Writing"],
+      course: "English Literature",
+      modules: [
+        "Poetry",
+        "Shakespeare",
+        "Prose Analysis",
+        "Essay Writing",
+        "Critical Theory",
+      ],
       rating: 4.8,
       experience: "15+ years",
       rate: "₦7,500/hour",
@@ -313,7 +346,14 @@ export function TutoringBooking() {
     {
       id: 3,
       name: "Mrs. Adebayo Funmi",
-      courses: ["Physics", "Chemistry"],
+      course: "Physics",
+      modules: [
+        "Mechanics",
+        "Waves & Optics",
+        "Electricity & Magnetism",
+        "Thermodynamics",
+        "Modern Physics",
+      ],
       rating: 4.7,
       experience: "8+ years",
       rate: "₦7,000/hour",
@@ -329,6 +369,11 @@ export function TutoringBooking() {
       technologies: ["Interactive Whiteboard", "Screen Sharing"],
     },
   ];
+
+  const bookingTutor =
+    bookingTutorId != null
+      ? availableTutors.find((t) => t.id === bookingTutorId) || null
+      : null;
 
   // Pagination helpers
   const paginate = (items: any[], page: number, itemsPerPage: number) => {
@@ -406,7 +451,7 @@ export function TutoringBooking() {
   };
 
   const renderStars = (rating: number) => {
-    return Array.from({length: 5}, (_, i) => (
+    return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
         className={`h-3 w-3 ${
@@ -414,6 +459,45 @@ export function TutoringBooking() {
         }`}
       />
     ));
+  };
+
+  // Days for preferred_days
+  const dayOptions = [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun",
+  ];
+
+  const toggleDay = (day: string, checked: boolean | string) => {
+    setPreferredDays((prev) => {
+      const set = new Set(prev);
+      if (checked) set.add(day);
+      else set.delete(day);
+      return Array.from(set);
+    });
+  };
+
+  const handleBookSubmit = () => {
+    // you can replace this with your submit handler
+    const payload = {
+      tutorId: bookingTutorId,
+      tutorName: bookingTutor?.name,
+      course: bookingTutor?.course,
+      child,
+      preferred_days: preferredDays,
+      preferred_time: preferredTime,
+      duration,
+      learning_objectives: learningObjectives,
+      notes,
+    };
+    // eslint-disable-next-line no-console
+    console.log("BOOK TUTORING PAYLOAD", payload);
+    setIsCardBookingOpen(false);
+    resetBookingForm();
   };
 
   return (
@@ -425,278 +509,31 @@ export function TutoringBooking() {
             Book and manage premium one-on-one tutoring with expert educators
           </p>
         </div>
-        <div className="flex gap-2">
-          <Dialog
-            open={isBookingDialogOpen}
-            onOpenChange={setIsBookingDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
-                <Plus className="h-4 w-4" />
-                Book Tutoring
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
-              <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
-                <DialogTitle>Book Premium Tutoring</DialogTitle>
-                <DialogDescription>
-                  Schedule a personalized tutoring session with our expert
-                  educators
-                </DialogDescription>
-              </DialogHeader>
-              <div className="px-4 sm:px-6 py-4 overflow-y-auto">
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="select-child">Select Child</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Choose child" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="john">
-                            John Adebayo (SS3)
-                          </SelectItem>
-                          <SelectItem value="mary">
-                            Mary Adebayo (SS1)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="select-subject">Subject</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Choose subject" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="math">Mathematics</SelectItem>
-                          <SelectItem value="physics">Physics</SelectItem>
-                          <SelectItem value="chemistry">Chemistry</SelectItem>
-                          <SelectItem value="english">
-                            English Literature
-                          </SelectItem>
-                          <SelectItem value="biology">Biology</SelectItem>
-                          <SelectItem value="economics">Economics</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="select-tutor">Select Tutor</Label>
-                    <Select
-                      onValueChange={(value) =>
-                        setSelectedTutor(Number(value))
-                      }>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose tutor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTutors.map((tutor) => (
-                          <SelectItem
-                            key={tutor.id}
-                            value={tutor.id.toString()}>
-                            <div className="flex items-center gap-2">
-                              {tutor.premiumTutor && (
-                                <Zap className="h-3 w-3 text-yellow-500" />
-                              )}
-                              {tutor.verified && (
-                                <Shield className="h-3 w-3 text-blue-500" />
-                              )}
-                              {tutor.name} - {tutor.rate} ({tutor.rating}⭐)
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedTutor && (
-                      <div className="p-3 bg-muted rounded-lg text-sm">
-                        {(() => {
-                          const tutor = availableTutors.find(
-                            (t) => t.id === selectedTutor
-                          );
-                          return tutor ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium">
-                                  {tutor.name}
-                                </span>
-                                {tutor.premiumTutor && (
-                                  <Badge className="bg-yellow-100 text-yellow-800">
-                                    Premium
-                                  </Badge>
-                                )}
-                                {tutor.verified && (
-                                  <Badge className="bg-blue-100 text-blue-800">
-                                    Verified
-                                  </Badge>
-                                )}
-                              </div>
-                              <p>
-                                Experience: {tutor.experience} • {tutor.totalSessions} sessions completed
-                              </p>
-                              <p>
-                                Response time: {tutor.responseTime} • Languages:{" "}
-                                {tutor.languages.join(", ")}
-                              </p>
-                              <p>
-                                Technologies: {tutor.technologies.join(", ")}
-                              </p>
-                            </div>
-                          ) : null;
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="session-date">Preferred Date</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2024-01-25">
-                            January 25, 2024
-                          </SelectItem>
-                          <SelectItem value="2024-01-26">
-                            January 26, 2024
-                          </SelectItem>
-                          <SelectItem value="2024-01-27">
-                            January 27, 2024
-                          </SelectItem>
-                          <SelectItem value="2024-01-28">
-                            January 28, 2024
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="session-time">Preferred Time</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2pm">2:00 PM - 3:00 PM</SelectItem>
-                          <SelectItem value="3pm">3:00 PM - 4:00 PM</SelectItem>
-                          <SelectItem value="4pm">4:00 PM - 5:00 PM</SelectItem>
-                          <SelectItem value="5pm">5:00 PM - 6:00 PM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="session-duration">Duration</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="60">1 hour</SelectItem>
-                          <SelectItem value="90">1.5 hours</SelectItem>
-                          <SelectItem value="120">2 hours</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Keeping booking Session Type (not part of Find Tutors) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="session-type">Tutoring Type</Label>
-                    <Select>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose tutoring type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="one-on-one">
-                          One-on-One (₦8,000/hour)
-                        </SelectItem>
-                        <SelectItem value="group">
-                          Group Tutoring (₦5,000/hour)
-                        </SelectItem>
-                        <SelectItem value="intensive">
-                          Intensive Tutoring (₦12,000/hour)
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="session-notes">
-                      Learning Objectives & Notes
-                    </Label>
-                    <Textarea
-                      id="session-notes"
-                      placeholder="Specific topics to focus on, learning goals, areas of difficulty..."
-                      rows={3}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment-method">Payment Method</Label>
-                    <Select>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose payment method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="card">Credit/Debit Card</SelectItem>
-                        <SelectItem value="bank">Bank Transfer</SelectItem>
-                        <SelectItem value="wallet">Digital Wallet</SelectItem>
-                        <SelectItem value="bnpl">Buy Now Pay Later</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h4 className="font-medium text-blue-800 mb-2">
-                      Tutoring Features:
-                    </h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• HD video calling with screen sharing</li>
-                      <li>• Interactive whiteboard and drawing tools</li>
-                      <li>• Tutoring recording for later review</li>
-                      <li>• Real-time chat and file sharing</li>
-                      <li>• Post-tutoring materials and homework</li>
-                      <li>• Progress tracking and feedback</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsBookingDialogOpen(false)}
-                  className="w-full sm:w-auto">
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => setIsBookingDialogOpen(false)}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Book & Pay Tutoring
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+        {/* Removed the top-right “+ Book Tutoring” button and global dialog */}
       </div>
 
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="space-y-4 xs:space-y-6">
+        className="space-y-4 xs:space-y-6"
+      >
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="upcoming">
+            value="upcoming"
+          >
             Current Tutoring
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="past">
+            value="past"
+          >
             Past Tutoring
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="tutors">
+            value="tutors"
+          >
             Find Tutors
           </TabsTrigger>
         </TabsList>
@@ -717,7 +554,8 @@ export function TutoringBooking() {
                 {paginatedUpcoming.map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex flex-col gap-3 sm:gap-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
@@ -752,7 +590,6 @@ export function TutoringBooking() {
                                   {session.time} ({session.duration}min)
                                 </span>
                               </div>
-                              {/* Removed type and sessionType badges */}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground break-words">
                               {session.notes}
@@ -800,7 +637,8 @@ export function TutoringBooking() {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={upcomingPage === page}
-                              onClick={() => setUpcomingPage(page)}>
+                              onClick={() => setUpcomingPage(page)}
+                            >
                               {page}
                             </PaginationLink>
                           </PaginationItem>
@@ -853,7 +691,8 @@ export function TutoringBooking() {
                 {paginatedPast.map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex flex-col gap-3 sm:gap-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
@@ -886,7 +725,6 @@ export function TutoringBooking() {
                                 <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                                 {session.time} ({session.actualDuration}min)
                               </div>
-                              {/* Removed type and sessionType badges */}
                             </div>
                             <div className="flex items-center gap-1">
                               {renderStars(session.rating)}
@@ -897,7 +735,6 @@ export function TutoringBooking() {
                             <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
                               "{session.feedback}"
                             </div>
-                            {/* Removed Materials button */}
                           </div>
                         </div>
                       </div>
@@ -932,7 +769,8 @@ export function TutoringBooking() {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={pastPage === page}
-                              onClick={() => setPastPage(page)}>
+                              onClick={() => setPastPage(page)}
+                            >
                               {page}
                             </PaginationLink>
                           </PaginationItem>
@@ -1017,20 +855,25 @@ export function TutoringBooking() {
                         </div>
                       </div>
                     </div>
+
                     <div className="space-y-3 text-xs sm:text-sm flex-grow">
-                      <div>
-                        <span className="font-medium">Courses:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {tutor.courses.map((subject: any, index: any) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="text-xs">
-                              {subject}
-                            </Badge>
-                          ))}
+                      <div className="space-y-2">
+                        <div>
+                          <span className="font-medium">Course:</span>{" "}
+                          <span className="text-sm">{tutor.course}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Modules:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {tutor.modules.map((mod: string, index: number) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {mod}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                       </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <span className="font-medium">Experience:</span>
@@ -1043,7 +886,7 @@ export function TutoringBooking() {
                           </div>
                         </div>
                       </div>
-                      {/* Removed Response time line (per Find Tutors change) */}
+
                       <div>
                         <span className="font-medium">Languages:</span>{" "}
                         {tutor.languages.join(", ")}
@@ -1052,7 +895,6 @@ export function TutoringBooking() {
                         <span className="font-medium">Available:</span>
                         <div>{tutor.availability}</div>
                       </div>
-                      {/* Removed Session Types section (per Find Tutors change) */}
                       <div className="text-xs text-muted-foreground break-words">
                         <span className="font-medium">Technologies:</span>{" "}
                         {tutor.technologies.join(", ")}
@@ -1061,10 +903,16 @@ export function TutoringBooking() {
                         {tutor.specialization}
                       </div>
                     </div>
+
                     <div className="mt-auto">
                       <Button
                         className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full"
-                        size="sm">
+                        size="sm"
+                        onClick={() => {
+                          setBookingTutorId(tutor.id);
+                          setIsCardBookingOpen(true);
+                        }}
+                      >
                         <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Book Tutoring
                       </Button>
@@ -1100,7 +948,8 @@ export function TutoringBooking() {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={tutorsPage === page}
-                              onClick={() => setTutorsPage(page)}>
+                              onClick={() => setTutorsPage(page)}
+                            >
                               {page}
                             </PaginationLink>
                           </PaginationItem>
@@ -1135,6 +984,168 @@ export function TutoringBooking() {
               )}
             </CardContent>
           </Card>
+
+          {/* Central booking dialog for tutor cards */}
+          <Dialog
+            open={isCardBookingOpen}
+            onOpenChange={(open) => {
+              setIsCardBookingOpen(open);
+              if (!open) {
+                setBookingTutorId(null);
+                resetBookingForm();
+              }
+            }}
+          >
+            <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
+              <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
+                <DialogTitle>
+                  {bookingTutor
+                    ? `Book ${bookingTutor.course} with ${bookingTutor.name}`
+                    : "Book Tutoring"}
+                </DialogTitle>
+                <DialogDescription>
+                  Choose preferences and we’ll confirm availability.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="px-4 sm:px-6 py-4 overflow-y-auto">
+                <div className="grid gap-4">
+                  {/* Select Child */}
+                  <div className="space-y-2">
+                    <Label htmlFor="select-child">Select Child</Label>
+                    <Select value={child} onValueChange={setChild}>
+                      <SelectTrigger className="w-full" id="select-child">
+                        <SelectValue placeholder="Choose child" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="john">John Adebayo (SS3)</SelectItem>
+                        <SelectItem value="mary">Mary Adebayo (SS1)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Preferred Days (multi-select) */}
+                  <div className="space-y-2">
+                    <Label>Preferred Days</Label>
+                    <div className="grid grid-cols-7 gap-2 sm:gap-3">
+                      {dayOptions.map((d) => {
+                        const checked = preferredDays.includes(d);
+                        return (
+                          <label
+                            key={d}
+                            className={cn(
+                              "flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs sm:text-sm cursor-pointer",
+                              checked
+                                ? "border-[#EF7B55] bg-[#f797712e]"
+                                : "border-muted"
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(val) => toggleDay(d, val)}
+                              className="mr-1"
+                            />
+                            {d}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Preferred Time & Duration */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pref-time">Preferred Time</Label>
+                      <Select
+                        value={preferredTime}
+                        onValueChange={setPreferredTime}
+                      >
+                        <SelectTrigger id="pref-time" className="w-full">
+                          <SelectValue placeholder="Select time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="14:00-15:00">
+                            2:00 PM - 3:00 PM
+                          </SelectItem>
+                          <SelectItem value="15:00-16:00">
+                            3:00 PM - 4:00 PM
+                          </SelectItem>
+                          <SelectItem value="16:00-17:00">
+                            4:00 PM - 5:00 PM
+                          </SelectItem>
+                          <SelectItem value="17:00-18:00">
+                            5:00 PM - 6:00 PM
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="duration">Duration</Label>
+                      <Select value={duration} onValueChange={setDuration}>
+                        <SelectTrigger id="duration" className="w-full">
+                          <SelectValue placeholder="Choose duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="60">1 hour</SelectItem>
+                          <SelectItem value="90">1.5 hours</SelectItem>
+                          <SelectItem value="120">2 hours</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Learning Objectives */}
+                  <div className="space-y-2">
+                    <Label htmlFor="learning-objectives">
+                      Learning Objectives
+                    </Label>
+                    <Textarea
+                      id="learning-objectives"
+                      placeholder="e.g., Algebra foundations, differentiation techniques, essay structuring…"
+                      rows={3}
+                      className="w-full"
+                      value={learningObjectives}
+                      onChange={(e) => setLearningObjectives(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Any other helpful details for the tutor…"
+                      rows={3}
+                      className="w-full"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsCardBookingOpen(false);
+                    resetBookingForm();
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBookSubmit}
+                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                >
+                  <Video className="h-4 w-4 mr-2" />
+                  Book Tutoring
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 
