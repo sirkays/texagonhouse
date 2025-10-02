@@ -1033,7 +1033,7 @@ export function CBTTest() {
                 onClick={handleResetToList}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
-                Take Another Test
+                Take Next Test
               </Button>
               {navigator.onLine && (
                 <Button variant="outline" onClick={handleViewAnswers}>
