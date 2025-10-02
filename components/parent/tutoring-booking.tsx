@@ -289,8 +289,8 @@ export function TutoringBooking() {
       languages: ["English", "Yoruba"],
       verified: true,
       premiumTutor: true,
-      sessionTypes: [],
-      technologies: [],
+      sessionTypes: ["One-on-One", "Group", "Intensive"],
+      technologies: ["Interactive Whiteboard", "Screen Sharing", "Recording"],
     },
     {
       id: 2,

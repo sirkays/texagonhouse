@@ -1,12 +1,12 @@
-import React from 'react'
-import { ChildrenProgress } from '@/components/parent/children-progress'
+import React from "react";
+import ChildrenProgress from "@/components/parent/children-progress";
 
 const ParentProgressMain = () => {
   return (
     <div>
-        <ChildrenProgress />
+      <ChildrenProgress />
     </div>
-  )
-}
+  );
+};
 
-export default ParentProgressMain
+export default ParentProgressMain;
