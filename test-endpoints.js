@@ -1,6 +1,6 @@
 const BASE_URL = 'https://texagonbackend.epichouse.online';
 const API_KEY = '1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz';
-const EMAIL = 'sirkays@gmail.com';
+const EMAIL = 'stu01@gmail.com';
 const PASSWORD = 'testuser';
 
 // Headers with session token
