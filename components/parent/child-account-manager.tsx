@@ -49,7 +49,7 @@ export default function ChildAccountManager() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/parent/children", {
+      const res = await fetch("/api/parent/managechildren/children", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -143,13 +143,16 @@ export default function ChildAccountManager() {
     }
 
     try {
-      const res = await fetch("/api/parent/reset-child-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({childId: resetChildId, newPassword}),
-      });
+      const res = await fetch(
+        "/api/parent/managechildren/reset-child-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({childId: resetChildId, newPassword}),
+        }
+      );
 
       const data = await res.json();
 
@@ -255,21 +258,21 @@ export default function ChildAccountManager() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Join Date:</span>
-                      <span>{child.join_date || child.joinDate || "N/A"}</span>
+                      <span>{child.joinDate || child.join_date || "N/A"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
                         Last Active:
                       </span>
                       <span>
-                        {child.last_active || child.lastActive || "N/A"}
+                        {child.lastActive || child.last_active || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Courses:</span>
                       <span>
-                        {child.completed_courses || child.completedCourses || 0}
-                        /{child.total_courses || child.totalCourses || 0}{" "}
+                        {child.completedCourses || child.completed_courses || 0}
+                        /{child.totalCourses || child.total_courses || 0}{" "}
                         completed
                       </span>
                     </div>
@@ -284,7 +287,7 @@ export default function ChildAccountManager() {
                         Admission No:
                       </span>
                       <span>
-                        {child.admission_no || child.admissionNo || "N/A"}
+                        {child.admissionNo || child.admission_no || "N/A"}
                       </span>
                     </div>
                   </div>
