@@ -3,7 +3,8 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
-const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz"; // Fallback for dev, should be in .env
+const API_KEY =
+  process.env.TEXAGON_API_KEY || "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -42,18 +43,17 @@ export async function GET(request: Request) {
         console.log("[Route] Fetching time periods from", apiUrl);
         break;
       default:
+        console.log("[Route] Invalid endpoint:", url.pathname);
         return NextResponse.json({detail: "Endpoint not found"}, {status: 404});
     }
 
-    console.log("[Route] Request headers:", headers);
-    const res = await fetch(apiUrl, {
+    const res = await fetchWithRetry(apiUrl, {
       method: "GET",
       headers,
     });
 
-    console.log("[Route] API response status:", res.status);
     const text = await res.text();
-    console.log("[Route] API response text:", text);
+    console.log("[Route] API response status:", res.status, "text:", text);
 
     let data;
     try {
@@ -81,8 +81,34 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(data);
-  } catch (error) {
-    console.error("[Route] Error fetching data:", error);
+  } catch (error: any) {
+    console.error("[Route] Error fetching data:", error.message);
     return NextResponse.json({detail: "Internal server error"}, {status: 500});
   }
+}
+
+// Reusable fetch with retry logic
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  timeout = 30000
+) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+      return response;
+    } catch (err: any) {
+      console.error("[Route] Fetch attempt", i + 1, "failed:", err.message);
+      if (i === retries - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error("Max retries reached");
 }
