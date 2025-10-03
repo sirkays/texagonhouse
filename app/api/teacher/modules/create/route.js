@@ -103,9 +103,9 @@ export async function POST(req) {
         );
       }
       // Handle duplicate order error
-      if (response.status === 400 && rawResponse.includes("duplicate key value violates unique constraint")) {
+      if (response.status === 500 && rawResponse.includes("duplicate key value violates unique constraint")) {
         return NextResponse.json(
-          { error: "Duplicate order for this course" },
+          { error: "The specified order already exists for this course. Please choose a different order." },
           {
             status: 400,
             headers: {

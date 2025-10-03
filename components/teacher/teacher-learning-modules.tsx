@@ -153,12 +153,12 @@ export function TeacherLearningModules() {
   const [activeTab, setActiveTab] = useState("create");
   const [previewModule, setPreviewModule] = useState<Module | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [currentModule, setCurrentModule] = useState<Module>({
+  const initialModule: Module = {
     id: "",
     title: "",
     description: "",
     type: "video",
-    duration: "",
+    duration: 0,
     difficulty: "Beginner",
     category: undefined,
     enrollments: 0,
@@ -170,7 +170,8 @@ export function TeacherLearningModules() {
     order: 1,
     active: true,
     course: { id: undefined, name: "" },
-  });
+  };
+  const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [currentPageManage, setCurrentPageManage] = useState(1);
   const [currentPageAnalytics, setCurrentPageAnalytics] = useState(1);
@@ -293,7 +294,7 @@ export function TeacherLearningModules() {
             title: module.title,
             description: module.description,
             type: module.type || "video",
-            duration: minutesToDuration(module.estimatedDuration),
+            duration: module.estimatedDuration,
             difficulty:
               module.difficulty.charAt(0).toUpperCase() +
               module.difficulty.slice(1),
@@ -324,6 +325,20 @@ export function TeacherLearningModules() {
     }
   }, [activeTab, search, difficultyFilter, sessionToken]);
 
+  // Auto-set next order when course is selected for new module
+  useEffect(() => {
+    const autoSetOrder = async () => {
+      if (!currentModule.id && currentModule.course.id && sessionToken) {
+        const nextOrder = await getNextOrder(
+          currentModule.course.id,
+          sessionToken
+        );
+        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
+      }
+    };
+    autoSetOrder();
+  }, [currentModule.course.id, sessionToken]);
+
   // Fetch module details
   const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     try {
@@ -341,7 +356,7 @@ export function TeacherLearningModules() {
         title: module.title,
         description: module.description,
         type: module.type || "video",
-        duration: minutesToDuration(module.estimatedDuration),
+        duration: module.estimatedDuration,
         difficulty:
           module.difficulty.charAt(0).toUpperCase() +
           module.difficulty.slice(1),
@@ -523,24 +538,7 @@ export function TeacherLearningModules() {
       }
       setModules((prev) => prev.filter((m) => m.id !== moduleId));
       if (currentModule.id === moduleId) {
-        setCurrentModule({
-          id: "",
-          title: "",
-          description: "",
-          type: "video",
-          duration: "",
-          difficulty: "Beginner",
-          category: undefined,
-          enrollments: 0,
-          rating: 0,
-          isPublished: false,
-          createdDate: new Date().toISOString().split("T")[0],
-          order: 1,
-          active: true,
-          course: { id: undefined, name: "" },
-          lessons: [],
-          lessonCount: 0,
-        });
+        setCurrentModule(initialModule);
         setEditingLesson(null);
       }
       alert("Module deleted successfully!");
@@ -602,7 +600,7 @@ export function TeacherLearningModules() {
         categoryId: categories.find((c) => c.name === currentModule.category)
           ?.id,
         difficulty: currentModule.difficulty.toLowerCase(),
-        estimatedDuration: minutesToDuration(currentModule.duration), // Convert to string
+        estimatedDuration: currentModule.duration, // Convert to string
         order: currentModule.order,
         active: currentModule.active,
       };
@@ -611,22 +609,31 @@ export function TeacherLearningModules() {
         headers: headers(sessionToken),
         body: JSON.stringify(payload),
       });
+      let errorData;
       if (!response.ok) {
-        const errorData: APIError = await response.json();
-        if (response.status === 401 && errorData.redirect) {
+        try {
+          errorData = await response.json();
+        } catch (parseErr) {
+          throw new Error("Server error occurred. Please try again later.");
+        }
+        if (errorData.redirect) {
           window.location.href = errorData.redirect;
           return;
         }
         if (
-          response.status === 400 &&
-          errorData.error.includes("duplicate order")
+          errorData.error?.includes(
+            "IntegrityError: duplicate key value violates unique constraint"
+          )
         ) {
           setError(
             "The specified order already exists for this course. Please choose a different order."
           );
           return;
         }
-        throw new Error(errorData.error || "Failed to create module");
+        throw new Error(
+          errorData.error ||
+            "Failed to create module. Please check the details and try again."
+        );
       }
       const data: APIModule = await response.json();
       const newModule: Module = {
@@ -634,7 +641,7 @@ export function TeacherLearningModules() {
         title: data.title,
         description: data.description,
         type: currentModule.type,
-        duration: durationToMinutes(data.estimatedDuration), // Convert back to number
+        duration: data.estimatedDuration,
         difficulty:
           data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1),
         category: data.category?.name || "Uncategorized",
@@ -653,28 +660,12 @@ export function TeacherLearningModules() {
       };
       setModules((prev) => [...prev, newModule]);
       alert(`Module saved successfully! ID: ${newModule.id}`);
-      setCurrentModule({
-        id: "",
-        title: "",
-        description: "",
-        type: "video",
-        duration: 0, // Initialize as number
-        difficulty: "Beginner",
-        category: undefined,
-        enrollments: 0,
-        rating: 0,
-        isPublished: false,
-        createdDate: new Date().toISOString().split("T")[0],
-        order: 1,
-        active: true,
-        course: { id: undefined, name: "" },
-        lessons: [],
-        lessonCount: 0,
-      });
+      setCurrentModule(initialModule);
       setEditingLesson(null);
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while saving the module"
+        (err as Error).message ||
+          "An unexpected error occurred while saving the module. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -707,7 +698,7 @@ export function TeacherLearningModules() {
         title: currentModule.title,
         description: currentModule.description,
         difficulty: currentModule.difficulty.toLowerCase(),
-        estimated_duration: minutesToDuration(currentModule.duration), // Convert to string
+        estimatedDuration: minutesToDuration(currentModule.duration), // Convert to string
         order: currentModule.order,
       };
       const response = await fetch(
@@ -718,22 +709,31 @@ export function TeacherLearningModules() {
           body: JSON.stringify(payload),
         }
       );
+      let errorData;
       if (!response.ok) {
-        const errorData: APIError = await response.json();
+        try {
+          errorData = await response.json();
+        } catch (parseErr) {
+          throw new Error("Server error occurred. Please try again later.");
+        }
         if (response.status === 401 && errorData.redirect) {
           window.location.href = errorData.redirect;
           return;
         }
         if (
-          response.status === 400 &&
-          errorData.error.includes("duplicate order")
+          errorData.error?.includes(
+            "IntegrityError: duplicate key value violates unique constraint"
+          )
         ) {
           setError(
             "The specified order already exists for this course. Please choose a different order."
           );
           return;
         }
-        throw new Error(errorData.error || "Failed to update module");
+        throw new Error(
+          errorData.error ||
+            "Failed to update module. Please check the details and try again."
+        );
       }
       const data: { module: APIModule } = await response.json();
       const updatedModule: Module = {
@@ -741,7 +741,7 @@ export function TeacherLearningModules() {
         title: data.module.title,
         description: data.module.description,
         type: currentModule.type,
-        duration: durationToMinutes(data.module.estimatedDuration), // Convert back to number
+        duration: data.module.estimatedDuration,
         difficulty:
           data.module.difficulty.charAt(0).toUpperCase() +
           data.module.difficulty.slice(1),
@@ -763,28 +763,12 @@ export function TeacherLearningModules() {
         prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
       );
       alert(`Module updated successfully! ID: ${updatedModule.id}`);
-      setCurrentModule({
-        id: "",
-        title: "",
-        description: "",
-        type: "video",
-        duration: 0, // Initialize as number
-        difficulty: "Beginner",
-        category: undefined,
-        enrollments: 0,
-        rating: 0,
-        isPublished: false,
-        createdDate: new Date().toISOString().split("T")[0],
-        order: 1,
-        active: true,
-        course: { id: undefined, name: "" },
-        lessons: [],
-        lessonCount: 0,
-      });
+      setCurrentModule(initialModule);
       setEditingLesson(null);
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while updating the module"
+        (err as Error).message ||
+          "An unexpected error occurred while updating the module. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -823,11 +807,6 @@ export function TeacherLearningModules() {
       return null;
     }
   };
-
-  const headers = (sessionToken: string) => ({
-    Authorization: `Api-Key ${API_KEY}`,
-    "X-Session-Token": sessionToken,
-  });
 
   const saveLesson = async () => {
     if (!sessionToken) {
@@ -1114,7 +1093,7 @@ export function TeacherLearningModules() {
         (err as Error).message || "An error occurred while updating the lesson"
       );
       console.error("[updateLesson] Error:", err);
-    } finally { 
+    } finally {
       setIsSavingLesson(false);
     }
   };
@@ -2034,7 +2013,10 @@ export function TeacherLearningModules() {
                 </SelectContent>
               </Select>
               <Button
-                onClick={() => setActiveTab("create")}
+                onClick={() => {
+                  setCurrentModule(initialModule);
+                  setActiveTab("create");
+                }}
                 className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
               >
                 <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
@@ -2124,7 +2106,7 @@ export function TeacherLearningModules() {
                         <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            {module.duration}
+                            {minutesToDuration(module.duration)}
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
