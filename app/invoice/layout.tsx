@@ -1,0 +1,268 @@
+"use client";
+
+import {
+  BarChart3,
+  CreditCard,
+  FileText,
+  MessageSquare,
+  Home,
+  Settings,
+  Building2,
+  Receipt,
+  Bell,
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarSeparator,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import Link from "next/link";
+import {usePathname} from "next/navigation";
+import {useMediaQuery} from "react-responsive";
+
+const navigationItems = [
+  {
+    title: "Dashboard",
+    url: "/invoice",
+    icon: Home,
+    description: "Overview and analytics",
+    badge: null,
+  },
+  {
+    title: "Invoices",
+    url: "/invoice/invoices",
+    icon: Receipt,
+    description: "Create and manage invoices",
+    badge: "New",
+  },
+  {
+    title: "Transactions",
+    url: "/invoice/transactions",
+    icon: FileText,
+    description: "Transaction history and details",
+    badge: null,
+  },
+  {
+    title: "Payments",
+    url: "/invoice/payments",
+    icon: CreditCard,
+    description: "Payment tracking and status",
+    badge: "23",
+  },
+];
+
+const supportItems = [
+  {
+    title: "Complaints",
+    url: "/invoice/complaints",
+    icon: MessageSquare,
+    description: "Payment complaints and support",
+    badge: "5",
+  },
+  {
+    title: "Settings",
+    url: "/invoice/settings",
+    icon: Settings,
+    description: "Account and system settings",
+    badge: null,
+  },
+];
+
+function SidebarMenuContent() {
+  const pathname = usePathname();
+  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
+  const isMobile = useMediaQuery({maxWidth: 639});
+
+  const handleLinkClick = () => {
+    if (isMobile || isMobileFromSidebar) {
+      setOpenMobile(false);
+    }
+  };
+
+  return (
+    <SidebarContent className="mt-4 bg-transparent px-2">
+      <SidebarGroup className="py-4">
+        <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Main Navigation
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu className="space-y-1">
+            {navigationItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.url}
+                  tooltip={item.description}
+                  className={`
+                    py-5 h-10 px-3 rounded-md
+                    hover:bg-[#F797713a]
+                    data-[active=true]:bg-[#EF7B553a]
+                    data-[active=true]:text-slate-600
+                    transition-colors
+                  `}>
+                  <Link
+                    href={item.url}
+                    onClick={handleLinkClick}
+                    className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
+                        {item.title}
+                      </span>
+                    </div>
+                    {item.badge && (
+                      <Badge
+                        variant={item.badge === "New" ? "default" : "secondary"}
+                        className="text-xs h-5 px-2 ml-auto">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarSeparator className="my-2" />
+
+      <SidebarGroup className="py-2">
+        <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Support & Settings
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu className="space-y-1">
+            {supportItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.url}
+                  tooltip={item.description}
+                  className={`
+                    py-5 h-10 px-3 rounded-md
+                    hover:bg-[#F797713a]
+                    data-[active=true]:bg-[#EF7B553a]
+                    data-[active=true]:text-slate-600
+                    transition-colors
+                  `}>
+                  <Link
+                    href={item.url}
+                    onClick={handleLinkClick}
+                    className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+                      <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
+                        {item.title}
+                      </span>
+                    </div>
+                    {item.badge && (
+                      <Badge
+                        variant="destructive"
+                        className="text-xs h-5 px-2 ml-auto">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  );
+}
+
+export default function FinanceLayout({children}: {children: React.ReactNode}) {
+  return (
+    <SidebarProvider className="bg-white">
+      <div className="flex min-h-screen w-full font-sans">
+        <Sidebar className="border-r-0 shadow-sm">
+          <SidebarHeader className="bg-[#EF7B55] py-5">
+            <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
+              <Building2 className="h-5 w-5 xs:h-6 xs:w-6 text-white" />
+              <div className="grid flex-1 text-left leading-tight">
+                <span className="truncate font-semibold text-white text-base xs:text-lg">
+                  FinanceFlow
+                </span>
+                <span className="truncate text-xs text-white/80 font-medium">
+                  Professional Invoice Manager
+                </span>
+              </div>
+            </div>
+          </SidebarHeader>
+          <SidebarMenuContent />
+          <SidebarFooter className="border border-t-[#EF7B553a] py-5">
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs">
+                  <div className="font-semibold text-foreground">
+                    FinanceFlow Pro
+                  </div>
+                  <div className="text-muted-foreground">Version 3.2.1</div>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-success/10 text-success border-success/20">
+                  Online
+                </Badge>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>Last sync:</span>
+                  <span className="font-medium">2 min ago</span>
+                </div>
+              </div>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
+
+        <div className="flex-1 flex flex-col">
+          <header className="sticky top-0 z-50 py-4">
+            <style jsx>{`
+              header {
+                background: rgba(247, 151, 113, 0.3);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                position: sticky;
+                top: 0;
+                z-index: 50;
+              }
+              header > div {
+                position: relative;
+                z-index: 10;
+                background: transparent;
+              }
+            `}</style>
+            <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
+              <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+              <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
+                <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 p-3 xs:p-4 sm:p-6">{children}</main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
