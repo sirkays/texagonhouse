@@ -764,7 +764,7 @@ export function ResourceMaterials() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDownloadJournal(journal)}
-                        className="flex-1 w-full h-10bg-transparent shadow-md">
+                        className="flex-1 w-full h-10 bg-transparent shadow-md">
                         <Download className="mr-2 h-3 w-3" />
                         Download
                       </Button>

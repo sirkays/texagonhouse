@@ -89,28 +89,28 @@ export function PaymentStatusDashboard({
   ];
 
   return (
-    <div className={`space-y-4 sm:space-y-6 ${className}`}>
+    <div className={`space-y-3 ${className}`}>
       <div>
-        <h2 className="text-lg sm:text-xl font-semibold tracking-tight mb-2">
-          Payment Analytics
+        <h2 className="text-base font-bold tracking-tight md:text-lg lg:text-xl mb-1">
+          Payment Status & Analytics
         </h2>
-        <p className="text-muted-foreground text-sm sm:text-base">
+        <p className="text-muted-foreground text-xs md:text-sm">
           Real-time payment status and performance metrics
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-3">
         <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 sm:pb-3">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground md:text-sm">
               Total Payment
             </CardTitle>
-            <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
-              <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+            <div className="p-1.5 bg-primary/10 rounded-lg">
+              <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold mb-2">
+            <div className="text-lg font-bold mb-2 md:text-xl">
               $
               {stats.totalAmount.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -130,20 +130,20 @@ export function PaymentStatusDashboard({
         </Card>
 
         <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 sm:pb-3">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground md:text-sm">
               Payment Rate
             </CardTitle>
-            <div className="p-1.5 sm:p-2 bg-accent/10 rounded-lg">
-              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-accent" />
+            <div className="p-1.5 bg-accent/10 rounded-lg">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-accent" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold mb-3">
+            <div className="text-lg font-bold mb-2 md:text-xl">
               {stats.paymentRate.toFixed(1)}%
             </div>
-            <Progress value={stats.paymentRate} className="mb-2" />
-            <div className="text-xs text-muted-foreground">
+            <Progress value={stats.paymentRate} className="mb-2 h-2 md:h-3" />
+            <div className="text-xs text-muted-foreground md:text-sm">
               Avg. payment time: {stats.averagePaymentTime} days
             </div>
           </CardContent>
@@ -151,13 +151,13 @@ export function PaymentStatusDashboard({
       </div>
 
       <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur">
-        <CardHeader className="pb-3 sm:pb-4">
-          <CardTitle className="text-base sm:text-lg font-semibold">
+        <CardHeader className="pb-2 p-0">
+          <CardTitle className="text-base font-semibold md:text-lg">
             Payment Status Breakdown
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3 sm:space-y-4">
+        <CardContent className="p-0">
+          <div className="space-y-2">
             {statusBreakdown.map((item, index) => {
               const Icon = item.icon;
               const TrendIcon =
@@ -170,16 +170,14 @@ export function PaymentStatusDashboard({
               return (
                 <div
                   key={item.status}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors animate-slide-in-left gap-3 sm:gap-4"
+                  className="flex flex-col gap-2 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors animate-slide-in-left"
                   style={{animationDelay: `${index * 0.1}s`}}>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="p-1.5 sm:p-2 bg-background rounded-lg shadow-sm">
-                        <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </div>
-                      <PaymentStatusBadge status={item.status} />
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-background rounded-lg shadow-sm">
+                      <Icon className="h-3 w-3 md:h-4 md:w-4" />
                     </div>
-                    <div className="text-xs sm:text-sm">
+                    <PaymentStatusBadge status={item.status} size="sm" />
+                    <div className="text-xs md:text-sm">
                       <span className="font-semibold">{item.count}</span>
                       <span className="text-muted-foreground ml-1">
                         transactions
@@ -187,88 +185,40 @@ export function PaymentStatusDashboard({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="text-right">
-                      <div className="font-semibold text-sm sm:text-base">
+                      <div className="font-semibold text-sm md:text-base">
                         $
                         {item.amount.toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground md:text-sm">
                         {item.percentage.toFixed(1)}% of total
                       </div>
                     </div>
-                    <div className="w-16 sm:w-20">
-                      <Progress value={item.percentage} className="h-2" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 md:w-20">
+                        <Progress
+                          value={item.percentage}
+                          className="h-2 md:h-3"
+                        />
+                      </div>
+                      <TrendIcon
+                        className={`h-3 w-3 md:h-4 md:w-4 ${
+                          item.trend === "up"
+                            ? "text-success"
+                            : item.trend === "down"
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        }`}
+                      />
                     </div>
-                    <TrendIcon
-                      className={`h-3 w-3 sm:h-4 sm:w-4 ${
-                        item.trend === "up"
-                          ? "text-success"
-                          : item.trend === "down"
-                          ? "text-destructive"
-                          : "text-muted-foreground"
-                      }`}
-                    />
                   </div>
                 </div>
               );
             })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur">
-        <CardHeader className="pb-3 sm:pb-4">
-          <CardTitle className="text-base sm:text-lg font-semibold">
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="p-3 sm:p-4 border rounded-lg cursor-pointer hover:bg-muted/30 transition-all hover-lift bg-muted/10">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <div className="p-1.5 sm:p-2 bg-warning/10 rounded-lg">
-                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-warning" />
-                </div>
-                <span className="font-semibold text-xs sm:text-sm">
-                  Follow Up Overdue
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.overdueCount} transactions need attention
-              </p>
-            </div>
-
-            <div className="p-3 sm:p-4 border rounded-lg cursor-pointer hover:bg-muted/30 transition-all hover-lift bg-muted/10">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <div className="p-1.5 sm:p-2 bg-destructive/10 rounded-lg">
-                  <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
-                </div>
-                <span className="font-semibold text-xs sm:text-sm">
-                  Retry Failed Payments
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.failedCount} failed transactions to retry
-              </p>
-            </div>
-
-            <div className="p-3 sm:p-4 border rounded-lg cursor-pointer hover:bg-muted/30 transition-all hover-lift bg-muted/10">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <div className="p-1.5 sm:p-2 bg-success/10 rounded-lg">
-                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
-                </div>
-                <span className="font-semibold text-xs sm:text-sm">
-                  Generate Report
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Export payment analytics
-              </p>
-            </div>
           </div>
         </CardContent>
       </Card>

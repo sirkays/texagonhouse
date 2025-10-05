@@ -99,12 +99,12 @@ export function DashboardOverview() {
             className="hover-lift border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur animate-scale-in"
             style={{animationDelay: `${index * 0.1}s`}}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 sm:pb-3">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
               <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
                 <stat.icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
               </div>
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold mb-2">
@@ -180,54 +180,6 @@ export function DashboardOverview() {
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur">
-          <CardHeader className="pb-3 sm:pb-4">
-            <CardTitle className="text-base sm:text-lg font-semibold">
-              System Health
-            </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Overall payment system performance metrics
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6">
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium">Success Rate</span>
-                <span className="font-semibold text-success">94.2%</span>
-              </div>
-              <Progress value={94.2} className="h-2" />
-            </div>
-
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium">Processing Speed</span>
-                <span className="font-semibold text-accent">87.5%</span>
-              </div>
-              <Progress value={87.5} className="h-2" />
-            </div>
-
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium">Customer Satisfaction</span>
-                <span className="font-semibold text-primary">96.8%</span>
-              </div>
-              <Progress value={96.8} className="h-2" />
-            </div>
-
-            <div className="pt-3 sm:pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-medium text-muted-foreground">
-                  System Status
-                </span>
-                <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 text-xs">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Operational
-                </Badge>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

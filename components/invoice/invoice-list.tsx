@@ -122,46 +122,46 @@ export function InvoiceList() {
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
+            <h2 className="text-lg font-semibold tracking-tight md:text-xl lg:text-2xl">
               Recent Invoices
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm md:text-base">
               Manage and track your invoice status
             </p>
           </div>
           <Badge
             variant="outline"
-            className="bg-primary/10 text-primary border-primary/20">
+            className="bg-primary/10 text-primary border-primary/20 w-fit">
             {mockInvoices.length} Total
           </Badge>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {mockInvoices.map((invoice, index) => (
             <Card
               key={invoice.id}
               className="hover-lift border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur animate-slide-up"
               style={{animationDelay: `${index * 0.1}s`}}>
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <CardTitle className="text-lg font-semibold">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base font-semibold md:text-lg">
                         {invoice.number}
                       </CardTitle>
                       <PaymentStatusBadge status={invoice.status} size="sm" />
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground md:text-sm">
                       {invoice.description}
                     </p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                        <MoreHorizontal className="h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
@@ -188,14 +188,14 @@ export function InvoiceList() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
                       <Building2 className="h-4 w-4" />
                       <span>Client</span>
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">
+                      <p className="font-semibold text-sm md:text-base">
                         {invoice.client.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -204,12 +204,12 @@ export function InvoiceList() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
                       <DollarSign className="h-4 w-4" />
                       <span>Amount</span>
                     </div>
-                    <p className="font-bold text-lg">
+                    <p className="font-bold text-base md:text-lg">
                       $
                       {invoice.amount.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
@@ -217,12 +217,12 @@ export function InvoiceList() {
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
                       <Calendar className="h-4 w-4" />
                       <span>Due Date</span>
                     </div>
-                    <p className="font-medium text-sm">
+                    <p className="font-medium text-sm md:text-base">
                       {new Date(invoice.dueDate).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -231,16 +231,18 @@ export function InvoiceList() {
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
                       <User className="h-4 w-4" />
                       <span>Items</span>
                     </div>
-                    <p className="font-medium text-sm">{invoice.items} items</p>
+                    <p className="font-medium text-sm md:text-base">
+                      {invoice.items} items
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
                   <div className="text-xs text-muted-foreground">
                     Issued:{" "}
                     {new Date(invoice.issueDate).toLocaleDateString("en-US", {
@@ -249,17 +251,19 @@ export function InvoiceList() {
                       year: "numeric",
                     })}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="hover-lift bg-transparent"
+                      className="hover-lift bg-transparent w-full sm:w-auto py-2"
                       onClick={() => handleViewInvoice(invoice.id)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
                     {invoice.status === "pending" && (
-                      <Button size="sm" className="hover-lift">
+                      <Button
+                        size="sm"
+                        className="hover-lift bg-[#f79771] hover:bg-gray-300 w-full sm:w-auto py-2">
                         <Send className="h-4 w-4 mr-2" />
                         Send
                       </Button>
@@ -268,7 +272,7 @@ export function InvoiceList() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        className="hover-lift">
+                        className="hover-lift w-full sm:w-auto py-2">
                         <Send className="h-4 w-4 mr-2" />
                         Remind
                       </Button>

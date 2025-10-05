@@ -206,13 +206,15 @@ export function InvoiceDetailsModal({
   if (!invoice) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[90vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Invoice Not Found</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">
+              Invoice Not Found
+            </DialogTitle>
           </DialogHeader>
-          <div className="p-8 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+          <div className="p-6 text-center">
+            <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">
               The selected invoice details could not be loaded
             </p>
           </div>
@@ -252,12 +254,18 @@ export function InvoiceDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl">Invoice Details</DialogTitle>
+      <DialogContent className="max-w-[90vw] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <DialogTitle className="text-lg md:text-xl">
+              Invoice Details
+            </DialogTitle>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handlePreview}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreview}
+                className="py-2">
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
               </Button>
@@ -265,7 +273,8 @@ export function InvoiceDetailsModal({
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadPDF}
-                disabled={isGeneratingPDF}>
+                disabled={isGeneratingPDF}
+                className="py-2">
                 <Download className="h-4 w-4 mr-2" />
                 {isGeneratingPDF ? "Generating..." : "Download PDF"}
               </Button>
@@ -273,55 +282,65 @@ export function InvoiceDetailsModal({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Invoice Header */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-2xl font-semibold">{invoice.number}</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-semibold md:text-xl">
+                  {invoice.number}
+                </h3>
+                <p className="text-xs text-muted-foreground md:text-sm">
                   {invoice.description}
                 </p>
               </div>
-              <PaymentStatusBadge status={invoice.status} />
+              <PaymentStatusBadge status={invoice.status} size="sm" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Date Issued:</span>
+                  <span className="text-xs text-muted-foreground md:text-sm">
+                    Date Issued:
+                  </span>
                 </div>
-                <p className="font-medium">
+                <p className="font-medium text-sm md:text-base">
                   {format(new Date(invoice.issueDate), "MMM dd, yyyy")}
                 </p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Due Date:</span>
+                  <span className="text-xs text-muted-foreground md:text-sm">
+                    Due Date:
+                  </span>
                 </div>
-                <p className="font-medium">
+                <p className="font-medium text-sm md:text-base">
                   {format(new Date(invoice.dueDate), "MMM dd, yyyy")}
                 </p>
               </div>
             </div>
 
             {/* Client Information */}
-            <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Bill To:</span>
+                <span className="text-xs text-muted-foreground md:text-sm">
+                  Bill To:
+                </span>
               </div>
               <div className="space-y-1">
-                <p className="font-semibold text-lg">{invoice.client.name}</p>
-                <p className="text-muted-foreground">
+                <p className="font-semibold text-base md:text-lg">
+                  {invoice.client.name}
+                </p>
+                <p className="text-xs text-muted-foreground md:text-sm">
                   {invoice.client.company}
                 </p>
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground md:text-sm">
                     {invoice.client.email}
                   </p>
                 </div>
@@ -332,21 +351,23 @@ export function InvoiceDetailsModal({
           <Separator />
 
           {/* Invoice Items */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">Items</h4>
-            <div className="space-y-3">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-base md:text-lg">Items</h4>
+            <div className="space-y-2">
               {invoice.items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/30 rounded-lg">
                   <div className="flex-1">
-                    <p className="font-medium">{item.description}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-medium text-sm md:text-base">
+                      {item.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground md:text-sm">
                       {item.quantity} × ${item.unitPrice.toFixed(2)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-lg">
+                    <p className="font-semibold text-base md:text-lg">
                       $
                       {item.total.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
@@ -362,30 +383,34 @@ export function InvoiceDetailsModal({
           <Separator />
 
           {/* Payment Summary */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">Payment Summary</h4>
+          <div className="space-y-3">
+            <h4 className="font-semibold text-base md:text-lg">
+              Payment Summary
+            </h4>
 
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-medium">
+                <span className="text-muted-foreground text-xs md:text-sm">
+                  Subtotal:
+                </span>
+                <span className="font-medium text-sm md:text-base">
                   ${invoice.subtotal.toFixed(2)}
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground text-xs md:text-sm">
                   Tax ({(invoice.taxRate * 100).toFixed(0)}%):
                 </span>
-                <span className="font-medium">
+                <span className="font-medium text-sm md:text-base">
                   ${invoice.taxAmount.toFixed(2)}
                 </span>
               </div>
 
               {invoice.discount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Discount:</span>
-                  <span className="font-medium">
+                  <span className="text-xs md:text-sm">Discount:</span>
+                  <span className="font-medium text-sm md:text-base">
                     -${invoice.discount.toFixed(2)}
                   </span>
                 </div>
@@ -393,10 +418,10 @@ export function InvoiceDetailsModal({
 
               <Separator />
 
-              <div className="flex justify-between text-xl font-bold">
+              <div className="flex justify-between text-base font-bold md:text-lg">
                 <span>Total Amount:</span>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
                   <span>
                     {invoice.amount.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
@@ -411,13 +436,13 @@ export function InvoiceDetailsModal({
           <Separator />
 
           {/* Additional Information */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {invoice.paymentMethod && (
               <div>
-                <p className="text-muted-foreground mb-1 text-sm">
+                <p className="text-muted-foreground mb-1 text-xs md:text-sm">
                   Payment Method:
                 </p>
-                <Badge variant="outline" className="font-medium">
+                <Badge variant="outline" className="font-medium text-sm">
                   {invoice.paymentMethod}
                 </Badge>
               </div>
@@ -425,9 +450,11 @@ export function InvoiceDetailsModal({
 
             {invoice.notes && (
               <div className="text-sm">
-                <p className="text-muted-foreground mb-2">Notes:</p>
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <p>{invoice.notes}</p>
+                <p className="text-muted-foreground mb-1 text-xs md:text-sm">
+                  Notes:
+                </p>
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <p className="text-sm md:text-base">{invoice.notes}</p>
                 </div>
               </div>
             )}

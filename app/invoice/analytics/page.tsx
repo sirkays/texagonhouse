@@ -1,11 +1,17 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { TrendingUp, BarChart3, PieChart, Activity, Target } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {SidebarTrigger} from "@/components/ui/sidebar";
+import {Separator} from "@/components/ui/separator";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {TrendingUp, BarChart3, PieChart, Activity, Target} from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,7 +19,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
+} from "@/components/ui/breadcrumb";
 
 const analyticsData = {
   revenue: {
@@ -28,58 +34,49 @@ const analyticsData = {
     successRate: 94.9,
   },
   topCategories: [
-    { name: "Subscriptions", amount: 18456.78, percentage: 40.4 },
-    { name: "One-time Purchases", amount: 13245.67, percentage: 29.0 },
-    { name: "Licenses", amount: 8976.45, percentage: 19.6 },
-    { name: "Refunds", amount: -2345.67, percentage: -5.1 },
-    { name: "Other", amount: 7345.67, percentage: 16.1 },
+    {name: "Subscriptions", amount: 18456.78, percentage: 40.4},
+    {name: "One-time Purchases", amount: 13245.67, percentage: 29.0},
+    {name: "Licenses", amount: 8976.45, percentage: 19.6},
+    {name: "Refunds", amount: -2345.67, percentage: -5.1},
+    {name: "Other", amount: 7345.67, percentage: 16.1},
   ],
   monthlyTrends: [
-    { month: "Jan", revenue: 38456, transactions: 1089 },
-    { month: "Feb", revenue: 42341, transactions: 1156 },
-    { month: "Mar", revenue: 45678, transactions: 1247 },
+    {month: "Jan", revenue: 38456, transactions: 1089},
+    {month: "Feb", revenue: 42341, transactions: 1156},
+    {month: "Mar", revenue: 45678, transactions: 1247},
   ],
-}
+};
 
 export default function AnalyticsPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Analytics</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Financial Analytics</h1>
-          <p className="text-muted-foreground">Detailed insights into your payment performance</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Financial Analytics
+          </h1>
+          <p className="text-muted-foreground">
+            Detailed insights into your payment performance
+          </p>
         </div>
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Revenue
+              </CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${analyticsData.revenue.current.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                ${analyticsData.revenue.current.toLocaleString()}
+              </div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <div className="flex items-center text-success">
-                  <TrendingUp className="h-3 w-3 mr-1" />+{analyticsData.revenue.growth}%
+                  <TrendingUp className="h-3 w-3 mr-1" />+
+                  {analyticsData.revenue.growth}%
                 </div>
                 <span>vs last month</span>
               </div>
@@ -88,27 +85,40 @@ export default function AnalyticsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Success Rate
+              </CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.transactions.successRate}%</div>
+              <div className="text-2xl font-bold">
+                {analyticsData.transactions.successRate}%
+              </div>
               <div className="text-xs text-muted-foreground">
-                {analyticsData.transactions.successful} of {analyticsData.transactions.total} transactions
+                {analyticsData.transactions.successful} of{" "}
+                {analyticsData.transactions.total} transactions
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Failed Payments</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Failed Payments
+              </CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.transactions.failed}</div>
+              <div className="text-2xl font-bold">
+                {analyticsData.transactions.failed}
+              </div>
               <div className="text-xs text-muted-foreground">
-                {((analyticsData.transactions.failed / analyticsData.transactions.total) * 100).toFixed(1)}% failure
-                rate
+                {(
+                  (analyticsData.transactions.failed /
+                    analyticsData.transactions.total) *
+                  100
+                ).toFixed(1)}
+                % failure rate
               </div>
             </CardContent>
           </Card>
@@ -119,8 +129,12 @@ export default function AnalyticsPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+{analyticsData.revenue.growth}%</div>
-              <div className="text-xs text-muted-foreground">Month over month growth</div>
+              <div className="text-2xl font-bold">
+                +{analyticsData.revenue.growth}%
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Month over month growth
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -141,16 +155,28 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{category.name}</span>
                     <div className="flex items-center gap-2">
-                      <span className={category.amount < 0 ? "text-destructive" : "text-foreground"}>
+                      <span
+                        className={
+                          category.amount < 0
+                            ? "text-destructive"
+                            : "text-foreground"
+                        }>
                         ${Math.abs(category.amount).toLocaleString()}
                       </span>
-                      <Badge variant={category.percentage > 0 ? "default" : "destructive"} className="text-xs">
+                      <Badge
+                        variant={
+                          category.percentage > 0 ? "default" : "destructive"
+                        }
+                        className="text-xs">
                         {category.percentage > 0 ? "+" : ""}
                         {category.percentage}%
                       </Badge>
                     </div>
                   </div>
-                  <Progress value={Math.abs(category.percentage)} className="h-2" />
+                  <Progress
+                    value={Math.abs(category.percentage)}
+                    className="h-2"
+                  />
                 </div>
               ))}
             </CardContent>
@@ -162,22 +188,31 @@ export default function AnalyticsPage() {
                 <BarChart3 className="h-5 w-5" />
                 Monthly Trends
               </CardTitle>
-              <CardDescription>Revenue and transaction trends over time</CardDescription>
+              <CardDescription>
+                Revenue and transaction trends over time
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {analyticsData.monthlyTrends.map((month, index) => (
-                <div key={month.month} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div
+                  key={month.month}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div>
                     <div className="font-medium">{month.month} 2024</div>
-                    <div className="text-sm text-muted-foreground">{month.transactions} transactions</div>
+                    <div className="text-sm text-muted-foreground">
+                      {month.transactions} transactions
+                    </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">${month.revenue.toLocaleString()}</div>
+                    <div className="font-bold">
+                      ${month.revenue.toLocaleString()}
+                    </div>
                     {index > 0 && (
                       <div className="text-xs text-success flex items-center">
                         <TrendingUp className="h-3 w-3 mr-1" />+
                         {(
-                          ((month.revenue - analyticsData.monthlyTrends[index - 1].revenue) /
+                          ((month.revenue -
+                            analyticsData.monthlyTrends[index - 1].revenue) /
                             analyticsData.monthlyTrends[index - 1].revenue) *
                           100
                         ).toFixed(1)}
@@ -195,16 +230,23 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Performance Metrics</CardTitle>
-            <CardDescription>Key performance indicators for your payment system</CardDescription>
+            <CardDescription>
+              Key performance indicators for your payment system
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span>Payment Success Rate</span>
-                  <span className="font-medium">{analyticsData.transactions.successRate}%</span>
+                  <span className="font-medium">
+                    {analyticsData.transactions.successRate}%
+                  </span>
                 </div>
-                <Progress value={analyticsData.transactions.successRate} className="h-2" />
+                <Progress
+                  value={analyticsData.transactions.successRate}
+                  className="h-2"
+                />
               </div>
 
               <div className="space-y-2">
@@ -227,5 +269,5 @@ export default function AnalyticsPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

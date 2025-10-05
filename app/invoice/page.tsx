@@ -1,12 +1,4 @@
 "use client";
-import {SidebarTrigger} from "@/components/ui/sidebar";
-import {Separator} from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
 import {AnimatedDashboard} from "@/components/invoice/animated-dashboard";
 
 export default function DashboardPage() {

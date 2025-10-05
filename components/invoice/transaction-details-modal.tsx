@@ -227,13 +227,15 @@ export function TransactionDetailsModal({
   if (!transaction) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[90vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Transaction Not Found</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">
+              Transaction Not Found
+            </DialogTitle>
           </DialogHeader>
-          <div className="p-8 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+          <div className="p-6 text-center">
+            <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">
               The selected transaction details could not be loaded
             </p>
           </div>
@@ -276,12 +278,18 @@ export function TransactionDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl">Transaction Details</DialogTitle>
+      <DialogContent className="max-w-[90vw] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <DialogTitle className="text-lg md:text-xl">
+              Transaction Details
+            </DialogTitle>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handlePreview}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreview}
+                className="py-2">
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
               </Button>
@@ -289,7 +297,8 @@ export function TransactionDetailsModal({
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadPDF}
-                disabled={isGeneratingPDF}>
+                disabled={isGeneratingPDF}
+                className="py-2">
                 <Download className="h-4 w-4 mr-2" />
                 {isGeneratingPDF ? "Generating..." : "Download PDF"}
               </Button>
@@ -297,67 +306,77 @@ export function TransactionDetailsModal({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Invoice Header */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4">
+          {/* Transaction Header */}
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-2xl font-semibold">
+                <h3 className="text-lg font-semibold md:text-xl">
                   {transaction.invoiceNumber}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground md:text-sm">
                   Transaction ID: {transaction.id}
                 </p>
               </div>
-              <PaymentStatusBadge status={transaction.status} />
+              <PaymentStatusBadge status={transaction.status} size="sm" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Date Issued:</span>
+                  <span className="text-xs text-muted-foreground md:text-sm">
+                    Date Issued:
+                  </span>
                 </div>
-                <p className="font-medium">
+                <p className="font-medium text-sm md:text-base">
                   {format(new Date(transaction.dateIssued), "MMM dd, yyyy")}
                 </p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Due Date:</span>
+                  <span className="text-xs text-muted-foreground md:text-sm">
+                    Due Date:
+                  </span>
                 </div>
-                <p className="font-medium">
+                <p className="font-medium text-sm md:text-base">
                   {format(new Date(transaction.dueDate), "MMM dd, yyyy")}
                 </p>
               </div>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Bill To:</p>
-              <p className="font-medium text-lg">{transaction.recipient}</p>
+              <p className="text-xs text-muted-foreground md:text-sm mb-1">
+                Bill To:
+              </p>
+              <p className="font-medium text-base md:text-lg">
+                {transaction.recipient}
+              </p>
             </div>
           </div>
 
           <Separator />
 
-          {/* Invoice Items */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">Items</h4>
-            <div className="space-y-3">
+          {/* Transaction Items */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-base md:text-lg">Items</h4>
+            <div className="space-y-2">
               {transaction.items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/30 rounded-lg">
                   <div className="flex-1">
-                    <p className="font-medium">{item.description}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-medium text-sm md:text-base">
+                      {item.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground md:text-sm">
                       {item.quantity} × ${item.unitPrice.toFixed(2)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-lg">
+                    <p className="font-semibold text-base md:text-lg">
                       $
                       {item.total.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
@@ -373,30 +392,34 @@ export function TransactionDetailsModal({
           <Separator />
 
           {/* Payment Summary */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">Payment Summary</h4>
+          <div className="space-y-3">
+            <h4 className="font-semibold text-base md:text-lg">
+              Payment Summary
+            </h4>
 
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-medium">
+                <span className="text-muted-foreground text-xs md:text-sm">
+                  Subtotal:
+                </span>
+                <span className="font-medium text-sm md:text-base">
                   ${transaction.subtotal.toFixed(2)}
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground text-xs md:text-sm">
                   Tax ({(transaction.taxRate * 100).toFixed(0)}%):
                 </span>
-                <span className="font-medium">
+                <span className="font-medium text-sm md:text-base">
                   ${transaction.taxAmount.toFixed(2)}
                 </span>
               </div>
 
               {transaction.discount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Discount:</span>
-                  <span className="font-medium">
+                  <span className="text-xs md:text-sm">Discount:</span>
+                  <span className="font-medium text-sm md:text-base">
                     -${transaction.discount.toFixed(2)}
                   </span>
                 </div>
@@ -404,10 +427,10 @@ export function TransactionDetailsModal({
 
               <Separator />
 
-              <div className="flex justify-between text-xl font-bold">
+              <div className="flex justify-between text-base font-bold md:text-lg">
                 <span>Total Amount:</span>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
                   <span>
                     {transaction.totalAmount.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
@@ -422,11 +445,13 @@ export function TransactionDetailsModal({
           <Separator />
 
           {/* Additional Information */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
               <div>
-                <p className="text-muted-foreground mb-1">Last Updated:</p>
-                <p className="font-medium">
+                <p className="text-muted-foreground mb-1 text-xs md:text-sm">
+                  Last Updated:
+                </p>
+                <p className="font-medium text-sm md:text-base">
                   {format(
                     new Date(transaction.lastUpdated),
                     "MMM dd, yyyy 'at' h:mm a"
@@ -436,8 +461,10 @@ export function TransactionDetailsModal({
 
               {transaction.paymentMethod && (
                 <div>
-                  <p className="text-muted-foreground mb-1">Payment Method:</p>
-                  <Badge variant="outline" className="font-medium">
+                  <p className="text-muted-foreground mb-1 text-xs md:text-sm">
+                    Payment Method:
+                  </p>
+                  <Badge variant="outline" className="font-medium text-sm">
                     {transaction.paymentMethod}
                   </Badge>
                 </div>
@@ -446,9 +473,11 @@ export function TransactionDetailsModal({
 
             {transaction.notes && (
               <div className="text-sm">
-                <p className="text-muted-foreground mb-2">Notes:</p>
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <p>{transaction.notes}</p>
+                <p className="text-muted-foreground mb-1 text-xs md:text-sm">
+                  Notes:
+                </p>
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <p className="text-sm md:text-base">{transaction.notes}</p>
                 </div>
               </div>
             )}

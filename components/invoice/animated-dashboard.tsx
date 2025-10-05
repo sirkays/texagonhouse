@@ -66,30 +66,26 @@ export function AnimatedDashboard() {
 
   return (
     <>
-      <div className="space-y-6 sm:space-y-8">
+      <div className="space-y-4">
         <AnimatedContainer
           animation="staggerChildren"
-          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          className="flex flex-col gap-4">
+          <div className="space-y-2">
+            <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl lg:text-3xl">
               Financial Dashboard
             </h1>
-            <p className="text-muted-foreground text-base sm:text-lg">
+            <p className="text-muted-foreground text-sm md:text-base">
               Monitor your invoice performance and financial metrics
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <div className="">
             <Button
-              size="sm"
+              size="lg"
               variant="outline"
-              className="hover-lift bg-transparent w-full sm:w-auto"
+              className="hover-lift bg-transparent w-full sm:w-20 shadow-md md:w-auto"
               onClick={handleViewReports}>
-              <TrendingUp className="h-4 w-4 mr-2" />
+              <TrendingUp className="h-5 w-5 mr-2" />
               View Reports
-            </Button>
-            <Button size="sm" className="hover-lift w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              New Invoice
             </Button>
           </div>
         </AnimatedContainer>
@@ -104,62 +100,38 @@ export function AnimatedDashboard() {
           <DashboardOverview />
         </AnimatedContainer>
 
-        <AnimatedContainer animation="fadeIn" delay={0.6}>
-          <div className="mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight mb-2">
-              Quick Actions
-            </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Access key features and manage your financial operations
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {quickAccessCards.map((card, index) => (
-              <HoverAnimated key={card.title} hoverScale={1.03} hoverY={-4}>
-                <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 sm:pb-4">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div
-                        className={`p-1.5 sm:p-2 rounded-lg ${
-                          card.color === "primary"
-                            ? "bg-primary/10"
-                            : card.color === "accent"
-                            ? "bg-accent/10"
-                            : "bg-success/10"
-                        }`}>
-                        <card.icon
-                          className={`h-4 w-4 sm:h-5 sm:w-5 ${
-                            card.color === "primary"
-                              ? "text-primary"
-                              : card.color === "accent"
-                              ? "text-accent"
-                              : "text-success"
-                          }`}
-                        />
-                      </div>
-                      <CardTitle className="text-sm sm:text-base font-semibold">
-                        {card.title}
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 sm:space-y-4">
-                    <CardDescription className="text-xs sm:text-sm leading-relaxed">
+        {/* Quick Access Cards */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {quickAccessCards.map((card, index) => (
+            <AnimatedContainer
+              key={index}
+              animation="fadeIn"
+              delay={0.6 + index * 0.2}>
+              <HoverAnimated>
+                <Card className={`border-${card.color} shadow-md`}>
+                  <CardHeader>
+                    <card.icon className="h-6 w-6 mb-2" />
+                    <CardTitle className="text-lg md:text-xl">
+                      {card.title}
+                    </CardTitle>
+                    <CardDescription className="text-sm md:text-base">
                       {card.description}
                     </CardDescription>
-                    <Button asChild className="w-full hover-lift text-sm">
-                      <Link href={card.href}>
-                        {card.title.split(" ")[0]}{" "}
-                        {card.title.split(" ")[1] || ""}
-                        <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      </Link>
-                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <Link href={card.href}>
+                      <Button
+                        variant="ghost"
+                        className={`text-${card.color} hover:text-${card.color}-dark w-full md:w-auto`}>
+                        Explore <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
                   </CardContent>
                 </Card>
               </HoverAnimated>
-            ))}
-          </div>
-        </AnimatedContainer>
+            </AnimatedContainer>
+          ))}
+        </div>
       </div>
 
       <ReportsModal

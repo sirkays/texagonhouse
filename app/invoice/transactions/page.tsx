@@ -31,37 +31,19 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Transactions</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-
-      <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-3 p-3 sm:p-4">
+      <div className="space-y-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-lg font-bold tracking-tight md:text-xl lg:text-2xl">
             Transaction History
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm md:text-base">
             View and manage all your transaction records. Click on any
             transaction to view details and download PDF.
           </p>
         </div>
 
-        <div className="max-w-4xl">
+        <div>
           <TransactionHistory
             onSelectTransaction={handleSelectTransaction}
             selectedTransaction={selectedTransaction}
