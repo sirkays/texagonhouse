@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
-import {TeacherManagement} from "@/components/admins/teacher-management";
+import {TeacherManagement} from "@/components/admin/teacher-management";
+
 
 const TeacherManagementMain = () => {
   return (
