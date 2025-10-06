@@ -1,0 +1,158 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+interface CourseModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  course?: any
+  onSave: (course: any) => void
+}
+
+export function CourseModal({ open, onOpenChange, course, onSave }: CourseModalProps) {
+  const [formData, setFormData] = useState({
+    name: course?.name || "",
+    subject: course?.subject || "",
+    teacher: course?.teacher || "",
+    classroom: course?.classroom || "",
+    description: course?.description || "",
+    status: course?.status || "active",
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave({
+      ...course,
+      ...formData,
+    })
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{course ? "Edit Course" : "Create New Course"}</DialogTitle>
+          <DialogDescription>{course ? "Update course information" : "Create a new course"}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Course Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject *</Label>
+                <Select
+                  value={formData.subject}
+                  onValueChange={(value) => setFormData({ ...formData, subject: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Mathematics">Mathematics</SelectItem>
+                    <SelectItem value="Physics">Physics</SelectItem>
+                    <SelectItem value="Chemistry">Chemistry</SelectItem>
+                    <SelectItem value="Biology">Biology</SelectItem>
+                    <SelectItem value="English">English</SelectItem>
+                    <SelectItem value="History">History</SelectItem>
+                    <SelectItem value="Computer Science">Computer Science</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="classroom">Classroom *</Label>
+                <Select
+                  value={formData.classroom}
+                  onValueChange={(value) => setFormData({ ...formData, classroom: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select classroom" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Grade 10A">Grade 10A</SelectItem>
+                    <SelectItem value="Grade 10B">Grade 10B</SelectItem>
+                    <SelectItem value="Grade 11A">Grade 11A</SelectItem>
+                    <SelectItem value="Grade 11B">Grade 11B</SelectItem>
+                    <SelectItem value="Grade 12A">Grade 12A</SelectItem>
+                    <SelectItem value="Grade 12B">Grade 12B</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="teacher">Teacher *</Label>
+                <Select
+                  value={formData.teacher}
+                  onValueChange={(value) => setFormData({ ...formData, teacher: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Dr. Robert Smith">Dr. Robert Smith</SelectItem>
+                    <SelectItem value="Prof. Maria Garcia">Prof. Maria Garcia</SelectItem>
+                    <SelectItem value="Dr. James Wilson">Dr. James Wilson</SelectItem>
+                    <SelectItem value="Ms. Lisa Anderson">Ms. Lisa Anderson</SelectItem>
+                    <SelectItem value="Mr. David Lee">Mr. David Lee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status *</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">{course ? "Update" : "Create"} Course</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

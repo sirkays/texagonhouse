@@ -1,17 +1,23 @@
 "use client";
 
 import {
-  Users,
-  School,
-  GraduationCap,
   Home,
-  Settings,
-  BarChart3,
-  User,
+  Users,
+  GraduationCap,
+  BookOpen,
+  ClipboardList,
+  Calendar,
+  CreditCard,
+  ShoppingCart,
+  Video,
+  Award,
   Bell,
-  ChevronDown,
-  Building2,
-  UserCheck,
+  Settings,
+  LogOut,
+  FileText,
+  BarChart3,
+  UserCircle,
+  BookMarked,
 } from "lucide-react";
 import {
   Sidebar,
@@ -19,7 +25,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -28,7 +33,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,50 +42,75 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMediaQuery } from "react-responsive";
-import { useSession } from "next-auth/react";
+import {usePathname} from "next/navigation";
+import {useMediaQuery} from "react-responsive";
 
-const menuItems = [
-  { title: "Dashboard", icon: Home, id: "dashboard", path: "/admin" },
+const navigation = [
+  {title: "Dashboard", icon: Home, id: "dashboard", path: "/admin"},
   {
-    title: "School Management",
-    icon: Building2,
-    id: "schools",
-    path: "/admin/schools",
-  },
-  {
-    title: "Teacher Management",
-    icon: UserCheck,
-    id: "teachers",
-    path: "/admin/teachers",
-  },
-  {
-    title: "Student Management",
+    title: "Classrooms",
     icon: Users,
+    id: "classrooms",
+    path: "/admin/classrooms",
+  },
+  {
+    title: "Students",
+    icon: GraduationCap,
     id: "students",
     path: "/admin/students",
   },
+  {title: "Teachers", icon: Users, id: "teachers", path: "/admin/teachers"},
+  {title: "Parents", icon: UserCircle, id: "parents", path: "/admin/parents"},
   {
-    title: "Subscriptions",
-    icon: School,
-    id: "subscriptions",
-    path: "/admin/subscriptions",
+    title: "Subjects",
+    icon: BookMarked,
+    id: "subjects",
+    path: "/admin/subjects",
+  },
+  {title: "Courses", icon: BookOpen, id: "courses", path: "/admin/courses"},
+  {title: "Modules", icon: FileText, id: "modules", path: "/admin/modules"},
+  {title: "Tests", icon: ClipboardList, id: "tests", path: "/admin/tests"},
+  {
+    title: "Assignments",
+    icon: FileText,
+    id: "assignments",
+    path: "/admin/assignments",
   },
   {
-    title: "System Analytics",
-    icon: BarChart3,
-    id: "analytics",
-    path: "/admin/analytics",
+    title: "Attendance",
+    icon: Calendar,
+    id: "attendance",
+    path: "/admin/attendance",
   },
+  {
+    title: "Live Sessions",
+    icon: Video,
+    id: "live-sessions",
+    path: "/admin/live-sessions",
+  },
+  {
+    title: "Tutoring",
+    icon: GraduationCap,
+    id: "tutoring",
+    path: "/admin/tutoring",
+  },
+  {title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing"},
+  {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
+  {
+    title: "Gamification",
+    icon: Award,
+    id: "gamification",
+    path: "/admin/gamification",
+  },
+  {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
 ];
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
-  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
+  const isMobile = useMediaQuery({maxWidth: 639});
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -89,17 +119,31 @@ function SidebarMenuContent() {
   };
 
   return (
-    <SidebarContent>
+    <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
-        <SidebarGroupLabel>Content Creation</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {menuItems.map((item) => (
+            {navigation.map((item) => (
               <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton asChild isActive={pathname === item.path}>
-                  <Link href={item.path} onClick={handleLinkClick}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.path}
+                  className={`
+                    py-5
+                    hover:bg-[#F797713a]
+                    data-[active=true]:bg-[#EF7B553a]
+                    data-[active=true]:text-slate-600
+                    transition-colors
+                    rounded-md
+                  `}>
+                  <Link
+                    href={item.path}
+                    onClick={handleLinkClick}
+                    className="flex items-center gap-2">
+                    <item.icon className="h-3 w-3 sm:h-4 sm:w-4 text-[#EF7B55]" />
+                    <span className="text-[0.85rem] sm:text-sm">
+                      {item.title}
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -111,102 +155,56 @@ function SidebarMenuContent() {
   );
 }
 
-export default function AdminLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session, status } = useSession();
-
-  console.log("[AdminLayout] Session status:", status);
-  console.log("[AdminLayout] Session data:", session);
-
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
-
-  if (status !== "authenticated" || session?.user?.role !== "admin") {
-    console.log("[AdminLayout] Unauthorized, redirecting to /login");
-    window.location.href = "/login";
-    return null;
-  }
-
-  const handleLogout = async () => {
-    console.log(
-      "[AdminLayout] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
-    try {
-      const response = await fetch("/api/auth/logout-route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      console.log("[AdminLayout] Logout API response status:", response.status);
-      const data = await response.json();
-      console.log("[AdminLayout] Logout API response:", data);
-
-      if (!response.ok) {
-        console.error("[AdminLayout] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
-      }
-
-      console.log("[AdminLayout] Logout successful, redirecting to /login");
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("[AdminLayout] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
-    }
-  };
-
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-2 px-4 py-2">
-              <GraduationCap className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">EduPlatform</span>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                Admin
+    <SidebarProvider className="bg-white">
+      <div className="flex min-h-screen w-full font-sans">
+        <Sidebar className="">
+          <SidebarHeader className="bg-[#EF7B55] py-5">
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
+              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              <span className="font-semibold text-white text-base sm:text-lg">
+                EduManage
               </span>
             </div>
           </SidebarHeader>
           <SidebarMenuContent />
-          <SidebarFooter>
+          <SidebarFooter className="border border-t-[#EF7B553a] py-5">
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton>
-                      <Avatar className="h-6 w-6">
+                      <Avatar className="h-5 w-5 sm:h-6 sm:w-6">
                         <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback>DR</AvatarFallback>
+                        <AvatarFallback className="text-[0.65rem] sm:text-xs">
+                          AD
+                        </AvatarFallback>
                       </Avatar>
-                      <span>Dr. Sarah Wilson</span>
-                      <ChevronDown className="ml-auto h-4 w-4" />
+                      <span className="text-xs sm:text-sm">Admin User</span>
+                      <Settings className="ml-auto h-3 w-3 sm:h-4 sm:w-4" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
-                    className="w-[--radix-popper-anchor-width]"
-                  >
+                    className="w-[--radix-popper-anchor-width]">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Settings className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]">
+                      <Settings className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Settings
                     </DropdownMenuItem>
+                    <DropdownMenuItem className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]">
+                      <Bell className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      Notifications
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
+                    <DropdownMenuItem className="text-[0.85rem] sm:text-sm text-destructive hover:bg-[#F797713a] focus:bg-[#F797713a]">
+                      <LogOut className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Log out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -215,18 +213,42 @@ export default function AdminLayout({
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
+
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-12 xs:h-14 items-center justify-between gap-2 xs:gap-4 px-3 xs:px-4 sm:px-6">
-              <SidebarTrigger className="" />
-              <Button variant="ghost" size="icon" className="p-1 xs:p-2">
-                <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
+          <header className="sticky top-0 z-50 py-4">
+            <style jsx>{`
+              header {
+                background: rgba(
+                  247,
+                  151,
+                  113,
+                  0.3
+                ); /* Semi-transparent #F19212 */
+                backdrop-filter: blur(8px); /* Frosted glass effect */
+                -webkit-backdrop-filter: blur(8px); /* Safari compatibility */
+                position: sticky;
+                top: 0;
+                z-index: 50;
+              }
+              header > div {
+                position: relative;
+                z-index: 10;
+                background: transparent;
+              }
+            `}</style>
+            <div className="flex h-12 sm:h-14 items-center justify-between gap-3 sm:gap-4 px-3 sm:px-6 text-slate-800">
+              <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+              <div className="flex-1 max-w-[90vw] sm:max-w-md"></div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-1 sm:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
+                <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-3 xs:p-4 sm:p-6 overflow-auto">
-            {children}
-          </main>
+
+          <main className="flex-1 p-3 sm:p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>

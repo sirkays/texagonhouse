@@ -48,7 +48,7 @@ import {TeacherCBTCreator} from "./teacher-cbt-creator";
 import {TeacherResourceManager} from "./teacher-resource-manager";
 import {TeacherLearningModules} from "./teacher-learning-modules";
 import {MaterialUploader} from "../student/material-uploader";
-import {StudentAnalytics} from "../admin/student-analytics";
+import {StudentAnalytics} from "../admins/student-analytics";
 import {VideoLessonCreator} from "./video-lesson-creator";
 import {LiveSessionManager} from "./live-session-manager";
 
@@ -96,5 +96,5 @@ const menuItems = [
 ];
 
 export function TeacherDashboard() {
-  return <TeacherOverview />
+  return <TeacherOverview />;
 }

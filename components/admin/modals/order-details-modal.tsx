@@ -1,0 +1,153 @@
+"use client"
+
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Package, User, CreditCard, MapPin } from "lucide-react"
+
+interface OrderDetailsModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  order: any
+}
+
+export function OrderDetailsModal({ open, onOpenChange, order }: OrderDetailsModalProps) {
+  if (!order) return null
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "fulfilled":
+        return "default"
+      case "paid":
+        return "secondary"
+      case "pending":
+        return "outline"
+      default:
+        return "secondary"
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Order Details</DialogTitle>
+          <DialogDescription>Complete information about order {order.orderNumber}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Order Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">{order.orderNumber}</h3>
+              <p className="text-sm text-muted-foreground">Placed on {order.date}</p>
+            </div>
+            <Badge variant={getStatusColor(order.status)} className="capitalize">
+              {order.status}
+            </Badge>
+          </div>
+
+          <Separator />
+
+          {/* Customer Information */}
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Customer Information
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Name</p>
+                <p className="font-medium">{order.customer}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Email</p>
+                <p className="font-medium">{order.customer.toLowerCase().replace(" ", ".")}@email.com</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Phone</p>
+                <p className="font-medium">+1 (555) 123-4567</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Order Date</p>
+                <p className="font-medium">{order.date}</p>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Shipping Address */}
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Shipping Address
+            </h4>
+            <div className="text-sm">
+              <p className="font-medium">123 Education Street</p>
+              <p className="text-muted-foreground">Suite 456</p>
+              <p className="text-muted-foreground">New York, NY 10001</p>
+              <p className="text-muted-foreground">United States</p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Order Items */}
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Order Items ({order.items})
+            </h4>
+            <div className="space-y-2">
+              {[
+                { name: "Scientific Calculator", qty: 1, price: 29.99 },
+                { name: "Chemistry Lab Kit", qty: 1, price: 129.99 },
+                { name: "Geometry Set", qty: 1, price: 15.99 },
+              ]
+                .slice(0, order.items)
+                .map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">Quantity: {item.qty}</p>
+                    </div>
+                    <p className="font-semibold">${item.price.toFixed(2)}</p>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Payment Summary */}
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Payment Summary
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium">${(order.total * 0.9).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shipping</span>
+                <span className="font-medium">${(order.total * 0.05).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span className="font-medium">${(order.total * 0.05).toFixed(2)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-base">
+                <span className="font-semibold">Total</span>
+                <span className="font-bold">${order.total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
