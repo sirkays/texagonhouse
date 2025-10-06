@@ -1,19 +1,30 @@
-"use client"
+"use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {Badge} from "@/components/ui/badge";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
 interface ViewDetailsModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  data: any
-  type: "teacher" | "student" | "course" | "test" | "subject"
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  data: any;
+  type: "teacher" | "student" | "course" | "test" | "subject";
 }
 
-export function ViewDetailsModal({ open, onOpenChange, title, data, type }: ViewDetailsModalProps) {
-  if (!data) return null
+export function ViewDetailsModal({
+  open,
+  onOpenChange,
+  title,
+  data,
+  type,
+}: ViewDetailsModalProps) {
+  if (!data) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -26,7 +37,9 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
             <>
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={`/.jpg?height=80&width=80&query=${data.name}`} />
+                  <AvatarImage
+                    src={`/.jpg?height=80&width=80&query=${data.name}`}
+                  />
                   <AvatarFallback className="text-lg">
                     {data.name
                       .split(" ")
@@ -42,15 +55,21 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Experience</p>
-                  <p className="text-lg font-semibold">{data.experience} years</p>
+                  <p className="text-lg font-semibold">
+                    {data.experience} years
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Courses Teaching</p>
+                  <p className="text-sm text-muted-foreground">
+                    Courses Teaching
+                  </p>
                   <p className="text-lg font-semibold">{data.courses}</p>
                 </div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Specialties</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Specialties
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {data.specialties?.map((specialty: string) => (
                     <Badge key={specialty} variant="secondary">
@@ -66,7 +85,9 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
             <>
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={`/.jpg?height=80&width=80&query=${data.name}`} />
+                  <AvatarImage
+                    src={`/.jpg?height=80&width=80&query=${data.name}`}
+                  />
                   <AvatarFallback className="text-lg">
                     {data.name
                       .split(" ")
@@ -85,19 +106,26 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
                   <p className="text-lg font-semibold">{data.classroom}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Enrollment Date</p>
+                  <p className="text-sm text-muted-foreground">
+                    Enrollment Date
+                  </p>
                   <p className="text-lg font-semibold">{data.enrollmentDate}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant={data.status === "active" ? "default" : "secondary"}>{data.status}</Badge>
+                  <Badge
+                    variant={
+                      data.status === "active" ? "default" : "secondary"
+                    }>
+                    {data.status}
+                  </Badge>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                {/* <div>
                   <p className="text-sm text-muted-foreground">Attendance Rate</p>
                   <p className="text-lg font-semibold">{data.attendance}%</p>
-                </div>
+                </div> */}
                 <div>
                   <p className="text-sm text-muted-foreground">Average Grade</p>
                   <p className="text-lg font-semibold">{data.grade}%</p>
@@ -124,20 +152,15 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
                   <p className="text-lg font-semibold">{data.classroom}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Students Enrolled</p>
+                  <p className="text-sm text-muted-foreground">
+                    Students Enrolled
+                  </p>
                   <p className="text-lg font-semibold">{data.students}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Modules</p>
                   <p className="text-lg font-semibold">{data.modules}</p>
                 </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${data.progress}%` }} />
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">{data.progress}% Complete</p>
               </div>
             </>
           )}
@@ -178,7 +201,8 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
                 <div>
                   <p className="text-sm text-muted-foreground">Schedule</p>
                   <p className="text-lg font-semibold">
-                    {new Date(data.startAt).toLocaleString()} - {new Date(data.endAt).toLocaleString()}
+                    {new Date(data.startAt).toLocaleString()} -{" "}
+                    {new Date(data.endAt).toLocaleString()}
                   </p>
                 </div>
               )}
@@ -212,5 +236,5 @@ export function ViewDetailsModal({ open, onOpenChange, title, data, type }: View
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,36 +1,46 @@
-"use client"
+"use client";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent } from "@/components/ui/card"
-import { Users, BookOpen, GraduationCap } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {Card, CardContent} from "@/components/ui/card";
+import {Users, BookOpen, GraduationCap} from "lucide-react";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
 interface ClassroomDetailsModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  classroom: any
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  classroom: any;
 }
 
-export function ClassroomDetailsModal({ open, onOpenChange, classroom }: ClassroomDetailsModalProps) {
-  if (!classroom) return null
+export function ClassroomDetailsModal({
+  open,
+  onOpenChange,
+  classroom,
+}: ClassroomDetailsModalProps) {
+  if (!classroom) return null;
 
   const students = [
-    { id: 1, name: "John Doe", grade: "A", attendance: 95 },
-    { id: 2, name: "Jane Smith", grade: "B+", attendance: 92 },
-    { id: 3, name: "Mike Johnson", grade: "A-", attendance: 88 },
-  ]
+    {id: 1, name: "John Doe", grade: "A", attendance: 95},
+    {id: 2, name: "Jane Smith", grade: "B+", attendance: 92},
+    {id: 3, name: "Mike Johnson", grade: "A-", attendance: 88},
+  ];
 
   const teachers = [
-    { id: 1, name: "Dr. Robert Smith", subject: "Mathematics" },
-    { id: 2, name: "Prof. Maria Garcia", subject: "Physics" },
-  ]
+    {id: 1, name: "Dr. Robert Smith", subject: "Mathematics"},
+    {id: 2, name: "Prof. Maria Garcia", subject: "Physics"},
+  ];
 
   const courses = [
-    { id: 1, name: "Advanced Mathematics", progress: 75 },
-    { id: 2, name: "Quantum Physics", progress: 60 },
-  ]
+    {id: 1, name: "Advanced Mathematics", progress: 75},
+    {id: 2, name: "Quantum Physics", progress: 60},
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,10 +108,14 @@ export function ClassroomDetailsModal({ open, onOpenChange, classroom }: Classro
 
           <TabsContent value="students" className="space-y-3">
             {students.map((student) => (
-              <div key={student.id} className="flex items-center justify-between p-3 rounded-lg border">
+              <div
+                key={student.id}
+                className="flex items-center justify-between p-3 rounded-lg border">
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={`/.jpg?height=40&width=40&query=${student.name}`} />
+                    <AvatarImage
+                      src={`/.jpg?height=40&width=40&query=${student.name}`}
+                    />
                     <AvatarFallback>
                       {student.name
                         .split(" ")
@@ -111,20 +125,25 @@ export function ClassroomDetailsModal({ open, onOpenChange, classroom }: Classro
                   </Avatar>
                   <div>
                     <p className="font-medium">{student.name}</p>
-                    <p className="text-sm text-muted-foreground">Grade: {student.grade}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Grade: {student.grade}
+                    </p>
                   </div>
                 </div>
-                <Badge variant="secondary">{student.attendance}% Attendance</Badge>
               </div>
             ))}
           </TabsContent>
 
           <TabsContent value="teachers" className="space-y-3">
             {teachers.map((teacher) => (
-              <div key={teacher.id} className="flex items-center justify-between p-3 rounded-lg border">
+              <div
+                key={teacher.id}
+                className="flex items-center justify-between p-3 rounded-lg border">
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={`/.jpg?height=40&width=40&query=${teacher.name}`} />
+                    <AvatarImage
+                      src={`/.jpg?height=40&width=40&query=${teacher.name}`}
+                    />
                     <AvatarFallback>
                       {teacher.name
                         .split(" ")
@@ -134,7 +153,9 @@ export function ClassroomDetailsModal({ open, onOpenChange, classroom }: Classro
                   </Avatar>
                   <div>
                     <p className="font-medium">{teacher.name}</p>
-                    <p className="text-sm text-muted-foreground">{teacher.subject}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {teacher.subject}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -146,10 +167,6 @@ export function ClassroomDetailsModal({ open, onOpenChange, classroom }: Classro
               <div key={course.id} className="p-3 rounded-lg border space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">{course.name}</p>
-                  <span className="text-sm text-muted-foreground">{course.progress}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: `${course.progress}%` }} />
                 </div>
               </div>
             ))}
@@ -157,5 +174,5 @@ export function ClassroomDetailsModal({ open, onOpenChange, classroom }: Classro
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

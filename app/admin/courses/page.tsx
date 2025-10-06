@@ -295,20 +295,6 @@ export default function CoursesPage() {
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Course Progress</span>
-                      <span>{course.progress}%</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{width: `${course.progress}%`}}
-                      />
-                    </div>
-                  </div>
-
                   <div className="flex gap-2">
                     <Button
                       className="flex-1 bg-transparent"

@@ -71,31 +71,6 @@ const navigation = [
   },
   {title: "Courses", icon: BookOpen, id: "courses", path: "/admin/courses"},
   {title: "Modules", icon: FileText, id: "modules", path: "/admin/modules"},
-  {title: "Tests", icon: ClipboardList, id: "tests", path: "/admin/tests"},
-  {
-    title: "Assignments",
-    icon: FileText,
-    id: "assignments",
-    path: "/admin/assignments",
-  },
-  {
-    title: "Attendance",
-    icon: Calendar,
-    id: "attendance",
-    path: "/admin/attendance",
-  },
-  {
-    title: "Live Sessions",
-    icon: Video,
-    id: "live-sessions",
-    path: "/admin/live-sessions",
-  },
-  {
-    title: "Tutoring",
-    icon: GraduationCap,
-    id: "tutoring",
-    path: "/admin/tutoring",
-  },
   {title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing"},
   {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
   {
@@ -192,17 +167,6 @@ export default function DashboardLayout({
                   <DropdownMenuContent
                     side="top"
                     className="w-[--radix-popper-anchor-width]">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]">
-                      <Settings className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]">
-                      <Bell className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      Notifications
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-[0.85rem] sm:text-sm text-destructive hover:bg-[#F797713a] focus:bg-[#F797713a]">
                       <LogOut className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Log out

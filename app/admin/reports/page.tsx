@@ -32,20 +32,13 @@ export default function ReportsPage() {
     },
     {
       id: 2,
-      name: "Attendance Summary",
-      description: "Monthly attendance rates and trends",
-      icon: PieChart,
-      lastGenerated: "2024-03-14",
-    },
-    {
-      id: 3,
       name: "Revenue Report",
       description: "Financial overview and subscription analytics",
       icon: TrendingUp,
       lastGenerated: "2024-03-16",
     },
     {
-      id: 4,
+      id: 3,
       name: "Course Completion",
       description: "Track course progress and completion rates",
       icon: FileText,

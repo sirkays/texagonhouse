@@ -113,10 +113,6 @@ export default function ModulesPage() {
               Organize course content into modules
             </p>
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Module
-          </Button>
         </div>
 
         {/* Search */}
@@ -127,7 +123,7 @@ export default function ModulesPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input placeholder="Search modules..." className="pl-9" />
               </div>
-              <Button variant="outline">Filter by Course</Button>
+              <Button variant="outline">Search</Button>
             </div>
           </CardContent>
         </Card>
