@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,36 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
   const [rotation, setRotation] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen && !pdfUrl) {
+      setError("No PDF URL provided");
+      console.error("[PDFViewer] No PDF URL provided for:", title);
+    } else if (
+      isOpen &&
+      pdfUrl &&
+      !navigator.onLine &&
+      !pdfUrl.startsWith("blob:")
+    ) {
+      setError("PDF not available offline. Please connect to the internet or ensure it is cached.");
+      console.error(
+        "[PDFViewer] Offline mode, but pdfUrl is not a blob URL:",
+        pdfUrl
+      );
+    } else {
+      setError(null);
+    }
+    if (!isOpen && pdfUrl && pdfUrl.startsWith("blob:")) {
+      console.log("[PDFViewer] Revoking object URL:", pdfUrl);
+      URL.revokeObjectURL(pdfUrl);
+    }
+    return () => {
+      if (pdfUrl && pdfUrl.startsWith("blob:")) {
+        console.log("[PDFViewer] Cleanup: Revoking object URL:", pdfUrl);
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [isOpen, pdfUrl, title]);
+
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 2));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.5));
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
@@ -38,8 +68,12 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
 
   const handleDownload = () => {
     if (!pdfUrl) {
-      console.error("[PDFViewer] No pdfUrl provided for download");
       setError("No PDF URL available for download");
+      console.error("[PDFViewer] No pdfUrl provided for download");
+      return;
+    }
+    if (pdfUrl.startsWith("blob:")) {
+      setError("Cannot download cached PDF. Please connect to the internet.");
       return;
     }
     const link = document.createElement("a");
@@ -50,7 +84,6 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
     document.body.removeChild(link);
   };
 
-  // Construct iframe src with page number
   const iframeSrc = pdfUrl ? `${pdfUrl}#page=${currentPage}` : "";
 
   return (
@@ -91,10 +124,12 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
             </Button>
           </div>
 
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </Button>
+          {pdfUrl && !pdfUrl.startsWith("blob:") && navigator.onLine && (
+            <Button variant="outline" size="sm" onClick={handleDownload}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto bg-gray-100 rounded-lg p-4">
@@ -125,32 +160,21 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
                 height: "100%",
               }}
             >
-              <div
-                style={{
-                  transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                  transformOrigin: "center",
-                  width: "100%",
-                  height: "100%",
-                }}
+              <object
+                data={iframeSrc}
+                type="application/pdf"
+                className="w-full h-full"
+                onError={() =>
+                  setError("Failed to load PDF. Try downloading instead.")
+                }
               >
-                {pdfUrl && (
-                  <object
-                    data={pdfUrl}
-                    type="application/pdf"
-                    className="w-full h-full"
-                    onError={() =>
-                      setError("Failed to load PDF. Try downloading instead.")
-                    }
-                  >
-                    <iframe
-                      src={`https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(
-                        pdfUrl
-                      )}`}
-                      className="w-full h-full border-0"
-                    />
-                  </object>
-                )}
-              </div>
+                <iframe
+                  src={`https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(
+                    iframeSrc
+                  )}`}
+                  className="w-full h-full border-0"
+                />
+              </object>
             </div>
           )}
         </div>

@@ -16,6 +16,7 @@ function normalizeMedia(media) {
 const headers = (sessionToken) => ({
   "Authorization": `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*", // Enable CORS
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
@@ -42,6 +43,7 @@ export async function GET(req) {
           "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
+          "Access-Control-Allow-Origin": "*",
         },
       }
     );
@@ -72,6 +74,7 @@ export async function GET(req) {
             headers: {
               "Content-Type": "application/json",
               "Cache-Control": "no-store",
+              "Access-Control-Allow-Origin": "*",
             },
           }
         );
@@ -84,6 +87,7 @@ export async function GET(req) {
             headers: {
               "Content-Type": "application/json",
               "Cache-Control": "no-store",
+              "Access-Control-Allow-Origin": "*",
             },
           }
         );
@@ -95,6 +99,7 @@ export async function GET(req) {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
           },
         }
       );
@@ -109,6 +114,7 @@ export async function GET(req) {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
           },
         }
       );
@@ -126,6 +132,7 @@ export async function GET(req) {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
           },
         }
       );
@@ -167,6 +174,7 @@ export async function GET(req) {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
+        "Access-Control-Allow-Origin": "*",
       },
     });
   } catch (error) {
@@ -178,6 +186,7 @@ export async function GET(req) {
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
+          "Access-Control-Allow-Origin": "*",
         },
       }
     );

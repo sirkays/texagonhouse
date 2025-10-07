@@ -227,7 +227,7 @@ export function LearningModules() {
   const openDB = async () => {
     const dbName = "studentDB";
     const storeName = "media";
-    const version = 3; // Incremented to ensure schema update
+    const version = 4; // Incremented to ensure schema update
 
     return new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(dbName, version);
@@ -268,6 +268,30 @@ export function LearningModules() {
     });
   };
 
+  // Check cache size
+  const checkCacheSize = async (db: IDBDatabase) => {
+    const tx = db.transaction("media", "readwrite");
+    const store = tx.objectStore("media");
+    const allMedia = await store.getAll();
+    let totalSize = 0;
+    if (Array.isArray(allMedia)) {
+      totalSize = allMedia.reduce((sum, item) => sum + (item.content?.size || 0), 0);
+    } else {
+      console.warn("[LearningModules] allMedia is not an array:", allMedia);
+    }
+
+    if (totalSize > MAX_CACHE_SIZE) {
+      const sortedMedia = allMedia.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      while (totalSize > MAX_CACHE_SIZE && sortedMedia.length > 0) {
+        const oldest = sortedMedia.shift();
+        await store.delete(oldest.moduleId);
+        totalSize -= oldest.content?.size || 0;
+        console.log(`[LearningModules] Deleted old cache for module ${oldest.moduleId} to free space`);
+      }
+    }
+    await tx.done;
+  };
+
   // Cache modules data in IndexedDB
   const cacheModulesData = async (data: ModulesData) => {
     try {
@@ -301,11 +325,14 @@ export function LearningModules() {
 
   const headers = (sessionToken: string | undefined) => ({
     Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-    "Content-Type": "video/mp4",
     ...(sessionToken && { "X-Session-Token": sessionToken }),
   });
 
   const cacheMedia = async (moduleId: number, url: string, contentType: string) => {
+    if (!navigator.onLine) {
+      console.log(`[LearningModules] Offline, skipping cache attempt for module ${moduleId}`);
+      return false;
+    }
     try {
       const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(url)}`;
       console.log(`[LearningModules] Attempting to cache ${contentType} for module ${moduleId}: ${proxyUrl}`);
@@ -335,9 +362,10 @@ export function LearningModules() {
       console.log(`[LearningModules] Created blob URL for module ${moduleId}: ${objectUrl}`);
 
       const db = await openDB();
+      await checkCacheSize(db);
       const tx = db.transaction("media", "readwrite");
       const store = tx.objectStore("media");
-      await store.put({ moduleId, content: blob, contentType });
+      await store.put({ moduleId, content: blob, contentType, timestamp: Date.now() });
       await tx.done;
       console.log(`[LearningModules] Successfully cached ${contentType} for module ${moduleId}`);
       return true;
@@ -488,6 +516,24 @@ export function LearningModules() {
         console.log("[LearningModules] Fetch response data:", data);
         setModules(data);
         await cacheModulesData(data);
+
+        // Cache all media files
+        const allMedia = [
+          ...data.videos.map((v) => ({ id: v.id, url: v.url, type: "video" })),
+          ...data.audio.map((a) => ({ id: a.id, url: a.url, type: "audio" })),
+          ...data.pdfs.map((p) => ({ id: p.id, url: p.url, type: "pdf" })),
+        ];
+
+        for (const media of allMedia) {
+          if (media.url) {
+            try {
+              await cacheMedia(media.id, media.url, media.type);
+            } catch (e) {
+              console.error(`[LearningModules] Skip caching failed media ID ${media.id}:`, e);
+            }
+          }
+        }
+
         setError(null);
       } catch (e) {
         console.error("[LearningModules] Fetch error:", e);
@@ -643,43 +689,63 @@ export function LearningModules() {
   const handlePlayVideo = async (video: Module) => {
     if (!video.url) {
       console.error("[LearningModules] No video URL for:", video.title);
-      setError("No video URL available");
       toast.error("No video URL available");
       return;
     }
 
-    let finalUrl: string | undefined = video.url;
+    let finalUrl: string | null = null;
 
-    if (isOffline) {
-      const cachedUrl = await loadMediaFromDB(video.id);
-      if (cachedUrl) {
-        finalUrl = cachedUrl;
-      } else {
-        setError("Video not available offline");
-        toast.error("Video not available offline");
-        return;
-      }
-    } else {
+    const cachedUrl = await loadMediaFromDB(video.id);
+    if (cachedUrl) {
+      finalUrl = cachedUrl; // Always prefer cache if available
+    }
+
+    if (!finalUrl && navigator.onLine) {
       const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(video.url)}`;
-      console.log(`[LearningModules] Using proxy URL for video: ${proxyUrl}`);
-
-      // Cache video using proxy
-      console.log(`[LearningModules] Caching video for module ${video.id}`);
-      const cached = await cacheMedia(video.id, video.url, "video");
-      if (cached) {
-        const cachedUrl = await loadMediaFromDB(video.id);
-        if (cachedUrl) {
-          finalUrl = cachedUrl;
+      try {
+        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
+        if (!response.ok) {
+          let errorText = await response.text();
+          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
+          if (response.status === 500 && errorText.includes("fetch failed")) {
+            toast.error("Network error to backend. Using cached version if available.");
+            finalUrl = await loadMediaFromDB(video.id);
+            if (!finalUrl) {
+              toast.error("No cached video available offline.");
+              return;
+            }
+          } else {
+            toast.error(`Failed to load video: ${response.status} ${errorText.slice(0, 100)}`);
+            return;
+          }
+        } else {
+          const blob = await response.blob();
+          const db = await openDB();
+          await checkCacheSize(db);
+          const tx = db.transaction("media", "readwrite");
+          const store = tx.objectStore("media");
+          await store.put({ moduleId: video.id, content: blob, contentType: "video", timestamp: Date.now() });
+          await tx.done;
+          finalUrl = URL.createObjectURL(blob);
+        }
+      } catch (error) {
+        console.error("[LearningModules] Fetch/cache error:", error);
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+          toast.error("Network error. Using cached version if available.");
+          finalUrl = await loadMediaFromDB(video.id);
+          if (!finalUrl) {
+            toast.error("No cached video available offline.");
+            return;
+          }
+        } else {
+          toast.error("Failed to load video from server");
+          return;
         }
       }
-
-      finalUrl = proxyUrl;
     }
 
     if (!finalUrl) {
-      console.error("[LearningModules] No valid URL for video:", video.title);
-      setError("Failed to load video URL");
-      toast.error("Failed to load video URL");
+      toast.error(navigator.onLine ? "Failed to load video" : "Video not available offline");
       return;
     }
 
@@ -690,61 +756,135 @@ export function LearningModules() {
   const handlePlayAudio = async (audio: Module) => {
     if (!audio.url) {
       console.error("[LearningModules] No audio URL for:", audio.title);
-      setError("No audio URL available");
       toast.error("No audio URL available");
       return;
     }
-    if (isOffline) {
-      const cachedUrl = await loadMediaFromDB(audio.id);
-      if (cachedUrl) {
-        setSelectedAudio({ ...audio, url: cachedUrl });
-        setAudioPlayerOpen(true);
-      } else {
-        setError("Audio not available offline");
-        toast.error("Audio not available offline");
-        return;
-      }
-    } else {
-      // Cache audio when played online
-      console.log(`[LearningModules] Caching audio for module ${audio.id}`);
-      await cacheMedia(audio.id, audio.url, "audio");
-      const url = new URL(audio.url);
-      if (session?.user?.sessionToken) {
-        url.searchParams.append("sessionToken", session.user.sessionToken);
-      }
-      setSelectedAudio({ ...audio, url: url.toString() });
-      setAudioPlayerOpen(true);
+
+    let finalUrl: string | null = null;
+
+    const cachedUrl = await loadMediaFromDB(audio.id);
+    if (cachedUrl) {
+      finalUrl = cachedUrl;
     }
+
+    if (!finalUrl && navigator.onLine) {
+      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(audio.url)}`;
+      try {
+        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
+        if (!response.ok) {
+          let errorText = await response.text();
+          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
+          if (response.status === 500 && errorText.includes("fetch failed")) {
+            toast.error("Network error to backend. Using cached version if available.");
+            finalUrl = await loadMediaFromDB(audio.id);
+            if (!finalUrl) {
+              toast.error("No cached audio available offline.");
+              return;
+            }
+          } else {
+            toast.error(`Failed to load audio: ${response.status} ${errorText.slice(0, 100)}`);
+            return;
+          }
+        } else {
+          const blob = await response.blob();
+          const db = await openDB();
+          await checkCacheSize(db);
+          const tx = db.transaction("media", "readwrite");
+          const store = tx.objectStore("media");
+          await store.put({ moduleId: audio.id, content: blob, contentType: "audio", timestamp: Date.now() });
+          await tx.done;
+          finalUrl = URL.createObjectURL(blob);
+        }
+      } catch (error) {
+        console.error("[LearningModules] Fetch/cache error for audio:", error);
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+          toast.error("Network error. Using cached version if available.");
+          finalUrl = await loadMediaFromDB(audio.id);
+          if (!finalUrl) {
+            toast.error("No cached audio available offline.");
+            return;
+          }
+        } else {
+          toast.error("Failed to load audio from server");
+          return;
+        }
+      }
+    }
+
+    if (!finalUrl) {
+      toast.error(navigator.onLine ? "Failed to load audio" : "Audio not available offline");
+      return;
+    }
+
+    setSelectedAudio({ ...audio, url: finalUrl });
+    setAudioPlayerOpen(true);
   };
 
   const handlePreviewPdf = async (pdf: Module) => {
     if (!pdf.url) {
       console.error("[LearningModules] No PDF URL for:", pdf.title);
-      setError("No PDF URL available");
       toast.error("No PDF URL available");
       return;
     }
-    if (isOffline) {
-      const cachedUrl = await loadMediaFromDB(pdf.id);
-      if (cachedUrl) {
-        setSelectedPdf({ ...pdf, url: cachedUrl });
-        setPdfViewerOpen(true);
-      } else {
-        setError("PDF not available offline");
-        toast.error("PDF not available offline");
-        return;
-      }
-    } else {
-      // Cache PDF when previewed online
-      console.log(`[LearningModules] Caching PDF for module ${pdf.id}`);
-      await cacheMedia(pdf.id, pdf.url, "pdf");
-      const url = new URL(pdf.url);
-      if (session?.user?.sessionToken) {
-        url.searchParams.append("sessionToken", session.user.sessionToken);
-      }
-      setSelectedPdf({ ...pdf, url: url.toString() });
-      setPdfViewerOpen(true);
+
+    let finalUrl: string | null = null;
+
+    const cachedUrl = await loadMediaFromDB(pdf.id);
+    if (cachedUrl) {
+      finalUrl = cachedUrl;
     }
+
+    if (!finalUrl && navigator.onLine) {
+      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(pdf.url)}`;
+      try {
+        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
+        if (!response.ok) {
+          let errorText = await response.text();
+          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
+          if (response.status === 500 && errorText.includes("fetch failed")) {
+            toast.error("Network error to backend. Using cached version if available.");
+            finalUrl = await loadMediaFromDB(pdf.id);
+            if (!finalUrl) {
+              toast.error("No cached PDF available offline.");
+              return;
+            }
+          } else {
+            toast.error(`Failed to load PDF: ${response.status} ${errorText.slice(0, 100)}`);
+            return;
+          }
+        } else {
+          const blob = await response.blob();
+          const db = await openDB();
+          await checkCacheSize(db);
+          const tx = db.transaction("media", "readwrite");
+          const store = tx.objectStore("media");
+          await store.put({ moduleId: pdf.id, content: blob, contentType: "pdf", timestamp: Date.now() });
+          await tx.done;
+          finalUrl = URL.createObjectURL(blob);
+        }
+      } catch (error) {
+        console.error("[LearningModules] Fetch/cache error for PDF:", error);
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+          toast.error("Network error. Using cached version if available.");
+          finalUrl = await loadMediaFromDB(pdf.id);
+          if (!finalUrl) {
+            toast.error("No cached PDF available offline.");
+            return;
+          }
+        } else {
+          toast.error("Failed to load PDF from server");
+          return;
+        }
+      }
+    }
+
+    if (!finalUrl) {
+      toast.error(navigator.onLine ? "Failed to load PDF" : "PDF not available offline");
+      return;
+    }
+
+    setSelectedPdf({ ...pdf, url: finalUrl });
+    setPdfViewerOpen(true);
   };
 
   const handleDownloadPdf = (pdf: Module) => {

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
@@ -42,7 +44,6 @@ export function VideoModal({
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
 
-  // Validate video URL and handle offline state
   useEffect(() => {
     if (isOpen && !videoUrl) {
       setError("No video URL provided");
@@ -59,13 +60,11 @@ export function VideoModal({
         videoUrl
       );
     } else {
-      // Delay clearing error to avoid flickering for cached videos
       const timeout = setTimeout(() => setError(null), 500);
       return () => clearTimeout(timeout);
     }
   }, [isOpen, videoUrl, title]);
 
-  // Save video progress to localStorage
   const saveVideoProgress = () => {
     if (videoRef.current && videoUrl) {
       try {
@@ -79,7 +78,6 @@ export function VideoModal({
     }
   };
 
-  // Restore video progress from localStorage
   const restoreVideoProgress = () => {
     if (videoRef.current && videoUrl) {
       try {
@@ -96,7 +94,6 @@ export function VideoModal({
     }
   };
 
-  // Handle control visibility timeout
   useEffect(() => {
     if (isPlaying && showControls) {
       controlsTimeoutRef.current = setTimeout(() => {
@@ -110,14 +107,12 @@ export function VideoModal({
     };
   }, [isPlaying, showControls]);
 
-  // Save progress when pausing or closing
   useEffect(() => {
     if (!isPlaying) {
       saveVideoProgress();
     }
   }, [isPlaying]);
 
-  // Cleanup object URL and reset state
   useEffect(() => {
     if (!isOpen) {
       saveVideoProgress();
@@ -269,7 +264,6 @@ export function VideoModal({
     const errorCode = videoElement.error?.code;
     let errorMessage = videoElement.error?.message || "Unknown error";
 
-    // Log video element state for debugging
     console.log("[VideoModal] Video element state:", {
       networkState: videoElement.networkState,
       readyState: videoElement.readyState,
@@ -305,10 +299,9 @@ export function VideoModal({
             errorMessage = "Video access blocked due to server configuration (CORS). Please contact support.";
           }
         } else {
-          // Retry loading the video
           console.log("[VideoModal] Retrying video load:", videoUrl);
           if (videoElement) {
-            videoElement.src = videoUrl; // Reset source
+            videoElement.src = videoUrl;
             videoElement.load();
             if (isPlaying) {
               videoElement.play().catch((err) => console.error("[VideoModal] Retry play error:", err));
@@ -333,7 +326,7 @@ export function VideoModal({
     );
     setError(
       !navigator.onLine && !videoUrl?.startsWith("blob:")
-        ? "Video not available offline. Please connect to the internet."
+        ? "Video not available offline. Please connect to the internet or ensure it is cached."
         : errorMessage
     );
   };
@@ -579,7 +572,6 @@ export function VideoModal({
   );
 }
 
-// Add custom styles for the close button
 const styles = `
   .dialog-close-button {
     color: white !important;

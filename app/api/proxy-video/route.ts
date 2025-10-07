@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -16,7 +15,7 @@ function normalizeMedia(media: string | null): string | null {
 
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "video/mp4",
+  "Content-Type": "application/octet-stream",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
@@ -26,9 +25,9 @@ export async function GET(req: Request) {
   const normalizedUrl = normalizeMedia(url);
 
   if (!normalizedUrl) {
-    console.error("[ProxyVideo] Invalid video URL:", url);
+    console.error("[ProxyVideo] Invalid media URL:", url);
     return NextResponse.json(
-      { error: "Invalid video URL" },
+      { error: "Invalid media URL" },
       { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
@@ -69,21 +68,12 @@ export async function GET(req: Request) {
         url: normalizedUrl,
       });
       return NextResponse.json(
-        { error: `Failed to fetch video: ${response.status} ${response.statusText}`, details: rawResponse },
+        { error: `Failed to fetch media: ${response.status} ${response.statusText}`, details: rawResponse },
         { status: response.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
 
-    const contentType = response.headers.get("content-type") || "video/mp4";
-    if (!contentType.includes("video/")) {
-      const rawResponse = await response.text();
-      console.error("[ProxyVideo] Non-video response:", { contentType, body: rawResponse.slice(0, 200), url: normalizedUrl });
-      return NextResponse.json(
-        { error: `Invalid response format, expected video, got ${contentType}` },
-        { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
-      );
-    }
-
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
     const stream = response.body;
     if (!stream) {
       console.error("[ProxyVideo] No response body:", normalizedUrl);
@@ -97,9 +87,7 @@ export async function GET(req: Request) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
+        "Cache-Control": "public, max-age=31536000",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, HEAD",
       },
@@ -107,7 +95,7 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("[ProxyVideo] Fetch error:", normalizedUrl, error);
     return NextResponse.json(
-      { error: "Failed to fetch video", details: String(error) },
+      { error: "Failed to fetch media", details: String(error) },
       { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
@@ -119,9 +107,9 @@ export async function HEAD(req: Request) {
   const normalizedUrl = normalizeMedia(url);
 
   if (!normalizedUrl) {
-    console.error("[ProxyVideo] Invalid video URL for HEAD:", url);
+    console.error("[ProxyVideo] Invalid media URL for HEAD:", url);
     return NextResponse.json(
-      { error: "Invalid video URL" },
+      { error: "Invalid media URL" },
       { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
@@ -167,7 +155,7 @@ export async function HEAD(req: Request) {
     return new NextResponse(null, {
       status: 200,
       headers: {
-        "Content-Type": response.headers.get("content-type") || "video/mp4",
+        "Content-Type": response.headers.get("content-type") || "application/octet-stream",
         "Cache-Control": "no-store",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, HEAD",
