@@ -1,6 +1,6 @@
 "use client";
 
-import DashboardLayout from "@/app/admin/layout";
+import {useEffect, useState} from "react";
 import {
   Card,
   CardContent,
@@ -11,108 +11,144 @@ import {
 import {Users, GraduationCap, BookOpen, DollarSign} from "lucide-react";
 
 export default function DashboardPage() {
-  const stats = [
+  const [stats, setStats] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 🔹 Fetch data from our Next.js API route
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const res = await fetch("/api/admin/overview", {
+          method: "GET",
+          headers: {"Content-Type": "application/json"},
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to load dashboard data");
+        }
+
+        const data = await res.json();
+        setStats(data.stats);
+        setRecentActivity(data.recentActivity || []);
+      } catch (err: any) {
+        console.error("[DashboardPage] Error fetching data:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[60vh] text-muted-foreground">
+        Loading dashboard...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center h-[60vh] text-red-600">
+        <p className="font-semibold">Error loading dashboard</p>
+        <p className="text-sm text-muted-foreground mt-1">{error}</p>
+      </div>
+    );
+  }
+
+  // 🔹 Define cards dynamically from the fetched data
+  const statCards = [
     {
       title: "Total Students",
-      value: "1,234",
-      change: "+12%",
+      value: stats?.students?.value ?? "—",
+      change: stats?.students?.changePct ? `${stats.students.changePct}%` : "",
       icon: GraduationCap,
       color: "text-blue-600",
     },
     {
       title: "Total Teachers",
-      value: "89",
-      change: "+5%",
+      value: stats?.teachers?.value ?? "—",
+      change: stats?.teachers?.changePct ? `${stats.teachers.changePct}%` : "",
       icon: Users,
       color: "text-green-600",
     },
     {
       title: "Active Courses",
-      value: "45",
-      change: "+8%",
+      value: stats?.activeCourses?.value ?? "—",
+      change: stats?.activeCourses?.changePct
+        ? `${stats.activeCourses.changePct}%`
+        : "",
       icon: BookOpen,
       color: "text-purple-600",
     },
     {
       title: "Revenue",
-      value: "$52,340",
-      change: "+23%",
+      value: stats?.revenue
+        ? `${stats.revenue.currency} ${Number(
+            stats.revenue.value
+          ).toLocaleString()}`
+        : "—",
+      change: stats?.revenue?.changePct ? `${stats.revenue.changePct}%` : "",
       icon: DollarSign,
       color: "text-yellow-600",
     },
   ];
 
-  const recentActivity = [
-    {
-      id: 1,
-      action: "New student enrolled",
-      user: "John Doe",
-      time: "2 minutes ago",
-    },
-    {
-      id: 2,
-      action: "Assignment submitted",
-      user: "Jane Smith",
-      time: "15 minutes ago",
-    },
-    {id: 3, action: "Test completed", user: "Mike Johnson", time: "1 hour ago"},
-    {
-      id: 4,
-      action: "New course created",
-      user: "Sarah Williams",
-      time: "2 hours ago",
-    },
-    {id: 5, action: "Payment received", user: "Tom Brown", time: "3 hours ago"},
-  ];
-
   return (
-    <>
-      <div className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Welcome back! Here's what's happening today.
-          </p>
-        </div>
+    <div className="space-y-4 sm:space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Dashboard
+        </h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          Welcome back! Here’s your organization’s 30-day overview.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {stats.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon
-                  className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${stat.color}`}
-                />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold text-foreground">
-                  {stat.value}
-                </div>
+      {/* ===== Stats Section ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {statCards.map((stat) => (
+          <Card key={stat.title}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+              <stat.icon
+                className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${stat.color}`}
+              />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold text-foreground">
+                {stat.value}
+              </div>
+              {stat.change && (
                 <p className="text-xs text-muted-foreground mt-1">
                   <span className="text-green-600 font-medium">
                     {stat.change}
                   </span>{" "}
                   from last month
                 </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">
-              Recent Activity
-            </CardTitle>
-            <CardDescription className="text-sm">
-              Latest updates from your organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* ===== Recent Activity ===== */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
+          <CardDescription className="text-sm">
+            Latest updates from your organization
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentActivity.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
               {recentActivity.map((activity) => (
                 <div
@@ -127,14 +163,18 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">
-                    {activity.time}
+                    {new Date(activity.time).toLocaleString()}
                   </span>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No recent activity found.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
