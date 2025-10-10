@@ -34,8 +34,6 @@ import {AudioPlayer} from "./audio-player";
 import {useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {Spinner} from "@/components/ui/spinner";
-import { openDB } from "idb";
-import toast from "react-hot-toast";
 
 interface Note {
   id: string;
@@ -102,7 +100,6 @@ export function MyMaterials() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
@@ -190,179 +187,6 @@ export function MyMaterials() {
     bookmarks: [],
   };
 
-  const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB max storage
-
-  // Initialize IndexedDB
-  const openDB = async () => {
-    const dbName = "studentDB";
-    const storeName = "materials";
-    const version = 5; // Increased version to match or exceed existing
-
-    return new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(dbName, version);
-
-      request.onupgradeneeded = (event) => {
-        const db = request.result;
-        console.log(`[MyMaterials] Upgrading database ${dbName} to version ${version}`);
-        if (!db.objectStoreNames.contains("dashboard")) {
-          db.createObjectStore("dashboard", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("liveSessions")) {
-          db.createObjectStore("liveSessions", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains("tests")) {
-          db.createObjectStore("tests", { keyPath: "testId" });
-        }
-        if (!db.objectStoreNames.contains("modules")) {
-          db.createObjectStore("modules", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("activeModules")) {
-          db.createObjectStore("activeModules", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: "key" });
-          console.log(`[MyMaterials] Created object store ${storeName}`);
-        }
-      };
-
-      request.onsuccess = () => {
-        console.log(`[MyMaterials] Opened database ${dbName}`);
-        resolve(request.result);
-      };
-
-      request.onerror = () => {
-        console.error(`[MyMaterials] Error opening database ${dbName}:`, request.error);
-        reject(request.error);
-      };
-    });
-  };
-
-  // Cache materials data in IndexedDB
-  const cacheMaterialsData = async (data: any) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("materials", "readwrite");
-      const store = tx.objectStore("materials");
-      await store.put({ key: "my-materials", data });
-      await tx.done;
-      console.log("[MyMaterials] Materials data cached successfully");
-    } catch (error) {
-      console.error("[MyMaterials] Error caching materials data:", error);
-    }
-  };
-
-  // Load materials from IndexedDB
-  const loadMaterialsFromDB = async () => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("materials", "readonly");
-      const store = tx.objectStore("materials");
-      const cachedData = await store.get("my-materials");
-      if (cachedData?.data) {
-        setData(cachedData.data);
-        setError(null);
-        console.log("[MyMaterials] Loaded materials from IndexedDB");
-      } else {
-        setData(fallbackData);
-        console.warn("[MyMaterials] No cached materials found, using fallback data");
-      }
-    } catch (error) {
-      console.error("[MyMaterials] Error loading materials from DB:", error);
-      setData(fallbackData);
-    }
-    setLoading(false);
-  };
-
-  const checkCacheSize = async (db: IDBDatabase) => {
-    const tx = db.transaction("materials", "readwrite");
-    const store = tx.objectStore("materials");
-    const allMedia = await store.getAll();
-    let totalSize = 0;
-    if (Array.isArray(allMedia)) {
-      totalSize = allMedia.reduce((sum, item) => sum + (item.content?.size || 0), 0);
-    } else {
-      console.warn("[MyMaterials] allMedia is not an array:", allMedia);
-    }
-
-    if (totalSize > MAX_CACHE_SIZE) {
-      const sortedMedia = allMedia.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      while (totalSize > MAX_CACHE_SIZE && sortedMedia.length > 0) {
-        const oldest = sortedMedia.shift();
-        await store.delete(oldest.key);
-        totalSize -= oldest.content?.size || 0;
-        console.log(`[MyMaterials] Deleted old cache for key ${oldest.key} to free space`);
-      }
-    }
-    await tx.done;
-  };
-
-  const cacheMedia = async (key: string, url: string, contentType: string) => {
-    if (!navigator.onLine) {
-      console.log(`[MyMaterials] Offline, skipping cache attempt for key ${key}`);
-      return false;
-    }
-    try {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(url)}`;
-      console.log(`[MyMaterials] Attempting to cache ${contentType} for key ${key}: ${proxyUrl}`);
-      const response = await fetch(proxyUrl, {
-        headers: headers(sessionToken),
-      });
-      console.log(`[MyMaterials] Cache response:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        url: proxyUrl,
-      });
-
-      if (!response.ok) {
-        const rawResponse = await response.text();
-        console.error(`[MyMaterials] Cache failed:`, {
-          status: response.status,
-          statusText: response.statusText,
-          body: rawResponse.slice(0, 200),
-          url: proxyUrl,
-        });
-        throw new Error(`Failed to fetch ${contentType}: ${response.status} ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      console.log(`[MyMaterials] Created blob URL for key ${key}: ${objectUrl}`);
-
-      const db = await openDB();
-      await checkCacheSize(db);
-      const tx = db.transaction("materials", "readwrite");
-      const store = tx.objectStore("materials");
-      await store.put({ key, content: blob, contentType, timestamp: Date.now() });
-      await tx.done;
-      console.log(`[MyMaterials] Successfully cached ${contentType} for key ${key}`);
-      return true;
-    } catch (error) {
-      console.error(`[MyMaterials] Error caching ${contentType} for key ${key}:`, error);
-      toast.error(`Failed to cache ${contentType}. It may not be available offline.`);
-      return false;
-    }
-  };
-
-  const loadMediaFromDB = async (key: string) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("materials", "readonly");
-      const store = tx.objectStore("materials");
-      const data = await store.get(key);
-      if (data?.content) {
-        const blobUrl = URL.createObjectURL(data.content);
-        console.log(`[MyMaterials] Loaded blob URL for key ${key}: ${blobUrl}`);
-        return blobUrl;
-      }
-      console.log(`[MyMaterials] No cached media found for key ${key}`);
-      return null;
-    } catch (error) {
-      console.error(`[MyMaterials] Error loading media for key ${key}:`, error);
-      return null;
-    }
-  };
-
   const handleLogout = async () => {
     console.log("[MyMaterials] Initiating logout, sessionToken:", sessionToken);
     try {
@@ -389,11 +213,6 @@ export function MyMaterials() {
     }
   };
 
-  const headers = (sessionToken: string | undefined) => ({
-    Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-    ...(sessionToken && { "X-Session-Token": sessionToken }),
-  });
-
   useEffect(() => {
     const fetchData = async () => {
       console.log("[MyMaterials] Initiating fetch for /api/student/materials");
@@ -405,7 +224,7 @@ export function MyMaterials() {
           session?.user?.sessionToken
         );
         setError("Not authenticated");
-        loadMaterialsFromDB();
+        setLoading(false);
         return;
       }
 
@@ -426,7 +245,7 @@ export function MyMaterials() {
           if (res.status === 401 || res.status === 403) {
             setError("Session expired");
             setData(null); // Prevent fallback data on session expiry
-            loadMaterialsFromDB();
+            setLoading(false);
             return;
           }
           setError(
@@ -440,290 +259,16 @@ export function MyMaterials() {
         const json = await res.json();
         console.log("[MyMaterials] Fetch response data:", json);
         setData(json);
-        await cacheMaterialsData(json);
         setError(null); // Clear error on success
       } catch (e) {
         console.error("[MyMaterials] Fetch error:", e);
         setError("Session expired"); // Assume session expiry for any error when authenticated
         setData(null); // Prevent fallback data
-        loadMaterialsFromDB();
       }
       setLoading(false);
     };
-    const handleOnline = () => {
-      setIsOffline(false);
-      fetchData();
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-      loadMaterialsFromDB();
-    };
-
-    if (navigator.onLine) {
-      fetchData();
-    } else {
-      handleOffline();
-    }
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+    fetchData();
   }, [sessionToken, status]);
-
-  const handleWatchVideo = async (video: any) => {
-    if (!video.videoUrl) {
-      console.error("[MyMaterials] No video URL for:", video.title);
-      toast.error("No video URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(video.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(video.videoUrl)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(video.id);
-            if (!finalUrl) {
-              toast.error("No cached video available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load video: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("materials", "readwrite");
-          const store = tx.objectStore("materials");
-          await store.put({ key: video.id, content: blob, contentType: "video", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[MyMaterials] Fetch/cache error:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(video.id);
-          if (!finalUrl) {
-            toast.error("No cached video available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load video from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load video" : "Video not available offline");
-      return;
-    }
-
-    setSelectedVideo({ ...video, videoUrl: finalUrl });
-    setVideoModalOpen(true);
-  };
-
-  const handlePreviewPdf = async (pdf: any) => {
-    if (!pdf.downloadUrl) {
-      console.error(
-        "[MyMaterials] No downloadUrl provided for PDF:",
-        pdf.title
-      );
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(pdf.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(pdf.downloadUrl)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(pdf.id);
-            if (!finalUrl) {
-              toast.error("No cached PDF available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load PDF: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("materials", "readwrite");
-          const store = tx.objectStore("materials");
-          await store.put({ key: pdf.id, content: blob, contentType: "pdf", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[MyMaterials] Fetch/cache error for PDF:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(pdf.id);
-          if (!finalUrl) {
-            toast.error("No cached PDF available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load PDF from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load PDF" : "PDF not available offline");
-      return;
-    }
-
-    console.log("[MyMaterials] Opening PDF in new tab:", finalUrl);
-    window.open(finalUrl, "_blank");
-  };
-
-  const handlePlayAudio = async (audio: {
-    id: string;
-    title: string;
-    speaker: string;
-    duration: string;
-    progress: number;
-    audioUrl: string;
-  }) => {
-    if (!audio.audioUrl) {
-      console.error("[MyMaterials] No audio URL for:", audio.title);
-      toast.error("No audio URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(audio.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(audio.audioUrl)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(audio.id);
-            if (!finalUrl) {
-              toast.error("No cached audio available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load audio: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("materials", "readwrite");
-          const store = tx.objectStore("materials");
-          await store.put({ key: audio.id, content: blob, contentType: "audio", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[MyMaterials] Fetch/cache error for audio:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(audio.id);
-          if (!finalUrl) {
-            toast.error("No cached audio available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load audio from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load audio" : "Audio not available offline");
-      return;
-    }
-
-    setSelectedAudio({ ...audio, audioUrl: finalUrl });
-    setAudioPlayerOpen(true);
-  };
-
-  const handleOpenNote = (note?: Note) => {
-    setSelectedNote(note || null);
-    setNoteEditorOpen(true);
-  };
-
-  const handleSaveNote = (note: Note) => {
-    const normalizedNote: Note = {
-      ...note,
-      createdAt:
-        note.createdAt instanceof Date
-          ? note.createdAt.toISOString()
-          : note.createdAt,
-      updatedAt:
-        note.updatedAt instanceof Date
-          ? note.updatedAt.toISOString()
-          : note.updatedAt,
-    };
-
-    if (selectedNote) {
-      setData({
-        ...data!,
-        notes: notes.map((n) =>
-          n.id === normalizedNote.id ? normalizedNote : n
-        ),
-      });
-    } else {
-      setData({
-        ...data!,
-        notes: [...notes, normalizedNote],
-      });
-    }
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    setData({
-      ...data!,
-      notes: notes.filter((n) => n.id !== noteId),
-    });
-  };
 
   if (loading) {
     return (
@@ -787,6 +332,75 @@ export function MyMaterials() {
   const savedItems = data?.saved ?? fallbackData.saved;
   const notes = data?.notes ?? fallbackData.notes;
   const bookmarks = data?.bookmarks ?? fallbackData.bookmarks;
+
+  const handleWatchVideo = (video: any) => {
+    setSelectedVideo(video);
+    setVideoModalOpen(true);
+  };
+
+  const handlePreviewPdf = (pdf: any) => {
+    if (!pdf.downloadUrl) {
+      console.error(
+        "[MyMaterials] No downloadUrl provided for PDF:",
+        pdf.title
+      );
+      return;
+    }
+    console.log("[MyMaterials] Opening PDF in new tab:", pdf.downloadUrl);
+    window.open(pdf.downloadUrl, "_blank");
+  };
+
+  const handlePlayAudio = (audio: {
+    id: string;
+    title: string;
+    speaker: string;
+    duration: string;
+    progress: number;
+    audioUrl: string;
+  }) => {
+    setSelectedAudio(audio);
+    setAudioPlayerOpen(true);
+  };
+
+  const handleOpenNote = (note?: Note) => {
+    setSelectedNote(note || null);
+    setNoteEditorOpen(true);
+  };
+
+  const handleSaveNote = (note: Note) => {
+    const normalizedNote: Note = {
+      ...note,
+      createdAt:
+        note.createdAt instanceof Date
+          ? note.createdAt.toISOString()
+          : note.createdAt,
+      updatedAt:
+        note.updatedAt instanceof Date
+          ? note.updatedAt.toISOString()
+          : note.updatedAt,
+    };
+
+    if (selectedNote) {
+      setData({
+        ...data!,
+        notes: notes.map((n) =>
+          n.id === normalizedNote.id ? normalizedNote : n
+        ),
+      });
+    } else {
+      setData({
+        ...data!,
+        notes: [...notes, normalizedNote],
+      });
+    }
+  };
+
+  const handleDeleteNote = (noteId: string) => {
+    setData({
+      ...data!,
+      notes: notes.filter((n) => n.id !== noteId),
+    });
+  };
 
   return (
     <div className="space-y-6">
