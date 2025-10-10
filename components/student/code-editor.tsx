@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useRef, useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   Download,
@@ -25,13 +25,13 @@ import {
   AlertCircle,
   LogIn,
 } from "lucide-react";
-import {Textarea} from "@/components/ui/textarea";
-import {Alert, AlertDescription} from "@/components/ui/alert";
-import {useSession} from "next-auth/react";
-import {Spinner} from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
 
 export function CodeEditor() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
@@ -41,6 +41,7 @@ export function CodeEditor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [selectedLesson, setSelectedLesson] = useState("");
 
   const languages = {
     javascript: {
@@ -281,7 +282,7 @@ body {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       console.log("[CodeEditor] Logout API response status:", response.status);
       const data = await response.json();
@@ -533,7 +534,7 @@ Doubled vector: 2 4 6 8 10 `,
       css: "css",
     };
 
-    const blob = new Blob([code], {type: "text/plain"});
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -592,6 +593,15 @@ Doubled vector: 2 4 6 8 10 `,
     }
   };
 
+  const handleSubmit = () => {
+    if (!selectedLesson) {
+      alert("Please select a lesson");
+      return;
+    }
+    console.log(`Submitting code for lesson: ${selectedLesson}`);
+    // TODO: Implement actual submission to endpoint
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -645,99 +655,147 @@ Doubled vector: 2 4 6 8 10 `,
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="flex flex-col">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Code Editor</CardTitle>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={selectedLanguage}
-                  onValueChange={handleLanguageChange}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(languages).map(([key, lang]) => (
-                      <SelectItem key={key} value={key}>
-                        {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="sm" onClick={resetCode}>
-                  <RotateCcw className="h-4 w-4" />
+      <Tabs defaultValue="editor" className="relative mr-auto w-full">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger
+            value="editor"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
+            Editor
+          </TabsTrigger>
+          <TabsTrigger
+            value="output"
+            className="bg-transparent w-full  justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
+            Output
+          </TabsTrigger>
+          <TabsTrigger
+            value="submission"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
+            Submission
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="editor">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Code Editor</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={selectedLanguage}
+                    onValueChange={handleLanguageChange}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(languages).map(([key, lang]) => (
+                        <SelectItem key={key} value={key}>
+                          {lang.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={resetCode}>
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col">
+              <Textarea
+                value={code}
+                onChange={(e) => handleCodeChange(e.target.value)}
+                placeholder="Write your code here..."
+                className="flex-1 font-mono text-sm resize-none min-h-[400px]"
+              />
+              <div className="flex gap-2 mt-4">
+                <Button
+                  onClick={runCode}
+                  disabled={isRunning || !!error}
+                  className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  {isRunning ? "Executing..." : "Run Code"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={copyCode}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadCode}>
+                  <Download className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            <Textarea
-              value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              placeholder="Write your code here..."
-              className="flex-1 font-mono text-sm resize-none min-h-[400px]"
-            />
-            <div className="flex gap-2 mt-4">
-              <Button
-                onClick={runCode}
-                disabled={isRunning || !!error}
-                className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]">
-                <Play className="mr-2 h-4 w-4" />
-                {isRunning ? "Executing..." : "Run Code"}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="output">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle>
+                {selectedLanguage === "html" || selectedLanguage === "css"
+                  ? "Preview & Output"
+                  : "Output"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1">
+              {(selectedLanguage === "html" || selectedLanguage === "css") &&
+              htmlPreview ? (
+                <Tabs defaultValue="preview" className="h-full flex flex-col">
+                  <TabsList>
+                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                    <TabsTrigger value="output">Console</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="preview" className="flex-1">
+                    <iframe
+                      ref={iframeRef}
+                      srcDoc={htmlPreview}
+                      className="w-full h-[400px] border rounded-md"
+                      title="HTML Preview"
+                    />
+                  </TabsContent>
+                  <TabsContent value="output" className="flex-1">
+                    <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
+                      <pre className="whitespace-pre-wrap">
+                        {output || "Run your code to see output here..."}
+                      </pre>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
+                  <pre className="whitespace-pre-wrap">
+                    {output || "Run your code to see output here..."}
+                  </pre>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="submission">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle>Code Submission</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-4">
+              <Select value={selectedLesson} onValueChange={setSelectedLesson}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a lesson" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* TODO: Fetch from endpoint later */}
+                  <SelectItem value="lesson1">Lesson 1: Basics</SelectItem>
+                  <SelectItem value="lesson2">Lesson 2: Advanced</SelectItem>
+                  <SelectItem value="lesson3">Lesson 3: Expert</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleSubmit} disabled={!selectedLesson}>
+                Submit Code
               </Button>
-              <Button variant="outline" size="sm" onClick={copyCode}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={downloadCode}>
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle>
-              {selectedLanguage === "html" || selectedLanguage === "css"
-                ? "Preview & Output"
-                : "Output"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1">
-            {(selectedLanguage === "html" || selectedLanguage === "css") &&
-            htmlPreview ? (
-              <Tabs defaultValue="preview" className="h-full flex flex-col">
-                <TabsList>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                  <TabsTrigger value="output">Console</TabsTrigger>
-                </TabsList>
-                <TabsContent value="preview" className="flex-1">
-                  <iframe
-                    ref={iframeRef}
-                    srcDoc={htmlPreview}
-                    className="w-full h-[400px] border rounded-md"
-                    title="HTML Preview"
-                  />
-                </TabsContent>
-                <TabsContent value="output" className="flex-1">
-                  <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                    <pre className="whitespace-pre-wrap">
-                      {output || "Run your code to see output here..."}
-                    </pre>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                <pre className="whitespace-pre-wrap">
-                  {output || "Run your code to see output here..."}
-                </pre>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

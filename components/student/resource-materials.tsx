@@ -1033,7 +1033,7 @@ export function ResourceMaterials() {
         ))}
       </div>
 
-      <Tabs defaultValue="pdfs" className="w-full">
+      <Tabs defaultValue="pdfs" className="w-full mr-auto relative">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="pdfs"
