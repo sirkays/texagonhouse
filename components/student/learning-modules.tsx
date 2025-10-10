@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -42,13 +42,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { VideoModal } from "@/components/student/video-modal";
-import { AudioPlayer } from "@/components/student/audio-player";
-import { PDFViewer } from "@/components/student/pdf-viewer";
-import { useSession } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
+import {VideoModal} from "@/components/student/video-modal";
+import {AudioPlayer} from "@/components/student/audio-player";
+import {useSession} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
 import toast from "react-hot-toast";
-import { openDB } from "idb";
 
 interface Module {
   id: number;
@@ -84,7 +82,7 @@ interface ActiveModule {
   courseName: string;
 }
 
-const StarRating = ({ popularity }: { popularity: number | null }) => {
+const StarRating = ({popularity}: {popularity: number | null}) => {
   if (!popularity || popularity <= 0) return null;
   const maxStars = 5;
   const filledStars = Math.min(Math.max(popularity, 0), maxStars);
@@ -105,7 +103,7 @@ const StarRating = ({ popularity }: { popularity: number | null }) => {
 };
 
 export function LearningModules() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [currentPage, setCurrentPage] = useState({
     videos: 1,
     audio: 1,
@@ -118,20 +116,16 @@ export function LearningModules() {
   const [error, setError] = useState<string | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Module | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<Module | null>(null);
-  const [selectedPdf, setSelectedPdf] = useState<Module | null>(null);
   const [selectedModuleName, setSelectedModuleName] = useState<string>("all");
   const [savedLessons, setSavedLessons] = useState<Set<number>>(new Set());
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
 
   const itemsPerPage = 3;
-  const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB max storage
 
   // Fallback data for UI stability
   const fallbackData: ModulesData = {
@@ -223,218 +217,6 @@ export function LearningModules() {
     ],
   };
 
-  // Initialize IndexedDB
-  const openDB = async () => {
-    const dbName = "studentDB";
-    const storeName = "media";
-    const version = 4; // Incremented to ensure schema update
-
-    return new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(dbName, version);
-
-      request.onupgradeneeded = (event) => {
-        const db = request.result;
-        console.log(`[LearningModules] Upgrading database ${dbName} to version ${version}`);
-        if (!db.objectStoreNames.contains("dashboard")) {
-          db.createObjectStore("dashboard", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("liveSessions")) {
-          db.createObjectStore("liveSessions", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains("tests")) {
-          db.createObjectStore("tests", { keyPath: "testId" });
-        }
-        if (!db.objectStoreNames.contains("modules")) {
-          db.createObjectStore("modules", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("activeModules")) {
-          db.createObjectStore("activeModules", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: "moduleId" });
-          console.log(`[LearningModules] Created object store ${storeName}`);
-        }
-      };
-
-      request.onsuccess = () => {
-        console.log(`[LearningModules] Opened database ${dbName}`);
-        resolve(request.result);
-      };
-
-      request.onerror = () => {
-        console.error(`[LearningModules] Error opening database ${dbName}:`, request.error);
-        reject(request.error);
-      };
-    });
-  };
-
-  // Check cache size
-  const checkCacheSize = async (db: IDBDatabase) => {
-    const tx = db.transaction("media", "readwrite");
-    const store = tx.objectStore("media");
-    const allMedia = await store.getAll();
-    let totalSize = 0;
-    if (Array.isArray(allMedia)) {
-      totalSize = allMedia.reduce((sum, item) => sum + (item.content?.size || 0), 0);
-    } else {
-      console.warn("[LearningModules] allMedia is not an array:", allMedia);
-    }
-
-    if (totalSize > MAX_CACHE_SIZE) {
-      const sortedMedia = allMedia.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      while (totalSize > MAX_CACHE_SIZE && sortedMedia.length > 0) {
-        const oldest = sortedMedia.shift();
-        await store.delete(oldest.moduleId);
-        totalSize -= oldest.content?.size || 0;
-        console.log(`[LearningModules] Deleted old cache for module ${oldest.moduleId} to free space`);
-      }
-    }
-    await tx.done;
-  };
-
-  // Cache modules data in IndexedDB
-  const cacheModulesData = async (data: ModulesData) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("modules", "readwrite");
-      const store = tx.objectStore("modules");
-      await store.put({ key: "learning-modules", data });
-      await tx.done;
-      console.log("[LearningModules] Modules data cached successfully");
-    } catch (error) {
-      console.error("[LearningModules] Error caching modules data:", error);
-    }
-  };
-
-  // Cache active modules in IndexedDB
-  const cacheActiveModules = async (modules: ActiveModule[]) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("activeModules", "readwrite");
-      const store = tx.objectStore("activeModules");
-      await store.clear();
-      for (const module of modules) {
-        await store.put(module);
-      }
-      await tx.done;
-      console.log("[LearningModules] Active modules cached successfully");
-    } catch (error) {
-      console.error("[LearningModules] Error caching active modules:", error);
-    }
-  };
-
-  const headers = (sessionToken: string | undefined) => ({
-    Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-    ...(sessionToken && { "X-Session-Token": sessionToken }),
-  });
-
-  const cacheMedia = async (moduleId: number, url: string, contentType: string) => {
-    if (!navigator.onLine) {
-      console.log(`[LearningModules] Offline, skipping cache attempt for module ${moduleId}`);
-      return false;
-    }
-    try {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(url)}`;
-      console.log(`[LearningModules] Attempting to cache ${contentType} for module ${moduleId}: ${proxyUrl}`);
-      const response = await fetch(proxyUrl, {
-        headers: headers(sessionToken),
-      });
-      console.log(`[LearningModules] Cache response:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        url: proxyUrl,
-      });
-
-      if (!response.ok) {
-        const rawResponse = await response.text();
-        console.error(`[LearningModules] Cache failed:`, {
-          status: response.status,
-          statusText: response.statusText,
-          body: rawResponse.slice(0, 200),
-          url: proxyUrl,
-        });
-        throw new Error(`Failed to fetch ${contentType}: ${response.status} ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      console.log(`[LearningModules] Created blob URL for module ${moduleId}: ${objectUrl}`);
-
-      const db = await openDB();
-      await checkCacheSize(db);
-      const tx = db.transaction("media", "readwrite");
-      const store = tx.objectStore("media");
-      await store.put({ moduleId, content: blob, contentType, timestamp: Date.now() });
-      await tx.done;
-      console.log(`[LearningModules] Successfully cached ${contentType} for module ${moduleId}`);
-      return true;
-    } catch (error) {
-      console.error(`[LearningModules] Error caching ${contentType} for module ${moduleId}:`, error);
-      toast.error(`Failed to cache ${contentType}. It may not be available offline.`);
-      return false;
-    }
-  };
-
-  const loadMediaFromDB = async (moduleId: number) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("media", "readonly");
-      const store = tx.objectStore("media");
-      const data = await store.get(moduleId);
-      if (data?.content) {
-        const blobUrl = URL.createObjectURL(data.content);
-        console.log(`[LearningModules] Loaded blob URL for module ${moduleId}: ${blobUrl}`);
-        return blobUrl;
-      }
-      console.log(`[LearningModules] No cached media found for module ${moduleId}`);
-      return null;
-    } catch (error) {
-      console.error(`[LearningModules] Error loading media for module ${moduleId}:`, error);
-      return null;
-    }
-  };
-
-  // Load modules from IndexedDB
-  const loadModulesFromDB = async () => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("modules", "readonly");
-      const store = tx.objectStore("modules");
-      const cachedData = await store.get("learning-modules");
-      if (cachedData?.data) {
-        setModules(cachedData.data);
-        setError(null);
-        console.log("[LearningModules] Loaded modules from IndexedDB");
-      } else {
-        setModules(fallbackData);
-        console.warn("[LearningModules] No cached modules found, using fallback data");
-      }
-    } catch (error) {
-      console.error("[LearningModules] Error loading modules from DB:", error);
-      setModules(fallbackData);
-    }
-    setLoading(false);
-  };
-
-  // Load active modules from IndexedDB
-  const loadActiveModulesFromDB = async () => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("activeModules", "readonly");
-      const store = tx.objectStore("activeModules");
-      const cachedModules = await store.getAll();
-      if (cachedModules.length) {
-        setActiveModules(cachedModules);
-        setError(null);
-        console.log("[LearningModules] Loaded active modules from IndexedDB");
-      }
-    } catch (error) {
-      console.error("[LearningModules] Error loading active modules from DB:", error);
-    }
-    setLoading(false);
-  };
-
   const handleLogout = async () => {
     console.log(
       "[LearningModules] Initiating logout, sessionToken:",
@@ -443,7 +225,7 @@ export function LearningModules() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
       console.log(
         "[LearningModules] Logout API response status:",
@@ -481,7 +263,8 @@ export function LearningModules() {
           status
         );
         setError("Not authenticated");
-        loadModulesFromDB();
+        setModules(fallbackData);
+        setLoading(false);
         return;
       }
 
@@ -496,7 +279,10 @@ export function LearningModules() {
             "X-Session-Token": sessionToken,
           },
         });
-        console.log("[LearningModules] Fetch response status:", response.status);
+        console.log(
+          "[LearningModules] Fetch response status:",
+          response.status
+        );
         if (!response.ok) {
           console.error(
             "[LearningModules] Fetch failed with status:",
@@ -505,7 +291,7 @@ export function LearningModules() {
           if (response.status === 401 || response.status === 403) {
             setError("Session expired");
             setModules(null);
-            loadModulesFromDB();
+            setLoading(false);
             return;
           }
           setError("Failed to fetch modules");
@@ -515,34 +301,19 @@ export function LearningModules() {
         const data = await response.json();
         console.log("[LearningModules] Fetch response data:", data);
         setModules(data);
-        await cacheModulesData(data);
-
-        // Cache all media files
-        const allMedia = [
-          ...data.videos.map((v) => ({ id: v.id, url: v.url, type: "video" })),
-          ...data.audio.map((a) => ({ id: a.id, url: a.url, type: "audio" })),
-          ...data.pdfs.map((p) => ({ id: p.id, url: p.url, type: "pdf" })),
-        ];
-
-        for (const media of allMedia) {
-          if (media.url) {
-            try {
-              await cacheMedia(media.id, media.url, media.type);
-            } catch (e) {
-              console.error(`[LearningModules] Skip caching failed media ID ${media.id}:`, e);
-            }
-          }
-        }
-
         setError(null);
       } catch (e) {
         console.error("[LearningModules] Fetch error:", e);
-        setError("Failed to fetch modules, using cached data");
-        loadModulesFromDB();
+        setError("Session expired");
+        setModules(null);
       }
       setLoading(false);
     };
 
+    fetchModules();
+  }, [sessionToken, status]);
+
+  useEffect(() => {
     const fetchActiveModules = async () => {
       console.log(
         "[LearningModules] Session status for active modules:",
@@ -555,7 +326,6 @@ export function LearningModules() {
           "[LearningModules] Skipping active modules fetch, not authenticated"
         );
         setActiveModules([]);
-        loadActiveModulesFromDB();
         return;
       }
 
@@ -582,7 +352,6 @@ export function LearningModules() {
           if (response.status === 401 || response.status === 403) {
             setError("Session expired");
             setActiveModules([]);
-            loadActiveModulesFromDB();
             return;
           }
           throw new Error("Failed to fetch active modules");
@@ -593,41 +362,15 @@ export function LearningModules() {
           data
         );
         setActiveModules(data);
-        await cacheActiveModules(data);
         setError(null);
       } catch (e) {
         console.error("[LearningModules] Active modules fetch error:", e);
-        setError("Failed to fetch active modules, using cached data");
-        loadActiveModulesFromDB();
+        setError("Session expired");
+        setActiveModules([]);
       }
     };
 
-    const handleOnline = () => {
-      setIsOffline(false);
-      fetchModules();
-      fetchActiveModules();
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-      loadModulesFromDB();
-      loadActiveModulesFromDB();
-    };
-
-    if (navigator.onLine) {
-      fetchModules();
-      fetchActiveModules();
-    } else {
-      handleOffline();
-    }
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+    fetchActiveModules();
   }, [sessionToken, status]);
 
   const handleSaveLesson = async (module: Module) => {
@@ -686,222 +429,6 @@ export function LearningModules() {
     }
   };
 
-  const handlePlayVideo = async (video: Module) => {
-    if (!video.url) {
-      console.error("[LearningModules] No video URL for:", video.title);
-      toast.error("No video URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(video.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl; // Always prefer cache if available
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(video.url)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(video.id);
-            if (!finalUrl) {
-              toast.error("No cached video available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load video: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("media", "readwrite");
-          const store = tx.objectStore("media");
-          await store.put({ moduleId: video.id, content: blob, contentType: "video", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[LearningModules] Fetch/cache error:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(video.id);
-          if (!finalUrl) {
-            toast.error("No cached video available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load video from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load video" : "Video not available offline");
-      return;
-    }
-
-    setSelectedVideo({ ...video, url: finalUrl });
-    setVideoModalOpen(true);
-  };
-
-  const handlePlayAudio = async (audio: Module) => {
-    if (!audio.url) {
-      console.error("[LearningModules] No audio URL for:", audio.title);
-      toast.error("No audio URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(audio.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(audio.url)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(audio.id);
-            if (!finalUrl) {
-              toast.error("No cached audio available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load audio: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("media", "readwrite");
-          const store = tx.objectStore("media");
-          await store.put({ moduleId: audio.id, content: blob, contentType: "audio", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[LearningModules] Fetch/cache error for audio:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(audio.id);
-          if (!finalUrl) {
-            toast.error("No cached audio available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load audio from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load audio" : "Audio not available offline");
-      return;
-    }
-
-    setSelectedAudio({ ...audio, url: finalUrl });
-    setAudioPlayerOpen(true);
-  };
-
-  const handlePreviewPdf = async (pdf: Module) => {
-    if (!pdf.url) {
-      console.error("[LearningModules] No PDF URL for:", pdf.title);
-      toast.error("No PDF URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(pdf.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(pdf.url)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(pdf.id);
-            if (!finalUrl) {
-              toast.error("No cached PDF available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load PDF: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("media", "readwrite");
-          const store = tx.objectStore("media");
-          await store.put({ moduleId: pdf.id, content: blob, contentType: "pdf", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[LearningModules] Fetch/cache error for PDF:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(pdf.id);
-          if (!finalUrl) {
-            toast.error("No cached PDF available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load PDF from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load PDF" : "PDF not available offline");
-      return;
-    }
-
-    setSelectedPdf({ ...pdf, url: finalUrl });
-    setPdfViewerOpen(true);
-  };
-
-  const handleDownloadPdf = (pdf: Module) => {
-    if (!pdf.url) {
-      console.error("[LearningModules] No PDF URL for download:", pdf.title);
-      setError("No PDF URL available for download");
-      toast.error("No PDF URL available for download");
-      return;
-    }
-    const link = document.createElement("a");
-    link.href = pdf.url;
-    link.download = pdf.title || "document.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const moduleNameOptions = useMemo(() => {
     const modulesToUse = activeModules.length > 0 ? activeModules : [];
     return modulesToUse.sort((a, b) => a.name.localeCompare(b.name));
@@ -958,8 +485,7 @@ export function LearningModules() {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}
-              >
+                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
                 1
               </PaginationLink>
             </PaginationItem>
@@ -969,16 +495,15 @@ export function LearningModules() {
               <PaginationEllipsis />
             </PaginationItem>
           )}
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
+          {Array.from({length: totalPages}, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
                   onClick={() =>
-                    setCurrentPage((prev) => ({ ...prev, [tab]: page }))
-                  }
-                >
+                    setCurrentPage((prev) => ({...prev, [tab]: page}))
+                  }>
                   {page}
                 </PaginationLink>
               </PaginationItem>
@@ -992,9 +517,8 @@ export function LearningModules() {
             <PaginationItem>
               <PaginationLink
                 onClick={() =>
-                  setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))
-                }
-              >
+                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
+                }>
                 {totalPages}
               </PaginationLink>
             </PaginationItem>
@@ -1012,6 +536,54 @@ export function LearningModules() {
         </PaginationContent>
       </Pagination>
     );
+  };
+
+  const handlePlayVideo = (video: Module) => {
+    if (!video.url) {
+      console.error("[LearningModules] No video URL for:", video.title);
+      setError("No video URL available");
+      return;
+    }
+    setSelectedVideo(video);
+    setVideoModalOpen(true);
+  };
+
+  const handlePlayAudio = (audio: Module) => {
+    if (!audio.url) {
+      console.error("[LearningModules] No audio URL for:", audio.title);
+      setError("No audio URL available");
+      return;
+    }
+    setSelectedAudio(audio);
+    setAudioPlayerOpen(true);
+  };
+
+  const handlePreviewPdf = (pdf: Module) => {
+    if (!pdf.url) {
+      console.error("[LearningModules] No PDF URL for:", pdf.title);
+      setError("No PDF URL available");
+      return;
+    }
+    console.log("[LearningModules] Opening PDF in new tab:", pdf.url);
+    const url = new URL(pdf.url);
+    if (session?.user?.sessionToken) {
+      url.searchParams.append("sessionToken", session.user.sessionToken);
+    }
+    window.open(url.toString(), "_blank");
+  };
+
+  const handleDownloadPdf = (pdf: Module) => {
+    if (!pdf.url) {
+      console.error("[LearningModules] No PDF URL for download:", pdf.title);
+      setError("No PDF URL available for download");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = pdf.url;
+    link.download = pdf.title || "document.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {
@@ -1063,8 +635,7 @@ export function LearningModules() {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <Play className="h-4 w-4" />
               Retry
             </Button>
@@ -1081,10 +652,6 @@ export function LearningModules() {
         <p className="text-muted-foreground">
           Structured learning paths with videos, audio, PDFs, and tutorials
         </p>
-        {isOffline && (
-          <p className="text-yellow-600 text-sm">Offline Mode: Using cached data</p>
-        )}
-        {error && <p className="text-yellow-600 text-sm">{error}</p>}
       </div>
 
       <div className="flex items-center gap-4">
@@ -1095,9 +662,8 @@ export function LearningModules() {
           value={selectedModuleName}
           onValueChange={(value) => {
             setSelectedModuleName(value);
-            setCurrentPage({ videos: 1, audio: 1, pdfs: 1, tutorials: 1 });
-          }}
-        >
+            setCurrentPage({videos: 1, audio: 1, pdfs: 1, tutorials: 1});
+          }}>
           <SelectTrigger id="module-name-filter" className="w-[180px]">
             <SelectValue placeholder="Select module" />
           </SelectTrigger>
@@ -1116,25 +682,26 @@ export function LearningModules() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="videos"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Video className="h-4 w-4" />
             Video
           </TabsTrigger>
           <TabsTrigger
             value="audio"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
           <TabsTrigger
             value="pdfs"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
+          {/* <TabsTrigger value="tutorials" className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            <BookOpen className="h-4 w-4" />
+            Live Session
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="videos" className="space-y-6">
@@ -1143,8 +710,7 @@ export function LearningModules() {
               (video) => (
                 <Card
                   key={video.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                >
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader className="p-0">
                     <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative">
                       <Video className="h-8 w-8 text-muted-foreground" />
@@ -1165,6 +731,7 @@ export function LearningModules() {
                     </div>
                   </CardHeader>
 
+                  {/* Make CardContent grow and push footer down */}
                   <CardContent className="flex flex-col flex-1">
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
@@ -1193,12 +760,12 @@ export function LearningModules() {
                       )}
                     </div>
 
-                    <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                    {/* Footer (sticks at bottom) */}
+                    <div className="mt-auto  flex flex-wrap gap-3 pt-4">
                       <Button
                         className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayVideo(video)}
-                        disabled={!video.url}
-                      >
+                        disabled={!video.url}>
                         {video.progress === 100 ? (
                           <>
                             <CheckCircle className="mr-2 h-4 w-4" />
@@ -1226,8 +793,7 @@ export function LearningModules() {
                         disabled={
                           !session?.user?.sessionToken ||
                           savedLessons.has(video.id)
-                        }
-                      >
+                        }>
                         <Bookmark
                           className={`mr-2 h-4 w-4 ${
                             savedLessons.has(video.id) ? "fill-current" : ""
@@ -1250,8 +816,7 @@ export function LearningModules() {
               (audio) => (
                 <Card
                   key={audio.id}
-                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow"
-                >
+                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 bg-[#f797712f] rounded-lg flex items-center justify-center">
@@ -1284,12 +849,18 @@ export function LearningModules() {
                         </div>
                       )}
                     </div>
+                    <div className="space-y-2">
+                      {/* <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span>{audio.progress}%</span>
+                    </div> */}
+                      {/* <Progress value={audio.progress} className="h-2" /> */}
+                    </div>
                     <div className="mt-auto flex flex-wrap gap-2">
                       <Button
                         className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayAudio(audio)}
-                        disabled={!audio.url}
-                      >
+                        disabled={!audio.url}>
                         <Headphones className="mr-2 h-4 w-4" />
                         {audio.progress > 0
                           ? "Continue Listening"
@@ -1304,8 +875,7 @@ export function LearningModules() {
                         disabled={
                           !session?.user?.sessionToken ||
                           savedLessons.has(audio.id)
-                        }
-                      >
+                        }>
                         <Bookmark
                           className={`mr-2 h-4 w-4 ${
                             savedLessons.has(audio.id) ? "fill-current" : ""
@@ -1328,8 +898,7 @@ export function LearningModules() {
               (pdf) => (
                 <Card
                   key={pdf.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto"
-                >
+                  className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
@@ -1358,15 +927,18 @@ export function LearningModules() {
                         </div>
                       )}
                     </div>
-                    <div className="mt-auto pt-4 flex flex-wrap gap-2">
+                    <div className="mt-auto pt-4  flex flex-wrap gap-2">
                       <Button
                         className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePreviewPdf(pdf)}
-                        disabled={!pdf.url}
-                      >
+                        disabled={!pdf.url}>
                         <Eye className="mr-2 h-3 w-3" />
                         Preview
                       </Button>
+                      {/* <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
+                      <Download className="mr-2 h-3 w-3" />
+                      Download
+                    </Button> */}
                       <Button
                         variant={
                           savedLessons.has(pdf.id) ? "default" : "outline"
@@ -1376,8 +948,7 @@ export function LearningModules() {
                         disabled={
                           !session?.user?.sessionToken ||
                           savedLessons.has(pdf.id)
-                        }
-                      >
+                        }>
                         <Bookmark
                           className={`mr-2 h-3 w-3 ${
                             savedLessons.has(pdf.id) ? "fill-current" : ""
@@ -1402,8 +973,7 @@ export function LearningModules() {
             ).map((tutorial) => (
               <Card
                 key={tutorial.id}
-                className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow"
-              >
+                className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -1441,8 +1011,7 @@ export function LearningModules() {
                   </div>
                   <Button
                     className="w-full mt-auto"
-                    disabled={!tutorial.isActiveNow}
-                  >
+                    disabled={!tutorial.isActiveNow}>
                     Join Session
                   </Button>
                 </CardContent>
@@ -1455,31 +1024,16 @@ export function LearningModules() {
 
       <VideoModal
         isOpen={videoModalOpen}
-        onClose={() => {
-          setVideoModalOpen(false);
-          setSelectedVideo(null);
-        }}
+        onClose={() => setVideoModalOpen(false)}
         title={selectedVideo?.title || ""}
         videoUrl={selectedVideo?.url}
       />
       <AudioPlayer
         isOpen={audioPlayerOpen}
-        onClose={() => {
-          setAudioPlayerOpen(false);
-          setSelectedAudio(null);
-        }}
+        onClose={() => setAudioPlayerOpen(false)}
         title={selectedAudio?.title || ""}
         audioUrl={selectedAudio?.url}
         duration={selectedAudio?.duration}
-      />
-      <PDFViewer
-        isOpen={pdfViewerOpen}
-        onClose={() => {
-          setPdfViewerOpen(false);
-          setSelectedPdf(null);
-        }}
-        title={selectedPdf?.title || ""}
-        pdfUrl={selectedPdf?.url}
       />
     </div>
   );
