@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -49,7 +49,7 @@ import { cn } from "@/lib/utils";
 import { ButtonProps, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
-// Pagination Components
+// Pagination Components (unchanged)
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
@@ -154,10 +154,9 @@ PaginationEllipsis.displayName = "PaginationEllipsis";
 
 // TutoringBooking Component
 export function TutoringBooking() {
-  // Removed global “+ Book Tutoring” modal state
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  // New: card-level booking modal controls
+  // Card-level booking modal controls
   const [isCardBookingOpen, setIsCardBookingOpen] = useState(false);
   const [bookingTutorId, setBookingTutorId] = useState<number | null>(null);
 
@@ -182,216 +181,185 @@ export function TutoringBooking() {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
   const [tutorsPage, setTutorsPage] = useState(1);
-  const itemsPerPage = 3; // showing 3 per page
+  const itemsPerPage = 3;
 
-  const upcomingSessions = [
-    {
-      id: 1,
-      child: "John Adebayo",
-      tutor: "Dr. Sarah Wilson",
-      subject: "Mathematics",
-      date: "2024-01-20",
-      time: "2:00 PM - 3:00 PM",
-      type: "One-on-One",
-      status: "Confirmed",
-      meetingLink: "https://meet.techxagon.com/session-123",
-      cost: "₦8,000",
-      tutorAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Focus on calculus and derivatives",
-      hasRecording: false,
-      canReschedule: true,
-      paymentStatus: "Paid",
-      sessionType: "Premium",
-      duration: 60,
-      reminderSent: true,
-    },
-    {
-      id: 2,
-      child: "Mary Adebayo",
-      subject: "English Literature",
-      tutor: "Prof. Michael Johnson",
-      date: "2024-01-22",
-      time: "4:00 PM - 5:00 PM",
-      type: "Group Session",
-      status: "Confirmed",
-      meetingLink: "https://meet.techxagon.com/session-124",
-      cost: "₦5,000",
-      tutorAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Shakespeare analysis and essay writing",
-      hasRecording: false,
-      canReschedule: true,
-      paymentStatus: "Paid",
-      sessionType: "Standard",
-      duration: 60,
-      reminderSent: true,
-    },
-    {
-      id: 3,
-      child: "John Adebayo",
-      tutor: "Mrs. Adebayo Funmi",
-      subject: "Physics",
-      date: "2024-01-25",
-      time: "3:00 PM - 4:00 PM",
-      type: "One-on-One",
-      status: "Pending",
-      meetingLink: null,
-      cost: "₦8,000",
-      tutorAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Mechanics and motion problems",
-      hasRecording: false,
-      canReschedule: true,
-      paymentStatus: "Pending",
-      sessionType: "Premium",
-      duration: 60,
-      reminderSent: false,
-    },
-  ];
+  // Data states (initialize with safe defaults)
+  const [upcomingData, setUpcomingData] = useState({
+    results: [] as any[],
+    total: 0,
+    total_pages: 1,
+    page: 1,
+  });
+  const [pastData, setPastData] = useState({
+    results: [] as any[],
+    total: 0,
+    total_pages: 1,
+    page: 1,
+  });
+  const [tutorsData, setTutorsData] = useState({
+    results: [] as any[],
+    total: 0,
+    total_pages: 1,
+    page: 1,
+  });
+  const [statsData, setStatsData] = useState({
+    total_tutoring: 0,
+    upcoming_count: 0,
+    hours_completed: 0,
+    average_rating: 0,
+    active_tutors: 0,
+  });
+  const [childrenData, setChildrenData] = useState<any[]>([]);
 
-  const pastSessions = [
-    {
-      id: 4,
-      child: "John Adebayo",
-      tutor: "Dr. Sarah Wilson",
-      subject: "Mathematics",
-      date: "2024-01-15",
-      time: "2:00 PM - 3:00 PM",
-      type: "One-on-One",
-      status: "Completed",
-      rating: 5,
-      feedback:
-        "Excellent session! John showed great improvement in understanding calculus concepts.",
-      cost: "₦8,000",
-      tutorAvatar: "/placeholder.svg?height=40&width=40",
-      hasRecording: true,
-      recordingUrl: "https://recordings.techxagon.com/session-4",
-      materials: ["Calculus_Notes.pdf", "Practice_Problems.pdf"],
-      sessionType: "Premium",
-      duration: 60,
-      actualDuration: 58,
-    },
-    {
-      id: 5,
-      child: "Mary Adebayo",
-      tutor: "Prof. Michael Johnson",
-      subject: "English Literature",
-      date: "2024-01-12",
-      time: "4:00 PM - 5:00 PM",
-      type: "Group Session",
-      status: "Completed",
-      rating: 4,
-      feedback:
-        "Good session on poetry analysis. Mary participated well in discussions.",
-      cost: "₦5,000",
-      tutorAvatar: "/placeholder.svg?height=40&width=40",
-      hasRecording: true,
-      recordingUrl: "https://recordings.techxagon.com/session-5",
-      materials: ["Poetry_Analysis_Guide.pdf"],
-      sessionType: "Standard",
-      duration: 60,
-      actualDuration: 62,
-    },
-  ];
-
-  const availableTutors = [
-    {
-      id: 1,
-      name: "Dr. Sarah Wilson",
-      course: "Mathematics",
-      modules: [
-        "Algebra & Functions",
-        "Calculus",
-        "Probability & Statistics",
-        "Vectors",
-        "Mechanics",
-      ],
-      rating: 4.9,
-      experience: "10+ years",
-      rate: "₦8,000/hour",
-      avatar: "/placeholder.svg?height=40&width=40",
-      availability: "Mon-Fri: 2PM-6PM",
-      specialization: "Advanced Mathematics, Calculus",
-      totalSessions: 1247,
-      responseTime: "< 2 hours",
-      languages: ["English", "Yoruba"],
-      verified: true,
-      premiumTutor: true,
-      sessionTypes: ["One-on-One", "Group", "Intensive"],
-      technologies: ["Interactive Whiteboard", "Screen Sharing", "Recording"],
-    },
-    {
-      id: 2,
-      name: "Prof. Michael Johnson",
-      course: "English Literature",
-      modules: [
-        "Poetry",
-        "Shakespeare",
-        "Prose Analysis",
-        "Essay Writing",
-        "Critical Theory",
-      ],
-      rating: 4.8,
-      experience: "15+ years",
-      rate: "₦7,500/hour",
-      avatar: "/placeholder.svg?height=40&width=40",
-      availability: "Mon-Sat: 3PM-7PM",
-      specialization: "Literature Analysis, Creative Writing",
-      totalSessions: 892,
-      responseTime: "< 4 hours",
-      languages: ["English"],
-      verified: true,
-      premiumTutor: false,
-      sessionTypes: ["One-on-One", "Group"],
-      technologies: ["Screen Sharing", "Recording"],
-    },
-    {
-      id: 3,
-      name: "Mrs. Adebayo Funmi",
-      course: "Physics",
-      modules: [
-        "Mechanics",
-        "Waves & Optics",
-        "Electricity & Magnetism",
-        "Thermodynamics",
-        "Modern Physics",
-      ],
-      rating: 4.7,
-      experience: "8+ years",
-      rate: "₦7,000/hour",
-      avatar: "/placeholder.svg?height=40&width=40",
-      availability: "Tue-Sat: 1PM-5PM",
-      specialization: "Science Fundamentals, Lab Work",
-      totalSessions: 634,
-      responseTime: "< 6 hours",
-      languages: ["English", "Yoruba", "Igbo"],
-      verified: true,
-      premiumTutor: false,
-      sessionTypes: ["One-on-One"],
-      technologies: ["Interactive Whiteboard", "Screen Sharing"],
-    },
-  ];
-
-  const bookingTutor =
-    bookingTutorId != null
-      ? availableTutors.find((t) => t.id === bookingTutorId) || null
-      : null;
-
-  // Pagination helpers
-  const paginate = (items: any[], page: number, itemsPerPage: number) => {
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return items.slice(startIndex, endIndex);
+  // Helpers to sanitize responses
+  const DEFAULT_STATS = {
+    total_tutoring: 0,
+    upcoming_count: 0,
+    hours_completed: 0,
+    average_rating: 0,
+    active_tutors: 0,
   };
-  const totalPages = (items: any[], itemsPerPage: number) =>
-    Math.ceil(items.length / itemsPerPage);
 
-  // Paginated data
-  const paginatedUpcoming = paginate(
-    upcomingSessions,
-    upcomingPage,
-    itemsPerPage
-  );
-  const paginatedPast = paginate(pastSessions, pastPage, itemsPerPage);
-  const paginatedTutors = paginate(availableTutors, tutorsPage, itemsPerPage);
+  const sanitizeStats = (raw: any) => {
+    if (!raw || typeof raw !== "object") return DEFAULT_STATS;
+    // Some backends nest stats in a "stats" field, others return flat keys.
+    const s = raw.stats ?? raw;
+    return {
+      total_tutoring: Number(s.total_tutoring ?? s.total ?? 0),
+      upcoming_count: Number(s.upcoming_count ?? 0),
+      hours_completed: Number(s.hours_completed ?? 0),
+      average_rating: Number(s.average_rating ?? 0),
+      active_tutors: Number(s.active_tutors ?? 0),
+    };
+  };
+
+  const sanitizePaginated = (raw: any) => {
+    const results = Array.isArray(raw?.results)
+      ? raw.results
+      : Array.isArray(raw)
+      ? raw
+      : [];
+    const total = Number(raw?.total ?? raw?.count ?? results.length ?? 0);
+    const total_pages = Number(
+      raw?.total_pages ?? Math.max(1, Math.ceil(total / itemsPerPage))
+    );
+    const page = Number(raw?.page ?? 1);
+    return { results, total, total_pages, page };
+  };
+
+  // Fetch functions (defensive)
+  const fetchBookings = async (
+    scope: string,
+    page: number,
+    setData: (d: any) => void
+  ) => {
+    try {
+      const res = await fetch(
+        `/api/parent/tutoring/bookings?scope=${scope}&page=${page}&page_size=${itemsPerPage}`
+      );
+      if (!res.ok) {
+        console.error("Failed to fetch bookings", res.status);
+        setData(sanitizePaginated({ results: [], total: 0, total_pages: 1, page }));
+        return;
+      }
+      const data = await res.json();
+      setData(sanitizePaginated(data));
+    } catch (err) {
+      console.error("Error fetching bookings", err);
+      setData(sanitizePaginated({ results: [], total: 0, total_pages: 1, page }));
+    }
+  };
+
+  const fetchTutors = async (page: number) => {
+    try {
+      const res = await fetch(
+        `/api/parent/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`
+      );
+      if (!res.ok) {
+        console.error("Failed to fetch tutors", res.status);
+        setTutorsData(sanitizePaginated({ results: [], total: 0, total_pages: 1, page }));
+        return;
+      }
+      const data = await res.json();
+      setTutorsData(sanitizePaginated(data));
+    } catch (err) {
+      console.error("Failed to fetch tutors", err);
+      setTutorsData(sanitizePaginated({ results: [], total: 0, total_pages: 1, page }));
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`/api/parent/tutoring/stats`);
+      if (!res.ok) {
+        console.error("Failed to fetch stats", res.status);
+        setStatsData(DEFAULT_STATS);
+        return;
+      }
+      const data = await res.json();
+      const sanitized = sanitizeStats(data);
+      // ensure numeric average_rating
+      sanitized.average_rating =
+        typeof sanitized.average_rating === "number"
+          ? sanitized.average_rating
+          : Number(sanitized.average_rating) || 0;
+      setStatsData(sanitized);
+    } catch (err) {
+      console.error("Failed to fetch stats", err);
+      setStatsData(DEFAULT_STATS);
+    }
+  };
+
+  const fetchChildren = async () => {
+    try {
+      const res = await fetch(`/api/parent/tutoring/children`);
+      if (!res.ok) {
+        console.error("Failed to fetch children", res.status);
+        setChildrenData([]);
+        return;
+      }
+      const data = await res.json();
+      const children = Array.isArray(data?.children)
+        ? data.children
+        : Array.isArray(data)
+        ? data
+        : [];
+      setChildrenData(children);
+    } catch (err) {
+      console.error("Failed to fetch children", err);
+      setChildrenData([]);
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    fetchStats();
+    fetchChildren();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "upcoming") {
+      fetchBookings("upcoming", upcomingPage, setUpcomingData);
+    }
+  }, [activeTab, upcomingPage]);
+
+  useEffect(() => {
+    if (activeTab === "past") {
+      fetchBookings("past", pastPage, setPastData);
+    }
+  }, [activeTab, pastPage]);
+
+  useEffect(() => {
+    if (activeTab === "tutors") {
+      fetchTutors(tutorsPage);
+    }
+  }, [activeTab, tutorsPage]);
+
+  // Resolve booking tutor safely
+  const bookingTutor =
+    bookingTutorId != null && Array.isArray(tutorsData.results)
+      ? tutorsData.results.find((t) => Number(t.id) === Number(bookingTutorId)) || null
+      : null;
 
   // Pagination navigation handlers
   const handlePageChange = (
@@ -451,26 +419,17 @@ export function TutoringBooking() {
   };
 
   const renderStars = (rating: number) => {
+    const n = Math.max(0, Math.min(5, Number.isFinite(rating) ? Math.floor(rating) : 0));
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-3 w-3 ${
-          i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-        }`}
+        className={`h-3 w-3 ${i < n ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
       />
     ));
   };
 
   // Days for preferred_days
-  const dayOptions = [
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-    "Sun",
-  ];
+  const dayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const toggleDay = (day: string, checked: boolean | string) => {
     setPreferredDays((prev) => {
@@ -481,23 +440,51 @@ export function TutoringBooking() {
     });
   };
 
-  const handleBookSubmit = () => {
-    // you can replace this with your submit handler
+  const handleBookSubmit = async () => {
+    // lightweight client-side validation to avoid bad payloads
+    if (!bookingTutorId) {
+      console.error("No tutor selected.");
+      return;
+    }
+    const studentId = Number(child);
+    if (!studentId) {
+      console.error("Please select a child before booking.");
+      return;
+    }
+    const durationMinutes = Number(duration);
+    if (!durationMinutes) {
+      console.error("Please choose a duration.");
+      return;
+    }
+
+    const constructedNotes = `Preferred days: ${preferredDays.join(
+      ", "
+    )}\nPreferred time: ${preferredTime}\nLearning objectives: ${learningObjectives}\nAdditional notes: ${notes}`;
     const payload = {
-      tutorId: bookingTutorId,
-      tutorName: bookingTutor?.name,
-      course: bookingTutor?.course,
-      child,
-      preferred_days: preferredDays,
-      preferred_time: preferredTime,
-      duration,
-      learning_objectives: learningObjectives,
-      notes,
+      student_id: studentId,
+      private_tutoring_id: Number(bookingTutorId),
+      duration_hours: durationMinutes / 60,
+      notes: constructedNotes,
     };
-    // eslint-disable-next-line no-console
-    console.log("BOOK TUTORING PAYLOAD", payload);
-    setIsCardBookingOpen(false);
-    resetBookingForm();
+    try {
+      const res = await fetch("/api/parent/tutoring/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setIsCardBookingOpen(false);
+        resetBookingForm();
+        // Refresh lists
+        fetchBookings("upcoming", upcomingPage, setUpcomingData);
+        fetchBookings("past", pastPage, setPastData);
+        fetchStats();
+      } else {
+        console.error("Booking failed", res.status);
+      }
+    } catch (err) {
+      console.error("Booking error", err);
+    }
   };
 
   return (
@@ -509,7 +496,6 @@ export function TutoringBooking() {
             Book and manage premium one-on-one tutoring with expert educators
           </p>
         </div>
-        {/* Removed the top-right “+ Book Tutoring” button and global dialog */}
       </div>
 
       <Tabs
@@ -543,15 +529,13 @@ export function TutoringBooking() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
-                Current Tutoring ({upcomingSessions.length})
+                Current Tutoring ({Number(upcomingData.total ?? 0)})
               </CardTitle>
-              <CardDescription className="text-sm">
-                Your scheduled tutoring
-              </CardDescription>
+              <CardDescription className="text-sm">Your scheduled tutoring</CardDescription>
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {paginatedUpcoming.map((session) => (
+                {(upcomingData.results || []).map((session: any) => (
                   <div
                     key={session.id}
                     className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
@@ -560,34 +544,32 @@ export function TutoringBooking() {
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
                           <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                            <AvatarImage
-                              src={session.tutorAvatar || "/placeholder.svg"}
-                            />
+                            <AvatarImage src={session.tutorAvatar || "/placeholder.svg"} />
                             <AvatarFallback>
-                              {session.tutor
+                              {(session.tutor || "")
                                 .split(" ")
-                                .map((n: any) => n[0])
+                                .map((n: any) => (n ? n[0] : ""))
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
                           <div className="space-y-2 flex-1 min-w-0">
                             <div>
                               <h4 className="font-semibold text-base sm:text-lg truncate">
-                                {session.subject} Tutoring
+                                {session.subject || "Tutoring"}
                               </h4>
                               <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                                {session.tutor} • {session.child}
+                                {session.tutor || "Tutor"} • {session.child || "Student"}
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <div className="flex items-center gap-1">
                                 <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                                <span>{session.date}</span>
+                                <span>{session.date ?? "-"}</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                                 <span>
-                                  {session.time} ({session.duration}min)
+                                  {session.time ?? "-"} ({session.duration ?? "-"}min)
                                 </span>
                               </div>
                             </div>
@@ -601,7 +583,7 @@ export function TutoringBooking() {
                         </div>
                         <div className="text-right space-y-2 flex-shrink-0">
                           <div className="font-medium text-green-600 text-base sm:text-lg">
-                            {session.cost}
+                            {session.cost ?? "-"}
                           </div>
                           {getStatusBadge(session.status)}
                         </div>
@@ -610,7 +592,7 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
-              {upcomingSessions.length > itemsPerPage && (
+              {upcomingData.total > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -618,36 +600,29 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setUpcomingPage,
-                            totalPages(upcomingSessions, itemsPerPage),
+                            upcomingData.total_pages,
                             upcomingPage - 1
                           )
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(upcomingSessions, itemsPerPage),
-                    }).map((_, index) => {
+                    {Array.from({ length: upcomingData.total_pages }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === totalPages(upcomingSessions, itemsPerPage) ||
+                        page === upcomingData.total_pages ||
                         (page >= upcomingPage - 1 && page <= upcomingPage + 1)
                       ) {
                         return (
                           <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={upcomingPage === page}
-                              onClick={() => setUpcomingPage(page)}
-                            >
+                            <PaginationLink isActive={upcomingPage === page} onClick={() => setUpcomingPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         );
                       } else if (
                         (page === upcomingPage - 2 && upcomingPage > 3) ||
-                        (page === upcomingPage + 2 &&
-                          upcomingPage <
-                            totalPages(upcomingSessions, itemsPerPage) - 2)
+                        (page === upcomingPage + 2 && upcomingPage < upcomingData.total_pages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -662,7 +637,7 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setUpcomingPage,
-                            totalPages(upcomingSessions, itemsPerPage),
+                            upcomingData.total_pages,
                             upcomingPage + 1
                           )
                         }
@@ -679,16 +654,12 @@ export function TutoringBooking() {
         <TabsContent value="past" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">
-                Past Tutoring ({pastSessions.length})
-              </CardTitle>
-              <CardDescription className="text-sm">
-                History of completed tutoring with recordings
-              </CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Past Tutoring ({Number(pastData.total ?? 0)})</CardTitle>
+              <CardDescription className="text-sm">History of completed tutoring with recordings</CardDescription>
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {paginatedPast.map((session) => (
+                {(pastData.results || []).map((session: any) => (
                   <div
                     key={session.id}
                     className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
@@ -697,88 +668,76 @@ export function TutoringBooking() {
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                           <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
-                            <AvatarImage
-                              src={session.tutorAvatar || "/placeholder.svg"}
-                            />
+                            <AvatarImage src={session.tutorAvatar || "/placeholder.svg"} />
                             <AvatarFallback>
-                              {session.tutor
+                              {(session.tutor || "")
                                 .split(" ")
-                                .map((n: any) => n[0])
+                                .map((n: any) => (n ? n[0] : ""))
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
                           <div className="space-y-2 flex-1 min-w-0">
                             <div>
                               <h4 className="font-semibold text-base sm:text-lg truncate">
-                                {session.subject} Tutoring
+                                {session.subject || "Tutoring"}
                               </h4>
                               <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                                {session.tutor} • {session.child}
+                                {session.tutor || "Tutor"} • {session.child || "Student"}
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <div className="flex items-center gap-1">
                                 <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                                {session.date}
+                                {session.date ?? "-"}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                {session.time} ({session.actualDuration}min)
+                                {session.time ?? "-"} ({session.actualDuration ?? session.duration ?? "-"}min)
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              {renderStars(session.rating)}
-                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">
-                                ({session.rating}/5)
-                              </span>
-                            </div>
-                            <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
-                              "{session.feedback}"
+                            <div className="text-xs sm:text-sm text-muted-foreground break-words">
+                              {session.notes}
                             </div>
                           </div>
+                        </div>
+                        <div className="text-right space-y-2 flex-shrink-0">
+                          <div className="font-medium text-green-600 text-base sm:text-lg">
+                            {session.cost ?? "-"}
+                          </div>
+                          {getStatusBadge(session.status)}
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              {pastSessions.length > itemsPerPage && (
+              {pastData.total > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() =>
-                          handlePageChange(
-                            setPastPage,
-                            totalPages(pastSessions, itemsPerPage),
-                            pastPage - 1
-                          )
+                          handlePageChange(setPastPage, pastData.total_pages, pastPage - 1)
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(pastSessions, itemsPerPage),
-                    }).map((_, index) => {
+                    {Array.from({ length: pastData.total_pages }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === totalPages(pastSessions, itemsPerPage) ||
+                        page === pastData.total_pages ||
                         (page >= pastPage - 1 && page <= pastPage + 1)
                       ) {
                         return (
                           <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={pastPage === page}
-                              onClick={() => setPastPage(page)}
-                            >
+                            <PaginationLink isActive={pastPage === page} onClick={() => setPastPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         );
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
-                        (page === pastPage + 2 &&
-                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
+                        (page === pastPage + 2 && pastPage < pastData.total_pages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -791,11 +750,7 @@ export function TutoringBooking() {
                     <PaginationItem>
                       <PaginationNext
                         onClick={() =>
-                          handlePageChange(
-                            setPastPage,
-                            totalPages(pastSessions, itemsPerPage),
-                            pastPage + 1
-                          )
+                          handlePageChange(setPastPage, pastData.total_pages, pastPage + 1)
                         }
                       />
                     </PaginationItem>
@@ -810,153 +765,137 @@ export function TutoringBooking() {
         <TabsContent value="tutors" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">
-                Expert Tutors ({availableTutors.length})
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Browse and select from our verified expert educators
-              </CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Expert Tutors ({Number(tutorsData.total ?? 0)})</CardTitle>
+              <CardDescription className="text-sm">Browse and select from our verified expert educators</CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:border">
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {paginatedTutors.map((tutor) => (
-                  <div
-                    key={tutor.id}
-                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
-                        <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>
-                          {tutor.name
-                            .split(" ")
-                            .map((n: any) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold text-base sm:text-lg truncate">
-                            {tutor.name}
-                          </h4>
-                          {tutor.verified && (
-                            <Shield className="h-4 w-4 text-blue-500" />
-                          )}
-                          {tutor.premiumTutor && (
-                            <Zap className="h-4 w-4 text-yellow-500" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 text-xs sm:text-sm">
-                          {renderStars(Math.floor(tutor.rating))}
-                          <span className="text-muted-foreground ml-1 truncate">
-                            {tutor.rating} ({tutor.totalSessions} sessions)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                {(tutorsData.results || []).map((tutor: any) => {
+                  const modules = Array.isArray(tutor.modules) ? tutor.modules : [];
+                  const languages = Array.isArray(tutor.languages) ? tutor.languages : [];
+                  const availability_days = Array.isArray(tutor.availability_days) ? tutor.availability_days : [];
+                  const technologies = Array.isArray(tutor.technologies) ? tutor.technologies : [];
+                  const ratingNum = Number(tutor.rating ?? 0);
 
-                    <div className="space-y-3 text-xs sm:text-sm flex-grow">
-                      <div className="space-y-2">
-                        <div>
-                          <span className="font-medium">Course:</span>{" "}
-                          <span className="text-sm">{tutor.course}</span>
-                        </div>
-                        <div>
-                          <span className="font-medium">Modules:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {tutor.modules.map((mod: string, index: number) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {mod}
-                              </Badge>
-                            ))}
+                  return (
+                    <div
+                      key={tutor.id}
+                      className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+                          <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
+                          <AvatarFallback>
+                            {(tutor.teacher_name || "")
+                              .split(" ")
+                              .map((n: any) => (n ? n[0] : ""))
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-base sm:text-lg truncate">
+                              {tutor.teacher_name ?? "Tutor"}
+                            </h4>
+                            {tutor.verified && <Shield className="h-4 w-4 text-blue-500" />}
+                            {tutor.premiumTutor && <Zap className="h-4 w-4 text-yellow-500" />}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs sm:text-sm">
+                            {renderStars(Math.floor(ratingNum))}
+                            <span className="text-muted-foreground ml-1 truncate">
+                              {Number(tutor.rating ?? 0).toFixed(1)} ({tutor.totalSessions ?? 0} sessions)
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <span className="font-medium">Experience:</span>
-                          <div className="truncate">{tutor.experience}</div>
-                        </div>
-                        <div>
-                          <span className="font-medium">Rate:</span>
-                          <div className="text-green-600 font-medium">
-                            {tutor.rate}
+                      <div className="space-y-3 text-xs sm:text-sm flex-grow">
+                        <div className="space-y-2">
+                          <div>
+                            <span className="font-medium">Course:</span>{" "}
+                            <span className="text-sm">{tutor.course ?? "-"}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">Modules:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {modules.map((mod: string, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {mod}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
                         </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <span className="font-medium">Experience:</span>
+                            <div className="truncate">{tutor.experience ?? "-"}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium">Rate:</span>
+                            <div className="text-green-600 font-medium">{tutor.rate ?? "-"}</div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="font-medium">Languages:</span> {languages.join(", ")}
+                        </div>
+                        <div>
+                          <span className="font-medium">Available:</span>
+                          <div>{availability_days.join(", ")}</div>
+                        </div>
+                        <div className="text-xs text-muted-foreground break-words">
+                          <span className="font-medium">Technologies:</span> {technologies.join(", ")}
+                        </div>
+                        <div className="text-xs text-muted-foreground break-words">{tutor.specialization}</div>
                       </div>
 
-                      <div>
-                        <span className="font-medium">Languages:</span>{" "}
-                        {tutor.languages.join(", ")}
-                      </div>
-                      <div>
-                        <span className="font-medium">Available:</span>
-                        <div>{tutor.availability}</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground break-words">
-                        <span className="font-medium">Technologies:</span>{" "}
-                        {tutor.technologies.join(", ")}
-                      </div>
-                      <div className="text-xs text-muted-foreground break-words">
-                        {tutor.specialization}
+                      <div className="mt-auto">
+                        <Button
+                          className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full"
+                          size="sm"
+                          onClick={() => {
+                            setBookingTutorId(tutor.id);
+                            setIsCardBookingOpen(true);
+                          }}
+                        >
+                          <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                          Book Tutoring
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="mt-auto">
-                      <Button
-                        className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full"
-                        size="sm"
-                        onClick={() => {
-                          setBookingTutorId(tutor.id);
-                          setIsCardBookingOpen(true);
-                        }}
-                      >
-                        <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                        Book Tutoring
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              {availableTutors.length > itemsPerPage && (
+              {tutorsData.total > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() =>
-                          handlePageChange(
-                            setTutorsPage,
-                            totalPages(availableTutors, itemsPerPage),
-                            tutorsPage - 1
-                          )
+                          handlePageChange(setTutorsPage, tutorsData.total_pages, tutorsPage - 1)
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(availableTutors, itemsPerPage),
-                    }).map((_, index) => {
+                    {Array.from({ length: tutorsData.total_pages }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === totalPages(availableTutors, itemsPerPage) ||
+                        page === tutorsData.total_pages ||
                         (page >= tutorsPage - 1 && page <= tutorsPage + 1)
                       ) {
                         return (
                           <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={tutorsPage === page}
-                              onClick={() => setTutorsPage(page)}
-                            >
+                            <PaginationLink isActive={tutorsPage === page} onClick={() => setTutorsPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         );
                       } else if (
                         (page === tutorsPage - 2 && tutorsPage > 3) ||
-                        (page === tutorsPage + 2 &&
-                          tutorsPage <
-                            totalPages(availableTutors, itemsPerPage) - 2)
+                        (page === tutorsPage + 2 && tutorsPage < tutorsData.total_pages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -969,11 +908,7 @@ export function TutoringBooking() {
                     <PaginationItem>
                       <PaginationNext
                         onClick={() =>
-                          handlePageChange(
-                            setTutorsPage,
-                            totalPages(availableTutors, itemsPerPage),
-                            tutorsPage + 1
-                          )
+                          handlePageChange(setTutorsPage, tutorsData.total_pages, tutorsPage + 1)
                         }
                       />
                     </PaginationItem>
@@ -997,13 +932,9 @@ export function TutoringBooking() {
             <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
               <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
                 <DialogTitle>
-                  {bookingTutor
-                    ? `Book ${bookingTutor.course} with ${bookingTutor.name}`
-                    : "Book Tutoring"}
+                  {bookingTutor ? `Book ${bookingTutor.course} with ${bookingTutor.teacher_name}` : "Book Tutoring"}
                 </DialogTitle>
-                <DialogDescription>
-                  Choose preferences and we’ll confirm availability.
-                </DialogDescription>
+                <DialogDescription>Choose preferences and we’ll confirm availability.</DialogDescription>
               </DialogHeader>
 
               <div className="px-4 sm:px-6 py-4 overflow-y-auto">
@@ -1016,8 +947,11 @@ export function TutoringBooking() {
                         <SelectValue placeholder="Choose child" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="john">John Adebayo (SS3)</SelectItem>
-                        <SelectItem value="mary">Mary Adebayo (SS1)</SelectItem>
+                        {childrenData.map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id.toString()}>
+                            {ch.name} ({ch.grade})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1033,16 +967,10 @@ export function TutoringBooking() {
                             key={d}
                             className={cn(
                               "flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs sm:text-sm cursor-pointer",
-                              checked
-                                ? "border-[#EF7B55] bg-[#f797712e]"
-                                : "border-muted"
+                              checked ? "border-[#EF7B55] bg-[#f797712e]" : "border-muted"
                             )}
                           >
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(val) => toggleDay(d, val)}
-                              className="mr-1"
-                            />
+                            <Checkbox checked={checked} onCheckedChange={(val) => toggleDay(d, val)} className="mr-1" />
                             {d}
                           </label>
                         );
@@ -1054,26 +982,15 @@ export function TutoringBooking() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pref-time">Preferred Time</Label>
-                      <Select
-                        value={preferredTime}
-                        onValueChange={setPreferredTime}
-                      >
+                      <Select value={preferredTime} onValueChange={setPreferredTime}>
                         <SelectTrigger id="pref-time" className="w-full">
                           <SelectValue placeholder="Select time" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="14:00-15:00">
-                            2:00 PM - 3:00 PM
-                          </SelectItem>
-                          <SelectItem value="15:00-16:00">
-                            3:00 PM - 4:00 PM
-                          </SelectItem>
-                          <SelectItem value="16:00-17:00">
-                            4:00 PM - 5:00 PM
-                          </SelectItem>
-                          <SelectItem value="17:00-18:00">
-                            5:00 PM - 6:00 PM
-                          </SelectItem>
+                          <SelectItem value="14:00-15:00">2:00 PM - 3:00 PM</SelectItem>
+                          <SelectItem value="15:00-16:00">3:00 PM - 4:00 PM</SelectItem>
+                          <SelectItem value="16:00-17:00">4:00 PM - 5:00 PM</SelectItem>
+                          <SelectItem value="17:00-18:00">5:00 PM - 6:00 PM</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1095,9 +1012,7 @@ export function TutoringBooking() {
 
                   {/* Learning Objectives */}
                   <div className="space-y-2">
-                    <Label htmlFor="learning-objectives">
-                      Learning Objectives
-                    </Label>
+                    <Label htmlFor="learning-objectives">Learning Objectives</Label>
                     <Textarea
                       id="learning-objectives"
                       placeholder="e.g., Algebra foundations, differentiation techniques, essay structuring…"
@@ -1111,14 +1026,7 @@ export function TutoringBooking() {
                   {/* Notes */}
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Any other helpful details for the tutor…"
-                      rows={3}
-                      className="w-full"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
+                    <Textarea id="notes" placeholder="Any other helpful details for the tutor…" rows={3} className="w-full" value={notes} onChange={(e) => setNotes(e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -1134,10 +1042,7 @@ export function TutoringBooking() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  onClick={handleBookSubmit}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
+                <Button onClick={handleBookSubmit} className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                   <Video className="h-4 w-4 mr-2" />
                   Book Tutoring
                 </Button>
@@ -1150,55 +1055,32 @@ export function TutoringBooking() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Tutoring
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Tutoring</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {upcomingSessions.length + pastSessions.length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {upcomingSessions.length} upcoming tutoring
-            </p>
+            <div className="text-2xl font-bold">{Number(statsData.total_tutoring ?? 0)}</div>
+            <p className="text-xs text-muted-foreground">{Number(statsData.upcoming_count ?? 0)} upcoming tutoring</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Hours Completed
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Hours Completed</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {pastSessions.reduce(
-                (sum, session) => sum + (session.actualDuration || 60),
-                0
-              ) / 60}
-              h
-            </div>
+            <div className="text-2xl font-bold">{Number(statsData.hours_completed ?? 0)}h</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Average Rating
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {(
-                pastSessions.reduce((sum, session) => sum + session.rating, 0) /
-                pastSessions.length
-              ).toFixed(1)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              From {pastSessions.length} tutoring
-            </p>
+            <div className="text-2xl font-bold">{Number(statsData.average_rating ?? 0).toFixed(1)}</div>
+            <p className="text-xs text-muted-foreground">From {Number(statsData.total_tutoring ?? 0)} tutoring</p>
           </CardContent>
         </Card>
         <Card>
@@ -1207,7 +1089,7 @@ export function TutoringBooking() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{availableTutors.length}</div>
+            <div className="text-2xl font-bold">{Number(statsData.active_tutors ?? 0)}</div>
             <p className="text-xs text-muted-foreground">Available now</p>
           </CardContent>
         </Card>

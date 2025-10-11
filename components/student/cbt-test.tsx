@@ -45,7 +45,7 @@ import { useSession } from "next-auth/react";
 
 async function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("studentDB", 4);
+    const request = indexedDB.open("studentDB", 6);
     request.onupgradeneeded = (event) => {
       const db = request.result;
       if (!db.objectStoreNames.contains("tests")) {
@@ -99,7 +99,7 @@ async function cacheTests(tests) {
         (typeof test.pk === "number" || typeof test.pk === "string") &&
         typeof test.id === "string" &&
         typeof test.title === "string" &&
-        Array.isArray(test.items) &&
+        typeof test.items === "object" && // Allow object for flexibility
         typeof test.duration === "string" &&
         typeof test.difficulty === "string" &&
         typeof test.description === "string" &&
@@ -114,7 +114,7 @@ async function cacheTests(tests) {
       pk: test.pk,
       id: test.id,
       title: test.title,
-      questions: Array.isArray(test.items) ? test.items : [],
+      questions: test.items || [], // Use items if array, else empty
       duration: test.duration || "30 minutes",
       difficulty: test.difficulty || "Unknown",
       description: test.description || "",
@@ -213,9 +213,9 @@ async function queueSubmission(body) {
   const db = await openDB();
   const tx = db.transaction("pendingSubmissions", "readwrite");
   const store = tx.objectStore("pendingSubmissions");
-  await store.put({ testPk: body.currentTest, ...body, queuedAt: Date.now() });
+  await store.put({ testPk: body.test, ...body, queuedAt: Date.now() });
   await tx.done;
-  console.log("[CBTTest] Queued submission for test:", body.currentTest);
+  console.log("[CBTTest] Queued submission for test:", body.test);
 }
 
 export function CBTTest() {
@@ -246,17 +246,20 @@ export function CBTTest() {
   const [error, setError] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showSyncMessage, setShowSyncMessage] = useState(false);
-  const [showSyncSuccess, setShowSyncSuccess] = useState(false); // New: For green success banner
+  const [showSyncSuccess, setShowSyncSuccess] = useState(false);
   const [showAnswersModal, setShowAnswersModal] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false); // New: Prevent overlapping sync calls
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [hasPendingSubmission, setHasPendingSubmission] = useState(false);
+  const [pendingStartTestPk, setPendingStartTestPk] = useState(null);
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to hold interval ID
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   async function syncSubmissions() {
-    if (!navigator.onLine || !sessionToken || isSyncing) return; // Debounce: Skip if already running
+    if (!navigator.onLine || !sessionToken || isSyncing) return;
     setIsSyncing(true);
 
     const db = await openDB();
@@ -267,7 +270,6 @@ export function CBTTest() {
     if (submissions.length === 0) {
       console.log("[CBTTest] syncSubmissions: No pending submissions");
       setIsSyncing(false);
-      // Clear interval if no more pending
       if (syncIntervalRef.current) {
         clearInterval(syncIntervalRef.current);
         syncIntervalRef.current = null;
@@ -282,7 +284,6 @@ export function CBTTest() {
     let successfulCount = 0;
     let totalProcessed = 0;
 
-    // Sequential processing: One by one, in queue order (FIFO)
     for (const submission of submissions) {
       totalProcessed++;
       console.log(
@@ -315,7 +316,6 @@ export function CBTTest() {
           err
         );
       }
-      // Continue to next even if this one fails (don't break)
     }
 
     await tx.done;
@@ -325,7 +325,6 @@ export function CBTTest() {
       `[CBTTest] Sequential batch complete: ${successfulCount}/${totalProcessed} succeeded`
     );
 
-    // Full success? Show green banner and stop interval
     if (successfulCount === submissions.length && submissions.length > 0) {
       setShowSyncMessage(false);
       setShowSyncSuccess(true);
@@ -335,7 +334,6 @@ export function CBTTest() {
         syncIntervalRef.current = null;
       }
     }
-    // Partial? Keep interval running for next sequential retry
   }
 
   const handleResetToList = () => {
@@ -351,11 +349,9 @@ export function CBTTest() {
     setSuspiciousActivity(0);
     setIsSecureMode(false);
     setBrowserLocked(false);
-    setShowSyncMessage(false); // Hide sync banner on reset (background still runs)
+    setShowSyncMessage(false);
     setError(null);
-    // Trigger a sync check (in case online now)
     syncSubmissions();
-    // Force offline check post-reset
     setIsOffline(!navigator.onLine);
   };
 
@@ -411,7 +407,6 @@ export function CBTTest() {
     };
   }, [sessionToken]);
 
-  // Background retry: Initial sync + 10s interval when online
   useEffect(() => {
     if (!navigator.onLine || !sessionToken) {
       if (syncIntervalRef.current) {
@@ -421,14 +416,12 @@ export function CBTTest() {
       return;
     }
 
-    // Debounced initial sync
-    const timeoutId = setTimeout(() => syncSubmissions(), 1000); // Slight delay to avoid overlap on mount
+    const timeoutId = setTimeout(() => syncSubmissions(), 1000);
 
-    // Set up interval (if not running)
     if (!syncIntervalRef.current) {
       syncIntervalRef.current = setInterval(() => {
         console.log("[CBTTest] Interval tick: Checking for pending syncs...");
-        if (!isSyncing) syncSubmissions(); // Skip if already running
+        if (!isSyncing) syncSubmissions();
       }, 10000);
     }
 
@@ -439,17 +432,14 @@ export function CBTTest() {
         syncIntervalRef.current = null;
       }
     };
-  }, [navigator.onLine, sessionToken, isSyncing]); // Depend on isSyncing to restart if needed
+  }, [navigator.onLine, sessionToken, isSyncing]);
 
-  // Force offline check on list view render (ensures banner shows post-reset)
   useEffect(() => {
     if (!currentTest && !testCompleted && !loading) {
-      // Only in list view
       setIsOffline(!navigator.onLine);
     }
-  }, [currentTest, testCompleted, loading, navigator.onLine]); // Re-check on view change/online status
+  }, [currentTest, testCompleted, loading, navigator.onLine]);
 
-  // Cleanup interval on component unmount
   useEffect(() => {
     return () => {
       if (syncIntervalRef.current) {
@@ -667,6 +657,44 @@ export function CBTTest() {
       return;
     }
 
+    const db = await openDB();
+    const tx = db.transaction(["answers", "pendingSubmissions"], "readonly");
+    const answersStore = tx.objectStore("answers");
+    const pendingStore = tx.objectStore("pendingSubmissions");
+    const saved = await answersStore.get(testPk);
+    const pending = await pendingStore.get(testPk);
+    await tx.done;
+
+    if (pending) {
+      setHasPendingSubmission(true);
+      setShowResumeDialog(true);
+      setPendingStartTestPk(testPk);
+      return;
+    } else if (saved) {
+      setHasPendingSubmission(false);
+      setShowResumeDialog(true);
+      setPendingStartTestPk(testPk);
+      return;
+    }
+
+    // Proceed if no saved or pending
+    await handleStartTestProceed(testPk, false); // false for not clearing
+  };
+
+  const handleStartTestProceed = async (testPk, clear = false) => {
+    const test = availableTests.find((t) => t.pk.toString() === testPk);
+    if (!test) return;
+
+    if (clear) {
+      const db = await openDB();
+      const tx = db.transaction(["answers", "pendingSubmissions"], "readwrite");
+      const answersStore = tx.objectStore("answers");
+      const pendingStore = tx.objectStore("pendingSubmissions");
+      await answersStore.delete(testPk);
+      await pendingStore.delete(testPk);
+      await tx.done;
+    }
+
     const mappedQuestions = test.items.map((item) => ({
       id: item.id,
       type: item.type === "scq" ? "multiple-choice" : item.type,
@@ -693,7 +721,6 @@ export function CBTTest() {
     setCurrentTest(testPk);
     setCurrentQuestion(0);
     setAnswers(saved?.answers || {});
-    setTestCompleted(false);
     const duration =
       test?.id === "semester-exam-math"
         ? 7200
@@ -709,6 +736,15 @@ export function CBTTest() {
     if (test?.type === "exam") {
       setExamAttempts((prev) => prev + 1);
     }
+  };
+
+  const handleDialogConfirm = async (choice) => {
+    setShowResumeDialog(false);
+    if (!pendingStartTestPk) return;
+    const clear = (choice === 'restart') || hasPendingSubmission;
+    await handleStartTestProceed(pendingStartTestPk, clear);
+    setPendingStartTestPk(null);
+    setHasPendingSubmission(false);
   };
 
   const handleStartTest = (testPk) => {
@@ -797,7 +833,7 @@ export function CBTTest() {
       started_at: startTime,
       duration_seconds: initialTime - timeLeft,
       suspicious_activity: suspiciousActivity,
-      currentTest,
+      test: currentTest,
     };
 
     if (navigator.onLine && sessionToken) {
@@ -825,16 +861,14 @@ export function CBTTest() {
         await queueSubmission(body);
         setShowSyncMessage(true);
         console.log(
-          `[CBTTest] Queued test ${body.currentTest} – triggering sequential retry...`
+          `[CBTTest] Queued test ${body.test} – triggering sequential retry...`
         );
-        // Debounced trigger: Wait 1s before initial sequential batch (avoids overlap)
         setTimeout(() => syncSubmissions(), 1000);
         setShowSyncMessage(true);
       }
     } else {
       await queueSubmission(body);
       setShowSyncMessage(true);
-      // Debounced trigger: Wait 1s before initial retry (avoids overlap with interval)
       setTimeout(() => syncSubmissions(), 1000);
     }
 
@@ -1107,7 +1141,59 @@ export function CBTTest() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{hasPendingSubmission ? "Pending Submission" : "Resume Test"}</DialogTitle>
+              <DialogDescription>
+                {hasPendingSubmission 
+                  ? "Your previous attempt was submitted offline and is waiting to sync. Starting a new attempt will discard the previous one." 
+                  : "You have saved progress for this test. Would you like to resume or start over?"}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => { 
+                  setShowResumeDialog(false); 
+                  setPendingStartTestPk(null); 
+                  setHasPendingSubmission(false); 
+                }}
+              >
+                Cancel
+              </Button>
+              {hasPendingSubmission ? (
+                <Button 
+                  onClick={() => handleDialogConfirm('restart')}
+                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                >
+                  Start New Attempt
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    onClick={() => handleDialogConfirm('resume')}
+                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                  >
+                    Resume
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => handleDialogConfirm('restart')}
+                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                  >
+                    Restart
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={showLeaveDialog}
+          onOpenChange={setShowLeaveDialog}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -1335,6 +1421,55 @@ export function CBTTest() {
           </p>
         </div>
       )}
+      <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{hasPendingSubmission ? "Pending Submission" : "Resume Test"}</DialogTitle>
+            <DialogDescription>
+              {hasPendingSubmission 
+                ? "Your previous attempt was submitted offline and is waiting to sync. Starting a new attempt will discard the previous one." 
+                : "You have saved progress for this test. Would you like to resume or start over?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { 
+                setShowResumeDialog(false); 
+                setPendingStartTestPk(null); 
+                setHasPendingSubmission(false); 
+              }}
+              className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+            >
+              Cancel
+            </Button>
+            {hasPendingSubmission ? (
+              <Button 
+                onClick={() => handleDialogConfirm('restart')}
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+              >
+                Start New Attempt
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  onClick={() => handleDialogConfirm('resume')}
+                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                >
+                  Resume
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => handleDialogConfirm('restart')}
+                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                >
+                  Restart
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
         <DialogContent>
           <DialogHeader>

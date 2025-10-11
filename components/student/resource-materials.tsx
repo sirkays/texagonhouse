@@ -47,8 +47,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { openDB } from "idb";
-import toast from "react-hot-toast";
 
 interface Resource {
   id: string;
@@ -108,7 +106,6 @@ export function ResourceMaterials() {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const itemsPerPage = 3;
 
@@ -133,188 +130,6 @@ export function ResourceMaterials() {
     videos: [],
     audio: [],
     journals: [],
-  };
-
-  const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB max storage
-
-  // Initialize IndexedDB
-  const openDB = async () => {
-    const dbName = "studentDB";
-    const storeName = "resources";
-    const version = 6; // New store, start with version 6 to avoid conflicts
-
-    return new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(dbName, version);
-
-      request.onupgradeneeded = (event) => {
-        const db = request.result;
-        console.log(`[ResourceMaterials] Upgrading database ${dbName} to version ${version}`);
-        if (!db.objectStoreNames.contains("dashboard")) {
-          db.createObjectStore("dashboard", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("liveSessions")) {
-          db.createObjectStore("liveSessions", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains("tests")) {
-          db.createObjectStore("tests", { keyPath: "testId" });
-        }
-        if (!db.objectStoreNames.contains("modules")) {
-          db.createObjectStore("modules", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("activeModules")) {
-          db.createObjectStore("activeModules", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains("materials")) {
-          db.createObjectStore("materials", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: "key" });
-          console.log(`[ResourceMaterials] Created object store ${storeName}`);
-        }
-      };
-
-      request.onsuccess = () => {
-        console.log(`[ResourceMaterials] Opened database ${dbName}`);
-        resolve(request.result);
-      };
-
-      request.onerror = () => {
-        console.error(`[ResourceMaterials] Error opening database ${dbName}:`, request.error);
-        reject(request.error);
-      };
-    });
-  };
-
-  // Cache resources data in IndexedDB
-  const cacheResourcesData = async (data: ResourcesData) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("resources", "readwrite");
-      const store = tx.objectStore("resources");
-      await store.put({ key: "resource-materials", data });
-      await tx.done;
-      console.log("[ResourceMaterials] Resources data cached successfully");
-    } catch (error) {
-      console.error("[ResourceMaterials] Error caching resources data:", error);
-    }
-  };
-
-  // Load resources from IndexedDB
-  const loadResourcesFromDB = async () => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("resources", "readonly");
-      const store = tx.objectStore("resources");
-      const cachedData = await store.get("resource-materials");
-      if (cachedData?.data) {
-        setResourcesData(cachedData.data);
-        setCategories(cachedData.data.categories || []);
-        setSelectedCourseId(cachedData.data.selected_course_id || null);
-        setSelectedModuleId(cachedData.data.selected_module_id || null);
-        setError(null);
-        console.log("[ResourceMaterials] Loaded resources from IndexedDB");
-      } else {
-        setResourcesData(fallbackResources);
-        setCategories(fallbackResources.categories);
-        console.warn("[ResourceMaterials] No cached resources found, using fallback data");
-      }
-    } catch (error) {
-      console.error("[ResourceMaterials] Error loading resources from DB:", error);
-      setResourcesData(fallbackResources);
-      setCategories(fallbackResources.categories);
-    }
-    setLoading(false);
-  };
-
-  // Check cache size for media
-  const checkCacheSize = async (db: IDBDatabase) => {
-    const tx = db.transaction("resources", "readwrite");
-    const store = tx.objectStore("resources");
-    const allMedia = await store.getAll();
-    let totalSize = 0;
-    if (Array.isArray(allMedia)) {
-      totalSize = allMedia.reduce((sum, item) => sum + (item.content?.size || 0), 0);
-    } else {
-      console.warn("[ResourceMaterials] allMedia is not an array:", allMedia);
-    }
-
-    if (totalSize > MAX_CACHE_SIZE) {
-      const sortedMedia = allMedia.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      while (totalSize > MAX_CACHE_SIZE && sortedMedia.length > 0) {
-        const oldest = sortedMedia.shift();
-        await store.delete(oldest.key);
-        totalSize -= oldest.content?.size || 0;
-        console.log(`[ResourceMaterials] Deleted old cache for key ${oldest.key} to free space`);
-      }
-    }
-    await tx.done;
-  };
-
-  const cacheMedia = async (key: string, url: string, contentType: string) => {
-    if (!navigator.onLine) {
-      console.log(`[ResourceMaterials] Offline, skipping cache attempt for key ${key}`);
-      return false;
-    }
-    try {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(url)}`;
-      console.log(`[ResourceMaterials] Attempting to cache ${contentType} for key ${key}: ${proxyUrl}`);
-      const response = await fetch(proxyUrl, {
-        headers: headers(sessionToken),
-      });
-      console.log(`[ResourceMaterials] Cache response:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        url: proxyUrl,
-      });
-
-      if (!response.ok) {
-        const rawResponse = await response.text();
-        console.error(`[ResourceMaterials] Cache failed:`, {
-          status: response.status,
-          statusText: response.statusText,
-          body: rawResponse.slice(0, 200),
-          url: proxyUrl,
-        });
-        throw new Error(`Failed to fetch ${contentType}: ${response.status} ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      console.log(`[ResourceMaterials] Created blob URL for key ${key}: ${objectUrl}`);
-
-      const db = await openDB();
-      await checkCacheSize(db);
-      const tx = db.transaction("resources", "readwrite");
-      const store = tx.objectStore("resources");
-      await store.put({ key, content: blob, contentType, timestamp: Date.now() });
-      await tx.done;
-      console.log(`[ResourceMaterials] Successfully cached ${contentType} for key ${key}`);
-      return true;
-    } catch (error) {
-      console.error(`[ResourceMaterials] Error caching ${contentType} for key ${key}:`, error);
-      toast.error(`Failed to cache ${contentType}. It may not be available offline.`);
-      return false;
-    }
-  };
-
-  const loadMediaFromDB = async (key: string) => {
-    try {
-      const db = await openDB();
-      const tx = db.transaction("resources", "readonly");
-      const store = tx.objectStore("resources");
-      const data = await store.get(key);
-      if (data?.content) {
-        const blobUrl = URL.createObjectURL(data.content);
-        console.log(`[ResourceMaterials] Loaded blob URL for key ${key}: ${blobUrl}`);
-        return blobUrl;
-      }
-      console.log(`[ResourceMaterials] No cached media found for key ${key}`);
-      return null;
-    } catch (error) {
-      console.error(`[ResourceMaterials] Error loading media for key ${key}:`, error);
-      return null;
-    }
   };
 
   const handleLogout = async () => {
@@ -351,11 +166,6 @@ export function ResourceMaterials() {
     }
   };
 
-  const headers = (sessionToken: string | undefined) => ({
-    Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-    ...(sessionToken && { "X-Session-Token": sessionToken }),
-  });
-
   useEffect(() => {
     const fetchResources = async () => {
       if (status !== "authenticated" || !sessionToken) {
@@ -364,7 +174,9 @@ export function ResourceMaterials() {
           status
         );
         setError("Not authenticated");
-        loadResourcesFromDB();
+        setResourcesData(fallbackResources);
+        setCategories(fallbackResources.categories);
+        setLoading(false);
         return;
       }
 
@@ -400,24 +212,28 @@ export function ResourceMaterials() {
             "[ResourceMaterials] Fetch failed with status:",
             response.status
           );
-          if (response.status === 401 || response.status === 403) {
+          if (response.status === 401) {
             setError("Session expired");
-            loadResourcesFromDB();
+            setResourcesData(fallbackResources);
+            setCategories(fallbackResources.categories);
+            setLoading(false);
             return;
           }
-          setError(
-            response.status === 404
-              ? "Resources not found"
-              : "Failed to fetch resources"
-          );
+          if (response.status === 404) {
+            setError("Resources not found");
+            setResourcesData(fallbackResources);
+            setCategories([]);
+            setLoading(false);
+            return;
+          }
+          setError("Failed to fetch resources");
           setResourcesData(fallbackResources);
-          setCategories([]);
+          setCategories(fallbackResources.categories);
           throw new Error("Fetch failed");
         }
         const data = await response.json();
         console.log("[ResourceMaterials] Fetch response data:", data);
         setResourcesData(data);
-        await cacheResourcesData(data);
         setCategories(data.categories || []);
         setSelectedCourseId(
           data.selected_course_id || data.courses?.[0]?.id || null
@@ -427,356 +243,48 @@ export function ResourceMaterials() {
       } catch (e) {
         console.error("[ResourceMaterials] Fetch error:", e);
         setError("Failed to fetch resources");
-        loadResourcesFromDB();
+        setResourcesData(fallbackResources);
+        setCategories(fallbackResources.categories);
       } finally {
         setLoading(false);
       }
     };
 
-    const handleOnline = () => {
-      setIsOffline(false);
-      fetchResources();
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-      loadResourcesFromDB();
-    };
-
-    if (navigator.onLine) {
-      fetchResources();
-    } else {
-      handleOffline();
-    }
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+    fetchResources();
   }, [sessionToken, status, searchQuery, selectedCourseId, selectedModuleId]);
 
-  const handlePreviewPdf = async (pdf: Resource) => {
-    if (!pdf.pdfUrl) {
-      console.error("[ResourceMaterials] No PDF URL for:", pdf.title);
-      toast.error("No PDF URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(pdf.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(pdf.pdfUrl)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(pdf.id);
-            if (!finalUrl) {
-              toast.error("No cached PDF available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load PDF: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("resources", "readwrite");
-          const store = tx.objectStore("resources");
-          await store.put({ key: pdf.id, content: blob, contentType: "pdf", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[ResourceMaterials] Fetch/cache error for PDF:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(pdf.id);
-          if (!finalUrl) {
-            toast.error("No cached PDF available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load PDF from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load PDF" : "PDF not available offline");
-      return;
-    }
-
-    setSelectedPdf({ ...pdf, pdfUrl: finalUrl });
+  const handlePreviewPdf = (pdf: Resource) => {
+    setSelectedPdf(pdf);
     setPdfViewerOpen(true);
   };
 
-  const handleDownloadPdf = async (pdf: Resource) => {
-    if (!pdf.pdfUrl) {
-      console.error("[ResourceMaterials] No PDF URL for download:", pdf.title);
-      toast.error("No PDF URL available for download");
-      return;
-    }
-
-    let finalUrl: string | null = pdf.pdfUrl;
-
-    const cachedUrl = await loadMediaFromDB(pdf.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    } else if (navigator.onLine) {
-      // Attempt to cache for future offline use
-      await cacheMedia(pdf.id, pdf.pdfUrl, "pdf");
-      const newCachedUrl = await loadMediaFromDB(pdf.id);
-      if (newCachedUrl) {
-        finalUrl = newCachedUrl;
-      }
-    }
-
+  const handleDownloadPdf = (pdf: Resource) => {
     const link = document.createElement("a");
-    link.href = finalUrl;
-    link.download = pdf.title || "document.pdf";
+    link.href = pdf.pdfUrl || "#";
+    link.download = pdf.title;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handleWatchVideo = async (video: Resource) => {
-    if (!video.videoUrl) {
-      console.error("[ResourceMaterials] No video URL for:", video.title);
-      toast.error("No video URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(video.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(video.videoUrl)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(video.id);
-            if (!finalUrl) {
-              toast.error("No cached video available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load video: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("resources", "readwrite");
-          const store = tx.objectStore("resources");
-          await store.put({ key: video.id, content: blob, contentType: "video", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[ResourceMaterials] Fetch/cache error for video:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(video.id);
-          if (!finalUrl) {
-            toast.error("No cached video available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load video from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load video" : "Video not available offline");
-      return;
-    }
-
-    setSelectedVideo({ ...video, videoUrl: finalUrl });
+  const handleWatchVideo = (video: Resource) => {
+    setSelectedVideo(video);
     setVideoModalOpen(true);
   };
 
-  const handlePlayAudio = async (audio: Resource) => {
-    if (!audio.audioUrl) {
-      console.error("[ResourceMaterials] No audio URL for:", audio.title);
-      toast.error("No audio URL available");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(audio.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(audio.audioUrl)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(audio.id);
-            if (!finalUrl) {
-              toast.error("No cached audio available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load audio: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("resources", "readwrite");
-          const store = tx.objectStore("resources");
-          await store.put({ key: audio.id, content: blob, contentType: "audio", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[ResourceMaterials] Fetch/cache error for audio:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(audio.id);
-          if (!finalUrl) {
-            toast.error("No cached audio available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load audio from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load audio" : "Audio not available offline");
-      return;
-    }
-
-    setSelectedAudio({ ...audio, audioUrl: finalUrl });
+  const handlePlayAudio = (audio: Resource) => {
+    setSelectedAudio(audio);
     setAudioPlayerOpen(true);
   };
 
-  const handleReadJournal = async (journal: Resource) => {
-    if (!journal.url) {
-      console.error("[ResourceMaterials] No URL for journal:", journal.title);
-      toast.error("No URL available for journal");
-      return;
-    }
-
-    let finalUrl: string | null = null;
-
-    const cachedUrl = await loadMediaFromDB(journal.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    }
-
-    if (!finalUrl && navigator.onLine) {
-      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(journal.url)}`;
-      try {
-        const response = await fetch(proxyUrl, { headers: headers(sessionToken) });
-        if (!response.ok) {
-          let errorText = await response.text();
-          try { errorText = JSON.parse(errorText).details || errorText; } catch {}
-          if (response.status === 500 && errorText.includes("fetch failed")) {
-            toast.error("Network error to backend. Using cached version if available.");
-            finalUrl = await loadMediaFromDB(journal.id);
-            if (!finalUrl) {
-              toast.error("No cached journal available offline.");
-              return;
-            }
-          } else {
-            toast.error(`Failed to load journal: ${response.status} ${errorText.slice(0, 100)}`);
-            return;
-          }
-        } else {
-          const blob = await response.blob();
-          const db = await openDB();
-          await checkCacheSize(db);
-          const tx = db.transaction("resources", "readwrite");
-          const store = tx.objectStore("resources");
-          await store.put({ key: journal.id, content: blob, contentType: "pdf", timestamp: Date.now() });
-          await tx.done;
-          finalUrl = URL.createObjectURL(blob);
-        }
-      } catch (error) {
-        console.error("[ResourceMaterials] Fetch/cache error for journal:", error);
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-          toast.error("Network error. Using cached version if available.");
-          finalUrl = await loadMediaFromDB(journal.id);
-          if (!finalUrl) {
-            toast.error("No cached journal available offline.");
-            return;
-          }
-        } else {
-          toast.error("Failed to load journal from server");
-          return;
-        }
-      }
-    }
-
-    if (!finalUrl) {
-      toast.error(navigator.onLine ? "Failed to load journal" : "Journal not available offline");
-      return;
-    }
-
-    window.open(finalUrl, "_blank");
+  const handleReadJournal = (journal: Resource) => {
+    window.open(`/journal/${journal.id}`, "_blank");
   };
 
-  const handleDownloadJournal = async (journal: Resource) => {
-    if (!journal.url) {
-      console.error("[ResourceMaterials] No URL for journal download:", journal.title);
-      toast.error("No URL available for journal download");
-      return;
-    }
-
-    let finalUrl: string | null = journal.url;
-
-    const cachedUrl = await loadMediaFromDB(journal.id);
-    if (cachedUrl) {
-      finalUrl = cachedUrl;
-    } else if (navigator.onLine) {
-      await cacheMedia(journal.id, journal.url, "pdf");
-      const newCachedUrl = await loadMediaFromDB(journal.id);
-      if (newCachedUrl) {
-        finalUrl = newCachedUrl;
-      }
-    }
-
+  const handleDownloadJournal = (journal: Resource) => {
     const link = document.createElement("a");
-    link.href = finalUrl;
-    link.download = `${journal.title}.pdf` || "journal.pdf";
+    link.href = journal.url || `#`;
+    link.download = `${journal.title}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1033,29 +541,29 @@ export function ResourceMaterials() {
         ))}
       </div>
 
-      <Tabs defaultValue="pdfs" className="w-full">
+      <Tabs defaultValue="pdfs" className="w-full mr-auto relative">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="pdfs"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
           <TabsTrigger
             value="videos"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Video className="h-4 w-4" />
             Videos
           </TabsTrigger>
           <TabsTrigger
             value="audio"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
           <TabsTrigger
             value="journals"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <BookOpen className="h-4 w-4" />
             Journals
           </TabsTrigger>

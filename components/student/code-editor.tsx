@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useRef, useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   Download,
@@ -24,14 +24,56 @@ import {
   RotateCcw,
   AlertCircle,
   LogIn,
+  MessageSquare,
+  Send,
 } from "lucide-react";
-import {Textarea} from "@/components/ui/textarea";
-import {Alert, AlertDescription} from "@/components/ui/alert";
-import {useSession} from "next-auth/react";
-import {Spinner} from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
+
+/* -------------------------------------------------- */
+/* Types from backend docs                            */
+/* -------------------------------------------------- */
+type Snippet = {
+  id: number;
+  lesson: number | null;
+  title: string;
+  language: string;
+  code_text: string;
+  meta: any;
+  created_at: string;
+  updated_at: string;
+};
+
+type Submission = {
+  id: number;
+  lesson: number;
+  student: number;
+  language: string;
+  code_text: string;
+  status: "submitted" | "graded" | "revised";
+  score: string | null;
+  feedback: string;
+  correction_code: string;
+  graded_by: number | null;
+  graded_at: string | null;
+  created_at: string;
+  updated_at: string;
+  comments: Comment[];
+};
+
+type Comment = {
+  id: number;
+  author: number;
+  author_role: "student" | "teacher";
+  author_name: string;
+  message: string;
+  created_at: string;
+};
 
 export function CodeEditor() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
@@ -41,278 +83,127 @@ export function CodeEditor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [selectedLesson, setSelectedLesson] = useState("");
 
+  /* ---------- lesson list from real snippets ---------- */
+  const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
+  const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
+
+  /* ==========  SNIPPET ROUTES  =================== */
+  const fetchSnippets = async (lessonId?: string) => {
+    const u = new URL("/api/code-ide/snippets", window.location.origin);
+    if (lessonId) u.searchParams.set("lesson", lessonId);
+    const r = await fetch(u);
+    if (!r.ok) throw new Error("Failed to fetch snippets");
+    return r.json() as Promise<Snippet[]>;
+  };
+
+  const fetchSnippetDetail = async (id: number) => {
+    const r = await fetch(`/api/code-ide/snippets/${id}`);
+    if (!r.ok) throw new Error("Failed to fetch snippet detail");
+    return r.json() as Promise<Snippet>;
+  };
+
+  const saveSnippet = async () => {
+    if (!session?.user?.sessionToken) return;
+    const body = {
+      lesson: selectedLesson || null,
+      title: `Draft ${new Date().toISOString()}`,
+      language: selectedLanguage,
+      code_text: code,
+      meta: {},
+    };
+    const res = await fetch("/api/code-ide/snippets/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("Save failed");
+    const created: Snippet = await res.json();
+    setMySnippets((prev) => [created, ...prev]);
+  };
+
+  /* ==========  SUBMISSION ROUTES  ================ */
+  const fetchSubmissions = async (lessonId?: string) => {
+    const u = new URL("/api/code-ide/submissions", window.location.origin);
+    if (lessonId) u.searchParams.set("lesson", lessonId);
+    const r = await fetch(u);
+    if (!r.ok) throw new Error("Failed to fetch submissions");
+    return r.json() as Promise<Submission[]>;
+  };
+
+  const fetchSubmissionDetail = async (id: number) => {
+    const r = await fetch(`/api/code-ide/submissions/${id}`);
+    if (!r.ok) throw new Error("Failed to fetch submission detail");
+    return r.json() as Promise<Submission>;
+  };
+
+  const createSubmission = async () => {
+    if (!selectedLesson) throw new Error("No lesson selected");
+    const body = { lesson: selectedLesson, language: selectedLanguage, code_text: code };
+    const res = await fetch("/api/code-ide/submissions/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("Submission failed");
+    const created: Submission = await res.json();
+    setMySubmissions((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const gradeSubmission = async (
+    id: number,
+    updates: { score?: string; feedback?: string; correction_code?: string; status?: "graded" | "revised" }
+  ) => {
+    const res = await fetch(`/api/code-ide/submissions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error("Grading failed");
+    const updated: Submission = await res.json();
+    setMySubmissions((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    return updated;
+  };
+
+  /* ==========  COMMENT ROUTE  ==================== */
+  const addComment = async (submissionId: number, message: string) => {
+    const res = await fetch(`/api/code-ide/submissions/${submissionId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) throw new Error("Comment failed");
+    return res.json() as Promise<Comment>;
+  };
+
+  /* -------------------------------------------------- */
+  /* UI  helpers                                        */
+  /* -------------------------------------------------- */
   const languages = {
-    javascript: {
-      name: "JavaScript",
-      judgeId: 63, // Node.js
-      template: `// JavaScript Code
-console.log("Hello, World!");
-
-// Example: Calculate factorial
-function factorial(n) {
-  if (n <= 1) return 1;
-  return n * factorial(n - 1);
-}
-
-console.log("Factorial of 5:", factorial(5));
-
-// Example: Array operations
-const numbers = [1, 2, 3, 4, 5];
-const doubled = numbers.map(n => n * 2);
-console.log("Doubled array:", doubled);`,
-    },
-    python: {
-      name: "Python",
-      judgeId: 71, // Python 3
-      template: `# Python Code
-print("Hello, World!")
-
-# Example: Calculate factorial
-def factorial(n):
-    if n <= 1:
-        return 1
-    return n * factorial(n - 1)
-
-print("Factorial of 5:", factorial(5))
-
-# Example: List comprehension
-numbers = [1, 2, 3, 4, 5]
-doubled = [n * 2 for n in numbers]
-print("Doubled list:", doubled)
-
-# Example: Working with dictionaries
-person = {"name": "Alice", "age": 30}
-print(f"Person: {person['name']}, Age: {person['age']}")`,
-    },
-    java: {
-      name: "Java",
-      judgeId: 62, // Java 8
-      template: `// Java Code
-import java.util.*;
-
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("Hello, World!");
-        
-        // Example: Calculate factorial
-        System.out.println("Factorial of 5: " + factorial(5));
-        
-        // Example: Array operations
-        int[] numbers = {1, 2, 3, 4, 5};
-        System.out.print("Original array: ");
-        System.out.println(Arrays.toString(numbers));
-        
-        // Double the array elements
-        for (int i = 0; i < numbers.length; i++) {
-            numbers[i] *= 2;
-        }
-        System.out.print("Doubled array: ");
-        System.out.println(Arrays.toString(numbers));
-        
-        // Example: ArrayList
-        ArrayList<String> fruits = new ArrayList<>();
-        fruits.add("Apple");
-        fruits.add("Banana");
-        fruits.add("Orange");
-        System.out.println("Fruits: " + fruits);
-    }
-    
-    public static int factorial(int n) {
-        if (n <= 1) return 1;
-        return n * factorial(n - 1);
-    }
-}`,
-    },
-    cpp: {
-      name: "C++",
-      judgeId: 54, // C++ 17
-      template: `// C++ Code
-#include <iostream>
-#include <vector>
-#include <algorithm>
-using namespace std;
-
-int factorial(int n) {
-    if (n <= 1) return 1;
-    return n * factorial(n - 1);
-}
-
-int main() {
-    cout << "Hello, World!" << endl;
-    cout << "Factorial of 5: " << factorial(5) << endl;
-    
-    // Example: Vector operations
-    vector<int> numbers = {1, 2, 3, 4, 5};
-    cout << "Original vector: ";
-    for (int num : numbers) {
-        cout << num << " ";
-    }
-    cout << endl;
-    
-    // Double the vector elements
-    transform(numbers.begin(), numbers.end(), numbers.begin(), 
-              [](int n) { return n * 2; });
-    
-    cout << "Doubled vector: ";
-    for (int num : numbers) {
-        cout << num << " ";
-    }
-    cout << endl;
-    
-    return 0;
-}`,
-    },
-    html: {
-      name: "HTML",
-      judgeId: null,
-      template: `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Web Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .feature {
-            margin: 20px 0;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Welcome to My Web Page</h1>
-        <div class="feature">
-            <h3>Feature 1</h3>
-            <p>This is a sample HTML page with CSS styling.</p>
-        </div>
-        <div class="feature">
-            <h3>Feature 2</h3>
-            <p>You can edit this code and see the preview in real-time.</p>
-        </div>
-        <div class="feature">
-            <h3>Interactive Element</h3>
-            <button onclick="alert('Hello from JavaScript!')">Click Me!</button>
-        </div>
-    </div>
-    
-    <script>
-        console.log("Page loaded successfully!");
-    </script>
-</body>
-</html>`,
-    },
-    css: {
-      name: "CSS",
-      judgeId: null,
-      template: `/* CSS Code */
-body {
-    font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    margin: 0;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 30px;
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-    color: white;
-}
-
-.card {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 20px;
-    margin: 15px 0;
-    border-radius: 10px;
-    transition: transform 0.3s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-}
-
-.button {
-    background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}`,
-    },
+    javascript: { name: "JavaScript", judgeId: 63, template: `console.log("Hello, World!");` },
+    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
+    java: { name: "Java", judgeId: 62, template: `System.out.println("Hello");` },
+    cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
+    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
+    css: { name: "CSS", judgeId: null, template: `body{color:red;}` },
   };
 
   const handleLogout = async () => {
-    console.log(
-      "[CodeEditor] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
-    try {
-      const response = await fetch("/api/auth/logout-route", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-      });
-      console.log("[CodeEditor] Logout API response status:", response.status);
-      const data = await response.json();
-      console.log("[CodeEditor] Logout API response:", data);
-      if (!response.ok) {
-        console.error("[CodeEditor] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
-      }
-      console.log("[CodeEditor] Logout successful, redirecting to /login");
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("[CodeEditor] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
-    }
+    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
+    document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+    document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+    window.location.href = "/login";
   };
 
+  /* -------------------------------------------------- */
+  /* side effects                                       */
+  /* -------------------------------------------------- */
   useEffect(() => {
-    console.log(
-      "[CodeEditor] Checking authentication status:",
-      status,
-      "sessionToken:",
-      session?.user?.sessionToken
-    );
-    if (status === "loading") {
-      setLoading(true);
-    } else if (status !== "authenticated" || !session?.user?.sessionToken) {
-      console.log("[CodeEditor] Session not authenticated");
+    if (status === "loading") return;
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
       setError("Not authenticated");
       setLoading(false);
     } else {
@@ -322,300 +213,157 @@ body {
     }
   }, [session, status, selectedLanguage]);
 
-  const executeCodeOnline = async (sourceCode: string, languageId: number) => {
-    console.log("[CodeEditor] Executing code online, languageId:", languageId);
-    try {
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
-        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-      };
-      if (session?.user?.sessionToken) {
-        headers["X-Session-Token"] = session.user.sessionToken;
-      }
-      const submitResponse = await fetch(
-        "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            source_code: sourceCode,
-            language_id: languageId,
-            stdin: "",
-          }),
-        }
-      );
+  /* auto-save */
+  useEffect(() => {
+    const t = setTimeout(() => saveSnippet().catch(() => {}), 10_000);
+    return () => clearTimeout(t);
+  }, [code, selectedLanguage, selectedLesson]);
 
-      console.log(
-        "[CodeEditor] Judge0 API response status:",
-        submitResponse.status
-      );
-      if (!submitResponse.ok) {
-        console.error(
-          "[CodeEditor] Judge0 API failed with status:",
-          submitResponse.status
-        );
-        if (submitResponse.status === 401 || submitResponse.status === 403) {
-          setError("Session expired");
-          return "Session expired. Please log in again.";
-        }
-        throw new Error("Failed to submit code for execution");
-      }
+  /* initial load: lessons + my submissions + my snippets */
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    Promise.all([
+      fetchSnippets().then((snips) => {
+        const uniq = Array.from(new Set(snips.map((s) => s.lesson).filter(Boolean)));
+        setLessons(uniq.map((l) => ({ id: String(l), title: `Lesson ${l}` })));
+        setMySnippets(snips);
+      }),
+      fetchSubmissions().then(setMySubmissions).catch(() => {}),
+    ]).catch(() => {});
+  }, [status]);
 
-      const result = await submitResponse.json();
-      console.log("[CodeEditor] Judge0 API response:", result);
-      setError(null);
-
-      if (result.status?.id === 3) {
-        return result.stdout || "Code executed successfully (no output)";
-      } else if (result.status?.id === 6) {
-        return `Compilation Error:\n${result.compile_output || result.stderr}`;
-      } else if (result.status?.id === 5) {
-        return "Error: Time Limit Exceeded";
-      } else if (result.status?.id === 4) {
-        return `Runtime Error:\n${result.stderr}`;
-      } else {
-        return result.stderr || result.stdout || "Unknown execution error";
-      }
-    } catch (error) {
-      console.error("[CodeEditor] Code execution error:", error);
-      setError("Session expired");
-      return `Network Error: Unable to execute code. ${error}`;
-    }
-  };
-
-  const executeCodeLocally = async (sourceCode: string, language: string) => {
-    console.log("[CodeEditor] Executing code locally, language:", language);
-    const simulatedOutputs = {
-      python: `Hello, World!
-Factorial of 5: 120
-Doubled list: [2, 4, 6, 8, 10]
-Person: Alice, Age: 30`,
-      java: `Hello, World!
-Factorial of 5: 120
-Original array: [1, 2, 3, 4, 5]
-Doubled array: [2, 4, 6, 8, 10]
-Fruits: [Apple, Banana, Orange]`,
-      cpp: `Hello, World!
-Factorial of 5: 120
-Original vector: 1 2 3 4 5 
-Doubled vector: 2 4 6 8 10 `,
-    };
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    try {
-      if (language === "python" && sourceCode.includes("print")) {
-        const lines = sourceCode.split("\n");
-        const outputs: string[] = [];
-
-        for (const line of lines) {
-          if (line.trim().startsWith("print(") && line.includes('"')) {
-            const match = line.match(/print\("([^"]+)"\)/);
-            if (match) {
-              outputs.push(match[1]);
-            }
-          }
-        }
-
-        if (outputs.length > 0) {
-          return outputs.join("\n");
-        }
-      }
-
-      return (
-        simulatedOutputs[language as keyof typeof simulatedOutputs] ||
-        "Code executed successfully"
-      );
-    } catch (error) {
-      return `Execution Error: ${error}`;
-    }
-  };
-
-  const runCode = async () => {
-    setIsRunning(true);
-    setOutput("");
-    setExecutionError("");
-
-    try {
-      if (error === "Session expired" || error === "Not authenticated") {
-        setOutput("Session expired. Please log in again.");
-        setIsRunning(false);
-        return;
-      }
-
-      if (selectedLanguage === "javascript") {
-        const logs: string[] = [];
-        const originalLog = console.log;
-        console.log = (...args) => {
-          logs.push(args.map((arg) => String(arg)).join(" "));
-        };
-
-        try {
-          const func = new Function(code);
-          func();
-          setOutput(
-            logs.join("\n") || "Code executed successfully (no output)"
-          );
-        } catch (error) {
-          setOutput(`Error: ${error}`);
-        } finally {
-          console.log = originalLog;
-        }
-      } else if (selectedLanguage === "html") {
-        setHtmlPreview(code);
-        setOutput("HTML rendered in preview tab");
-      } else if (selectedLanguage === "css") {
-        const htmlWithCSS = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>${code}</style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>CSS Preview</h1>
-              <div class="card">
-                <h3>Card Example</h3>
-                <p>This demonstrates your CSS styling.</p>
-                <button class="button">Sample Button</button>
-              </div>
-              <div class="card">
-                <h3>Another Card</h3>
-                <p>Hover over elements to see interactions.</p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `;
-        setHtmlPreview(htmlWithCSS);
-        setOutput("CSS applied to preview template");
-      } else {
-        const languageConfig =
-          languages[selectedLanguage as keyof typeof languages];
-
-        if (languageConfig.judgeId) {
-          try {
-            const result = await executeCodeOnline(
-              code,
-              languageConfig.judgeId
-            );
-            setOutput(result);
-          } catch (error) {
-            setExecutionError(
-              "Online execution unavailable. Using local simulation."
-            );
-            const result = await executeCodeLocally(code, selectedLanguage);
-            setOutput(result);
-          }
-        } else {
-          setOutput("Language not supported for execution");
-        }
-      }
-    } catch (error) {
-      setOutput(`Error: ${error}`);
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const copyCode = () => {
-    navigator.clipboard.writeText(code);
-  };
-
+  /* -------------------------------------------------- */
+  /* UI handlers                                        */
+  /* -------------------------------------------------- */
+  const copyCode = () => navigator.clipboard.writeText(code);
   const downloadCode = () => {
-    const extensions = {
-      javascript: "js",
-      python: "py",
-      java: "java",
-      cpp: "cpp",
-      html: "html",
-      css: "css",
-    };
-
-    const blob = new Blob([code], {type: "text/plain"});
+    const ext = { javascript: "js", python: "py", java: "java", cpp: "cpp", html: "html", css: "css" } as const;
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `code.${
-      extensions[selectedLanguage as keyof typeof extensions]
-    }`;
+    const a = Object.assign(document.createElement("a"), {
+      href: url,
+      download: `code.${ext[selectedLanguage]}`,
+    });
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
   const resetCode = () => {
-    setCode(languages[selectedLanguage as keyof typeof languages].template);
+    setCode(languages[selectedLanguage].template);
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
   };
-
-  const handleLanguageChange = (language: string) => {
-    setSelectedLanguage(language);
-    setCode(languages[language as keyof typeof languages].template);
+  const handleLanguageChange = (lang: string) => {
+    setSelectedLanguage(lang);
+    setCode(languages[lang as keyof typeof languages].template);
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
   };
-
-  const handleCodeChange = (value: string) => {
-    setCode(value);
-    if (selectedLanguage === "html") {
-      setHtmlPreview(value);
-    } else if (selectedLanguage === "css") {
-      const htmlWithCSS = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>${value}</style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>CSS Preview</h1>
-            <div class="card">
-              <h3>Card Example</h3>
-              <p>This demonstrates your CSS styling.</p>
-              <button class="button">Sample Button</button>
-            </div>
-            <div class="card">
-              <h3>Another Card</h3>
-              <p>Hover over elements to see interactions.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-      setHtmlPreview(htmlWithCSS);
+  const handleCodeChange = (v: string) => {
+    setCode(v);
+    if (selectedLanguage === "html") setHtmlPreview(v);
+    if (selectedLanguage === "css") {
+      const html = `<!DOCTYPE html><html><head><style>${v}</style></head><body><div class="container"><h1>CSS Preview</h1><button class="button">Btn</button></div></body></html>`;
+      setHtmlPreview(html);
     }
   };
 
+  /* -------------------------------------------------- */
+  /* run / submit / comment                             */
+  /* -------------------------------------------------- */
+  const runCode = async () => {
+    setIsRunning(true);
+    setOutput("");
+    setExecutionError("");
+    try {
+      if (error === "Session expired" || error === "Not authenticated") {
+        setOutput("Session expired. Please log in again.");
+        return;
+      }
+      if (selectedLanguage === "javascript") {
+        const logs: string[] = [];
+        const original = console.log;
+        console.log = (...a) => logs.push(a.map(String).join(" "));
+        try {
+          new Function(code)();
+          setOutput(logs.join("\n") || "Code executed successfully (no output)");
+        } catch (e: any) {
+          setOutput(`Error: ${e.message}`);
+        } finally {
+          console.log = original;
+        }
+      } else if (selectedLanguage === "html") {
+        setHtmlPreview(code);
+        setOutput("HTML rendered in preview tab");
+      } else if (selectedLanguage === "css") {
+        const html = `<!DOCTYPE html><html><head><style>${code}</style></head><body><div class="container"><h1>CSS Preview</h1><button class="button">Btn</button></div></body></html>`;
+        setHtmlPreview(html);
+        setOutput("CSS applied to preview template");
+      } else {
+        const cfg = languages[selectedLanguage];
+        if (cfg.judgeId) {
+          try {
+            const res = await fetch("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true ", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+                "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+              },
+              body: JSON.stringify({ source_code: code, language_id: cfg.judgeId, stdin: "" }),
+            });
+            const result = await res.json();
+            if (result.status?.id === 3) setOutput(result.stdout || "Success (no output)");
+            else if (result.status?.id === 6) setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
+            else if (result.status?.id === 5) setOutput("Time Limit Exceeded");
+            else if (result.status?.id === 4) setOutput(`Runtime Error:\n${result.stderr}`);
+            else setOutput(result.stderr || result.stdout || "Unknown error");
+          } catch {
+            setExecutionError("Online execution unavailable. Using local simulation.");
+            setOutput("Simulated output for " + selectedLanguage);
+          }
+        } else {
+          setOutput("Language not supported for execution");
+        }
+      }
+    } catch (e: any) {
+      setOutput(`Error: ${e.message}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedLesson) return alert("Please select a lesson");
+    try {
+      await createSubmission();
+      alert("Submitted successfully");
+    } catch {
+      alert("Submission failed");
+    }
+  };
+
+  /* -------------------------------------------------- */
+  /* render                                             */
+  /* -------------------------------------------------- */
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" className="text-black" />
+        <Spinner size="md" />
       </div>
     );
   }
 
-  if (
-    error === "Session expired" ||
-    error === "Not authenticated" ||
-    (status === "authenticated" && error === "Session expired")
-  ) {
+  if (error === "Session expired" || error === "Not authenticated") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">
-              Session Expired
-            </CardTitle>
-            <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log
-              in again to continue.
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
+            <CardDescription className="text-center">Your session has expired or you are not authenticated. Please log in again to continue.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button onClick={handleLogout} className="flex items-center gap-2">
@@ -632,10 +380,7 @@ Doubled vector: 2 4 6 8 10 `,
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Code IDE</h1>
-        <p className="text-muted-foreground">
-          Write, run, and test your code in multiple programming languages with
-          real-time execution
-        </p>
+        <p className="text-muted-foreground">Write, run, and test your code in multiple programming languages with real-time execution</p>
       </div>
 
       {executionError && (
@@ -645,99 +390,281 @@ Doubled vector: 2 4 6 8 10 `,
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="flex flex-col">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Code Editor</CardTitle>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={selectedLanguage}
-                  onValueChange={handleLanguageChange}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(languages).map(([key, lang]) => (
-                      <SelectItem key={key} value={key}>
-                        {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      <Tabs defaultValue="editor" className="relative mr-auto w-full">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger value="editor" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Editor
+          </TabsTrigger>
+          <TabsTrigger value="output" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Output
+          </TabsTrigger>
+          <TabsTrigger value="submission" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Submission
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="editor">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Code Editor</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(languages).map(([key, lang]) => (
+                        <SelectItem key={key} value={key}>
+                          {lang.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={resetCode}>
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col">
+              <Textarea
+                value={code}
+                onChange={(e) => handleCodeChange(e.target.value)}
+                placeholder="Write your code here..."
+                className="flex-1 font-mono text-sm resize-none min-h-[400px]"
+              />
+              <div className="flex gap-2 mt-4">
+                <Button onClick={runCode} disabled={isRunning || !!error} className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]">
+                  <Play className="mr-2 h-4 w-4" />
+                  {isRunning ? "Executing..." : "Run Code"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => saveSnippet().catch(() => alert("Save failed"))}>
+                  Save
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleSubmit} disabled={!selectedLesson}>
+                  Submit
+                </Button>
+                <Button variant="outline" size="sm" onClick={copyCode}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadCode}>
+                  <Download className="h-4 w-4" />
+                </Button>
                 <Button variant="outline" size="sm" onClick={resetCode}>
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            <Textarea
-              value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              placeholder="Write your code here..."
-              className="flex-1 font-mono text-sm resize-none min-h-[400px]"
-            />
-            <div className="flex gap-2 mt-4">
-              <Button
-                onClick={runCode}
-                disabled={isRunning || !!error}
-                className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]">
-                <Play className="mr-2 h-4 w-4" />
-                {isRunning ? "Executing..." : "Run Code"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={copyCode}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={downloadCode}>
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle>
-              {selectedLanguage === "html" || selectedLanguage === "css"
-                ? "Preview & Output"
-                : "Output"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1">
-            {(selectedLanguage === "html" || selectedLanguage === "css") &&
-            htmlPreview ? (
-              <Tabs defaultValue="preview" className="h-full flex flex-col">
-                <TabsList>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                  <TabsTrigger value="output">Console</TabsTrigger>
-                </TabsList>
-                <TabsContent value="preview" className="flex-1">
-                  <iframe
-                    ref={iframeRef}
-                    srcDoc={htmlPreview}
-                    className="w-full h-[400px] border rounded-md"
-                    title="HTML Preview"
-                  />
-                </TabsContent>
-                <TabsContent value="output" className="flex-1">
-                  <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                    <pre className="whitespace-pre-wrap">
-                      {output || "Run your code to see output here..."}
-                    </pre>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                <pre className="whitespace-pre-wrap">
-                  {output || "Run your code to see output here..."}
-                </pre>
+        <TabsContent value="output">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle>{selectedLanguage === "html" || selectedLanguage === "css" ? "Preview & Output" : "Output"}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1">
+              {(selectedLanguage === "html" || selectedLanguage === "css") && htmlPreview ? (
+                <Tabs defaultValue="preview" className="h-full flex flex-col">
+                  <TabsList>
+                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                    <TabsTrigger value="output">Console</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="preview" className="flex-1">
+                    <iframe ref={iframeRef} srcDoc={htmlPreview} className="w-full h-[400px] border rounded-md" title="HTML Preview" />
+                  </TabsContent>
+                  <TabsContent value="output" className="flex-1">
+                    <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
+                      <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
+                  <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="submission">
+          <SubmissionTab
+            lessons={lessons}
+            selectedLesson={selectedLesson}
+            setSelectedLesson={setSelectedLesson}
+            onSubmit={handleSubmit}
+            role={session?.user?.role}
+            submissions={mySubmissions}
+            onGrade={gradeSubmission}
+            onComment={addComment}
+            fetchSubmissionDetail={fetchSubmissionDetail}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/* ================================================================= */
+/* SubmissionTab  –  isolated to keep main component clean           */
+/* ================================================================= */
+function SubmissionTab({
+  lessons,
+  selectedLesson,
+  setSelectedLesson,
+  onSubmit,
+  role,
+  submissions,
+  onGrade,
+  onComment,
+  fetchSubmissionDetail,
+}: {
+  lessons: { id: string; title: string }[];
+  selectedLesson: string;
+  setSelectedLesson: (v: string) => void;
+  onSubmit: () => void;
+  role?: string;
+  submissions: Submission[];
+  onGrade: (id: number, upd: any) => Promise<void>;
+  onComment: (id: number, msg: string) => Promise<void>;
+  fetchSubmissionDetail: (id: number) => Promise<Submission>;
+}) {
+  const [viewing, setViewing] = useState<Submission | null>(null);
+  const [comment, setComment] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  /* load full detail + comments when user clicks a row */
+  const viewDetail = async (s: Submission) => {
+    setLoading(true);
+    try {
+      const full = await fetchSubmissionDetail(s.id);
+      setViewing(full);
+    } catch {
+      alert("Could not load details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendComment = async () => {
+    if (!viewing || !comment.trim()) return;
+    try {
+      await onComment(viewing.id, comment);
+      setComment("");
+      /* reload detail to show new comment */
+      const fresh = await fetchSubmissionDetail(viewing.id);
+      setViewing(fresh);
+    } catch {
+      alert("Comment failed");
+    }
+  };
+
+  return (
+    <Card className="flex flex-col">
+      <CardHeader>
+        <CardTitle>Code Submission</CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col gap-4">
+        <Select value={selectedLesson} onValueChange={setSelectedLesson}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a lesson" />
+          </SelectTrigger>
+          <SelectContent>
+            {lessons.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button onClick={onSubmit} disabled={!selectedLesson}>Submit Code</Button>
+
+        {/* List of existing submissions */}
+        {submissions.length > 0 && (
+          <div className="border rounded-md p-3 space-y-2">
+            <p className="text-sm font-medium">{role === "teacher" ? "All submissions" : "My submissions"}</p>
+            {submissions.slice(0, 10).map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between text-xs border-b pb-2 cursor-pointer hover:bg-accent/20 rounded px-2"
+                onClick={() => viewDetail(s)}
+              >
+                <span>#{s.id} – {s.status}</span>
+                <span>{s.score ?? "-"} pts</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Detail pane + comments + teacher grade box */}
+        {viewing && (
+          <div className="border rounded-md p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Submission #{viewing.id}</p>
+              <Button size="sm" variant="ghost" onClick={() => setViewing(null)}>
+                Close
+              </Button>
+            </div>
+
+            <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">{viewing.code_text}</pre>
+
+            {/* Teacher grade box */}
+            {role === "teacher" && viewing.status !== "graded" && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    await onGrade(viewing.id, { score: "90", feedback: "Great job", status: "graded" });
+                    alert("Graded 90");
+                  }}
+                >
+                  Grade 90
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    await onGrade(viewing.id, { score: "75", feedback: "Needs improvement", status: "revised" });
+                    alert("Sent for revision");
+                  }}
+                >
+                  Request revision
+                </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+
+            {/* Comments section – both roles can post */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" />
+                Comments
+              </p>
+              {viewing.comments.map((c) => (
+                <div key={c.id} className="text-xs bg-muted p-2 rounded">
+                  <span className="font-semibold">{c.author_name}</span> – {c.message}
+                  <div className="text-muted-foreground">{new Date(c.created_at).toLocaleString()}</div>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Write a comment…"
+                  className="min-h-[60px] text-xs"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+                <Button size="sm" onClick={sendComment} disabled={!comment.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading && <Spinner size="sm" />}
+      </CardContent>
+    </Card>
   );
 }
