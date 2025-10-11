@@ -171,6 +171,11 @@ export default function DashboardLayout({
                       <LogOut className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Log out
                     </DropdownMenuItem>
+
+                    <DropdownMenuItem className="text-[0.85rem] sm:text-sm text-destructive hover:bg-[#F797713a] focus:bg-[#F797713a]">
+                      <LogOut className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      Change Oragnisation
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </SidebarMenuItem>
