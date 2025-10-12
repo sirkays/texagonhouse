@@ -50,6 +50,7 @@
     "gsap": "latest",
     "idb": "^8.0.3",
     "input-otp": "latest",
+    "localforage": "^1.10.0",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-auth": "^4.24.11",
