@@ -26,11 +26,18 @@ import {
   LogIn,
   MessageSquare,
   Send,
+  Edit2,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 /* -------------------------------------------------- */
 /* Types from backend docs                            */
@@ -84,6 +91,8 @@ export function CodeEditor() {
   const [error, setError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
+  const [editingSnippetId, setEditingSnippetId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("editor");
 
   /* ---------- lesson list from real snippets ---------- */
   const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
@@ -114,14 +123,32 @@ export function CodeEditor() {
       code_text: code,
       meta: {},
     };
-    const res = await fetch("/api/code-ide/snippets/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error("Save failed");
-    const created: Snippet = await res.json();
-    setMySnippets((prev) => [created, ...prev]);
+    try {
+      if (editingSnippetId) {
+        // Update existing snippet (endpoint not ready)
+        alert("Update endpoint not available yet. Saving as new snippet.");
+        const res = await fetch("/api/code-ide/snippets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("Save failed");
+        const created: Snippet = await res.json();
+        setMySnippets((prev) => [created, ...prev]);
+      } else {
+        // Create new snippet
+        const res = await fetch("/api/code-ide/snippets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("Save failed");
+        const created: Snippet = await res.json();
+        setMySnippets((prev) => [created, ...prev]);
+      }
+    } catch {
+      alert("Save failed");
+    }
   };
 
   /* ==========  SUBMISSION ROUTES  ================ */
@@ -142,7 +169,7 @@ export function CodeEditor() {
   const createSubmission = async () => {
     if (!selectedLesson) throw new Error("No lesson selected");
     const body = { lesson: selectedLesson, language: selectedLanguage, code_text: code };
-    const res = await fetch("/api/code-ide/submissions/create", {
+    const res = await fetch("/api/code-ide/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -162,7 +189,7 @@ export function CodeEditor() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
-    if (!res.ok) throw new Error("Grading failed");
+    if (!r.ok) throw new Error("Grading failed");
     const updated: Submission = await res.json();
     setMySubmissions((prev) => prev.map((s) => (s.id === id ? updated : s)));
     return updated;
@@ -217,7 +244,7 @@ export function CodeEditor() {
   useEffect(() => {
     const t = setTimeout(() => saveSnippet().catch(() => {}), 10_000);
     return () => clearTimeout(t);
-  }, [code, selectedLanguage, selectedLesson]);
+  }, [code, selectedLanguage, selectedLesson, editingSnippetId]);
 
   /* initial load: lessons + my submissions + my snippets */
   useEffect(() => {
@@ -254,6 +281,8 @@ export function CodeEditor() {
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
+    setEditingSnippetId(null);
+    setActiveTab("editor");
   };
   const handleLanguageChange = (lang: string) => {
     setSelectedLanguage(lang);
@@ -261,6 +290,8 @@ export function CodeEditor() {
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
+    setEditingSnippetId(null);
+    setActiveTab("editor");
   };
   const handleCodeChange = (v: string) => {
     setCode(v);
@@ -268,6 +299,19 @@ export function CodeEditor() {
     if (selectedLanguage === "css") {
       const html = `<!DOCTYPE html><html><head><style>${v}</style></head><body><div class="container"><h1>CSS Preview</h1><button class="button">Btn</button></div></body></html>`;
       setHtmlPreview(html);
+    }
+  };
+
+  const loadSnippet = async (snippet: Snippet) => {
+    try {
+      const detailedSnippet = await fetchSnippetDetail(snippet.id);
+      setCode(detailedSnippet.code_text);
+      setSelectedLanguage(detailedSnippet.language);
+      if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
+      setEditingSnippetId(detailedSnippet.id);
+      setActiveTab("editor");
+    } catch {
+      alert("Failed to load snippet details");
     }
   };
 
@@ -390,13 +434,16 @@ export function CodeEditor() {
         </Alert>
       )}
 
-      <Tabs defaultValue="editor" className="relative mr-auto w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="relative mr-auto w-full">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger value="editor" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Editor
           </TabsTrigger>
           <TabsTrigger value="output" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Output
+          </TabsTrigger>
+          <TabsTrigger value="files" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            Files
           </TabsTrigger>
           <TabsTrigger value="submission" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Submission
@@ -439,8 +486,13 @@ export function CodeEditor() {
                   <Play className="mr-2 h-4 w-4" />
                   {isRunning ? "Executing..." : "Run Code"}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => saveSnippet().catch(() => alert("Save failed"))}>
-                  Save
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => saveSnippet().catch(() => alert("Save failed"))}
+                  disabled={editingSnippetId !== null}
+                >
+                  {editingSnippetId ? "Update (Not Available)" : "Save"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleSubmit} disabled={!selectedLesson}>
                   Submit
@@ -485,6 +537,57 @@ export function CodeEditor() {
                   <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="files">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle>Files</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-4">
+              <Accordion type="single" collapsible>
+                {Object.entries(
+                  mySnippets.reduce((acc: Record<string, Snippet[]>, s) => {
+                    const key = s.lesson ? `Lesson-${s.lesson}` : `General-${s.id}`;
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(s);
+                    return acc;
+                  }, {})
+                ).map(([key, snips]) => (
+                  <AccordionItem key={key} value={key}>
+                    <AccordionTrigger>{key.startsWith("Lesson-") ? `Lesson ${key.split("-")[1]}` : "General"}</AccordionTrigger>
+                    <AccordionContent>
+                      {snips
+                        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                        .map((s) => (
+                          <div
+                            key={s.id}
+                            className="cursor-pointer hover:bg-accent p-2 rounded text-sm flex justify-between items-center"
+                          >
+                            <span>{s.title}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">{new Date(s.updated_at).toLocaleString()}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => loadSnippet(s)}
+                                title="Load into editor"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+              <div className="mt-4">
+                <Button disabled>Upload File</Button>
+                <p className="text-sm text-muted-foreground mt-2">Endpoint coming soon</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

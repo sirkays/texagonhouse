@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
-import { CodeEditor } from '@/components/student/code-editor'
-import { Code } from 'lucide-react'
+import {CodeEditor} from '@/components/student/code-editor'
+
 
 const CodeEditorMain = () => {
   return (

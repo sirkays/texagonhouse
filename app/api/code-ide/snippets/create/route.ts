@@ -2,27 +2,69 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const BASE = "https://texagonbackend.epichouse.online/code-ide/api/ide";
-const KEY  = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+const BASE_URL = "https://texagonbackend.epichouse.online";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
-export async function POST(req: Request) {
+async function fetchWithTimeout(url: string, options: any) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+export async function POST(request: Request) {
+  console.groupCollapsed("[Route: /api/code-ide/snippets/create] POST - Create snippet");
+
   const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken)
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (session.user.role !== "student")
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user?.sessionToken) {
+    console.error("[Route] Missing session token. Session:", session);
+    console.groupEnd();
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
+  }
 
-  const body = await req.text();
-  const res = await fetch(`${BASE}/snippets/create/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Api-Key ${KEY}`,
-      "X-Session-Token": session.user.sessionToken,
-    },
-    body,
-  });
+  let body;
+  try {
+    body = await request.json();
+    console.info("[Route] Request body:", body);
+  } catch (err: any) {
+    console.error("[Route] Invalid JSON body:", err.message);
+    console.groupEnd();
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
+  try {
+    const res = await fetchWithTimeout(`${BASE_URL}/code-ide/api/ide/snippets/create/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Api-Key ${API_KEY}`,
+        "X-Session-Token": session.user.sessionToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      timeout: 8000,
+    });
+
+    console.info("[Route] External API response status:", res.status);
+    const result = await res.json();
+    console.info("[Route] External API result:", result);
+
+    if (!res.ok) {
+      console.error("[Route] Failed to create snippet:", result);
+      console.groupEnd();
+      return NextResponse.json(result, { status: res.status });
+    }
+
+    console.groupEnd();
+    return NextResponse.json(result, { status: 201 });
+  } catch (error: any) {
+    console.error("[Route] Internal server error:", error.message);
+    console.groupEnd();
+    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 });
+  }
 }
