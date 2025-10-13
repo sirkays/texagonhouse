@@ -29,6 +29,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Leader {
   rank: number;
@@ -176,7 +177,9 @@ export function Leaderboard() {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}
+                onClick={() =>
+                  setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))
+                }
                 aria-label="Go to first page"
               >
                 1
@@ -246,7 +249,11 @@ export function Leaderboard() {
   };
 
   if (isLoading) {
-    return <div>Loading leaderboard...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
   }
 
   if (error) {
@@ -353,57 +360,62 @@ export function Leaderboard() {
           <Card>
             <CardHeader>
               <CardTitle>Global Leaderboard</CardTitle>
-              <CardDescription>Top performers across all schools</CardDescription>
+              <CardDescription>
+                Top performers across all schools
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getPaginatedItems(leaderboardData.global, currentPage.global).map(
-                  (leader) => (
-                    <div
-                      key={leader.rank}
-                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border ${
-                        leader.isCurrentUser
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8">
-                          {getRankIcon(leader.rank)}
-                        </div>
-                        <Avatar>
-                          <AvatarImage src={leader.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>
-                            {leader.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-medium">{leader.name}</h4>
-                            {leader.isCurrentUser && (
-                              <Badge variant="secondary">You</Badge>
-                            )}
-                            {getRankBadge(leader.rank)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {leader.school}
-                          </p>
-                        </div>
+                {getPaginatedItems(
+                  leaderboardData.global,
+                  currentPage.global
+                ).map((leader) => (
+                  <div
+                    key={leader.rank}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border ${
+                      leader.isCurrentUser
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-8">
+                        {getRankIcon(leader.rank)}
                       </div>
-                      <div className="text-left sm:text-right">
-                        <div className="font-bold text-lg">
-                          {leader.points.toLocaleString()}
+                      <Avatar>
+                        <AvatarImage
+                          src={leader.avatar || "/placeholder.svg"}
+                        />
+                        <AvatarFallback>
+                          {leader.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-medium">{leader.name}</h4>
+                          {leader.isCurrentUser && (
+                            <Badge variant="secondary">You</Badge>
+                          )}
+                          {getRankBadge(leader.rank)}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {leader.streak} day streak • {leader.badges} badges
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {leader.school}
+                        </p>
                       </div>
                     </div>
-                  )
-                )}
+                    <div className="text-left sm:text-right">
+                      <div className="font-bold text-lg">
+                        {leader.points.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {leader.streak} day streak • {leader.badges} badges
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
               {renderPagination("global")}
             </CardContent>
@@ -418,52 +430,57 @@ export function Leaderboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getPaginatedItems(leaderboardData.school, currentPage.school).map(
-                  (leader) => (
-                    <div
-                      key={leader.rank}
-                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
-                        leader.isCurrentUser
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                        <div className="flex items-center justify-center w-8 shrink-0">
-                          {getRankIcon(leader.rank)}
-                        </div>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={leader.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>
-                            {leader.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-medium truncate">{leader.name}</h4>
-                            {leader.isCurrentUser && (
-                              <Badge variant="secondary" className="text-xs">
-                                You
-                              </Badge>
-                            )}
-                            {getRankBadge(leader.rank)}
-                          </div>
-                        </div>
+                {getPaginatedItems(
+                  leaderboardData.school,
+                  currentPage.school
+                ).map((leader) => (
+                  <div
+                    key={leader.rank}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
+                      leader.isCurrentUser
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                      <div className="flex items-center justify-center w-8 shrink-0">
+                        {getRankIcon(leader.rank)}
                       </div>
-                      <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
-                        <div className="font-bold text-base sm:text-lg">
-                          {leader.points.toLocaleString()}
-                        </div>
-                        <div className="text-xs sm:text-sm text-muted-foreground">
-                          {leader.streak} day streak • {leader.badges} badges
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={leader.avatar || "/placeholder.svg"}
+                        />
+                        <AvatarFallback>
+                          {leader.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-medium truncate">
+                            {leader.name}
+                          </h4>
+                          {leader.isCurrentUser && (
+                            <Badge variant="secondary" className="text-xs">
+                              You
+                            </Badge>
+                          )}
+                          {getRankBadge(leader.rank)}
                         </div>
                       </div>
                     </div>
-                  )
-                )}
+                    <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
+                      <div className="font-bold text-base sm:text-lg">
+                        {leader.points.toLocaleString()}
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        {leader.streak} day streak • {leader.badges} badges
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
               {renderPagination("school")}
             </CardContent>
@@ -478,52 +495,57 @@ export function Leaderboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getPaginatedItems(leaderboardData.weekly, currentPage.weekly).map(
-                  (leader) => (
-                    <div
-                      key={leader.rank}
-                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
-                        leader.isCurrentUser
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                        <div className="flex items-center justify-center w-8 shrink-0">
-                          {getRankIcon(leader.rank)}
-                        </div>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={leader.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>
-                            {leader.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-medium truncate">{leader.name}</h4>
-                            {leader.isCurrentUser && (
-                              <Badge variant="secondary" className="text-xs">
-                                You
-                              </Badge>
-                            )}
-                            {getRankBadge(leader.rank)}
-                          </div>
-                        </div>
+                {getPaginatedItems(
+                  leaderboardData.weekly,
+                  currentPage.weekly
+                ).map((leader) => (
+                  <div
+                    key={leader.rank}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
+                      leader.isCurrentUser
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                      <div className="flex items-center justify-center w-8 shrink-0">
+                        {getRankIcon(leader.rank)}
                       </div>
-                      <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
-                        <div className="font-bold text-base sm:text-lg">
-                          {leader.points.toLocaleString()}
-                        </div>
-                        <div className="text-xs sm:text-sm text-muted-foreground">
-                          points this week
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={leader.avatar || "/placeholder.svg"}
+                        />
+                        <AvatarFallback>
+                          {leader.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-medium truncate">
+                            {leader.name}
+                          </h4>
+                          {leader.isCurrentUser && (
+                            <Badge variant="secondary" className="text-xs">
+                              You
+                            </Badge>
+                          )}
+                          {getRankBadge(leader.rank)}
                         </div>
                       </div>
                     </div>
-                  )
-                )}
+                    <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
+                      <div className="font-bold text-base sm:text-lg">
+                        {leader.points.toLocaleString()}
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        points this week
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
               {renderPagination("weekly")}
             </CardContent>

@@ -180,7 +180,10 @@ export function CodeEditor() {
         html: "html",
         css: "css",
       };
-      const language = extension && languageMap[extension] ? languageMap[extension] : "javascript";
+      const language =
+        extension && languageMap[extension]
+          ? languageMap[extension]
+          : "javascript";
       const body = {
         name: file.name,
         content,
@@ -232,7 +235,11 @@ export function CodeEditor() {
 
   const createSubmission = async () => {
     if (!selectedLesson) throw new Error("No lesson selected");
-    const body = { lesson: selectedLesson, language: selectedLanguage, code_text: code };
+    const body = {
+      lesson: selectedLesson,
+      language: selectedLanguage,
+      code_text: code,
+    };
     const res = await fetch("/api/code-ide/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -246,7 +253,12 @@ export function CodeEditor() {
 
   const gradeSubmission = async (
     id: number,
-    updates: { score?: string; feedback?: string; correction_code?: string; status?: "graded" | "revised" }
+    updates: {
+      score?: string;
+      feedback?: string;
+      correction_code?: string;
+      status?: "graded" | "revised";
+    }
   ) => {
     const res = await fetch(`/api/code-ide/submissions/${id}`, {
       method: "PATCH",
@@ -261,11 +273,14 @@ export function CodeEditor() {
 
   /* ==========  COMMENT ROUTE  ==================== */
   const addComment = async (submissionId: number, message: string) => {
-    const res = await fetch(`/api/code-ide/submissions/${submissionId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
+    const res = await fetch(
+      `/api/code-ide/submissions/${submissionId}/comments`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      }
+    );
     if (!res.ok) throw new Error("Comment failed");
     return res.json() as Promise<Comment>;
   };
@@ -274,9 +289,17 @@ export function CodeEditor() {
   /* UI  helpers                                        */
   /* -------------------------------------------------- */
   const languages = {
-    javascript: { name: "JavaScript", judgeId: 63, template: `console.log("Hello, World!");` },
+    javascript: {
+      name: "JavaScript",
+      judgeId: 63,
+      template: `console.log("Hello, World!");`,
+    },
     python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
-    java: { name: "Java", judgeId: 62, template: `System.out.println("Hello");` },
+    java: {
+      name: "Java",
+      judgeId: 62,
+      template: `System.out.println("Hello");`,
+    },
     cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
     html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
     css: { name: "CSS", judgeId: null, template: `body{color:red;}` },
@@ -315,14 +338,24 @@ export function CodeEditor() {
     if (status !== "authenticated") return;
     Promise.all([
       fetchSnippets().then((snips) => {
-        const uniq = Array.from(new Set(snips.map((s) => s.lesson).filter(Boolean)));
+        const uniq = Array.from(
+          new Set(snips.map((s) => s.lesson).filter(Boolean))
+        );
         setLessons(uniq.map((l) => ({ id: String(l), title: `Lesson ${l}` })));
         setMySnippets(snips);
       }),
-      fetchSubmissions().then(setMySubmissions).catch(() => {}),
+      fetchSubmissions()
+        .then(setMySubmissions)
+        .catch(() => {}),
       // Mock uploaded files (replace with real fetch when endpoint is ready)
       setUploadedFiles([
-        { id: 1, name: "example.js", content: `console.log("Uploaded file");`, language: "javascript", created_at: new Date().toISOString() },
+        {
+          id: 1,
+          name: "example.js",
+          content: `console.log("Uploaded file");`,
+          language: "javascript",
+          created_at: new Date().toISOString(),
+        },
       ]),
     ]).catch(() => {});
   }, [status]);
@@ -332,7 +365,14 @@ export function CodeEditor() {
   /* -------------------------------------------------- */
   const copyCode = () => navigator.clipboard.writeText(code);
   const downloadCode = () => {
-    const ext = { javascript: "js", python: "py", java: "java", cpp: "cpp", html: "html", css: "css" } as const;
+    const ext = {
+      javascript: "js",
+      python: "py",
+      java: "java",
+      cpp: "cpp",
+      html: "html",
+      css: "css",
+    } as const;
     const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
@@ -373,7 +413,8 @@ export function CodeEditor() {
       const detailedSnippet = await fetchSnippetDetail(snippet.id);
       setCode(detailedSnippet.code_text);
       setSelectedLanguage(detailedSnippet.language);
-      if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
+      if (detailedSnippet.lesson)
+        setSelectedLesson(String(detailedSnippet.lesson));
       setActiveTab("editor");
     } catch {
       alert("Failed to load snippet details");
@@ -438,7 +479,9 @@ export function CodeEditor() {
         console.log = (...a) => logs.push(a.map(String).join(" "));
         try {
           new Function(code)();
-          setOutput(logs.join("\n") || "Code executed successfully (no output)");
+          setOutput(
+            logs.join("\n") || "Code executed successfully (no output)"
+          );
         } catch (e: any) {
           setOutput(`Error: ${e.message}`);
         } finally {
@@ -455,23 +498,38 @@ export function CodeEditor() {
         const cfg = languages[selectedLanguage];
         if (cfg.judgeId) {
           try {
-            const res = await fetch("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true ", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
-                "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-              },
-              body: JSON.stringify({ source_code: code, language_id: cfg.judgeId, stdin: "" }),
-            });
+            const res = await fetch(
+              "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true ",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-RapidAPI-Key":
+                    "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+                  "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+                },
+                body: JSON.stringify({
+                  source_code: code,
+                  language_id: cfg.judgeId,
+                  stdin: "",
+                }),
+              }
+            );
             const result = await res.json();
-            if (result.status?.id === 3) setOutput(result.stdout || "Success (no output)");
-            else if (result.status?.id === 6) setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
+            if (result.status?.id === 3)
+              setOutput(result.stdout || "Success (no output)");
+            else if (result.status?.id === 6)
+              setOutput(
+                `Compilation Error:\n${result.compile_output || result.stderr}`
+              );
             else if (result.status?.id === 5) setOutput("Time Limit Exceeded");
-            else if (result.status?.id === 4) setOutput(`Runtime Error:\n${result.stderr}`);
+            else if (result.status?.id === 4)
+              setOutput(`Runtime Error:\n${result.stderr}`);
             else setOutput(result.stderr || result.stdout || "Unknown error");
           } catch {
-            setExecutionError("Online execution unavailable. Using local simulation.");
+            setExecutionError(
+              "Online execution unavailable. Using local simulation."
+            );
             setOutput("Simulated output for " + selectedLanguage);
           }
         } else {
@@ -501,7 +559,7 @@ export function CodeEditor() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" />
+        <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
@@ -511,8 +569,13 @@ export function CodeEditor() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Session Expired</CardTitle>
-            <CardDescription className="text-center">Your session has expired or you are not authenticated. Please log in again to continue.</CardDescription>
+            <CardTitle className="text-2xl font-bold text-center">
+              Session Expired
+            </CardTitle>
+            <CardDescription className="text-center">
+              Your session has expired or you are not authenticated. Please log
+              in again to continue.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button onClick={handleLogout} className="flex items-center gap-2">
@@ -529,7 +592,10 @@ export function CodeEditor() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Code IDE</h1>
-        <p className="text-muted-foreground">Write, run, and test your code in multiple programming languages with real-time execution</p>
+        <p className="text-muted-foreground">
+          Write, run, and test your code in multiple programming languages with
+          real-time execution
+        </p>
       </div>
 
       {executionError && (
@@ -539,18 +605,34 @@ export function CodeEditor() {
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="relative mr-auto w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="relative mr-auto w-full"
+      >
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
-          <TabsTrigger value="editor" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          <TabsTrigger
+            value="editor"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Editor
           </TabsTrigger>
-          <TabsTrigger value="output" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          <TabsTrigger
+            value="output"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Output
           </TabsTrigger>
-          <TabsTrigger value="files" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          <TabsTrigger
+            value="files"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Files
           </TabsTrigger>
-          <TabsTrigger value="submission" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          <TabsTrigger
+            value="submission"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Submission
           </TabsTrigger>
         </TabsList>
@@ -561,7 +643,10 @@ export function CodeEditor() {
               <div className="flex items-center justify-between">
                 <CardTitle>Code Editor</CardTitle>
                 <div className="flex items-center gap-2">
-                  <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+                  <Select
+                    value={selectedLanguage}
+                    onValueChange={handleLanguageChange}
+                  >
                     <SelectTrigger className="w-32">
                       <SelectValue />
                     </SelectTrigger>
@@ -587,14 +672,29 @@ export function CodeEditor() {
                 className="flex-1 font-mono text-sm resize-none min-h-[400px]"
               />
               <div className="flex gap-2 mt-4">
-                <Button onClick={runCode} disabled={isRunning || !!error} className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]">
+                <Button
+                  onClick={runCode}
+                  disabled={isRunning || !!error}
+                  className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]"
+                >
                   <Play className="mr-2 h-4 w-4" />
                   {isRunning ? "Executing..." : "Run Code"}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => saveSnippet().catch(() => alert("Save failed"))}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    saveSnippet().catch(() => alert("Save failed"))
+                  }
+                >
                   Save
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleSubmit} disabled={!selectedLesson}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSubmit}
+                  disabled={!selectedLesson}
+                >
                   Submit
                 </Button>
                 <Button variant="outline" size="sm" onClick={copyCode}>
@@ -614,27 +714,41 @@ export function CodeEditor() {
         <TabsContent value="output">
           <Card className="flex flex-col">
             <CardHeader>
-              <CardTitle>{selectedLanguage === "html" || selectedLanguage === "css" ? "Preview & Output" : "Output"}</CardTitle>
+              <CardTitle>
+                {selectedLanguage === "html" || selectedLanguage === "css"
+                  ? "Preview & Output"
+                  : "Output"}
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex-1">
-              {(selectedLanguage === "html" || selectedLanguage === "css") && htmlPreview ? (
+              {(selectedLanguage === "html" || selectedLanguage === "css") &&
+              htmlPreview ? (
                 <Tabs defaultValue="preview" className="h-full flex flex-col">
                   <TabsList>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="output">Console</TabsTrigger>
                   </TabsList>
                   <TabsContent value="preview" className="flex-1">
-                    <iframe ref={iframeRef} srcDoc={htmlPreview} className="w-full h-[400px] border rounded-md" title="HTML Preview" />
+                    <iframe
+                      ref={iframeRef}
+                      srcDoc={htmlPreview}
+                      className="w-full h-[400px] border rounded-md"
+                      title="HTML Preview"
+                    />
                   </TabsContent>
                   <TabsContent value="output" className="flex-1">
                     <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                      <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
+                      <pre className="whitespace-pre-wrap">
+                        {output || "Run your code to see output here..."}
+                      </pre>
                     </div>
                   </TabsContent>
                 </Tabs>
               ) : (
                 <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
-                  <pre className="whitespace-pre-wrap">{output || "Run your code to see output here..."}</pre>
+                  <pre className="whitespace-pre-wrap">
+                    {output || "Run your code to see output here..."}
+                  </pre>
                 </div>
               )}
             </CardContent>
@@ -658,7 +772,11 @@ export function CodeEditor() {
                   <FilePlus className="h-4 w-4 mr-2" />
                   New Code
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Upload File
                 </Button>
                 <input
@@ -688,26 +806,43 @@ export function CodeEditor() {
                 <TabsContent value="saved">
                   <Accordion type="single" collapsible>
                     {Object.entries(
-                      paginatedSnippets.reduce((acc: Record<string, Snippet[]>, s) => {
-                        const key = s.lesson ? `Lesson-${s.lesson}` : `General-${s.id}`;
-                        if (!acc[key]) acc[key] = [];
-                        acc[key].push(s);
-                        return acc;
-                      }, {})
+                      paginatedSnippets.reduce(
+                        (acc: Record<string, Snippet[]>, s) => {
+                          const key = s.lesson
+                            ? `Lesson-${s.lesson}`
+                            : `General-${s.id}`;
+                          if (!acc[key]) acc[key] = [];
+                          acc[key].push(s);
+                          return acc;
+                        },
+                        {}
+                      )
                     ).map(([key, snips]) => (
                       <AccordionItem key={key} value={key}>
-                        <AccordionTrigger>{key.startsWith("Lesson-") ? `Lesson ${key.split("-")[1]}` : "General"}</AccordionTrigger>
+                        <AccordionTrigger>
+                          {key.startsWith("Lesson-")
+                            ? `Lesson ${key.split("-")[1]}`
+                            : "General"}
+                        </AccordionTrigger>
                         <AccordionContent>
                           {snips
-                            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                            .sort(
+                              (a, b) =>
+                                new Date(b.updated_at).getTime() -
+                                new Date(a.updated_at).getTime()
+                            )
                             .map((s) => (
                               <div
                                 key={s.id}
                                 className="cursor-pointer hover:bg-accent p-2 rounded text-sm flex justify-between items-center"
                               >
-                                <span onClick={() => loadSnippet(s)}>{s.title}</span>
+                                <span onClick={() => loadSnippet(s)}>
+                                  {s.title}
+                                </span>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground">{new Date(s.updated_at).toLocaleString()}</span>
+                                  <span className="text-muted-foreground">
+                                    {new Date(s.updated_at).toLocaleString()}
+                                  </span>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -757,7 +892,9 @@ export function CodeEditor() {
                     >
                       <span onClick={() => loadUploadedFile(f)}>{f.name}</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{new Date(f.created_at).toLocaleString()}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(f.created_at).toLocaleString()}
+                        </span>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -894,19 +1031,25 @@ function SubmissionTab({
             ))}
           </SelectContent>
         </Select>
-        <Button onClick={onSubmit} disabled={!selectedLesson}>Submit Code</Button>
+        <Button onClick={onSubmit} disabled={!selectedLesson}>
+          Submit Code
+        </Button>
 
         {/* List of existing submissions */}
         {submissions.length > 0 && (
           <div className="border rounded-md p-3 space-y-2">
-            <p className="text-sm font-medium">{role === "teacher" ? "All submissions" : "My submissions"}</p>
+            <p className="text-sm font-medium">
+              {role === "teacher" ? "All submissions" : "My submissions"}
+            </p>
             {submissions.slice(0, 10).map((s) => (
               <div
                 key={s.id}
                 className="flex items-center justify-between text-xs border-b pb-2 cursor-pointer hover:bg-accent/20 rounded px-2"
                 onClick={() => viewDetail(s)}
               >
-                <span>#{s.id} – {s.status}</span>
+                <span>
+                  #{s.id} – {s.status}
+                </span>
                 <span>{s.score ?? "-"} pts</span>
               </div>
             ))}
@@ -918,12 +1061,18 @@ function SubmissionTab({
           <div className="border rounded-md p-3 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Submission #{viewing.id}</p>
-              <Button size="sm" variant="ghost" onClick={() => setViewing(null)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setViewing(null)}
+              >
                 Close
               </Button>
             </div>
 
-            <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">{viewing.code_text}</pre>
+            <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">
+              {viewing.code_text}
+            </pre>
 
             {/* Teacher grade box */}
             {role === "teacher" && viewing.status !== "graded" && (
@@ -932,7 +1081,11 @@ function SubmissionTab({
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    await onGrade(viewing.id, { score: "90", feedback: "Great job", status: "graded" });
+                    await onGrade(viewing.id, {
+                      score: "90",
+                      feedback: "Great job",
+                      status: "graded",
+                    });
                     alert("Graded 90");
                   }}
                 >
@@ -942,7 +1095,11 @@ function SubmissionTab({
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    await onGrade(viewing.id, { score: "75", feedback: "Needs improvement", status: "revised" });
+                    await onGrade(viewing.id, {
+                      score: "75",
+                      feedback: "Needs improvement",
+                      status: "revised",
+                    });
                     alert("Sent for revision");
                   }}
                 >
@@ -959,8 +1116,11 @@ function SubmissionTab({
               </p>
               {viewing.comments.map((c) => (
                 <div key={c.id} className="text-xs bg-muted p-2 rounded">
-                  <span className="font-semibold">{c.author_name}</span> – {c.message}
-                  <div className="text-muted-foreground">{new Date(c.created_at).toLocaleString()}</div>
+                  <span className="font-semibold">{c.author_name}</span> –{" "}
+                  {c.message}
+                  <div className="text-muted-foreground">
+                    {new Date(c.created_at).toLocaleString()}
+                  </div>
                 </div>
               ))}
               <div className="flex gap-2">
@@ -970,7 +1130,11 @@ function SubmissionTab({
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                 />
-                <Button size="sm" onClick={sendComment} disabled={!comment.trim()}>
+                <Button
+                  size="sm"
+                  onClick={sendComment}
+                  disabled={!comment.trim()}
+                >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

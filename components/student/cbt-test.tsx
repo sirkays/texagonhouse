@@ -225,37 +225,37 @@ export function CBTTest() {
   }: { onProgress?: (processed: number, total: number) => void } = {}) {
     if (!navigator.onLine || !sessionToken) return;
     if (isProcessingRef.current) return;
-  
+
     isProcessingRef.current = true;
     setIsSyncing(true);
-  
+
     try {
       let pending = await getPendingSubmissions();
       const total = pending.length;
       let processed = 0;
       setSyncProgress({ processed, total });
-  
+
       // Show blue banner only if we actually have pending submissions
       if (total > 0) setShowSyncMessage(true);
-  
+
       for (let i = 0; i < pending.length; i++) {
         const entry = pending[i];
         const now = Date.now();
         const attempts = entry.attempts || 0;
         const delay = Math.min(1000 * Math.pow(2, attempts), 30_000);
-  
+
         if (entry.lastAttemptAt && now - entry.lastAttemptAt < delay) continue;
-  
+
         entry.attempts = attempts + 1;
         entry.lastAttemptAt = now;
-  
+
         // persist attempt increment
         const refreshPending = (await localforage.getItem(PENDING_KEY)) || [];
         const arr = Array.isArray(refreshPending) ? refreshPending : [];
         const idx = arr.findIndex((p: any) => p.id === entry.id);
         if (idx >= 0) arr[idx] = entry;
         await localforage.setItem(PENDING_KEY, arr);
-  
+
         try {
           const res = await fetchWithTimeout(
             "/api/student/cbt",
@@ -269,7 +269,7 @@ export function CBTTest() {
             },
             15000
           );
-  
+
           if (res.ok) {
             await deletePendingSubmissionById(entry.id);
             processed++;
@@ -277,17 +277,23 @@ export function CBTTest() {
             setSyncProgress({ processed, total });
             await new Promise((r) => setTimeout(r, 300));
           } else {
-            console.error("[CBTTest] server rejected submission", await res.text());
+            console.error(
+              "[CBTTest] server rejected submission",
+              await res.text()
+            );
             break;
           }
         } catch (err: any) {
-          console.warn("[CBTTest] Error posting queued submission:", err?.message || err);
+          console.warn(
+            "[CBTTest] Error posting queued submission:",
+            err?.message || err
+          );
           continue;
         }
       }
-  
+
       const remaining = (await getPendingSubmissions()).length;
-  
+
       // 🎯 Debounced UI logic to prevent flickering
       if (processed > 0 && remaining === 0) {
         // Hide blue banner, show green banner once
@@ -316,7 +322,6 @@ export function CBTTest() {
       setSyncProgress(null);
     }
   }
-  
 
   /* ---------- Network listeners ---------- */
   useEffect(() => {
@@ -671,7 +676,7 @@ export function CBTTest() {
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" className="text-black" />
+        <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
