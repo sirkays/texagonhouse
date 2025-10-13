@@ -122,7 +122,9 @@ export function TeacherStudentAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(
+    null
+  );
   const [selectedTest, setSelectedTest] = useState<TestDetail | null>(null);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -203,8 +205,8 @@ export function TeacherStudentAnalytics() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-sm xs:text-base sm:text-lg">Loading analytics...</p>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
@@ -297,12 +299,12 @@ export function TeacherStudentAnalytics() {
           >
             Test Analytics
           </TabsTrigger>
-          <TabsTrigger
+          {/* <TabsTrigger
             value="engagement"
             className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
           >
             Engagement
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="courses" className="space-y-3 xs:space-y-4">
@@ -1332,7 +1334,7 @@ export function TeacherStudentAnalytics() {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
+              {/* <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm xs:text-base sm:text-lg text-red-600">
@@ -1393,7 +1395,7 @@ export function TeacherStudentAnalytics() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </div> */}
             </div>
           )}
         </DialogContent>
