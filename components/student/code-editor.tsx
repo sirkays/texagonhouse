@@ -26,7 +26,9 @@ import {
   LogIn,
   MessageSquare,
   Send,
-  Edit2,
+  Link,
+  Trash2,
+  FilePlus,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -38,6 +40,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
 
 /* -------------------------------------------------- */
 /* Types from backend docs                            */
@@ -51,6 +54,14 @@ type Snippet = {
   meta: any;
   created_at: string;
   updated_at: string;
+};
+
+type UploadedFile = {
+  id: number;
+  name: string;
+  content: string;
+  language: string;
+  created_at: string;
 };
 
 type Submission = {
@@ -90,14 +101,18 @@ export function CodeEditor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
-  const [editingSnippetId, setEditingSnippetId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("editor");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  /* ---------- lesson list from real snippets ---------- */
+  /* ---------- lesson list and snippets ---------- */
   const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   /* ==========  SNIPPET ROUTES  =================== */
   const fetchSnippets = async (lessonId?: string) => {
@@ -124,30 +139,79 @@ export function CodeEditor() {
       meta: {},
     };
     try {
-      if (editingSnippetId) {
-        // Update existing snippet (endpoint not ready)
-        alert("Update endpoint not available yet. Saving as new snippet.");
-        const res = await fetch("/api/code-ide/snippets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error("Save failed");
-        const created: Snippet = await res.json();
-        setMySnippets((prev) => [created, ...prev]);
-      } else {
-        // Create new snippet
-        const res = await fetch("/api/code-ide/snippets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error("Save failed");
-        const created: Snippet = await res.json();
-        setMySnippets((prev) => [created, ...prev]);
-      }
+      const res = await fetch("/api/code-ide/snippets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      const created: Snippet = await res.json();
+      setMySnippets((prev) => [created, ...prev]);
     } catch {
       alert("Save failed");
+    }
+  };
+
+  const deleteSnippet = async (id: number) => {
+    try {
+      const res = await fetch(`/api/code-ide/snippets/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setMySnippets((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      alert("Delete failed: Endpoint not available");
+    }
+  };
+
+  /* ==========  UPLOAD ROUTES  =================== */
+  const uploadFile = async (file: File) => {
+    if (!session?.user?.sessionToken) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const content = e.target?.result as string;
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      const languageMap: { [key: string]: string } = {
+        js: "javascript",
+        py: "python",
+        java: "java",
+        cpp: "cpp",
+        html: "html",
+        css: "css",
+      };
+      const language = extension && languageMap[extension] ? languageMap[extension] : "javascript";
+      const body = {
+        name: file.name,
+        content,
+        language,
+      };
+      try {
+        const res = await fetch("/api/code-ide/uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const uploaded: UploadedFile = await res.json();
+        setUploadedFiles((prev) => [uploaded, ...prev]);
+      } catch {
+        alert("Upload failed: Endpoint not available");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const deleteUploadedFile = async (id: number) => {
+    try {
+      const res = await fetch(`/api/code-ide/uploads/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+      alert("Delete failed: Endpoint not available");
     }
   };
 
@@ -189,7 +253,7 @@ export function CodeEditor() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
-    if (!r.ok) throw new Error("Grading failed");
+    if (!res.ok) throw new Error("Grading failed");
     const updated: Submission = await res.json();
     setMySubmissions((prev) => prev.map((s) => (s.id === id ? updated : s)));
     return updated;
@@ -244,7 +308,7 @@ export function CodeEditor() {
   useEffect(() => {
     const t = setTimeout(() => saveSnippet().catch(() => {}), 10_000);
     return () => clearTimeout(t);
-  }, [code, selectedLanguage, selectedLesson, editingSnippetId]);
+  }, [code, selectedLanguage, selectedLesson]);
 
   /* initial load: lessons + my submissions + my snippets */
   useEffect(() => {
@@ -256,6 +320,10 @@ export function CodeEditor() {
         setMySnippets(snips);
       }),
       fetchSubmissions().then(setMySubmissions).catch(() => {}),
+      // Mock uploaded files (replace with real fetch when endpoint is ready)
+      setUploadedFiles([
+        { id: 1, name: "example.js", content: `console.log("Uploaded file");`, language: "javascript", created_at: new Date().toISOString() },
+      ]),
     ]).catch(() => {});
   }, [status]);
 
@@ -281,7 +349,6 @@ export function CodeEditor() {
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
-    setEditingSnippetId(null);
     setActiveTab("editor");
   };
   const handleLanguageChange = (lang: string) => {
@@ -290,7 +357,6 @@ export function CodeEditor() {
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
-    setEditingSnippetId(null);
     setActiveTab("editor");
   };
   const handleCodeChange = (v: string) => {
@@ -308,12 +374,51 @@ export function CodeEditor() {
       setCode(detailedSnippet.code_text);
       setSelectedLanguage(detailedSnippet.language);
       if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
-      setEditingSnippetId(detailedSnippet.id);
       setActiveTab("editor");
     } catch {
       alert("Failed to load snippet details");
     }
   };
+
+  const loadUploadedFile = (file: UploadedFile) => {
+    setCode(file.content);
+    setSelectedLanguage(file.language);
+    setActiveTab("editor");
+  };
+
+  const copySnippetUrl = (id: number) => {
+    const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
+    navigator.clipboard.writeText(url);
+    alert("Snippet URL copied to clipboard");
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadFile(file);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  /* -------------------------------------------------- */
+  /* Pagination and Search                              */
+  /* -------------------------------------------------- */
+  const filteredSnippets = mySnippets.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredUploads = uploadedFiles.filter((f) =>
+    f.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const paginatedSnippets = filteredSnippets.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const paginatedUploads = filteredUploads.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
+  const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
 
   /* -------------------------------------------------- */
   /* run / submit / comment                             */
@@ -486,13 +591,8 @@ export function CodeEditor() {
                   <Play className="mr-2 h-4 w-4" />
                   {isRunning ? "Executing..." : "Run Code"}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => saveSnippet().catch(() => alert("Save failed"))}
-                  disabled={editingSnippetId !== null}
-                >
-                  {editingSnippetId ? "Update (Not Available)" : "Save"}
+                <Button variant="outline" size="sm" onClick={() => saveSnippet().catch(() => alert("Save failed"))}>
+                  Save
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleSubmit} disabled={!selectedLesson}>
                   Submit
@@ -545,49 +645,161 @@ export function CodeEditor() {
           <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Files</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    resetCode();
+                    setSearchQuery("");
+                    setCurrentPage(1);
+                  }}
+                >
+                  <FilePlus className="h-4 w-4 mr-2" />
+                  New Code
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  Upload File
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".js,.py,.java,.cpp,.html,.css"
+                  className="hidden"
+                />
+              </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
-              <Accordion type="single" collapsible>
-                {Object.entries(
-                  mySnippets.reduce((acc: Record<string, Snippet[]>, s) => {
-                    const key = s.lesson ? `Lesson-${s.lesson}` : `General-${s.id}`;
-                    if (!acc[key]) acc[key] = [];
-                    acc[key].push(s);
-                    return acc;
-                  }, {})
-                ).map(([key, snips]) => (
-                  <AccordionItem key={key} value={key}>
-                    <AccordionTrigger>{key.startsWith("Lesson-") ? `Lesson ${key.split("-")[1]}` : "General"}</AccordionTrigger>
-                    <AccordionContent>
-                      {snips
-                        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                        .map((s) => (
-                          <div
-                            key={s.id}
-                            className="cursor-pointer hover:bg-accent p-2 rounded text-sm flex justify-between items-center"
-                          >
-                            <span>{s.title}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">{new Date(s.updated_at).toLocaleString()}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => loadSnippet(s)}
-                                title="Load into editor"
+              <Input
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full"
+              />
+              <Tabs defaultValue="saved" className="flex-1">
+                <TabsList className="grid grid-cols-2">
+                  <TabsTrigger value="saved">Saved</TabsTrigger>
+                  <TabsTrigger value="uploads">Uploads</TabsTrigger>
+                </TabsList>
+                <TabsContent value="saved">
+                  <Accordion type="single" collapsible>
+                    {Object.entries(
+                      paginatedSnippets.reduce((acc: Record<string, Snippet[]>, s) => {
+                        const key = s.lesson ? `Lesson-${s.lesson}` : `General-${s.id}`;
+                        if (!acc[key]) acc[key] = [];
+                        acc[key].push(s);
+                        return acc;
+                      }, {})
+                    ).map(([key, snips]) => (
+                      <AccordionItem key={key} value={key}>
+                        <AccordionTrigger>{key.startsWith("Lesson-") ? `Lesson ${key.split("-")[1]}` : "General"}</AccordionTrigger>
+                        <AccordionContent>
+                          {snips
+                            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                            .map((s) => (
+                              <div
+                                key={s.id}
+                                className="cursor-pointer hover:bg-accent p-2 rounded text-sm flex justify-between items-center"
                               >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-              <div className="mt-4">
-                <Button disabled>Upload File</Button>
-                <p className="text-sm text-muted-foreground mt-2">Endpoint coming soon</p>
-              </div>
+                                <span onClick={() => loadSnippet(s)}>{s.title}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground">{new Date(s.updated_at).toLocaleString()}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => copySnippetUrl(s.id)}
+                                    title="Copy snippet URL"
+                                  >
+                                    <Link className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteSnippet(s.id)}
+                                    title="Delete snippet"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                  <div className="flex justify-between mt-4">
+                    <Button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span>
+                      Page {currentPage} of {totalSnippetPages}
+                    </span>
+                    <Button
+                      disabled={currentPage === totalSnippetPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </TabsContent>
+                <TabsContent value="uploads">
+                  {paginatedUploads.map((f) => (
+                    <div
+                      key={f.id}
+                      className="cursor-pointer hover:bg-accent p-2 rounded text-sm flex justify-between items-center"
+                    >
+                      <span onClick={() => loadUploadedFile(f)}>{f.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{new Date(f.created_at).toLocaleString()}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const url = `${window.location.origin}/api/code-ide/uploads/${f.id}`;
+                            navigator.clipboard.writeText(url);
+                            alert("File URL copied to clipboard");
+                          }}
+                          title="Copy file URL"
+                        >
+                          <Link className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteUploadedFile(f.id)}
+                          title="Delete file"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-between mt-4">
+                    <Button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span>
+                      Page {currentPage} of {totalUploadPages}
+                    </span>
+                    <Button
+                      disabled={currentPage === totalUploadPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
