@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Badge} from "@/components/ui/badge";
-import {Progress} from "@/components/ui/progress";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Trophy,
   Star,
@@ -22,11 +22,9 @@ import {
   Gem,
   LogIn,
 } from "lucide-react";
-import {useSession} from "next-auth/react";
-import {Button} from "@/components/ui/button";
-import {Spinner} from "@/components/ui/spinner";
-
-// Remove local module augmentation; move it to a global .d.ts file for proper type extension
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Achievement {
   id: number;
@@ -68,7 +66,7 @@ interface AchievementsData {
   badges: Badge[];
 }
 
-const iconMap: {[key: string]: React.ComponentType<{className?: string}>} = {
+const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
   star: Star,
   trophy: Trophy,
   target: Target,
@@ -80,9 +78,20 @@ const iconMap: {[key: string]: React.ComponentType<{className?: string}>} = {
 };
 
 export function Achievements() {
-  const {data: session, status} = useSession();
-  const [achievementsData, setAchievementsData] =
-    useState<AchievementsData | null>(null);
+  const { data: session, status } = useSession();
+  const [achievementsData, setAchievementsData] = useState<AchievementsData>({
+    stats: {
+      total_points: 0,
+      achievements_unlocked: 0,
+      achievements_total: 0,
+      badges_earned: 0,
+      badges_total: 0,
+      streak_current: 0,
+      streak_best: 0,
+    },
+    achievements: [],
+    badges: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const sessionToken = useMemo(
@@ -98,7 +107,7 @@ export function Achievements() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       console.log(
         "[Achievements] Logout API response status:",
@@ -122,122 +131,6 @@ export function Achievements() {
     }
   };
 
-  // Fallback data for UI stability
-  const fallbackData: AchievementsData = {
-    stats: {
-      total_points: 7500,
-      achievements_unlocked: 3,
-      achievements_total: 6,
-      badges_earned: 2,
-      badges_total: 4,
-      streak_current: 15,
-      streak_best: 23,
-    },
-    achievements: [
-      {
-        id: 1,
-        title: "First Steps",
-        description: "Complete your first lesson",
-        icon: "star",
-        earned: true,
-        earnedDate: "2024-01-15",
-        points: 50,
-        category: "Getting Started",
-      },
-      {
-        id: 2,
-        title: "Code Warrior",
-        description: "Complete 10 coding exercises",
-        icon: "trophy",
-        earned: true,
-        earnedDate: "2024-01-20",
-        points: 200,
-        category: "Coding",
-      },
-      {
-        id: 3,
-        title: "Quiz Master",
-        description: "Score 90% or higher on 5 quizzes",
-        icon: "target",
-        earned: false,
-        progress: 3,
-        total: 5,
-        points: 300,
-        category: "Assessment",
-      },
-      {
-        id: 4,
-        title: "Streak Champion",
-        description: "Maintain a 30-day learning streak",
-        icon: "zap",
-        earned: false,
-        progress: 15,
-        total: 30,
-        points: 500,
-        category: "Consistency",
-      },
-      {
-        id: 5,
-        title: "Course Conqueror",
-        description: "Complete 3 full courses",
-        icon: "award",
-        earned: false,
-        progress: 1,
-        total: 3,
-        points: 750,
-        category: "Completion",
-      },
-      {
-        id: 6,
-        title: "Peer Helper",
-        description: "Help 10 fellow students",
-        icon: "medal",
-        earned: true,
-        earnedDate: "2024-01-25",
-        points: 400,
-        category: "Community",
-      },
-    ],
-    badges: [
-      {
-        id: 1,
-        name: "Bronze Learner",
-        description: "Earned 1,000 points",
-        icon: "medal",
-        color: "bg-amber-600",
-        earned: true,
-      },
-      {
-        id: 2,
-        name: "Silver Scholar",
-        description: "Earned 5,000 points",
-        icon: "trophy",
-        color: "bg-gray-400",
-        earned: true,
-      },
-      {
-        id: 3,
-        name: "Gold Graduate",
-        description: "Earned 10,000 points",
-        icon: "crown",
-        color: "bg-yellow-500",
-        earned: false,
-        progress: 7500,
-        total: 10000,
-      },
-      {
-        id: 4,
-        name: "Diamond Elite",
-        description: "Earned 25,000 points",
-        icon: "gem",
-        color: "bg-blue-500",
-        earned: false,
-        progress: 7500,
-        total: 25000,
-      },
-    ],
-  };
-
   useEffect(() => {
     const fetchAchievements = async () => {
       if (status !== "authenticated" || !sessionToken) {
@@ -246,7 +139,19 @@ export function Achievements() {
           status
         );
         setError("Not authenticated");
-        setAchievementsData(fallbackData);
+        setAchievementsData({
+          stats: {
+            total_points: 0,
+            achievements_unlocked: 0,
+            achievements_total: 0,
+            badges_earned: 0,
+            badges_total: 0,
+            streak_current: 0,
+            streak_best: 0,
+          },
+          achievements: [],
+          badges: [],
+        });
         setLoading(false);
         return;
       }
@@ -256,7 +161,7 @@ export function Achievements() {
           "[Achievements] Fetching from /api/student/achievements with token:",
           sessionToken
         );
-        const response = await fetch("/api/student/achievements", {
+        const response = await fetch("/api/student/achievements?debug=true", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
@@ -268,14 +173,41 @@ export function Achievements() {
             "[Achievements] Fetch failed with status:",
             response.status
           );
+          const errorData = await response.json();
           if (response.status === 401 || response.status === 403) {
             setError("Session expired");
-            setAchievementsData(fallbackData);
+            setAchievementsData({
+              stats: {
+                total_points: 0,
+                achievements_unlocked: 0,
+                achievements_total: 0,
+                badges_earned: 0,
+                badges_total: 0,
+                streak_current: 0,
+                streak_best: 0,
+              },
+              achievements: [],
+              badges: [],
+            });
             setLoading(false);
             return;
           }
-          setError("Failed to fetch achievements");
-          setAchievementsData(fallbackData);
+          setError(
+            errorData.detail || errorData.error || "Failed to fetch achievements"
+          );
+          setAchievementsData({
+            stats: {
+              total_points: 0,
+              achievements_unlocked: 0,
+              achievements_total: 0,
+              badges_earned: 0,
+              badges_total: 0,
+              streak_current: 0,
+              streak_best: 0,
+            },
+            achievements: [],
+            badges: [],
+          });
           throw new Error("Fetch failed");
         }
         const data = await response.json();
@@ -284,8 +216,20 @@ export function Achievements() {
         setError(null);
       } catch (e) {
         console.error("[Achievements] Fetch error:", e);
-        setError("Session expired");
-        setAchievementsData(fallbackData);
+        setError("Failed to fetch achievements");
+        setAchievementsData({
+          stats: {
+            total_points: 0,
+            achievements_unlocked: 0,
+            achievements_total: 0,
+            badges_earned: 0,
+            badges_total: 0,
+            streak_current: 0,
+            streak_best: 0,
+          },
+          achievements: [],
+          badges: [],
+        });
       } finally {
         setLoading(false);
       }
@@ -315,8 +259,8 @@ export function Achievements() {
               Session Expired
             </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log
-              in again to continue.
+              Your session has expired or you are not authenticated. Please log in
+              again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -343,7 +287,8 @@ export function Achievements() {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2">
+              className="flex items-center gap-2"
+            >
               <Trophy className="h-4 w-4" />
               Retry
             </Button>
@@ -353,9 +298,12 @@ export function Achievements() {
     );
   }
 
-  const data = achievementsData || fallbackData;
-  const earnedAchievements = data.achievements.filter((a) => a.earned);
-  const inProgressAchievements = data.achievements.filter((a) => !a.earned);
+  const earnedAchievements = achievementsData.achievements.filter(
+    (a) => a.earned
+  );
+  const inProgressAchievements = achievementsData.achievements.filter(
+    (a) => !a.earned
+  );
 
   return (
     <div className="space-y-6">
@@ -375,9 +323,9 @@ export function Achievements() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {data.stats.total_points.toLocaleString()}
+              {achievementsData.stats.total_points.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">+250 this week</p>
+            <p className="text-xs text-muted-foreground">Keep learning!</p>
           </CardContent>
         </Card>
         <Card>
@@ -387,10 +335,10 @@ export function Achievements() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {data.stats.achievements_unlocked}
+              {achievementsData.stats.achievements_unlocked}
             </div>
             <p className="text-xs text-muted-foreground">
-              of {data.stats.achievements_total} unlocked
+              of {achievementsData.stats.achievements_total} unlocked
             </p>
           </CardContent>
         </Card>
@@ -401,10 +349,10 @@ export function Achievements() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {data.stats.badges_earned}
+              {achievementsData.stats.badges_earned}
             </div>
             <p className="text-xs text-muted-foreground">
-              of {data.stats.badges_total} earned
+              of {achievementsData.stats.badges_total} earned
             </p>
           </CardContent>
         </Card>
@@ -417,10 +365,10 @@ export function Achievements() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              {data.stats.streak_current} days
+              {achievementsData.stats.streak_current} days
             </div>
             <p className="text-xs text-muted-foreground">
-              Personal best: {data.stats.streak_best} days
+              Personal best: {achievementsData.stats.streak_best} days
             </p>
           </CardContent>
         </Card>
@@ -430,29 +378,40 @@ export function Achievements() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="achievements"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Achievements
           </TabsTrigger>
           <TabsTrigger
             value="badges"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Badges
           </TabsTrigger>
           <TabsTrigger
             value="progress"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             In Progress
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="achievements" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
+            {earnedAchievements.length === 0 && (
+              <Card>
+                <CardContent className="pt-6 text-center text-muted-foreground">
+                  No achievements unlocked yet. Keep learning to earn some!
+                </CardContent>
+              </Card>
+            )}
             {earnedAchievements.map((achievement) => {
               const IconComponent = iconMap[achievement.icon] || Star;
               return (
                 <Card
                   key={achievement.id}
-                  className="border-green-200 bg-green-50">
+                  className="border-green-200 bg-green-50"
+                >
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -470,7 +429,8 @@ export function Achievements() {
                       </div>
                       <Badge
                         variant="secondary"
-                        className="bg-green-100 text-green-700">
+                        className="bg-green-100 text-green-700"
+                      >
                         +{achievement.points} pts
                       </Badge>
                     </div>
@@ -489,27 +449,32 @@ export function Achievements() {
 
         <TabsContent value="badges" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {data.badges.map((badge) => {
+            {achievementsData.badges.length === 0 && (
+              <Card>
+                <CardContent className="pt-6 text-center text-muted-foreground">
+                  No badges available yet. Keep learning to earn some!
+                </CardContent>
+              </Card>
+            )}
+            {achievementsData.badges.map((badge) => {
               const IconComponent = iconMap[badge.icon] || Medal;
               return (
                 <Card
                   key={badge.id}
-                  className={
-                    badge.earned ? "border-yellow-200 bg-yellow-50" : ""
-                  }>
+                  className={badge.earned ? "border-yellow-200 bg-yellow-50" : ""}
+                >
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
                           className={`p-3 rounded-full ${badge.color} ${
                             badge.earned ? "opacity-100" : "opacity-50"
-                          }`}>
+                          }`}
+                        >
                           <IconComponent className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">
-                            {badge.name}
-                          </CardTitle>
+                          <CardTitle className="text-lg">{badge.name}</CardTitle>
                           <CardDescription>{badge.description}</CardDescription>
                         </div>
                       </div>
@@ -520,7 +485,7 @@ export function Achievements() {
                       )}
                     </div>
                   </CardHeader>
-                  {!badge.earned && badge.progress && badge.total && (
+                  {!badge.earned && badge.progress !== undefined && badge.total && (
                     <CardContent>
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -545,10 +510,17 @@ export function Achievements() {
 
         <TabsContent value="progress" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
+            {inProgressAchievements.length === 0 && (
+              <Card>
+                <CardContent className="pt-6 text-center text-muted-foreground">
+                  No achievements in progress. Start a new challenge!
+                </CardContent>
+              </Card>
+            )}
             {inProgressAchievements.map((achievement) => {
               const IconComponent = iconMap[achievement.icon] || Star;
               const progressPercent =
-                achievement.progress && achievement.total
+                achievement.progress !== undefined && achievement.total
                   ? (achievement.progress / achievement.total) * 100
                   : 0;
 
