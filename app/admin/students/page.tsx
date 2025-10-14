@@ -99,7 +99,6 @@ export default function StudentsPage() {
     const loadData = async () => {
       const fetchedClassrooms = await fetchClassrooms();
       setClassrooms(fetchedClassrooms);
-      await loadStudents();
     };
     loadData();
   }, []);
@@ -278,7 +277,7 @@ export default function StudentsPage() {
                       <AvatarFallback>
                         {student.name
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: any) => n[0])
                           .join("")}
                       </AvatarFallback>
                     </Avatar>

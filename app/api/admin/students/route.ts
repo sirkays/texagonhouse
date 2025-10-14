@@ -1,3 +1,4 @@
+// app/api/students/route.ts
 import {NextRequest, NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -9,11 +10,8 @@ async function getSession() {
   return await getServerSession(authOptions);
 }
 
-export async function GET(
-  request: NextRequest,
-  {params}: {params: {slug?: string[]}}
-) {
-  console.log("[Route] Received GET request to /api/admin/students");
+export async function GET(request: NextRequest) {
+  console.log("[Route] Received GET request to /api/students");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -24,59 +22,18 @@ export async function GET(
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
-  const headers = {
-    Authorization: `Api-Key ${API_KEY}`,
-    "X-Session-Token": session.user.sessionToken,
-  };
-
-  // Handle export if slug is ['export']
-  if (params?.slug?.[0] === "export") {
-    try {
-      console.log(
-        "[Route] Fetching export from",
-        `${BASE_URL}/api/admin/students/export/`
-      );
-      const res = await fetch(`${BASE_URL}/api/admin/students/export/`, {
-        headers,
-      });
-
-      console.log("[Route] API response status:", res.status);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.log("[Route] API export failed:", errorText);
-        return NextResponse.json(
-          {error: errorText || "Failed to export data"},
-          {status: res.status}
-        );
-      }
-
-      const csv = await res.text();
-      return new NextResponse(csv, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="students_${
-            new Date().toISOString().split("T")[0]
-          }.csv"`,
-        },
-      });
-    } catch (error) {
-      console.error("[Route] Error exporting data:", error);
-      return NextResponse.json({error: "Internal server error"}, {status: 500});
-    }
-  }
-
-  // Handle list students (base path or with query params)
   try {
-    const searchParams = request.nextUrl.searchParams.toString();
-    const queryString = searchParams ? `?${searchParams}` : "";
-    console.log(
-      "[Route] Fetching data from",
-      `${BASE_URL}/api/admin/students/${queryString}`
-    );
-    const res = await fetch(`${BASE_URL}/api/admin/students/${queryString}`, {
-      headers,
+    const {searchParams} = new URL(request.url);
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `${BASE_URL}/api/admin/students/?${queryString}`
+      : `${BASE_URL}/api/admin/students/`;
+    console.log("[Route] Fetching data from", url);
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Api-Key ${API_KEY}`,
+        "X-Session-Token": session.user.sessionToken,
+      },
     });
 
     console.log("[Route] API response status:", res.status);
@@ -99,7 +56,7 @@ export async function GET(
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[Route] Received POST request to /api/admin/students");
+  console.log("[Route] Received POST request to /api/students");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -147,7 +104,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {status: 201});
   } catch (error) {
     console.error("[Route] Error creating student:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
