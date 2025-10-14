@@ -64,14 +64,17 @@ interface Category {
 interface Lesson {
   id: string;
   title: string;
-  type: "video" | "audio" | "text" | "quiz";
+  type: "video" | "audio" | "pdf" | "text" | "quiz";
   duration: string;
   videoUrl?: string;
   audioUrl?: string;
   content?: string;
   file?: File | null;
+  coverImage?: File | null; // NEW: Cover image file
+  coverImageUrl?: string; // NEW: Existing cover image URL
   order?: number;
   active?: boolean;
+  remove_cover: boolean; // NEW: Flag to indicate cover removal
   meta?: { description: string; tags: string[] };
 }
 
@@ -107,7 +110,7 @@ interface APIModule {
   course: { id: string; name: string };
   createdAt: string;
   updatedAt: string;
-  lessons: Lesson[];
+  lessons: any[]; // Backend lessons with cover_image
   lessonCount: number;
 }
 
@@ -116,7 +119,7 @@ interface APIError {
   redirect?: string;
 }
 
-const BASE_URL = "/api/teacher";
+const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | null) => ({
@@ -147,6 +150,15 @@ const formatDate = (dateString: string | undefined): string => {
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0];
 };
+
+// Add this utility function at the top with other utilities
+function normalizeMedia(media: string | undefined): string | undefined {
+  if (!media) return undefined;
+  const BASE_URL = "https://texagonbackend.epichouse.online";
+  const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
+  if (cleaned.startsWith("http")) return cleaned;
+  return `${BASE_URL}/media/${cleaned}`;
+}
 
 export function TeacherLearningModules() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +200,7 @@ export function TeacherLearningModules() {
   const [difficultyFilter, setDifficultyFilter] = useState("Beginner");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const modulesPerPage = 3;
+  const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
 
   // Fetch session token
   useEffect(() => {
@@ -340,6 +353,15 @@ export function TeacherLearningModules() {
   }, [currentModule.course.id, sessionToken]);
 
   // Fetch module details
+  // Add this utility function at the top of your file with other utilities
+  function normalizeMedia(media: string | undefined): string | undefined {
+    if (!media) return undefined;
+    const BASE_URL = "https://texagonbackend.epichouse.online";
+    const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
+    if (cleaned.startsWith("http")) return cleaned;
+    return `${BASE_URL}/media/${cleaned}`;
+  }
+
   const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     try {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}`, {
@@ -351,6 +373,16 @@ export function TeacherLearningModules() {
         throw new Error(errorData.error || "Failed to fetch module details");
       }
       const module: APIModule = await response.json();
+
+      // Map lessons to include normalized cover_image
+      const lessonsWithCover =
+        module.lessons?.map((lesson: any) => ({
+          ...lesson,
+          coverImageUrl: lesson.cover_image
+            ? normalizeMedia(lesson.cover_image)
+            : null, // FIX: Apply normalizeMedia
+        })) || [];
+
       return {
         id: module.id,
         title: module.title,
@@ -369,7 +401,7 @@ export function TeacherLearningModules() {
           id: module.course?.id || "",
           name: module.course?.name || "",
         },
-        lessons: module.lessons || [],
+        lessons: lessonsWithCover,
         lessonCount: module.lessonCount || 0,
         order: module.order,
         active: module.active,
@@ -404,6 +436,8 @@ export function TeacherLearningModules() {
       content: "",
       videoUrl: "",
       audioUrl: "",
+      coverImage: null, // NEW
+      coverImageUrl: "", // NEW
     };
     setCurrentModule((prev) => ({
       ...prev,
@@ -593,6 +627,7 @@ export function TeacherLearningModules() {
       return;
     }
     try {
+      setIsSaving(true);
       const payload = {
         title: currentModule.title,
         description: currentModule.description,
@@ -694,13 +729,20 @@ export function TeacherLearningModules() {
       return;
     }
     try {
+      setIsSaving(true);
       const payload = {
         title: currentModule.title,
         description: currentModule.description,
         difficulty: currentModule.difficulty.toLowerCase(),
-        estimatedDuration: minutesToDuration(currentModule.duration), // Convert to string
+        estimatedDuration: currentModule.duration, // FIX: Send as number (minutes)
         order: currentModule.order,
       };
+
+      // Ensure estimatedDuration is a number
+      payload.estimatedDuration = Number(payload.estimatedDuration);
+
+      console.log("[updateModule] Payload:", payload);
+
       const response = await fetch(
         `${BASE_URL}/modules/${currentModule.id}/update/`,
         {
@@ -709,6 +751,7 @@ export function TeacherLearningModules() {
           body: JSON.stringify(payload),
         }
       );
+
       let errorData;
       if (!response.ok) {
         try {
@@ -735,6 +778,7 @@ export function TeacherLearningModules() {
             "Failed to update module. Please check the details and try again."
         );
       }
+
       const data: { module: APIModule } = await response.json();
       const updatedModule: Module = {
         id: data.module.id,
@@ -762,9 +806,12 @@ export function TeacherLearningModules() {
       setModules((prev) =>
         prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
       );
+      // Refresh to get latest data
+      const moduleData = await getModuleDetails(currentModule.id);
+      if (moduleData) {
+        setCurrentModule(moduleData);
+      }
       alert(`Module updated successfully! ID: ${updatedModule.id}`);
-      setCurrentModule(initialModule);
-      setEditingLesson(null);
     } catch (err) {
       setError(
         (err as Error).message ||
@@ -831,13 +878,14 @@ export function TeacherLearningModules() {
     }
 
     try {
+      setIsSavingLesson(true);
       const formData = new FormData();
       formData.append("title", editingLesson.title);
-      formData.append("content_type", editingLesson.type);
+      formData.append("type", editingLesson.type); // Updated to "type" per API
       formData.append(
-        "duration_seconds",
+        "duration",
         (durationToMinutes(editingLesson.duration) * 60).toString()
-      );
+      ); // Updated to "duration"
       formData.append("order", (currentModule.lessons.length + 1).toString());
       formData.append(
         "meta",
@@ -848,9 +896,12 @@ export function TeacherLearningModules() {
       );
       formData.append("active", "true");
 
+      // Main file handling
       if (
         editingLesson.file &&
-        (editingLesson.type === "video" || editingLesson.type === "audio")
+        (editingLesson.type === "video" ||
+          editingLesson.type === "audio" ||
+          editingLesson.type === "pdf")
       ) {
         console.log("[saveLesson] File selected:", {
           name: editingLesson.file.name,
@@ -867,7 +918,7 @@ export function TeacherLearningModules() {
           "[saveLesson] Text content provided:",
           editingLesson.content.slice(0, 200)
         );
-        formData.append("content", editingLesson.content);
+        formData.append("textContent", editingLesson.content); // Updated field name if needed
       } else if (
         (editingLesson.videoUrl || editingLesson.audioUrl) &&
         (editingLesson.videoUrl?.startsWith("http") ||
@@ -878,6 +929,20 @@ export function TeacherLearningModules() {
         formData.append("url", url);
       } else {
         console.log("[saveLesson] No file or valid URL provided");
+      }
+
+      // NEW: Cover image handling
+      if (editingLesson.coverImage) {
+        console.log("[saveLesson] Cover image selected:", {
+          name: editingLesson.coverImage.name,
+          type: editingLesson.coverImage.type,
+          size: editingLesson.coverImage.size,
+        });
+        formData.append(
+          "cover_image",
+          editingLesson.coverImage,
+          editingLesson.coverImage.name
+        );
       }
 
       // Log FormData contents for debugging
@@ -891,13 +956,15 @@ export function TeacherLearningModules() {
 
       console.log(
         "[saveLesson] Sending POST to",
-        `${BASE_URL}/modules/${currentModule.id}/lessons/`
+        `/api/teacher/modules/${currentModule.id}/lessons/`
       );
       const response = await fetch(
-        `${BASE_URL}/modules/${currentModule.id}/lessons/`,
+        `/api/teacher/modules/${currentModule.id}/lessons/`,
         {
           method: "POST",
-          headers: headers(sessionToken),
+          headers: {
+            "X-Session-Token": sessionToken,
+          },
           body: formData,
         }
       );
@@ -947,6 +1014,8 @@ export function TeacherLearningModules() {
         (err as Error).message || "An error occurred while creating the lesson"
       );
       console.error("[saveLesson] Error:", err);
+    } finally {
+      setIsSavingLesson(false);
     }
   };
 
@@ -973,13 +1042,14 @@ export function TeacherLearningModules() {
     }
 
     try {
+      setIsSavingLesson(true);
       const formData = new FormData();
       formData.append("title", editingLesson.title);
-      formData.append("content_type", editingLesson.type);
+      formData.append("type", editingLesson.type); // Updated to "type"
       formData.append(
-        "duration_seconds",
+        "duration",
         (durationToMinutes(editingLesson.duration) * 60).toString()
-      );
+      ); // Updated to "duration"
       formData.append(
         "order",
         editingLesson.order?.toString() ||
@@ -994,9 +1064,12 @@ export function TeacherLearningModules() {
       );
       formData.append("active", editingLesson.active ? "true" : "false");
 
+      // Main file handling
       if (
         editingLesson.file &&
-        (editingLesson.type === "video" || editingLesson.type === "audio")
+        (editingLesson.type === "video" ||
+          editingLesson.type === "audio" ||
+          editingLesson.type === "pdf")
       ) {
         console.log("[updateLesson] File selected:", {
           name: editingLesson.file.name,
@@ -1004,6 +1077,7 @@ export function TeacherLearningModules() {
           size: editingLesson.file.size,
         });
         formData.append("file", editingLesson.file, editingLesson.file.name);
+        formData.append("remove_file", "false"); // Explicitly set
       } else if (
         editingLesson.type === "text" &&
         editingLesson.content &&
@@ -1013,7 +1087,7 @@ export function TeacherLearningModules() {
           "[updateLesson] Text content provided:",
           editingLesson.content.slice(0, 200)
         );
-        formData.append("content", editingLesson.content);
+        formData.append("textContent", editingLesson.content); // Updated field name if needed
       } else if (
         (editingLesson.videoUrl || editingLesson.audioUrl) &&
         (editingLesson.videoUrl?.startsWith("http") ||
@@ -1024,6 +1098,20 @@ export function TeacherLearningModules() {
         formData.append("url", url);
       } else {
         console.log("[updateLesson] No file or valid URL provided");
+      }
+
+      // NEW: Cover image handling for updates
+      if (editingLesson.coverImage) {
+        console.log("[updateLesson] New cover image selected");
+        formData.append(
+          "cover_image",
+          editingLesson.coverImage,
+          editingLesson.coverImage.name
+        );
+        formData.append("remove_cover", "false"); // Clear remove flag
+      } else if (editingLesson.remove_cover) {
+        console.log("[updateLesson] Removing cover image");
+        formData.append("remove_cover", "true");
       }
 
       // Log FormData contents for debugging
@@ -1037,13 +1125,15 @@ export function TeacherLearningModules() {
 
       console.log(
         "[updateLesson] Sending PATCH to",
-        `${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`
+        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`
       );
       const response = await fetch(
-        `${BASE_URL}/modules/${currentModule.id}/lessons/${lessonId}/`,
+        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
         {
           method: "PATCH",
-          headers: headers(sessionToken),
+          headers: {
+            "X-Session-Token": sessionToken,
+          },
           body: formData,
         }
       );
@@ -1083,7 +1173,10 @@ export function TeacherLearningModules() {
         );
       }
 
+      // After setting module data:
       setEditingLesson(null);
+      // Clear the remove_cover flag in local state
+      updateLessonFields(lessonId, { remove_cover: false });
       if (fileInputRef.current) {
         fileInputRef.current.value = ""; // Reset file input
       }
@@ -1242,42 +1335,6 @@ export function TeacherLearningModules() {
                   </div>
 
                   <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
-                    {/* <div className="space-y-2">
-                      <Label className="text-xs xs:text-sm sm:text-base">
-                        Module Type
-                      </Label>
-                      <Select
-                        value={currentModule.type}
-                        onValueChange={(value: Module["type"]) =>
-                          setCurrentModule((prev) => ({...prev, type: value}))
-                        }>
-                        <SelectTrigger className="text-xs xs:text-sm sm:text-base">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem
-                            value="video"
-                            className="text-xs xs:text-sm sm:text-base">
-                            Video Course
-                          </SelectItem>
-                          <SelectItem
-                            value="audio"
-                            className="text-xs xs:text-sm sm:text-base">
-                            Audio Course
-                          </SelectItem>
-                          <SelectItem
-                            value="document"
-                            className="text-xs xs:text-sm sm:text-base">
-                            Document Series
-                          </SelectItem>
-                          <SelectItem
-                            value="tutorial"
-                            className="text-xs xs:text-sm sm:text-base">
-                            Interactive Tutorial
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div> */}
                     <div className="space-y-2">
                       <Label className="text-xs xs:text-sm sm:text-base">
                         Difficulty
@@ -1416,9 +1473,12 @@ export function TeacherLearningModules() {
                           duration: parseInt(e.target.value) || 0,
                         }))
                       }
-                      placeholder="e.g., 270"
+                      placeholder="e.g., 37"
                       className="text-xs xs:text-sm sm:text-base"
                     />
+                    <p className="text-[0.7rem] text-muted-foreground">
+                      Enter total minutes (e.g., 37 for 37 minutes)
+                    </p>
                   </div>
 
                   <div className="pt-2 xs:pt-3 space-y-2">
@@ -1525,6 +1585,18 @@ export function TeacherLearningModules() {
                                 >
                                   {lesson.type}
                                 </Badge>
+                                {/* NEW: Cover image preview in list */}
+                                {lesson.coverImageUrl && (
+                                  <img
+                                    src={lesson.coverImageUrl}
+                                    alt="Cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none"; // Hide broken images
+                                      // Or set fallback: e.currentTarget.src = '/default-cover.png';
+                                    }}
+                                    className="w-6 h-4 object-cover rounded ml-1"
+                                  />
+                                )}
                               </div>
                               <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                                 {lesson.title || "Untitled lesson"}
@@ -1568,6 +1640,120 @@ export function TeacherLearningModules() {
                 <CardContent>
                   {editingLesson ? (
                     <div className="space-y-3 xs:space-y-4">
+                      {/* NEW: Cover Image Section */}
+                      <div className="space-y-2">
+                        <Label className="text-xs xs:text-sm sm:text-base">
+                          Cover Image{" "}
+                          {editingLesson.coverImage ||
+                          editingLesson.coverImageUrl
+                            ? "(Set)"
+                            : "Upload"}
+                        </Label>
+                        {editingLesson.coverImage ||
+                        editingLesson.coverImageUrl ? (
+                          <div className="space-y-2">
+                            {editingLesson.coverImage && (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={editingLesson.coverImage.name}
+                                  readOnly
+                                  className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs xs:text-sm sm:text-base shadow-md"
+                                  onClick={() =>
+                                    updateLessonFields(editingLesson.id, {
+                                      coverImage: null,
+                                    })
+                                  }
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            )}
+                            {editingLesson.coverImageUrl &&
+                              !editingLesson.coverImage && (
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={editingLesson.coverImageUrl}
+                                    alt="Current cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none"; // Hide broken images
+                                      // Or set fallback: e.currentTarget.src = '/default-cover.png';
+                                    }}
+                                    className="w-16 h-12 object-cover rounded border"
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs xs:text-sm sm:text-base shadow-md"
+                                    // When clicking "Remove Cover" button:
+                                    onClick={() =>
+                                      updateLessonFields(editingLesson.id, {
+                                        coverImageUrl: "", // Clear URL
+                                        coverImage: null, // Clear new file
+                                        remove_cover: true, // Set flag for backend
+                                      })
+                                    }
+                                  >
+                                    Remove Cover
+                                  </Button>
+                                </div>
+                              )}
+                          </div>
+                        ) : (
+                          <>
+                            <input
+                              type="file"
+                              ref={coverImageInputRef} // Add this ref
+                              id="cover-image"
+                              className="hidden"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  console.log(
+                                    "[LessonEditor] Cover image selected:",
+                                    {
+                                      name: file.name,
+                                      type: file.type,
+                                      size: file.size,
+                                    }
+                                  );
+                                  updateLessonFields(editingLesson.id, {
+                                    coverImage: file,
+                                  });
+                                  // Reset input after selection
+                                  e.target.value = "";
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor="cover-image"
+                              className="cursor-pointer"
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                onClick={() =>
+                                  coverImageInputRef.current?.click()
+                                } // Use the new ref
+                              >
+                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Upload Cover Image
+                              </Button>
+                            </label>
+                            <p className="text-[0.7rem] text-muted-foreground">
+                              Recommended: 16:9 aspect ratio, JPG/PNG, max 2MB
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Lesson Type */}
                       <div className="space-y-2">
                         <Label className="text-xs xs:text-sm sm:text-base">
                           Lesson Type
@@ -1580,7 +1766,8 @@ export function TeacherLearningModules() {
                               videoUrl: "",
                               audioUrl: "",
                               content: "",
-                              file: null, // Reset file
+                              file: null,
+                              coverImage: null, // Reset cover when changing type
                             })
                           }
                         >
@@ -1606,8 +1793,6 @@ export function TeacherLearningModules() {
                             >
                               PDF
                             </SelectItem>
-                            {/* <SelectItem value="text" className="text-xs xs:text-sm sm:text-base">Text/Article</SelectItem> */}
-                            {/* <SelectItem value="quiz" className="text-xs xs:text-sm sm:text-base">Quiz</SelectItem> */}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1651,6 +1836,7 @@ export function TeacherLearningModules() {
                         />
                       </div>
 
+                      {/* Video Upload */}
                       {editingLesson.type === "video" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
@@ -1715,6 +1901,7 @@ export function TeacherLearningModules() {
                         </div>
                       )}
 
+                      {/* Audio Upload */}
                       {editingLesson.type === "audio" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
@@ -1779,6 +1966,7 @@ export function TeacherLearningModules() {
                         </div>
                       )}
 
+                      {/* PDF Upload */}
                       {editingLesson.type === "pdf" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
@@ -1811,7 +1999,7 @@ export function TeacherLearningModules() {
                                 type="file"
                                 ref={fileInputRef}
                                 className="hidden"
-                                accept="pdf/epub,pdf/pdf,pdf/txt,pdf/docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                accept="application/pdf,application/epub+zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
@@ -1843,81 +2031,23 @@ export function TeacherLearningModules() {
                         </div>
                       )}
 
+                      {/* Text Upload - Simplified, as per original */}
                       {editingLesson.type === "text" && (
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
-                            {editingLesson.content &&
-                            editingLesson.content.startsWith("http")
-                              ? "Document URL (Uploaded)"
-                              : "Content"}
+                            Content
                           </Label>
-                          {editingLesson.content &&
-                          editingLesson.content.startsWith("http") ? (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={editingLesson.content}
-                                readOnly
-                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() =>
-                                  updateLessonFields(editingLesson.id, {
-                                    content: "",
-                                  })
-                                }
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          ) : (
-                            <>
-                              <Textarea
-                                value={editingLesson.content || ""}
-                                onChange={(e) =>
-                                  updateLessonFields(editingLesson.id, {
-                                    content: e.target.value,
-                                  })
-                                }
-                                placeholder="Write your lesson content here or upload a document..."
-                                rows={4}
-                                className="text-xs xs:text-sm sm:text-base"
-                              />
-                              <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    console.log(
-                                      "[LessonEditor] File selected:",
-                                      {
-                                        name: file.name,
-                                        type: file.type,
-                                        size: file.size,
-                                      }
-                                    );
-                                    updateLessonFields(editingLesson.id, {
-                                      file, // Store the file object
-                                    });
-                                  }
-                                }}
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
-                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                Upload Document
-                              </Button>
-                            </>
-                          )}
+                          <Textarea
+                            value={editingLesson.content || ""}
+                            onChange={(e) =>
+                              updateLessonFields(editingLesson.id, {
+                                content: e.target.value,
+                              })
+                            }
+                            placeholder="Write your lesson content here..."
+                            rows={4}
+                            className="text-xs xs:text-sm sm:text-base"
+                          />
                         </div>
                       )}
 
@@ -1964,6 +2094,7 @@ export function TeacherLearningModules() {
           )}
         </TabsContent>
 
+        {/* Manage and Analytics tabs remain the same as original */}
         <TabsContent value="manage" className="space-y-3 xs:space-y-4">
           <div className="flex flex-wrap items-start xs:items-center justify-between gap-2 xs:gap-3">
             <div>
@@ -2121,7 +2252,6 @@ export function TeacherLearningModules() {
 
                         <div className="flex gap-2 flex-col lg:flex-row">
                           <Button
-                            // size="sm"
                             className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
                             onClick={async () => {
                               const moduleData = await getModuleDetails(
@@ -2137,7 +2267,6 @@ export function TeacherLearningModules() {
                             Edit
                           </Button>
                           <Button
-                            // size="sm"
                             variant="outline"
                             className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
                             onClick={async () => {
@@ -2154,7 +2283,6 @@ export function TeacherLearningModules() {
                             Preview
                           </Button>
                           <Button
-                            // size="sm"
                             variant="destructive"
                             className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
                             onClick={() => deleteModule(module.id)}

@@ -43,14 +43,37 @@ export function AudioPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Initialize audio volume on mount
   useEffect(() => {
+    if (isOpen && !audioUrl) {
+      setError("No audio URL provided");
+      console.error("[AudioPlayer] No audio URL provided for:", title);
+    } else if (
+      isOpen &&
+      audioUrl &&
+      !navigator.onLine &&
+      !audioUrl.startsWith("blob:")
+    ) {
+      setError("Audio not available offline. Please connect to the internet or ensure it is cached.");
+      console.error(
+        "[AudioPlayer] Offline mode, but audioUrl is not a blob URL:",
+        audioUrl
+      );
+    } else {
+      setError(null);
+    }
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;
     }
-  }, []);
+    if (!isOpen) {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      if (audioUrl && audioUrl.startsWith("blob:")) {
+        console.log("[AudioPlayer] Revoking object URL:", audioUrl);
+        URL.revokeObjectURL(audioUrl);
+      }
+    }
+  }, [isOpen, audioUrl, title]);
 
-  // Handle real-time progress updates
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -74,8 +97,12 @@ export function AudioPlayer({
     };
 
     const handleError = (e: Event) => {
-      console.error("[AudioPlayer] Audio error:", e);
-      setError("Failed to load audio. Please try downloading or check the URL.");
+      console.error("[AudioPlayer] Audio error:", e, "audioUrl:", audioUrl);
+      setError(
+        !navigator.onLine && !audioUrl?.startsWith("blob:")
+          ? "Audio not available offline. Please connect to the internet or ensure it is cached."
+          : "Failed to load audio. Please try again or check your connection."
+      );
     };
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
@@ -93,8 +120,12 @@ export function AudioPlayer({
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      if (audioUrl && audioUrl.startsWith("blob:")) {
+        console.log("[AudioPlayer] Cleanup: Revoking object URL:", audioUrl);
+        URL.revokeObjectURL(audioUrl);
+      }
     };
-  }, [isPlaying]);
+  }, [isPlaying, audioUrl]);
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -104,7 +135,11 @@ export function AudioPlayer({
       } else {
         audioRef.current.play().catch((e) => {
           console.error("[AudioPlayer] Play error:", e);
-          setError("Failed to play audio. Please try again.");
+          setError(
+            !navigator.onLine && !audioUrl?.startsWith("blob:")
+              ? "Audio not available offline. Please connect to the internet or ensure it is cached."
+              : "Failed to play audio. Please try again or check your connection."
+          );
         });
         setIsPlaying(true);
       }
@@ -114,12 +149,10 @@ export function AudioPlayer({
   const toggleMute = () => {
     if (audioRef.current) {
       if (isMuted) {
-        // Unmute: restore previous volume
         audioRef.current.muted = false;
         audioRef.current.volume = volume / 100;
         setIsMuted(false);
       } else {
-        // Mute: store current volume and set to 0
         audioRef.current.muted = true;
         setIsMuted(true);
       }
@@ -170,6 +203,10 @@ export function AudioPlayer({
       setError("No audio URL available for download");
       return;
     }
+    if (audioUrl.startsWith("blob:")) {
+      setError("Cannot download cached audio. Please connect to the internet.");
+      return;
+    }
     const link = document.createElement("a");
     link.href = audioUrl;
     link.download = title || "audio.mp3";
@@ -188,7 +225,6 @@ export function AudioPlayer({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Error Display */}
           {error ? (
             <div className="w-full text-center text-red-500">
               <div className="text-lg font-semibold mb-2">Error</div>
@@ -196,19 +232,14 @@ export function AudioPlayer({
             </div>
           ) : (
             <>
-              {/* Audio Element */}
               <audio
                 ref={audioRef}
                 src={audioUrl}
                 onEnded={() => setIsPlaying(false)}
               />
-
-              {/* Album Art */}
               <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center">
                 <div className="text-white text-6xl">🎵</div>
               </div>
-
-              {/* Progress Bar */}
               <div className="space-y-2">
                 <Slider
                   value={[currentTime]}
@@ -222,8 +253,6 @@ export function AudioPlayer({
                   <span>{duration || formatTime(totalDuration)}</span>
                 </div>
               </div>
-
-              {/* Controls */}
               <div className="flex items-center justify-center gap-4">
                 <Button variant="ghost" size="sm" onClick={skipBackward}>
                   <SkipBack className="h-5 w-5" />
@@ -235,8 +264,6 @@ export function AudioPlayer({
                   <SkipForward className="h-5 w-5" />
                 </Button>
               </div>
-
-              {/* Volume Control */}
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={toggleMute}>
                   {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -250,16 +277,16 @@ export function AudioPlayer({
                 />
                 <span className="text-sm text-muted-foreground w-8">{volume}%</span>
               </div>
-
-              {/* Download Button */}
-              <Button
-                variant="outline"
-                className="w-full bg-transparent"
-                onClick={handleDownload}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download Audio
-              </Button>
+              {audioUrl && !audioUrl.startsWith("blob:") && navigator.onLine && (
+                <Button
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  onClick={handleDownload}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Audio
+                </Button>
+              )}
             </>
           )}
         </div>

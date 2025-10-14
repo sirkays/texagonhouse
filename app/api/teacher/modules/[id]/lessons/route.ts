@@ -7,7 +7,8 @@ import fs from "fs/promises";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
-const FILE_FIELD_NAME = "file"; // Change to "media" or other if API requires
+const FILE_FIELD_NAME = "file";
+const COVER_IMAGE_FIELD_NAME = "cover_image";
 
 const headers = (sessionToken: string | undefined) => ({
   "Authorization": `Api-Key ${API_KEY}`,
@@ -50,6 +51,8 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
     let payload: any = {};
     let file: { path: string; name: string | null; type: string | null } | null = null;
+    let coverImageFile: { path: string; name: string | null; type: string | null } | null = null;
+    let response: Response;
 
     if (contentType.toLowerCase().includes("multipart/form-data")) {
       console.log("[LessonCreateAPI] Processing multipart/form-data");
@@ -106,6 +109,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         }
       }
 
+      // Handle main file
       if (files[FILE_FIELD_NAME]) {
         const uploadedFile = Array.isArray(files[FILE_FIELD_NAME]) ? files[FILE_FIELD_NAME][0] : files[FILE_FIELD_NAME];
         file = {
@@ -113,17 +117,65 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
           name: uploadedFile.name,
           type: uploadedFile.type,
         };
-        console.log("[LessonCreateAPI] File detected:", {
+        console.log("[LessonCreateAPI] Main file detected:", {
           filename: file.name,
           contentType: file.type,
           size: uploadedFile.size,
         });
-        // Only set url if the API requires it as a filename
-        const filePath = `/media/${moduleId}/${file.name || "uploaded_file"}`;
-        payload.url = `${BASE_URL}${filePath}`;
-      } else {
-        console.log("[LessonCreateAPI] No file detected in FormData");
       }
+
+      // Handle cover image
+      if (files[COVER_IMAGE_FIELD_NAME]) {
+        const uploadedCover = Array.isArray(files[COVER_IMAGE_FIELD_NAME]) ? files[COVER_IMAGE_FIELD_NAME][0] : files[COVER_IMAGE_FIELD_NAME];
+        coverImageFile = {
+          path: uploadedCover.path,
+          name: uploadedCover.name,
+          type: uploadedCover.type,
+        };
+        console.log("[LessonCreateAPI] Cover image detected:", {
+          filename: coverImageFile.name,
+          contentType: coverImageFile.type,
+          size: uploadedCover.size,
+        });
+      }
+
+      // Create FormData for API request
+      const formData = new FormData();
+      
+      // Add all fields
+      for (const key in payload) {
+        formData.append(key, typeof payload[key] === "object" ? JSON.stringify(payload[key]) : payload[key]);
+      }
+      
+      // Add main file if present
+      if (file) {
+        const fileBuffer = await fs.readFile(file.path);
+        const fileBlob = new Blob([fileBuffer], { 
+          type: file.type || "application/octet-stream" 
+        });
+        formData.append(FILE_FIELD_NAME, fileBlob, file.name || "uploaded_file");
+      }
+      
+      // Add cover image if present
+      if (coverImageFile) {
+        const coverBuffer = await fs.readFile(coverImageFile.path);
+        const coverBlob = new Blob([coverBuffer], { 
+          type: coverImageFile.type || "image/jpeg" 
+        });
+        formData.append(COVER_IMAGE_FIELD_NAME, coverBlob, coverImageFile.name || "cover_image.jpg");
+      }
+
+      // Clean up temp files
+      if (file) await fs.unlink(file.path).catch(console.error);
+      if (coverImageFile) await fs.unlink(coverImageFile.path).catch(console.error);
+
+      console.log("[LessonCreateAPI] Sending POST to", fullUrl);
+      response = await fetch(fullUrl, {
+        method: "POST",
+        headers: headers(session.user.sessionToken),
+        body: formData,
+      });
+
     } else if (contentType.toLowerCase().includes("application/json")) {
       console.log("[LessonCreateAPI] Processing application/json");
       try {
@@ -136,6 +188,18 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
           { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
         );
       }
+
+      // For JSON requests, send as JSON
+      console.log("[LessonCreateAPI] Sending POST to", fullUrl, "with payload:", payload);
+      response = await fetch(fullUrl, {
+        method: "POST",
+        headers: {
+          ...headers(session.user.sessionToken),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
     } else {
       console.error("[LessonCreateAPI] Unsupported Content-Type:", contentType);
       return NextResponse.json(
@@ -143,25 +207,6 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
-
-    console.log("[LessonCreateAPI] Sending POST to", fullUrl, "with payload:", payload);
-    const formData = new FormData();
-    for (const key in payload) {
-      formData.append(key, typeof payload[key] === "object" ? JSON.stringify(payload[key]) : payload[key]);
-    }
-    if (file) {
-      const fileBuffer = await fs.readFile(file.path);
-      const fileBlob = new Blob([fileBuffer], {
-        type: file.type || "application/octet-stream",
-      });
-      formData.append(FILE_FIELD_NAME, fileBlob, file.name || "uploaded_file");
-    }
-
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(session.user.sessionToken),
-      body: formData,
-    });
 
     console.log("[LessonCreateAPI] Response status:", response.status);
     console.log("[LessonCreateAPI] Response headers:", Object.fromEntries(response.headers));
@@ -241,7 +286,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
     console.log("[LessonCreateAPI] Creation successful, data:", data);
     return NextResponse.json(data, {
-      status: 200,
+      status: 201,
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",

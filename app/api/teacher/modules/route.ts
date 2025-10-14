@@ -10,11 +10,15 @@ function normalizeMedia(media: string | undefined): string | undefined {
   if (!media) return undefined;
   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
+  // Handle cases where media already has /media/ prefix
+  if (cleaned.startsWith("media/")) {
+    return `${BASE_URL}/${cleaned}`;
+  }
   return `${BASE_URL}/media/${cleaned}`;
 }
 
 const headers = (sessionToken: string | undefined) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
@@ -27,6 +31,7 @@ interface Lesson {
   content?: string;
   videoUrl?: string;
   audioUrl?: string;
+  coverImageUrl?: string;
 }
 
 interface Module {
@@ -56,13 +61,17 @@ export async function GET(req: Request) {
   if (active) query.set("active", active);
   if (search) query.set("search", search);
   if (difficulty) query.set("difficulty", difficulty.toLowerCase());
-  const fullUrl = `${BASE_URL}${endpoint}${query.toString() ? `?${query.toString()}` : ""}`;
+  const fullUrl = `${BASE_URL}${endpoint}${
+    query.toString() ? `?${query.toString()}` : ""
+  }`;
   console.log("[TeacherModulesAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
   console.log("[TeacherModulesAPI] Session retrieved:", {
     sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
+    user: session?.user
+      ? { id: session.user.id, role: session.user.role }
+      : null,
   });
 
   if (!session?.user?.sessionToken) {
@@ -73,7 +82,8 @@ export async function GET(req: Request) {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
@@ -82,22 +92,40 @@ export async function GET(req: Request) {
   }
 
   try {
-    console.log("[TeacherModulesAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
+    console.log(
+      "[TeacherModulesAPI] Fetching from",
+      fullUrl,
+      "with token:",
+      session.user.sessionToken
+    );
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
     console.log("[TeacherModulesAPI] Fetch response status:", response.status);
-    console.log("[TeacherModulesAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[TeacherModulesAPI] Fetch response content-type:", response.headers.get("content-type"));
+    console.log(
+      "[TeacherModulesAPI] Fetch response headers:",
+      Object.fromEntries(response.headers)
+    );
+    console.log(
+      "[TeacherModulesAPI] Fetch response content-type:",
+      response.headers.get("content-type")
+    );
 
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[TeacherModulesAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log(
+      "[TeacherModulesAPI] Raw response:",
+      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
+    );
 
     if (!response.ok) {
-      console.error("[TeacherModulesAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[TeacherModulesAPI] Fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired", redirect: "/login" },
@@ -135,7 +163,10 @@ export async function GET(req: Request) {
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[TeacherModulesAPI] Non-JSON response received:", contentType);
+      console.error(
+        "[TeacherModulesAPI] Non-JSON response received:",
+        contentType
+      );
       return NextResponse.json(
         { error: "Invalid response format, expected JSON" },
         {
@@ -166,7 +197,10 @@ export async function GET(req: Request) {
     }
 
     if (!Array.isArray(data.modules)) {
-      console.error("[TeacherModulesAPI] Response does not contain a modules array:", data);
+      console.error(
+        "[TeacherModulesAPI] Response does not contain a modules array:",
+        data
+      );
       return NextResponse.json(
         { error: "Invalid response format, expected modules array" },
         {
@@ -185,37 +219,56 @@ export async function GET(req: Request) {
       description: module.description || "",
       type: module.type || "video",
       duration: module.estimatedDuration?.toString() || module.duration || "",
-      difficulty:
-        module.difficulty
-          ? (module.difficulty.charAt(0).toUpperCase() + module.difficulty.slice(1).toLowerCase()) as "Beginner" | "Intermediate" | "Advanced"
-          : "Beginner",
+      difficulty: module.difficulty
+        ? ((module.difficulty.charAt(0).toUpperCase() +
+            module.difficulty.slice(1).toLowerCase()) as
+            | "Beginner"
+            | "Intermediate"
+            | "Advanced")
+        : "Beginner",
       category: module.category?.name || module.category || "",
       enrollments: module.enrollments || 0,
       rating: module.rating || 0,
       isPublished: module.isPublished ?? true,
-      createdDate: module.createdAt || module.createdDate || new Date().toISOString().split("T")[0],
+      createdDate:
+        module.createdAt ||
+        module.createdDate ||
+        new Date().toISOString().split("T")[0],
       course: module.course
         ? { id: module.course.id.toString(), name: module.course.name || "" }
         : { id: "", name: "" },
       lessons: Array.isArray(module.lessons)
-        ? module.lessons.map((lesson: any): Lesson => ({
-            id: lesson.id.toString(),
-            title: lesson.title || "",
-            type: lesson.type || "video",
-            duration: lesson.duration || "",
-            content: lesson.content || undefined,
-            videoUrl: lesson.video_url ? normalizeMedia(lesson.video_url) : undefined,
-            audioUrl: lesson.audio_url ? normalizeMedia(lesson.audio_url) : undefined,
-          }))
+        ? module.lessons.map(
+            (lesson: any): Lesson => ({
+              id: lesson.id.toString(),
+              title: lesson.title || "",
+              type: lesson.type || "video",
+              duration: lesson.duration || "",
+              content: lesson.content || undefined,
+              videoUrl: lesson.video_url
+                ? normalizeMedia(lesson.video_url)
+                : undefined,
+              audioUrl: lesson.audio_url
+                ? normalizeMedia(lesson.audio_url)
+                : undefined,
+              coverImageUrl: lesson.cover_image
+                ? normalizeMedia(lesson.cover_image)
+                : undefined, // FIX: Apply normalizeMedia
+            })
+          )
         : [],
     }));
 
-    console.log("[TeacherModulesAPI] Fetch successful, normalized data:", normalizedData);
+    console.log(
+      "[TeacherModulesAPI] Fetch successful, normalized data:",
+      normalizedData
+    );
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -223,7 +276,10 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("[TeacherModulesAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch teacher modules", details: (error as Error).message },
+      {
+        error: "Failed to fetch teacher modules",
+        details: (error as Error).message,
+      },
       {
         status: 500,
         headers: {

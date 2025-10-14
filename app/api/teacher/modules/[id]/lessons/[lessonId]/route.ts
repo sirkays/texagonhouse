@@ -7,7 +7,8 @@ import fs from "fs/promises";
 
 const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
-const FILE_FIELD_NAME = "file"; // Change to "media" or other if API requires
+const FILE_FIELD_NAME = "file";
+const COVER_IMAGE_FIELD_NAME = "cover_image";
 
 const headers = (sessionToken: string | undefined) => ({
   "Authorization": `Api-Key ${API_KEY}`,
@@ -54,6 +55,8 @@ export async function PATCH(
 
     let payload: any = {};
     let file: { path: string; name: string | null; type: string | null } | null = null;
+    let coverImageFile: { path: string; name: string | null; type: string | null } | null = null;
+    let response: Response; // Declare response at top level
 
     if (contentType.toLowerCase().includes("multipart/form-data")) {
       console.log("[LessonUpdateAPI] Processing multipart/form-data");
@@ -89,14 +92,6 @@ export async function PATCH(
         payload[key] = Array.isArray(value) ? value[0] : value;
       }
 
-      if (!payload.title) {
-        console.error("[LessonUpdateAPI] No title provided");
-        return NextResponse.json(
-          { error: "Lesson title is required" },
-          { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
-        );
-      }
-
       // Parse meta if provided
       if (payload.meta) {
         try {
@@ -110,6 +105,11 @@ export async function PATCH(
         }
       }
 
+      // Handle remove flags
+      const removeFile = payload.remove_file === "1" || payload.remove_file === "true" || payload.remove_file === "yes";
+      const removeCover = payload.remove_cover === "1" || payload.remove_cover === "true" || payload.remove_cover === "yes";
+
+      // Handle main file
       if (files[FILE_FIELD_NAME]) {
         const uploadedFile = Array.isArray(files[FILE_FIELD_NAME]) ? files[FILE_FIELD_NAME][0] : files[FILE_FIELD_NAME];
         file = {
@@ -117,16 +117,69 @@ export async function PATCH(
           name: uploadedFile.name,
           type: uploadedFile.type,
         };
-        console.log("[LessonUpdateAPI] File detected:", {
+        console.log("[LessonUpdateAPI] Main file detected:", {
           filename: file.name,
           contentType: file.type,
           size: uploadedFile.size,
         });
-        const filePath = `/media/${moduleId}/${lessonId}/${file.name || "uploaded_file"}`;
-        payload.url = `${BASE_URL}${filePath}`;
-      } else {
-        console.log("[LessonUpdateAPI] No file detected in FormData");
+        // Clear remove_file flag if new file is uploaded
+        if (removeFile) delete payload.remove_file;
       }
+
+      // Handle cover image
+      if (files[COVER_IMAGE_FIELD_NAME]) {
+        const uploadedCover = Array.isArray(files[COVER_IMAGE_FIELD_NAME]) ? files[COVER_IMAGE_FIELD_NAME][0] : files[COVER_IMAGE_FIELD_NAME];
+        coverImageFile = {
+          path: uploadedCover.path,
+          name: uploadedCover.name,
+          type: uploadedCover.type,
+        };
+        console.log("[LessonUpdateAPI] Cover image detected:", {
+          filename: coverImageFile.name,
+          contentType: coverImageFile.type,
+          size: uploadedCover.size,
+        });
+        // Clear remove_cover flag if new cover is uploaded
+        if (removeCover) delete payload.remove_cover;
+      }
+
+      // Create FormData for API request
+      const formData = new FormData();
+      
+      // Add all fields (including remove flags)
+      for (const key in payload) {
+        formData.append(key, typeof payload[key] === "object" ? JSON.stringify(payload[key]) : payload[key]);
+      }
+      
+      // Add main file if present
+      if (file) {
+        const fileBuffer = await fs.readFile(file.path);
+        const fileBlob = new Blob([fileBuffer], { 
+          type: file.type || "application/octet-stream" 
+        });
+        formData.append(FILE_FIELD_NAME, fileBlob, file.name || "uploaded_file");
+      }
+      
+      // Add cover image if present
+      if (coverImageFile) {
+        const coverBuffer = await fs.readFile(coverImageFile.path);
+        const coverBlob = new Blob([coverBuffer], { 
+          type: coverImageFile.type || "image/jpeg" 
+        });
+        formData.append(COVER_IMAGE_FIELD_NAME, coverBlob, coverImageFile.name || "cover_image.jpg");
+      }
+
+      // Clean up temp files
+      if (file) await fs.unlink(file.path).catch(console.error);
+      if (coverImageFile) await fs.unlink(coverImageFile.path).catch(console.error);
+
+      console.log("[LessonUpdateAPI] Sending PATCH to", fullUrl);
+      response = await fetch(fullUrl, {
+        method: "PATCH",
+        headers: headers(session.user.sessionToken),
+        body: formData,
+      });
+
     } else if (contentType.toLowerCase().includes("application/json")) {
       console.log("[LessonUpdateAPI] Processing application/json");
       try {
@@ -139,6 +192,18 @@ export async function PATCH(
           { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
         );
       }
+
+      // For JSON requests, send as JSON (supports remove_cover, remove_file)
+      console.log("[LessonUpdateAPI] Sending PATCH to", fullUrl, "with payload:", payload);
+      response = await fetch(fullUrl, {
+        method: "PATCH",
+        headers: {
+          ...headers(session.user.sessionToken),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
     } else {
       console.error("[LessonUpdateAPI] Unsupported Content-Type:", contentType);
       return NextResponse.json(
@@ -146,25 +211,6 @@ export async function PATCH(
         { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
     }
-
-    console.log("[LessonUpdateAPI] Sending PATCH to", fullUrl, "with payload:", payload);
-    const formData = new FormData();
-    for (const key in payload) {
-      formData.append(key, typeof payload[key] === "object" ? JSON.stringify(payload[key]) : payload[key]);
-    }
-    if (file) {
-      const fileBuffer = await fs.readFile(file.path);
-      const fileBlob = new Blob([fileBuffer], {
-        type: file.type || "application/octet-stream",
-      });
-      formData.append(FILE_FIELD_NAME, fileBlob, file.name || "uploaded_file");
-    }
-
-    const response = await fetch(fullUrl, {
-      method: "PATCH",
-      headers: headers(session.user.sessionToken),
-      body: formData,
-    });
 
     console.log("[LessonUpdateAPI] Response status:", response.status);
     console.log("[LessonUpdateAPI] Response headers:", Object.fromEntries(response.headers));
