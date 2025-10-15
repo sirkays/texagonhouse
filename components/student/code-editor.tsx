@@ -58,10 +58,15 @@ type Snippet = {
 
 type UploadedFile = {
   id: number;
-  name: string;
-  content: string;
-  language: string;
   created_at: string;
+  updated_at: string;
+  student: number;
+  lesson: number | null;
+  label: string;
+  original_name: string;
+  content_type: string;
+  size_bytes: number;
+  url: string;
 };
 
 type Submission = {
@@ -100,6 +105,8 @@ export function CodeEditor() {
   const [executionError, setExecutionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [fileLoading, setFileLoading] = useState<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
@@ -153,6 +160,7 @@ export function CodeEditor() {
   };
 
   const deleteSnippet = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this snippet?")) return;
     try {
       const res = await fetch(`/api/code-ide/snippets/${id}`, {
         method: "DELETE",
@@ -166,56 +174,186 @@ export function CodeEditor() {
   };
 
   /* ==========  UPLOAD ROUTES  =================== */
-  const uploadFile = async (file: File) => {
-    if (!session?.user?.sessionToken) return;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const content = e.target?.result as string;
-      const extension = file.name.split(".").pop()?.toLowerCase();
-      const languageMap: { [key: string]: string } = {
-        js: "javascript",
-        py: "python",
-        java: "java",
-        cpp: "cpp",
-        html: "html",
-        css: "css",
-      };
-      const language =
-        extension && languageMap[extension]
-          ? languageMap[extension]
-          : "javascript";
-      const body = {
-        name: file.name,
-        content,
-        language,
-      };
-      try {
-        const res = await fetch("/api/code-ide/uploads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error("Upload failed");
-        const uploaded: UploadedFile = await res.json();
-        setUploadedFiles((prev) => [uploaded, ...prev]);
-      } catch {
-        alert("Upload failed: Endpoint not available");
+  const fetchFileContent = async (file: UploadedFile) => {
+    try {
+      console.log(`Fetching content for file ${file.id} via API`);
+
+      // Use the API endpoint to get content - this handles auth and CORS
+      const apiRes = await fetch(`/api/code-ide/uploads/${file.id}/content`, {
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (!apiRes.ok) {
+        const errorText = await apiRes.text();
+        console.error(
+          `API content fetch failed: ${apiRes.status} - ${errorText}`
+        );
+        throw new Error(`Failed to fetch file content: ${apiRes.status}`);
       }
-    };
-    reader.readAsText(file);
+
+      const content = await apiRes.text();
+      console.log(
+        `Successfully fetched ${content.length} characters for file ${file.id}`
+      );
+      return content;
+    } catch (error) {
+      console.error("fetchFileContent error:", error);
+
+      // Fallback: try direct URL with credentials
+      if (
+        error instanceof TypeError &&
+        error.message.includes("NetworkError")
+      ) {
+        console.log("Trying direct URL fetch as fallback...");
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+          const directRes = await fetch(file.url, {
+            signal: controller.signal,
+            credentials: "include", // Include cookies/auth
+            headers: {
+              Authorization: `Bearer ${session?.user?.sessionToken || ""}`,
+            },
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!directRes.ok) {
+            throw new Error(`Direct fetch failed: ${directRes.status}`);
+          }
+
+          return await directRes.text();
+        } catch (fallbackError) {
+          console.error("Direct URL fallback also failed:", fallbackError);
+          throw new Error(
+            "File content unavailable. The file may be private or the server may be experiencing issues."
+          );
+        }
+      }
+
+      throw error;
+    }
+  };
+
+  const uploadFile = async (file: File, lesson?: string, label?: string) => {
+    if (!session?.user?.sessionToken) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (lesson) formData.append("lesson", lesson);
+    if (label) formData.append("label", label);
+
+    setUploading(true);
+    try {
+      const res = await fetch("/api/code-ide/uploads", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const error = await res
+          .json()
+          .catch(() => ({ error: "Upload failed" }));
+        throw new Error(error.error || "Upload failed");
+      }
+
+      const uploaded: UploadedFile = await res.json();
+      setUploadedFiles((prev) => [uploaded, ...prev]);
+      return uploaded;
+    } catch (error) {
+      alert(`Upload failed: ${(error as Error).message}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const deleteUploadedFile = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
     try {
       const res = await fetch(`/api/code-ide/uploads/${id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error("Delete failed");
+
+      if (!res.ok) {
+        const error = await res
+          .json()
+          .catch(() => ({ error: "Delete failed" }));
+        throw new Error(error.error || "Delete failed");
+      }
+
       setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
-    } catch {
-      alert("Delete failed: Endpoint not available");
+    } catch (error) {
+      alert(`Delete failed: ${(error as Error).message}`);
     }
+  };
+
+  const loadUploadedFile = async (file: UploadedFile) => {
+    try {
+      setFileLoading(file.id);
+      setLoading(true);
+      console.log(`Loading file ${file.id}: ${file.original_name}`);
+
+      const content = await fetchFileContent(file);
+
+      // Infer language from content_type or original_name
+      const contentType = file.content_type;
+      const extension = file.original_name.split(".").pop()?.toLowerCase();
+
+      const languageMap: { [key: string]: string } = {
+        "text/x-python": "python",
+        "application/javascript": "javascript",
+        "text/javascript": "javascript",
+        "text/html": "html",
+        "text/css": "css",
+        "text/x-java": "java",
+        "text/x-c++": "cpp",
+        "text/plain":
+          extension === "py"
+            ? "python"
+            : extension === "js"
+            ? "javascript"
+            : extension === "html"
+            ? "html"
+            : extension === "css"
+            ? "css"
+            : "javascript",
+      };
+
+      let language = languageMap[contentType] || "javascript";
+
+      // Double-check with extension if content_type is generic
+      if (contentType === "text/plain" && extension && languageMap[extension]) {
+        language = languageMap[extension];
+      }
+
+      setCode(content);
+      setSelectedLanguage(language);
+      if (file.lesson) setSelectedLesson(String(file.lesson));
+      setActiveTab("editor");
+
+      console.log(`Loaded file ${file.id} as ${language}`);
+    } catch (error) {
+      console.error("Load file error:", error);
+      alert(`Failed to load file content: ${(error as Error).message}`);
+    } finally {
+      setFileLoading(null);
+      setLoading(false);
+    }
+  };
+
+  const copyFileUrl = (file: UploadedFile) => {
+    navigator.clipboard
+      .writeText(file.url)
+      .then(() => {
+        alert("File URL copied to clipboard");
+      })
+      .catch(() => {
+        alert("Failed to copy URL");
+      });
   };
 
   /* ==========  SUBMISSION ROUTES  ================ */
@@ -303,7 +441,7 @@ export function CodeEditor() {
     cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
     html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
     css: { name: "CSS", judgeId: null, template: `body{color:red;}` },
-  };
+  } as const;
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
@@ -333,7 +471,7 @@ export function CodeEditor() {
     return () => clearTimeout(t);
   }, [code, selectedLanguage, selectedLesson]);
 
-  /* initial load: lessons + my submissions + my snippets */
+  /* initial load: lessons + my submissions + my snippets + files */
   useEffect(() => {
     if (status !== "authenticated") return;
     Promise.all([
@@ -347,16 +485,10 @@ export function CodeEditor() {
       fetchSubmissions()
         .then(setMySubmissions)
         .catch(() => {}),
-      // Mock uploaded files (replace with real fetch when endpoint is ready)
-      setUploadedFiles([
-        {
-          id: 1,
-          name: "example.js",
-          content: `console.log("Uploaded file");`,
-          language: "javascript",
-          created_at: new Date().toISOString(),
-        },
-      ]),
+      fetch("/api/code-ide/uploads")
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setUploadedFiles)
+        .catch(() => setUploadedFiles([])),
     ]).catch(() => {});
   }, [status]);
 
@@ -364,6 +496,7 @@ export function CodeEditor() {
   /* UI handlers                                        */
   /* -------------------------------------------------- */
   const copyCode = () => navigator.clipboard.writeText(code);
+
   const downloadCode = () => {
     const ext = {
       javascript: "js",
@@ -377,13 +510,14 @@ export function CodeEditor() {
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
-      download: `code.${ext[selectedLanguage]}`,
+      download: `code.${ext[selectedLanguage as keyof typeof ext]}`,
     });
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
   const resetCode = () => {
     setCode(languages[selectedLanguage].template);
     setOutput("");
@@ -391,14 +525,17 @@ export function CodeEditor() {
     setExecutionError("");
     setActiveTab("editor");
   };
+
   const handleLanguageChange = (lang: string) => {
-    setSelectedLanguage(lang);
-    setCode(languages[lang as keyof typeof languages].template);
+    const languageKey = lang as keyof typeof languages;
+    setSelectedLanguage(languageKey);
+    setCode(languages[languageKey].template);
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
     setActiveTab("editor");
   };
+
   const handleCodeChange = (v: string) => {
     setCode(v);
     if (selectedLanguage === "html") setHtmlPreview(v);
@@ -421,23 +558,21 @@ export function CodeEditor() {
     }
   };
 
-  const loadUploadedFile = (file: UploadedFile) => {
-    setCode(file.content);
-    setSelectedLanguage(file.language);
-    setActiveTab("editor");
-  };
-
   const copySnippetUrl = (id: number) => {
     const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
     navigator.clipboard.writeText(url);
     alert("Snippet URL copied to clipboard");
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      uploadFile(file);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    if (file && fileInputRef.current) {
+      fileInputRef.current.value = "";
+      await uploadFile(
+        file,
+        selectedLesson || undefined,
+        `Uploaded ${file.name}`
+      );
     }
   };
 
@@ -448,8 +583,11 @@ export function CodeEditor() {
     s.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const filteredUploads = uploadedFiles.filter((f) =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (f.label || f.original_name)
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
   );
+
   const paginatedSnippets = filteredSnippets.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -499,7 +637,7 @@ export function CodeEditor() {
         if (cfg.judgeId) {
           try {
             const res = await fetch(
-              "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true ",
+              "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
               {
                 method: "POST",
                 headers: {
@@ -556,7 +694,7 @@ export function CodeEditor() {
   /* -------------------------------------------------- */
   /* render                                             */
   /* -------------------------------------------------- */
-  if (loading) {
+  if (loading && !fileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Spinner size="md" className="text-orange-500" />
@@ -670,11 +808,12 @@ export function CodeEditor() {
                 onChange={(e) => handleCodeChange(e.target.value)}
                 placeholder="Write your code here..."
                 className="flex-1 font-mono text-sm resize-none min-h-[400px]"
+                disabled={loading}
               />
               <div className="flex gap-2 mt-4">
                 <Button
                   onClick={runCode}
-                  disabled={isRunning || !!error}
+                  disabled={isRunning || !!error || loading}
                   className="flex-1 bg-[#EF7B55] hover:bg-[#F79771]"
                 >
                   <Play className="mr-2 h-4 w-4" />
@@ -686,6 +825,7 @@ export function CodeEditor() {
                   onClick={() =>
                     saveSnippet().catch(() => alert("Save failed"))
                   }
+                  disabled={loading}
                 >
                   Save
                 </Button>
@@ -693,20 +833,40 @@ export function CodeEditor() {
                   variant="outline"
                   size="sm"
                   onClick={handleSubmit}
-                  disabled={!selectedLesson}
+                  disabled={!selectedLesson || loading}
                 >
                   Submit
                 </Button>
-                <Button variant="outline" size="sm" onClick={copyCode}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyCode}
+                  disabled={loading}
+                >
                   <Copy className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={downloadCode}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadCode}
+                  disabled={loading}
+                >
                   <Download className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={resetCode}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetCode}
+                  disabled={loading}
+                >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
+              {loading && (
+                <div className="mt-2 p-2 bg-yellow-50 border rounded text-sm text-yellow-800">
+                  Loading file content...
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -768,6 +928,7 @@ export function CodeEditor() {
                     setSearchQuery("");
                     setCurrentPage(1);
                   }}
+                  disabled={uploading}
                 >
                   <FilePlus className="h-4 w-4 mr-2" />
                   New Code
@@ -776,15 +937,22 @@ export function CodeEditor() {
                   variant="outline"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
                 >
-                  Upload File
+                  {uploading ? (
+                    <Spinner size="sm" className="mr-2" />
+                  ) : (
+                    "Upload File"
+                  )}
+                  {uploading && "ing..."}
                 </Button>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
-                  accept=".js,.py,.java,.cpp,.html,.css"
+                  accept=".js,.py,.java,.cpp,.html,.css,.txt,.json,.xml"
                   className="hidden"
+                  disabled={uploading}
                 />
               </div>
             </CardHeader>
@@ -797,6 +965,7 @@ export function CodeEditor() {
                   setCurrentPage(1);
                 }}
                 className="w-full"
+                disabled={uploading}
               />
               <Tabs defaultValue="saved" className="flex-1">
                 <TabsList className="grid grid-cols-2">
@@ -856,6 +1025,7 @@ export function CodeEditor() {
                                     size="sm"
                                     onClick={() => deleteSnippet(s.id)}
                                     title="Delete snippet"
+                                    className="text-destructive hover:text-destructive"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -884,52 +1054,97 @@ export function CodeEditor() {
                     </Button>
                   </div>
                 </TabsContent>
-                <TabsContent value="uploads">
-                  {paginatedUploads.map((f) => (
-                    <div
-                      key={f.id}
-                      className="cursor-pointer hover:bg-accent p-2 rounded text-sm flex justify-between items-center"
-                    >
-                      <span onClick={() => loadUploadedFile(f)}>{f.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">
-                          {new Date(f.created_at).toLocaleString()}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const url = `${window.location.origin}/api/code-ide/uploads/${f.id}`;
-                            navigator.clipboard.writeText(url);
-                            alert("File URL copied to clipboard");
-                          }}
-                          title="Copy file URL"
-                        >
-                          <Link className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteUploadedFile(f.id)}
-                          title="Delete file"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <TabsContent value="uploads" className="space-y-4">
+                  {uploading && (
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>Uploading file...</AlertDescription>
+                    </Alert>
+                  )}
+                  {paginatedUploads.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      {uploading
+                        ? "Upload in progress..."
+                        : "No uploaded files found"}
+                    </p>
+                  ) : (
+                    paginatedUploads.map((file) => (
+                      <Card key={file.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4
+                              className={`font-medium cursor-pointer hover:text-primary ${
+                                fileLoading === file.id
+                                  ? "opacity-50 cursor-wait"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                !loading &&
+                                !fileLoading &&
+                                loadUploadedFile(file)
+                              }
+                              title={
+                                fileLoading === file.id
+                                  ? "Loading..."
+                                  : "Click to load into editor"
+                              }
+                            >
+                              {file.label || file.original_name}
+                              {fileLoading === file.id && (
+                                <Spinner size="sm" className="inline ml-2" />
+                              )}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {file.original_name} •{" "}
+                              {Math.round(file.size_bytes / 1024)} KB •
+                              {file.lesson
+                                ? ` Lesson ${file.lesson}`
+                                : " No lesson"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(file.updated_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyFileUrl(file)}
+                              title="Copy file URL"
+                              disabled={loading || fileLoading === file.id}
+                            >
+                              <Link className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteUploadedFile(file.id)}
+                              title="Delete file"
+                              className="text-destructive hover:text-destructive"
+                              disabled={loading || fileLoading === file.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  )}
                   <div className="flex justify-between mt-4">
                     <Button
-                      disabled={currentPage === 1}
+                      variant="outline"
+                      disabled={currentPage === 1 || uploading}
                       onClick={() => setCurrentPage((p) => p - 1)}
                     >
                       Previous
                     </Button>
                     <span>
-                      Page {currentPage} of {totalUploadPages}
+                      Page {currentPage} of {totalUploadPages} (
+                      {filteredUploads.length} total)
                     </span>
                     <Button
-                      disabled={currentPage === totalUploadPages}
+                      variant="outline"
+                      disabled={currentPage === totalUploadPages || uploading}
                       onClick={() => setCurrentPage((p) => p + 1)}
                     >
                       Next
@@ -959,9 +1174,7 @@ export function CodeEditor() {
   );
 }
 
-/* ================================================================= */
-/* SubmissionTab  –  isolated to keep main component clean           */
-/* ================================================================= */
+/* SubmissionTab component remains the same */
 function SubmissionTab({
   lessons,
   selectedLesson,
@@ -987,7 +1200,6 @@ function SubmissionTab({
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /* load full detail + comments when user clicks a row */
   const viewDetail = async (s: Submission) => {
     setLoading(true);
     try {
@@ -1005,7 +1217,6 @@ function SubmissionTab({
     try {
       await onComment(viewing.id, comment);
       setComment("");
-      /* reload detail to show new comment */
       const fresh = await fetchSubmissionDetail(viewing.id);
       setViewing(fresh);
     } catch {
@@ -1035,7 +1246,6 @@ function SubmissionTab({
           Submit Code
         </Button>
 
-        {/* List of existing submissions */}
         {submissions.length > 0 && (
           <div className="border rounded-md p-3 space-y-2">
             <p className="text-sm font-medium">
@@ -1056,7 +1266,6 @@ function SubmissionTab({
           </div>
         )}
 
-        {/* Detail pane + comments + teacher grade box */}
         {viewing && (
           <div className="border rounded-md p-3 space-y-3">
             <div className="flex items-center justify-between">
@@ -1074,7 +1283,6 @@ function SubmissionTab({
               {viewing.code_text}
             </pre>
 
-            {/* Teacher grade box */}
             {role === "teacher" && viewing.status !== "graded" && (
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -1108,7 +1316,6 @@ function SubmissionTab({
               </div>
             )}
 
-            {/* Comments section – both roles can post */}
             <div className="space-y-2">
               <p className="text-xs font-medium flex items-center gap-1">
                 <MessageSquare className="h-3 w-3" />
