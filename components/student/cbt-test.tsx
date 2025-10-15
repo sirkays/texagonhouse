@@ -45,6 +45,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from "uuid";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Workbox } from "workbox-window";
 
 /* ---------- localforage setup ---------- */
 localforage.config({
@@ -56,6 +58,7 @@ localforage.config({
 const TESTS_KEY = "tests_cache_v1";
 const ANSWERS_KEY = "answers_v1";
 const PENDING_KEY = "pending_submissions_v1";
+const RESULTS_KEY = "results_v1";
 
 /* ---------- utility helpers ---------- */
 
@@ -111,6 +114,13 @@ async function deleteSavedAnswers(testPk: string | number) {
   }
 }
 
+async function saveResultLocally(testPk: string | number, data: any) {
+  const all = (await localforage.getItem(RESULTS_KEY)) || {};
+  const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
+  obj[testPk] = data;
+  await localforage.setItem(RESULTS_KEY, obj);
+}
+
 type PendingEntry = {
   id: string;
   testPk: string | number;
@@ -160,7 +170,7 @@ export function CBTTest() {
   const [initialTime, setInitialTime] = useState(0);
   const [startTime, setStartTime] = useState<string | null>(null);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [testResults, setTestResults] = useState<Record<string, any>>({});
   const [isSecureMode, setIsSecureMode] = useState(false);
   const [suspiciousActivity, setSuspiciousActivity] = useState(0);
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
@@ -189,6 +199,8 @@ export function CBTTest() {
     processed: number;
     total: number;
   } | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [view, setView] = useState<"available" | "past">("available");
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -196,6 +208,8 @@ export function CBTTest() {
   );
   const isProcessingRef = useRef(false);
   const syncIntervalRef = useRef<number | null>(null);
+  const wbRef = useRef<Workbox | null>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -219,6 +233,39 @@ export function CBTTest() {
     })();
   }, []);
 
+  /* ---------- Load results on mount ---------- */
+  useEffect(() => {
+    const loadResults = async () => {
+      const all = (await localforage.getItem(RESULTS_KEY)) || {};
+      setTestResults(typeof all === "object" ? all : {});
+    };
+    loadResults();
+  }, []);
+
+  /* ---------- Register Service Worker ---------- */
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      const wb = new Workbox("/sw.js");
+      wb.register();
+      wbRef.current = wb;
+    }
+  }, []);
+
+  /* ---------- Broadcast channel for sync updates ---------- */
+  useEffect(() => {
+    const channel = new BroadcastChannel("cbt-channel");
+    channel.onmessage = (e) => {
+      if (e.data.type === "SYNC_SUCCESS") {
+        setShowSyncSuccess(true);
+        setTimeout(() => setShowSyncSuccess(false), 5000);
+        // Trigger a manual process to update local results if needed
+        processQueue();
+      }
+    };
+    channelRef.current = channel;
+    return () => channel.close();
+  }, []);
+
   /* ---------- Sync queue processing (sequential + backoff) ---------- */
   async function processQueue({
     onProgress,
@@ -226,16 +273,20 @@ export function CBTTest() {
     if (!navigator.onLine || !sessionToken) return;
     if (isProcessingRef.current) return;
 
+    const pending = await getPendingSubmissions();
+    if (pending.length === 0) {
+      setShowSyncMessage(false);
+      return;
+    }
+
     isProcessingRef.current = true;
     setIsSyncing(true);
 
     try {
-      let pending = await getPendingSubmissions();
       const total = pending.length;
       let processed = 0;
       setSyncProgress({ processed, total });
 
-      // Show blue banner only if we actually have pending submissions
       if (total > 0) setShowSyncMessage(true);
 
       for (let i = 0; i < pending.length; i++) {
@@ -271,6 +322,9 @@ export function CBTTest() {
           );
 
           if (res.ok) {
+            const data = await res.json();
+            await saveResultLocally(entry.testPk, data);
+            setTestResults((prev) => ({ ...prev, [entry.testPk]: data }));
             await deletePendingSubmissionById(entry.id);
             processed++;
             onProgress?.(processed, total);
@@ -329,6 +383,10 @@ export function CBTTest() {
       setIsOffline(false);
       // immediate attempt
       processQueue();
+      // Trigger SW replay if registered
+      if (wbRef.current) {
+        wbRef.current.messageSW({ type: "REPLAY_QUEUE" });
+      }
     };
     const onOffline = () => {
       setIsOffline(true);
@@ -337,7 +395,12 @@ export function CBTTest() {
     window.addEventListener("offline", onOffline);
 
     // periodic background check when online
-    syncIntervalRef.current = window.setInterval(() => {
+    syncIntervalRef.current = window.setInterval(async () => {
+      const pending = await getPendingSubmissions();
+      if (pending.length === 0) {
+        setShowSyncMessage(false);
+        return;
+      }
       if (navigator.onLine && sessionToken && !isProcessingRef.current) {
         processQueue();
       }
@@ -469,7 +532,7 @@ export function CBTTest() {
       : [];
     const mappedQuestions = items.map((item: any) => ({
       id: item.id,
-      type: item.type === "scq" ? "single-choice" : item.type,
+      type: item.type === "scq" ? "multiple-choice" : item.type,
       question: item.question,
       options:
         item.type === "true-false"
@@ -545,6 +608,50 @@ export function CBTTest() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTest, timeLeft]);
 
+  /* ---------- suspicious activity detection ---------- */
+  useEffect(() => {
+    if (!isSecureMode) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setSuspiciousActivity((prev) => prev + 1);
+        setShowSecurityWarning(true);
+      }
+    };
+
+    const handleBlur = () => {
+      setSuspiciousActivity((prev) => prev + 1);
+      setShowSecurityWarning(true);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.ctrlKey &&
+        ["c", "v", "p", "a", "s"].includes(e.key.toLowerCase())
+      ) {
+        e.preventDefault();
+        setSuspiciousActivity((prev) => prev + 1);
+        setShowSecurityWarning(true);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSecureMode]);
+
+  useEffect(() => {
+    if (suspiciousActivity >= 3) {
+      submitTest();
+    }
+  }, [suspiciousActivity]);
+
   /* ---------- submit (online immediate attempt / else queue) ---------- */
   const submitTest = async () => {
     if (!currentTest) return;
@@ -583,6 +690,7 @@ export function CBTTest() {
 
     console.log("[CBTTest] Submitting test payload:", cleanedBody);
 
+    let data = null;
     try {
       if (navigator.onLine && sessionToken) {
         const res = await fetchWithTimeout(
@@ -603,9 +711,16 @@ export function CBTTest() {
           throw new Error(`Server error ${res.status}: ${text}`);
         }
 
-        const data = await res.json();
+        data = await res.json();
         console.log("[CBTTest] Submission response:", data);
-        setResult(data);
+        const test = availableTests.find(
+          (t) => t.pk.toString() === currentTest
+        );
+        await saveResultLocally(currentTest, { ...data, title: test?.title });
+        setTestResults((prev) => ({
+          ...prev,
+          [currentTest]: { ...data, title: test?.title },
+        }));
         await deleteSavedAnswers(currentTest);
       } else {
         // offline: enqueue
@@ -630,7 +745,6 @@ export function CBTTest() {
   const handleResetToList = async () => {
     setCurrentTest(null);
     setTestCompleted(false);
-    setResult(null);
     setQuestions([]);
     setAnswers({});
     setCurrentQuestion(0);
@@ -653,6 +767,17 @@ export function CBTTest() {
         setSyncProgress({ processed, total });
       },
     });
+    if (wbRef.current) {
+      wbRef.current.messageSW({ type: "REPLAY_QUEUE" });
+    }
+  };
+
+  /* ---------- dismiss sync message if no pending ---------- */
+  const handleDismissSync = async () => {
+    const pending = await getPendingSubmissions();
+    if (pending.length === 0) {
+      setShowSyncMessage(false);
+    }
   };
 
   /* ---------- UI helpers ---------- */
@@ -740,6 +865,7 @@ export function CBTTest() {
   if (testCompleted) {
     const Icon = CheckCircle;
     const iconColor = "text-green-500";
+    const result = testResults[currentTest ?? ""] ?? null;
 
     return (
       <div className="space-y-6">
@@ -762,7 +888,7 @@ export function CBTTest() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-800">
-                  Syncing your progress…
+                  Syncing submissions in progress…
                 </p>
                 {syncProgress && (
                   <p className="text-xs text-muted-foreground">{`Processed ${syncProgress.processed} of ${syncProgress.total}`}</p>
@@ -776,6 +902,9 @@ export function CBTTest() {
                 >
                   Retry Sync
                 </Button>
+                <Button size="sm" variant="outline" onClick={handleDismissSync}>
+                  Dismiss
+                </Button>
               </div>
             </div>
           </div>
@@ -784,7 +913,7 @@ export function CBTTest() {
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {navigator.onLine && result
+            {result
               ? `Your result: ${result.result}`
               : "Your answers are saved locally and will sync automatically."}
           </p>
@@ -797,13 +926,13 @@ export function CBTTest() {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {navigator.onLine
+              {result
                 ? "Thank you for completing the test."
                 : "Answers stored locally – they will upload when you regain connectivity."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {result && navigator.onLine && (
+            {result && (
               <div className="text-center space-y-2">
                 <p className="text-4xl font-bold">{result.percentage}%</p>
                 <p className="text-xl">
@@ -818,6 +947,23 @@ export function CBTTest() {
                     ? "Congratulations! You have passed the test."
                     : "Unfortunately, you did not pass. Better luck next time!"}
                 </p>
+              </div>
+            )}
+
+            {!result && (
+              <div className="text-center">
+                <Button
+                  onClick={async () => {
+                    const r = testResults[currentTest ?? ""] ?? null;
+                    if (r)
+                      setTestResults((prev) => ({
+                        ...prev,
+                        [currentTest ?? ""]: r,
+                      }));
+                  }}
+                >
+                  Check for Score
+                </Button>
               </div>
             )}
 
@@ -843,7 +989,7 @@ export function CBTTest() {
                 Take Next Test
               </Button>
 
-              {navigator.onLine && (
+              {result && (
                 <Button
                   variant="outline"
                   onClick={() => setShowAnswersModal(true)}
@@ -987,6 +1133,34 @@ export function CBTTest() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Leave Test?</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to leave? Your progress will be saved.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowLeaveDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setShowLeaveDialog(false);
+                  handleResetToList();
+                }}
+              >
+                Leave
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">{test?.title}</h1>
@@ -1027,7 +1201,7 @@ export function CBTTest() {
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
 
-                {currentQ?.type === "single-choice" ||
+                {currentQ?.type === "multiple-choice" ||
                 currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
@@ -1200,6 +1374,10 @@ export function CBTTest() {
     Math.ceil((availableTests?.length || 0) / testsPerPage)
   );
 
+  const pastTests = availableTests.filter(
+    (test) => testResults[test.pk?.toString()]
+  );
+
   return (
     <div className="space-y-6">
       {isOffline && (
@@ -1221,7 +1399,7 @@ export function CBTTest() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-800">
-                Syncing your offline submissions…
+                Syncing submissions in progress…
               </p>
               {syncProgress && (
                 <p className="text-xs text-muted-foreground">
@@ -1237,6 +1415,9 @@ export function CBTTest() {
                 className="text-blue-700 border-blue-300 hover:bg-blue-100"
               >
                 Retry Now
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDismissSync}>
+                Dismiss
               </Button>
             </div>
           </div>
@@ -1356,128 +1537,195 @@ export function CBTTest() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {currentTests.map((test) => (
-          <Card
-            key={test.pk}
-            className="hover:shadow-lg transition-shadow flex flex-col h-full"
+      <Tabs defaultValue="available" className="space-y-4">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsTrigger
+            value="available"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
           >
-            <CardHeader>
-              <div className="sm:flex items-center justify-between">
-                <CardTitle className="text-lg">{test.title}</CardTitle>
-                <div className="flex gap-2">
-                  <Badge
-                    variant={
-                      test.difficulty === "Beginner"
-                        ? "default"
-                        : test.difficulty === "Intermediate"
-                        ? "secondary"
-                        : "destructive"
-                    }
-                  >
-                    {test.difficulty}
-                  </Badge>
-                  {test.type === "exam" && (
-                    <Badge
-                      variant="outline"
-                      className="text-red-600 border-red-200"
-                    >
-                      <Shield className="h-3 w-3 mr-1" />
-                      Secure Exam
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <CardDescription>{test.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  {test.questions ||
-                    (Array.isArray(test.items) ? test.items.length : "-")}{" "}
-                  questions
-                </span>
-                <span>{test.duration}</span>
-              </div>
-
-              {test.requiresSubscription && !isSubscriber && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <Shield className="h-4 w-4 inline mr-1" />
-                    Requires active subscription
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-auto">
-                <Button
-                  onClick={() => {
-                    setPendingTestId(test.pk.toString());
-                    setShowStartDialog(true);
-                  }}
-                  className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  disabled={
-                    (test.type === "exam" && examAttempts >= maxAttempts) ||
-                    (test.requiresSubscription && !isSubscriber)
-                  }
+            Available Tests
+          </TabsTrigger>
+          <TabsTrigger
+            value="past"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
+            Past Attempts
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="available" className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {currentTests.map((test) => {
+              const res = testResults[test.pk?.toString()] ?? null;
+              return (
+                <Card
+                  key={test.pk}
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
                 >
-                  <Play className="mr-2 h-4 w-4" />
-                  {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  <CardHeader>
+                    <div className="sm:flex items-center justify-between">
+                      <CardTitle className="text-lg">{test.title}</CardTitle>
+                      <div className="flex gap-2">
+                        <Badge
+                          variant={
+                            test.difficulty === "Beginner"
+                              ? "default"
+                              : test.difficulty === "Intermediate"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {test.difficulty}
+                        </Badge>
+                        {test.type === "exam" && (
+                          <Badge
+                            variant="outline"
+                            className="text-red-600 border-red-200"
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
+                            Secure Exam
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <CardDescription>{test.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col gap-4">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>
+                        {test.questions ||
+                          (Array.isArray(test.items)
+                            ? test.items.length
+                            : "-")}{" "}
+                        questions
+                      </span>
+                      <span>{test.duration}</span>
+                    </div>
 
-      <Pagination>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (currentPage > 1) setCurrentPage(currentPage - 1);
-              }}
-              className={
-                currentPage === 1 ? "pointer-events-none opacity-50" : ""
-              }
-            />
-          </PaginationItem>
-          {[...Array(totalPages)].map((_, index) => {
-            const page = index + 1;
-            return (
-              <PaginationItem key={page}>
-                <PaginationLink
+                    {res && (
+                      <p className="text-sm text-green-600">
+                        Previous Score: {res.score} / {res.total_points}
+                      </p>
+                    )}
+
+                    {test.requiresSubscription && !isSubscriber && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          <Shield className="h-4 w-4 inline mr-1" />
+                          Requires active subscription
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-auto">
+                      <Button
+                        onClick={() => {
+                          setPendingTestId(test.pk.toString());
+                          setShowStartDialog(true);
+                        }}
+                        className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                        disabled={
+                          (test.type === "exam" &&
+                            examAttempts >= maxAttempts) ||
+                          (test.requiresSubscription && !isSubscriber)
+                        }
+                      >
+                        <Play className="mr-2 h-4 w-4" />
+                        {test.type === "exam"
+                          ? "Start Secure Exam"
+                          : "Start Quiz"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
                   href="#"
-                  isActive={currentPage === page}
                   onClick={(e) => {
                     e.preventDefault();
-                    setCurrentPage(page);
+                    if (currentPage > 1) setCurrentPage(currentPage - 1);
                   }}
-                >
-                  {page}
-                </PaginationLink>
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
               </PaginationItem>
-            );
-          })}
-          {totalPages > 5 && <PaginationEllipsis />}
-          <PaginationItem>
-            <PaginationNext
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-              }}
-              className={
-                currentPage === totalPages
-                  ? "pointer-events-none opacity-50"
-                  : ""
-              }
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
+              {[...Array(totalPages)].map((_, index) => {
+                const page = index + 1;
+                return (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              {totalPages > 5 && <PaginationEllipsis />}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages)
+                      setCurrentPage(currentPage + 1);
+                  }}
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </TabsContent>
+        <TabsContent value="past" className="space-y-4">
+          {pastTests.length === 0 ? (
+            <p className="text-center text-muted-foreground">
+              No past attempts yet.
+            </p>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {pastTests.map((test) => {
+                const res = testResults[test.pk.toString()];
+                return (
+                  <Card key={test.pk} className="flex flex-col h-full">
+                    <CardHeader>
+                      <CardTitle className="text-lg">{test.title}</CardTitle>
+                      <CardDescription>{test.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 flex flex-col gap-4">
+                      <p className="text-sm text-green-600">
+                        Score: {res.score} / {res.total_points} (
+                        {res.percentage}%)
+                      </p>
+                      <p className="text-sm">Result: {res.result}</p>
+                      <p className="text-sm">Answered: {res.answered}</p>
+                      {res.pending_manual > 0 && (
+                        <p className="text-sm">
+                          {res.pending_manual} pending manual review
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 

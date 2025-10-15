@@ -76,6 +76,8 @@
     "tailwind-scrollbar-hide": "^4.0.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
+    "workbox-background-sync": "^7.3.0",
+    "workbox-window": "^7.3.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
