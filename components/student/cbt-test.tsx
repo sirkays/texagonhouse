@@ -532,7 +532,7 @@ export function CBTTest() {
       : [];
     const mappedQuestions = items.map((item: any) => ({
       id: item.id,
-      type: item.type === "scq" ? "multiple-choice" : item.type,
+      type: item.type === "scq" ? "single-choice" : item.type,
       question: item.question,
       options:
         item.type === "true-false"
@@ -1201,7 +1201,7 @@ export function CBTTest() {
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
 
-                {currentQ?.type === "multiple-choice" ||
+                {currentQ?.type === "single-choice" ||
                 currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
