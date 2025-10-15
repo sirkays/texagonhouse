@@ -60,7 +60,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 interface Question {
   id: string;
-  type: "single--choice" | "true-false" | "short-answer" | "essay";
+  type: "single-choice" | "true-false" | "short-answer" | "essay";
   question: string;
   options?: string[];
   correctAnswer: string | number | boolean; // Update to include boolean
@@ -225,7 +225,7 @@ export function TeacherCBTCreator() {
         data.test.questions?.map((q: any) => ({
           ...q,
           correctAnswer:
-            q.type === "single--choice"
+            q.type === "single-choice"
               ? Number(q.correctAnswer) || 0
               : q.type === "true-false"
               ? q.correctAnswer === "true" || q.correctAnswer === true
@@ -253,10 +253,10 @@ export function TeacherCBTCreator() {
   const addQuestion = () => {
     const newQuestion: Question = {
       id: Date.now().toString(),
-      type: "single--choice",
+      type: "single-choice",
       question: "",
       options: ["", "", "", ""],
-      correctAnswer: 0, // Default for single--choice
+      correctAnswer: 0, // Default for single-choice
       points: 5,
       difficulty: "Medium",
     };
@@ -278,7 +278,7 @@ export function TeacherCBTCreator() {
         // Set default correctAnswer based on type if changed
         if (updates.type && updates.type !== q.type) {
           updatedQuestion.correctAnswer =
-            updates.type === "single--choice"
+            updates.type === "single-choice"
               ? 0
               : updates.type === "true-false"
               ? false // Changed from "true" to boolean false
@@ -293,7 +293,7 @@ export function TeacherCBTCreator() {
         const updatedQuestion = { ...prev, ...updates };
         if (updates.type && updates.type !== prev.type) {
           updatedQuestion.correctAnswer =
-            updates.type === "single--choice"
+            updates.type === "single-choice"
               ? 0
               : updates.type === "true-false"
               ? false // Changed from "true" to boolean false
@@ -377,7 +377,7 @@ export function TeacherCBTCreator() {
             question: question.question,
             options: question.options || [],
             correctAnswer:
-              question.type === "single--choice"
+              question.type === "single-choice"
                 ? Number(question.correctAnswer) || 0
                 : question.type === "true-false"
                 ? question.correctAnswer === "true" ||
@@ -995,7 +995,7 @@ export function TeacherCBTCreator() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="single--choice">
+                          <SelectItem value="single-choice">
                             Multiple Choice
                           </SelectItem>
                           <SelectItem value="true-false">True/False</SelectItem>
@@ -1022,7 +1022,7 @@ export function TeacherCBTCreator() {
                       />
                     </div>
 
-                    {editingQuestion.type === "single--choice" && (
+                    {editingQuestion.type === "single-choice" && (
                       <div className="space-y-3">
                         <Label>Answer Options</Label>
                         <RadioGroup
@@ -1628,7 +1628,7 @@ export function TeacherCBTCreator() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="single--choice">
+                                  <SelectItem value="single-choice">
                                     Single Choice
                                   </SelectItem>
                                   <SelectItem value="true-false">
@@ -1659,7 +1659,7 @@ export function TeacherCBTCreator() {
                             </div>
 
                             {/* Multiple Choice Options */}
-                            {question.type === "single--choice" && (
+                            {question.type === "single-choice" && (
                               <div className="space-y-3">
                                 <Label>Answer Options</Label>
                                 <RadioGroup
@@ -1969,7 +1969,7 @@ export function TeacherCBTCreator() {
                       <CardContent className="space-y-4">
                         <p className="text-sm">{question.question}</p>
 
-                        {question.type === "single--choice" &&
+                        {question.type === "single-choice" &&
                           question.options && (
                             <div className="space-y-2">
                               {question.options.map((option, optIndex) => (
