@@ -36,7 +36,7 @@ interface Leader {
   name: string;
   school?: string;
   points: number;
-  avatar: string;
+  avatar: string | null; // Updated to allow null
   streak: number;
   badges?: number;
   isCurrentUser: boolean;
@@ -248,6 +248,22 @@ export function Leaderboard() {
     );
   };
 
+  // Handle avatar image errors
+  const handleAvatarError = (
+    e: React.SyntheticEvent<HTMLImageElement, Event>
+  ) => {
+    const target = e.currentTarget;
+    target.src = "/placeholder-avatar.png"; // Create this file in public folder
+    target.onerror = null; // Prevent infinite error loops
+  };
+
+  
+    const normalizeAvatarUrl = (avatar: string | null) => {
+      if (!avatar) return "/placeholder-avatar.png";
+      if (avatar.startsWith("http")) return avatar;
+      return `https://texagonbackend.epichouse.online${avatar}`;
+    };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -384,8 +400,10 @@ export function Leaderboard() {
                       </div>
                       <Avatar>
                         <AvatarImage
-                          src={leader.avatar || "/placeholder.svg"}
+                          src={normalizeAvatarUrl(leader.avatar)}
+                          onError={handleAvatarError}
                         />
+
                         <AvatarFallback>
                           {leader.name
                             .split(" ")
@@ -447,8 +465,9 @@ export function Leaderboard() {
                         {getRankIcon(leader.rank)}
                       </div>
                       <Avatar className="h-10 w-10">
-                        <AvatarImage
-                          src={leader.avatar || "/placeholder.svg"}
+                       <AvatarImage
+                          src={normalizeAvatarUrl(leader.avatar)}
+                          onError={handleAvatarError}
                         />
                         <AvatarFallback>
                           {leader.name
@@ -512,8 +531,9 @@ export function Leaderboard() {
                         {getRankIcon(leader.rank)}
                       </div>
                       <Avatar className="h-10 w-10">
-                        <AvatarImage
-                          src={leader.avatar || "/placeholder.svg"}
+                       <AvatarImage
+                          src={normalizeAvatarUrl(leader.avatar)}
+                          onError={handleAvatarError}
                         />
                         <AvatarFallback>
                           {leader.name

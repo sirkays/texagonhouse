@@ -996,7 +996,7 @@ export function TeacherCBTCreator() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="single-choice">
-                            Multiple Choice
+                            Single Choice
                           </SelectItem>
                           <SelectItem value="true-false">True/False</SelectItem>
                           {/* <SelectItem value="short-answer">

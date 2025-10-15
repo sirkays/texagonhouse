@@ -1191,6 +1191,14 @@ export function TeacherLearningModules() {
     }
   };
 
+  // 🔧 Normalize cover image URLs so relative paths become full URLs
+const normalizeCoverImageUrl = (cover: string | null | undefined) => {
+  if (!cover) return "/placeholder-cover.png"; // fallback in /public/
+  if (cover.startsWith("http")) return cover;
+  return `https://texagonbackend.epichouse.online${cover}`;
+};
+
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "video":
@@ -1586,9 +1594,9 @@ export function TeacherLearningModules() {
                                   {lesson.type}
                                 </Badge>
                                 {/* NEW: Cover image preview in list */}
-                                {lesson.coverImageUrl && (
+                                {normalizeCoverImageUrl(lesson.coverImageUrl) && (
                                   <img
-                                    src={lesson.coverImageUrl}
+                                    src={normalizeCoverImageUrl(lesson.coverImageUrl)}
                                     alt="Cover"
                                     onError={(e) => {
                                       e.currentTarget.style.display = "none"; // Hide broken images
@@ -1645,12 +1653,12 @@ export function TeacherLearningModules() {
                         <Label className="text-xs xs:text-sm sm:text-base">
                           Cover Image{" "}
                           {editingLesson.coverImage ||
-                          editingLesson.coverImageUrl
+                          normalizeCoverImageUrl(editingLesson.coverImageUrl)
                             ? "(Set)"
                             : "Upload"}
                         </Label>
                         {editingLesson.coverImage ||
-                        editingLesson.coverImageUrl ? (
+normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
                           <div className="space-y-2">
                             {editingLesson.coverImage && (
                               <div className="flex items-center gap-2">
@@ -1673,11 +1681,11 @@ export function TeacherLearningModules() {
                                 </Button>
                               </div>
                             )}
-                            {editingLesson.coverImageUrl &&
+                            {normalizeCoverImageUrl(editingLesson.coverImageUrl) &&
                               !editingLesson.coverImage && (
                                 <div className="flex items-center gap-2">
                                   <img
-                                    src={editingLesson.coverImageUrl}
+                                    src={normalizeCoverImageUrl(editingLesson.coverImageUrl)}
                                     alt="Current cover"
                                     onError={(e) => {
                                       e.currentTarget.style.display = "none"; // Hide broken images
