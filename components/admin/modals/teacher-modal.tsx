@@ -1,8 +1,7 @@
 "use client";
 
 import type React from "react";
-
-import {useState} from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,17 +10,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+interface Teacher {
+  name: string;
+  email: string;
+  specialties: string[];
+  experience: number | string;
+  phone?: string;
+  bio?: string;
+  // ...any other fields you may have
+}
 
 interface TeacherModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  teacher?: any;
-  onSave: (teacher: any) => void;
+  teacher?: Partial<Teacher>;
+  onSave: (teacher: Teacher) => void;
 }
+
+// Customize these options for your app:
+const SPECIALTY_OPTIONS = [
+  "Mathematics",
+  "Physics",
+  "Chemistry",
+  "Biology",
+  "English",
+  "History",
+  "Geography",
+  "Computer Science",
+];
 
 export function TeacherModal({
   open,
@@ -29,11 +50,21 @@ export function TeacherModal({
   teacher,
   onSave,
 }: TeacherModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    specialties: string[];
+    experience: string; // keep as string in form, parse on submit
+    phone: string;
+    bio: string;
+  }>({
     name: teacher?.name || "",
     email: teacher?.email || "",
-    specialties: teacher?.specialties?.join(", ") || "",
-    experience: teacher?.experience || "",
+    specialties: teacher?.specialties || [],
+    experience:
+      (typeof teacher?.experience === "number"
+        ? String(teacher.experience)
+        : teacher?.experience) || "",
     phone: teacher?.phone || "",
     bio: teacher?.bio || "",
   });
@@ -41,12 +72,22 @@ export function TeacherModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      ...teacher,
+      ...(teacher as Teacher),
       ...formData,
-      specialties: formData.specialties.split(",").map((s: any) => s.trim()),
+      specialties: formData.specialties, // already an array
       experience: Number.parseInt(formData.experience),
     });
     onOpenChange(false);
+  };
+
+  const handleSpecialtiesChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const selected = Array.from(
+      e.target.selectedOptions,
+      (opt) => opt.value
+    );
+    setFormData((prev) => ({ ...prev, specialties: selected }));
   };
 
   return (
@@ -71,7 +112,7 @@ export function TeacherModal({
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
-                    setFormData({...formData, name: e.target.value})
+                    setFormData({ ...formData, name: e.target.value })
                   }
                   required
                 />
@@ -83,7 +124,7 @@ export function TeacherModal({
                   type="email"
                   value={formData.email}
                   onChange={(e) =>
-                    setFormData({...formData, email: e.target.value})
+                    setFormData({ ...formData, email: e.target.value })
                   }
                   required
                 />
@@ -96,7 +137,7 @@ export function TeacherModal({
                   id="phone"
                   value={formData.phone}
                   onChange={(e) =>
-                    setFormData({...formData, phone: e.target.value})
+                    setFormData({ ...formData, phone: e.target.value })
                   }
                 />
               </div>
@@ -107,33 +148,47 @@ export function TeacherModal({
                   type="number"
                   value={formData.experience}
                   onChange={(e) =>
-                    setFormData({...formData, experience: e.target.value})
+                    setFormData({
+                      ...formData,
+                      experience: e.target.value,
+                    })
                   }
                   required
                 />
               </div>
             </div>
+
+            {/* MULTI-SELECT SPECIALTIES */}
             <div className="space-y-2">
               <Label htmlFor="specialties">
-                Specialties (comma-separated) *
+                Specialties (choose one or more) *
               </Label>
-              <Input
+              <select
                 id="specialties"
-                value={formData.specialties}
-                onChange={(e) =>
-                  setFormData({...formData, specialties: e.target.value})
-                }
-                placeholder="e.g., Mathematics, Physics"
+                multiple
                 required
-              />
+                value={formData.specialties}
+                onChange={handleSpecialtiesChange}
+                className="w-full min-h-[8rem] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {SPECIALTY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Hold Ctrl/Cmd to select multiple, or drag across options.
+              </p>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
               <Textarea
                 id="bio"
                 value={formData.bio}
                 onChange={(e) =>
-                  setFormData({...formData, bio: e.target.value})
+                  setFormData({ ...formData, bio: e.target.value })
                 }
                 rows={4}
               />
@@ -143,10 +198,13 @@ export function TeacherModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}>
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit">{teacher ? "Update" : "Add"} Teacher</Button>
+            <Button type="submit">
+              {teacher ? "Update" : "Add"} Teacher
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
