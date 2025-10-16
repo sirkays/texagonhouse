@@ -466,18 +466,34 @@ export function MyMaterials() {
                   className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader className="p-0">
                     <div className="relative">
-                      <img
-                        src={video.thumbnail || ""}
-                        alt={video.title}
-                        onError={(e) => {
-                          console.error(
-                            "[MyMaterials] Image load error for:",
-                            video.thumbnail
-                          );
-                          e.currentTarget.src = "";
-                        }}
-                        className="w-full h-32 object-cover rounded-md"
-                      />
+                      <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                        {video.thumbnail ? (
+                          <>
+                            <img
+                              src={
+                                video.thumbnail.startsWith('http')
+                                  ? video.thumbnail
+                                  : `https://texagonbackend.epichouse.online${video.thumbnail}`
+                              }
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error(
+                                  "[MyMaterials] Image load error for:",
+                                  video.thumbnail
+                                );
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden bg-muted">
+                              <Video className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                          </>
+                        ) : (
+                          <Video className="h-8 w-8 text-muted-foreground" />
+                        )}
+                      </div>
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md rounded-bl-none rounded-br-none">
                         <Button
                           size="sm"

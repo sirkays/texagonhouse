@@ -54,6 +54,7 @@ interface Module {
   content_type: string;
   duration: string;
   url: string | null;
+  cover_image?: string | null;
   course: string;
   subject: string;
   instructor: string | null;
@@ -712,14 +713,37 @@ export function LearningModules() {
                   key={video.id}
                   className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader className="p-0">
-                    <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative">
-                      <Video className="h-8 w-8 text-muted-foreground" />
+                    <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative overflow-hidden">
+                      {video.cover_image ? (
+                        <>
+                          <img
+                            src={
+                              video.cover_image.startsWith('http')
+                                ? video.cover_image
+                                : `https://texagonbackend.epichouse.online${video.cover_image}`
+                            }
+                            alt={video.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
+                            <Video className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Video className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
                       {video.progress === 100 && (
-                        <div className="absolute top-2 right-2">
+                        <div className="absolute top-2 right-2 z-10">
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         </div>
                       )}
-                      <div className="absolute bottom-2 right-2">
+                      <div className="absolute bottom-2 right-2 z-10">
                         <Badge variant="secondary" className="text-xs">
                           {video.progress > 0 ? "In Progress" : "Available"}
                         </Badge>
@@ -731,7 +755,6 @@ export function LearningModules() {
                     </div>
                   </CardHeader>
 
-                  {/* Make CardContent grow and push footer down */}
                   <CardContent className="flex flex-col flex-1">
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
@@ -760,8 +783,7 @@ export function LearningModules() {
                       )}
                     </div>
 
-                    {/* Footer (sticks at bottom) */}
-                    <div className="mt-auto  flex flex-wrap gap-3 pt-4">
+                    <div className="mt-auto flex flex-wrap gap-3 pt-4">
                       <Button
                         className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayVideo(video)}
@@ -927,7 +949,7 @@ export function LearningModules() {
                         </div>
                       )}
                     </div>
-                    <div className="mt-auto pt-4  flex flex-wrap gap-2">
+                    <div className="mt-auto pt-4 flex flex-wrap gap-2">
                       <Button
                         className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePreviewPdf(pdf)}

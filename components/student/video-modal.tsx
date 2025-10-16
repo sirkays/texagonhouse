@@ -7,12 +7,14 @@ import {
 } from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
 import {Play, Pause, Volume2, VolumeX, Maximize, Minimize} from "lucide-react";
+import {Video} from "lucide-react";
 
 interface VideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   videoUrl?: string;
+  thumbnail?: string | null;
 }
 
 export function VideoModal({
@@ -20,6 +22,7 @@ export function VideoModal({
   onClose,
   title,
   videoUrl,
+  thumbnail,
 }: VideoModalProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -29,9 +32,91 @@ export function VideoModal({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showContinueTooltip, setShowContinueTooltip] = useState(false);
+  const [posterError, setPosterError] = useState(false); // Track poster loading errors
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef<{time: number; x: number} | null>(null);
+  const posterImgRef = useRef<HTMLImageElement>(null);
+
+  // Test if thumbnail URL is valid
+  const validateThumbnail = async (thumbUrl: string) => {
+    try {
+      const response = await fetch(thumbUrl, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  // Determine poster URL with validation
+  const getPosterUrl = async () => {
+    if (!thumbnail || posterError) return undefined;
+    
+    try {
+      // If thumbnail is already a full URL
+      if (thumbnail.startsWith('http')) {
+        const isValid = await validateThumbnail(thumbnail);
+        console.log('[VideoModal] Full URL thumbnail valid:', isValid, thumbnail);
+        return isValid ? thumbnail : undefined;
+      }
+      
+      // Handle relative path
+      const fullUrl = `https://texagonbackend.epichouse.online${thumbnail}`;
+      const isValid = await validateThumbnail(fullUrl);
+      console.log('[VideoModal] Relative URL thumbnail valid:', isValid, fullUrl);
+      return isValid ? fullUrl : undefined;
+    } catch (error) {
+      console.error('[VideoModal] Poster URL validation error:', error);
+      setPosterError(true);
+      return undefined;
+    }
+  };
+
+  // Preload and validate poster
+  useEffect(() => {
+    let isValid = false;
+    
+    const validateAndSetPoster = async () => {
+      if (!thumbnail) {
+        setPosterError(true);
+        return;
+      }
+
+      setPosterError(false);
+      
+      const posterUrl = thumbnail.startsWith('http') 
+        ? thumbnail 
+        : `https://texagonbackend.epichouse.online${thumbnail}`;
+      
+      // Create image to test loading
+      const img = new Image();
+      img.onload = () => {
+        console.log('[VideoModal] Poster loaded successfully:', posterUrl);
+        isValid = true;
+        // Update video poster if video element exists
+        if (videoRef.current && !isPlaying) {
+          videoRef.current.poster = posterUrl;
+        }
+      };
+      img.onerror = () => {
+        console.error('[VideoModal] Poster failed to load:', posterUrl);
+        setPosterError(true);
+        isValid = false;
+      };
+      img.src = posterUrl;
+    };
+
+    if (isOpen && videoUrl) {
+      validateAndSetPoster();
+    }
+
+    return () => {
+      if (posterImgRef.current) {
+        posterImgRef.current.onload = null;
+        posterImgRef.current.onerror = null;
+      }
+    };
+  }, [thumbnail, isOpen, videoUrl, isPlaying]);
 
   // Save video progress to localStorage
   const saveVideoProgress = () => {
@@ -56,7 +141,7 @@ export function VideoModal({
           videoRef.current.currentTime = Number.parseFloat(savedTime);
           setCurrentTime(Number.parseFloat(savedTime));
           setShowContinueTooltip(true);
-          setTimeout(() => setShowContinueTooltip(false), 2000); // Hide tooltip after 2s
+          setTimeout(() => setShowContinueTooltip(false), 2000);
         }
       } catch (e) {
         console.warn("[VideoModal] localStorage restore error:", e);
@@ -90,6 +175,7 @@ export function VideoModal({
       saveVideoProgress();
       setIsPlaying(false);
       setShowControls(true);
+      setPosterError(false);
     } else {
       restoreVideoProgress();
     }
@@ -264,6 +350,46 @@ export function VideoModal({
     }
   };
 
+  // Fallback poster component when video poster fails
+  const FallbackPoster = () => {
+    if (!thumbnail || isPlaying || posterError) return null;
+    
+    const posterUrl = thumbnail.startsWith('http') 
+      ? thumbnail 
+      : `https://texagonbackend.epichouse.online${thumbnail}`;
+
+    return (
+      <div 
+        className="absolute inset-0 flex items-center justify-center bg-gray-200"
+        onClick={togglePlay}
+      >
+        <img
+          ref={posterImgRef}
+          src={posterUrl}
+          alt="Video thumbnail"
+          className="w-full h-full object-cover"
+          onLoad={() => {
+            console.log('[VideoModal] Fallback poster loaded:', posterUrl);
+            setPosterError(false);
+          }}
+          onError={() => {
+            console.error('[VideoModal] Fallback poster failed:', posterUrl);
+            setPosterError(true);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePlay();
+          }}
+        />
+        {!posterError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors">
+            <Play className="h-16 w-16 text-white" />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-[#00000020] w-[95vw] max-w-[1200px] h-auto max-h-[95vh] flex flex-col mx-auto p-0 border-none shadow-[#00000020] shadow-sm">
@@ -284,14 +410,20 @@ export function VideoModal({
                 onEnded={() => setIsPlaying(false)}
                 onClick={handleVideoTap}
                 onTouchStart={handleVideoTap}
-                poster="/banner-1.jpg">
+                poster={thumbnail ? undefined : "/banner-1.jpg"} // Only use default if no thumbnail
+                controls={false}
+                preload="metadata"
+              >
                 <source src={videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
 
+              {/* Fallback poster overlay */}
+              {!isPlaying && <FallbackPoster />}
+
               <div
                 className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 xs:p-3 sm:p-4 transition-opacity duration-300 ${
-                  showControls ? "opacity-100" : "opacity-0"
+                  showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 }`}
                 onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}>
@@ -398,20 +530,4 @@ export function VideoModal({
       </DialogContent>
     </Dialog>
   );
-}
-
-// Add custom styles for the close button
-const styles = `
-  .dialog-close-button {
-    color: white !important;
-  }
-  .dialog-close-button:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-  }
-`;
-
-if (typeof document !== "undefined") {
-  const styleSheet = document.createElement("style");
-  styleSheet.textContent = styles;
-  document.head.appendChild(styleSheet);
 }

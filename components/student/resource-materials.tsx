@@ -66,6 +66,7 @@ interface Resource {
   pdfUrl?: string;
   videoUrl?: string;
   audioUrl?: string;
+  thumbnail?: string | null; // Added for video cover images
   date?: string;
   citations?: number;
   content?: string;
@@ -628,8 +629,29 @@ export function ResourceMaterials() {
                   key={index}
                   className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader>
-                    <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center">
-                      <Video className="h-8 w-8 text-muted-foreground" />
+                    <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center relative overflow-hidden">
+                      {video.thumbnail ? (
+                        <>
+                          <img
+                            src={
+                              video.thumbnail.startsWith('http')
+                                ? video.thumbnail
+                                : `https://texagonbackend.epichouse.online${video.thumbnail}`
+                            }
+                            alt={video.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
+                            <Video className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        </>
+                      ) : (
+                        <Video className="h-8 w-8 text-muted-foreground" />
+                      )}
                     </div>
                     <div className="flex flex-wrap items-start justify-between">
                       <div className="space-y-1">
