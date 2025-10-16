@@ -1,17 +1,21 @@
-// app/api/admin/teachers/specialties/route.ts
 import {NextRequest, NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.epichouse.online/orgs";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 async function getSession() {
   return await getServerSession(authOptions);
 }
 
-export async function GET(request: NextRequest) {
-  console.log("[Route] Received GET request to /api/specialties");
+export async function POST(
+  request: NextRequest,
+  {params}: {params: {id: string}}
+) {
+  console.log(
+    "[Route] Received POST request to /api/admin/parents/[id]/link_child"
+  );
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -23,13 +27,29 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const url = `${BASE_URL}/api/subjects/`;
-    console.log("[Route] Fetching data from", url);
-    const res = await fetch(url, {
+    const {id} = params;
+    const body = await request.json();
+    console.log("[Route] Request body:", body);
+
+    if (!body.student_id) {
+      return NextResponse.json(
+        {error: "student_id is required"},
+        {status: 400}
+      );
+    }
+
+    console.log(
+      "[Route] Linking child at",
+      `${BASE_URL}/api/parents/${id}/link_child/`
+    );
+    const res = await fetch(`${BASE_URL}/api/parents/${id}/link_child/`, {
+      method: "POST",
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
+        "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
+      body: JSON.stringify(body),
     });
 
     console.log("[Route] API response status:", res.status);
@@ -37,19 +57,16 @@ export async function GET(request: NextRequest) {
     console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
+      console.log("[Route] API post failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
+        {error: data.detail || "Failed to link child"},
         {status: res.status}
       );
     }
 
-    // Map to array of names
-    const specialties = data.map((item: any) => item.name);
-
-    return NextResponse.json(specialties);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
+    console.error("[Route] Error linking child:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

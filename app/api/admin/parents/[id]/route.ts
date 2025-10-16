@@ -1,4 +1,3 @@
-// app/api/admin/teachers/[id]/route.ts
 import {NextRequest, NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -24,19 +23,17 @@ async function handleRequest(
   };
 
   if (method === "DELETE") {
-    // no body or additional headers
+    // No body or additional headers for DELETE
   } else if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
     fetchBody = formData;
-    // FormData sets its own Content-Type
-  } else if (method !== "GET") {
-    // PATCH json
+  } else if (method === "PATCH") {
     const jsonBody = await request.json();
     fetchBody = JSON.stringify(jsonBody);
     headers["Content-Type"] = "application/json";
-  } // GET has no body
+  }
 
-  const url = `${BASE_URL}/api/admin/teachers/${id}/`;
+  const url = `${BASE_URL}/api/parents/${id}/`;
   const res = await fetch(url, {
     method,
     headers,
@@ -46,7 +43,7 @@ async function handleRequest(
   if (!res.ok) {
     const data = await res.json();
     return NextResponse.json(
-      {error: data.detail || `Failed to ${method.toLowerCase()} teacher`},
+      {error: data.detail || `Failed to ${method.toLowerCase()} parent`},
       {status: res.status}
     );
   }
@@ -63,7 +60,7 @@ export async function GET(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received GET request to /api/teachers/[id]");
+  console.log("[Route] Received GET request to /api/admin/parents/[id]");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -77,10 +74,10 @@ export async function GET(
   const {id} = params;
 
   try {
-    console.log("[Route] Fetching teacher", id);
+    console.log("[Route] Fetching parent", id);
     return await handleRequest(request, "GET", id, session.user.sessionToken);
   } catch (error) {
-    console.error("[Route] Error fetching teacher:", error);
+    console.error("[Route] Error fetching parent:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }
@@ -89,7 +86,7 @@ export async function PATCH(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received PATCH request to /api/teachers/[id]");
+  console.log("[Route] Received PATCH request to /api/admin/parents/[id]");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -103,10 +100,10 @@ export async function PATCH(
   const {id} = params;
 
   try {
-    console.log("[Route] Updating teacher", id);
+    console.log("[Route] Updating parent", id);
     return await handleRequest(request, "PATCH", id, session.user.sessionToken);
   } catch (error) {
-    console.error("[Route] Error updating teacher:", error);
+    console.error("[Route] Error updating parent:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }
@@ -115,7 +112,7 @@ export async function DELETE(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received DELETE request to /api/teachers/[id]");
+  console.log("[Route] Received DELETE request to /api/admin/parents/[id]");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -129,7 +126,7 @@ export async function DELETE(
   const {id} = params;
 
   try {
-    console.log("[Route] Deleting teacher", id);
+    console.log("[Route] Deleting parent", id);
     return await handleRequest(
       request,
       "DELETE",
@@ -137,7 +134,7 @@ export async function DELETE(
       session.user.sessionToken
     );
   } catch (error) {
-    console.error("[Route] Error deleting teacher:", error);
+    console.error("[Route] Error deleting parent:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

@@ -1,4 +1,3 @@
-// app/api/admin/teachers/route.ts
 import {NextRequest, NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -11,7 +10,7 @@ async function getSession() {
 }
 
 export async function GET(request: NextRequest) {
-  console.log("[Route] Received GET request to /api/teachers");
+  console.log("[Route] Received GET request to /api/admin/parents");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -26,8 +25,8 @@ export async function GET(request: NextRequest) {
     const {searchParams} = new URL(request.url);
     const queryString = searchParams.toString();
     const url = queryString
-      ? `${BASE_URL}/api/admin/teachers/?${queryString}`
-      : `${BASE_URL}/api/admin/teachers/`;
+      ? `${BASE_URL}/api/parents/?${queryString}`
+      : `${BASE_URL}/api/parents/`;
     console.log("[Route] Fetching data from", url);
     const res = await fetch(url, {
       headers: {
@@ -43,20 +42,20 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
       console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
+        {error: data.detail || "Failed to fetch parents"},
         {status: res.status}
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
+    console.error("[Route] Error fetching parents:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[Route] Received POST request to /api/teachers");
+  console.log("[Route] Received POST request to /api/admin/parents");
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
       if (!formData.get("email")) {
         return NextResponse.json({error: "Email is required"}, {status: 400});
       }
-      fetchBody = formData;
+      fetchrena: fetchBody = formData;
     } else {
       const jsonBody = await request.json();
       console.log("[Route] Request body:", jsonBody);
@@ -91,11 +90,8 @@ export async function POST(request: NextRequest) {
       headers["Content-Type"] = "application/json";
     }
 
-    console.log(
-      "[Route] Creating teacher from",
-      `${BASE_URL}/api/admin/teachers/`
-    );
-    const res = await fetch(`${BASE_URL}/api/admin/teachers/`, {
+    console.log("[Route] Creating parent at", `${BASE_URL}/api/parents/`);
+    const res = await fetch(`${BASE_URL}/api/parents/`, {
       method: "POST",
       headers,
       body: fetchBody,
@@ -108,14 +104,14 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       console.log("[Route] API post failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to create teacher"},
+        {error: data.detail || "Failed to create parent"},
         {status: res.status}
       );
     }
 
     return NextResponse.json(data, {status: 201});
   } catch (error) {
-    console.error("[Route] Error creating teacher:", error);
+    console.error("[Route] Error creating parent:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

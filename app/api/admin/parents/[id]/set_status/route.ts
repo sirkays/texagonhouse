@@ -1,4 +1,3 @@
-// app/api/admin/teachers/[id]/avatar/route.ts
 import {NextRequest, NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -14,7 +13,9 @@ export async function POST(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received POST request to /api/teachers/[id]/avatar");
+  console.log(
+    "[Route] Received POST request to /api/admin/parents/[id]/set_status"
+  );
   const session = await getSession();
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -25,31 +26,31 @@ export async function POST(
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
-  const {id} = params;
-
   try {
-    const formData = await request.formData();
-    const avatarFile = formData.get("avatar") as File;
+    const {id} = params;
+    const body = await request.json();
+    console.log("[Route] Request body:", body);
 
-    if (!avatarFile) {
-      return NextResponse.json(
-        {error: "Avatar file is required"},
-        {status: 400}
-      );
+    if (!body.status) {
+      return NextResponse.json({error: "status is required"}, {status: 400});
     }
 
-    const uploadFormData = new FormData();
-    uploadFormData.append("avatar", avatarFile);
+    if (!["active", "inactive", "suspended"].includes(body.status)) {
+      return NextResponse.json({error: "Invalid status value"}, {status: 400});
+    }
 
-    console.log("[Route] Uploading avatar for teacher", id);
-    const url = `${BASE_URL}/api/admin/teachers/${id}/avatar/`;
-    const res = await fetch(url, {
+    console.log(
+      "[Route] Setting status at",
+      `${BASE_URL}/api/parents/${id}/set_status/`
+    );
+    const res = await fetch(`${BASE_URL}/api/parents/${id}/set_status/`, {
       method: "POST",
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
+        "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
-      body: uploadFormData,
+      body: JSON.stringify(body),
     });
 
     console.log("[Route] API response status:", res.status);
@@ -57,16 +58,16 @@ export async function POST(
     console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API upload failed:", data);
+      console.log("[Route] API post failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to upload avatar"},
+        {error: data.detail || "Failed to set status"},
         {status: res.status}
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[Route] Error uploading avatar:", error);
+    console.error("[Route] Error setting status:", error);
     return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }
