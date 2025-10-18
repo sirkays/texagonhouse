@@ -42,6 +42,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { Spinner } from "../ui/spinner";
 
 // Map icon names to Lucide icon components
 const iconMap: Record<string, React.ElementType> = {
