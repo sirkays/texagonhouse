@@ -1192,12 +1192,11 @@ export function TeacherLearningModules() {
   };
 
   // 🔧 Normalize cover image URLs so relative paths become full URLs
-const normalizeCoverImageUrl = (cover: string | null | undefined) => {
-  if (!cover) return "/placeholder-cover.png"; // fallback in /public/
-  if (cover.startsWith("http")) return cover;
-  return `https://texagonbackend.epichouse.online${cover}`;
-};
-
+  const normalizeCoverImageUrl = (cover: string | null | undefined) => {
+    if (!cover) return "/placeholder-cover.png"; // fallback in /public/
+    if (cover.startsWith("http")) return cover;
+    return `https://texagonbackend.epichouse.online${cover}`;
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -1594,9 +1593,13 @@ const normalizeCoverImageUrl = (cover: string | null | undefined) => {
                                   {lesson.type}
                                 </Badge>
                                 {/* NEW: Cover image preview in list */}
-                                {normalizeCoverImageUrl(lesson.coverImageUrl) && (
+                                {normalizeCoverImageUrl(
+                                  lesson.coverImageUrl
+                                ) && (
                                   <img
-                                    src={normalizeCoverImageUrl(lesson.coverImageUrl)}
+                                    src={normalizeCoverImageUrl(
+                                      lesson.coverImageUrl
+                                    )}
                                     alt="Cover"
                                     onError={(e) => {
                                       e.currentTarget.style.display = "none"; // Hide broken images
@@ -1648,17 +1651,18 @@ const normalizeCoverImageUrl = (cover: string | null | undefined) => {
                 <CardContent>
                   {editingLesson ? (
                     <div className="space-y-3 xs:space-y-4">
-                      {/* NEW: Cover Image Section */}
+                      {/* Cover Image Section */}
                       <div className="space-y-2">
                         <Label className="text-xs xs:text-sm sm:text-base">
                           Cover Image{" "}
                           {editingLesson.coverImage ||
-                          normalizeCoverImageUrl(editingLesson.coverImageUrl)
+                          editingLesson.coverImageUrl
                             ? "(Set)"
-                            : "Upload"}
+                            : "(None)"}
                         </Label>
-                        {editingLesson.coverImage ||
-normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
+                        {(editingLesson.coverImage ||
+                          editingLesson.coverImageUrl) &&
+                        !editingLesson.remove_cover ? (
                           <div className="space-y-2">
                             {editingLesson.coverImage && (
                               <div className="flex items-center gap-2">
@@ -1674,22 +1678,25 @@ normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
                                   onClick={() =>
                                     updateLessonFields(editingLesson.id, {
                                       coverImage: null,
+                                      coverImageUrl: "",
+                                      remove_cover: true,
                                     })
                                   }
                                 >
-                                  Remove
+                                  Remove Cover
                                 </Button>
                               </div>
                             )}
-                            {normalizeCoverImageUrl(editingLesson.coverImageUrl) &&
+                            {editingLesson.coverImageUrl &&
                               !editingLesson.coverImage && (
                                 <div className="flex items-center gap-2">
                                   <img
-                                    src={normalizeCoverImageUrl(editingLesson.coverImageUrl)}
+                                    src={normalizeCoverImageUrl(
+                                      editingLesson.coverImageUrl
+                                    )}
                                     alt="Current cover"
                                     onError={(e) => {
-                                      e.currentTarget.style.display = "none"; // Hide broken images
-                                      // Or set fallback: e.currentTarget.src = '/default-cover.png';
+                                      e.currentTarget.style.display = "none";
                                     }}
                                     className="w-16 h-12 object-cover rounded border"
                                   />
@@ -1697,12 +1704,11 @@ normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
                                     variant="outline"
                                     size="sm"
                                     className="text-xs xs:text-sm sm:text-base shadow-md"
-                                    // When clicking "Remove Cover" button:
                                     onClick={() =>
                                       updateLessonFields(editingLesson.id, {
-                                        coverImageUrl: "", // Clear URL
-                                        coverImage: null, // Clear new file
-                                        remove_cover: true, // Set flag for backend
+                                        coverImage: null,
+                                        coverImageUrl: "",
+                                        remove_cover: true,
                                       })
                                     }
                                   >
@@ -1715,7 +1721,7 @@ normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
                           <>
                             <input
                               type="file"
-                              ref={coverImageInputRef} // Add this ref
+                              ref={coverImageInputRef}
                               id="cover-image"
                               className="hidden"
                               accept="image/jpeg,image/png,image/webp,image/gif"
@@ -1732,9 +1738,12 @@ normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
                                   );
                                   updateLessonFields(editingLesson.id, {
                                     coverImage: file,
+                                    coverImageUrl: "", // Clear existing URL when new file is selected
+                                    remove_cover: false, // Reset remove flag
                                   });
-                                  // Reset input after selection
-                                  e.target.value = "";
+                                  if (coverImageInputRef.current) {
+                                    coverImageInputRef.current.value = "";
+                                  }
                                 }
                               }}
                             />
@@ -1748,7 +1757,7 @@ normalizeCoverImageUrl(editingLesson.coverImageUrl) ? (
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
                                 onClick={() =>
                                   coverImageInputRef.current?.click()
-                                } // Use the new ref
+                                }
                               >
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Cover Image
