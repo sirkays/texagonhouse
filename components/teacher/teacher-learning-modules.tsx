@@ -1019,177 +1019,187 @@ export function TeacherLearningModules() {
     }
   };
 
-  const updateLesson = async (lessonId: string) => {
-    if (!sessionToken) {
-      setError("No session token available. Please log in again.");
-      console.error("[updateLesson] No session token");
-      return;
-    }
-    if (!currentModule.id) {
-      setError("No module selected. Please save the module first.");
-      console.error("[updateLesson] No module ID");
-      return;
-    }
-    if (!editingLesson) {
-      setError("No lesson selected for updating.");
-      console.error("[updateLesson] No editing lesson");
-      return;
-    }
-    if (!editingLesson.title) {
-      setError("Lesson title is required.");
-      console.error("[updateLesson] Missing lesson title");
-      return;
-    }
+ const updateLesson = async (lessonId: string) => {
+  if (!sessionToken) {
+    setError("No session token available. Please log in again.");
+    console.error("[updateLesson] No session token");
+    return;
+  }
+  if (!currentModule.id) {
+    setError("No module selected. Please save the module first.");
+    console.error("[updateLesson] No module ID");
+    return;
+  }
+  if (!editingLesson) {
+    setError("No lesson selected for updating.");
+    console.error("[updateLesson] No editing lesson");
+    return;
+  }
+  if (!editingLesson.title) {
+    setError("Lesson title is required.");
+    console.error("[updateLesson] Missing lesson title");
+    return;
+  }
 
-    try {
-      setIsSavingLesson(true);
-      const formData = new FormData();
-      formData.append("title", editingLesson.title);
-      formData.append("type", editingLesson.type); // Updated to "type"
-      formData.append(
-        "duration",
-        (durationToMinutes(editingLesson.duration) * 60).toString()
-      ); // Updated to "duration"
-      formData.append(
-        "order",
-        editingLesson.order?.toString() ||
-          (currentModule.lessons.length + 1).toString()
-      );
-      formData.append(
-        "meta",
-        JSON.stringify({
-          description: editingLesson.content || "",
-          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        })
-      );
-      formData.append("active", editingLesson.active ? "true" : "false");
+  try {
+    setIsSavingLesson(true);
+    const formData = new FormData();
+    formData.append("title", editingLesson.title);
+    formData.append("type", editingLesson.type);
+    formData.append(
+      "duration",
+      (durationToMinutes(editingLesson.duration) * 60).toString()
+    );
+    formData.append(
+      "order",
+      editingLesson.order?.toString() ||
+        (currentModule.lessons.length + 1).toString()
+    );
+    formData.append(
+      "meta",
+      JSON.stringify({
+        description: editingLesson.content || "",
+        tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+      })
+    );
+    formData.append("active", editingLesson.active ? "true" : "false");
 
-      // Main file handling
-      if (
-        editingLesson.file &&
-        (editingLesson.type === "video" ||
-          editingLesson.type === "audio" ||
-          editingLesson.type === "pdf")
-      ) {
-        console.log("[updateLesson] File selected:", {
-          name: editingLesson.file.name,
-          type: editingLesson.file.type,
-          size: editingLesson.file.size,
-        });
-        formData.append("file", editingLesson.file, editingLesson.file.name);
-        formData.append("remove_file", "false"); // Explicitly set
-      } else if (
-        editingLesson.type === "text" &&
-        editingLesson.content &&
-        !editingLesson.content.startsWith("http")
-      ) {
-        console.log(
-          "[updateLesson] Text content provided:",
-          editingLesson.content.slice(0, 200)
-        );
-        formData.append("textContent", editingLesson.content); // Updated field name if needed
-      } else if (
-        (editingLesson.videoUrl || editingLesson.audioUrl) &&
-        (editingLesson.videoUrl?.startsWith("http") ||
-          editingLesson.audioUrl?.startsWith("http"))
-      ) {
-        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        console.log("[updateLesson] External URL provided:", url);
-        formData.append("url", url);
-      } else {
-        console.log("[updateLesson] No file or valid URL provided");
-      }
-
-      // NEW: Cover image handling for updates
-      if (editingLesson.coverImage) {
-        console.log("[updateLesson] New cover image selected");
-        formData.append(
-          "cover_image",
-          editingLesson.coverImage,
-          editingLesson.coverImage.name
-        );
-        formData.append("remove_cover", "false"); // Clear remove flag
-      } else if (editingLesson.remove_cover) {
-        console.log("[updateLesson] Removing cover image");
-        formData.append("remove_cover", "true");
-      }
-
-      // Log FormData contents for debugging
-      console.log("[updateLesson] FormData contents:");
-      for (const [key, value] of formData.entries()) {
-        console.log(
-          `[updateLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`
-        );
-      }
-
+    // Main file handling
+    if (
+      editingLesson.file instanceof File &&
+      (editingLesson.type === "video" ||
+        editingLesson.type === "audio" ||
+        editingLesson.type === "pdf")
+    ) {
+      console.log("[updateLesson] File selected:", {
+        name: editingLesson.file.name,
+        type: editingLesson.file.type,
+        size: editingLesson.file.size,
+      });
+      formData.append("file", editingLesson.file, editingLesson.file.name);
+      formData.append("remove_file", "false");
+    } else if (
+      editingLesson.type === "text" &&
+      editingLesson.content &&
+      !editingLesson.content.startsWith("http")
+    ) {
       console.log(
-        "[updateLesson] Sending PATCH to",
-        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`
+        "[updateLesson] Text content provided:",
+        editingLesson.content.slice(0, 200)
       );
-      const response = await fetch(
-        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "X-Session-Token": sessionToken,
-          },
-          body: formData,
-        }
-      );
-
-      console.log(`[updateLesson] Response status: ${response.status}`);
-      const responseText = await response.text();
-      console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
-
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          console.error(
-            "[updateLesson] Failed to parse error response:",
-            responseText.slice(0, 200)
-          );
-          throw new Error("Invalid response format from server");
-        }
-        console.error("[updateLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to update lesson");
-      }
-
-      const data: { lesson: Lesson } = JSON.parse(responseText);
-      console.log("[updateLesson] Lesson updated:", data);
-
-      // Refresh module details to get updated lessons
-      const moduleData = await getModuleDetails(currentModule.id);
-      if (moduleData) {
-        setCurrentModule(moduleData);
-        setModules((prev) =>
-          prev.map((m) => (m.id === currentModule.id ? moduleData : m))
-        );
-      }
-
-      // After setting module data:
-      setEditingLesson(null);
-      // Clear the remove_cover flag in local state
-      updateLessonFields(lessonId, { remove_cover: false });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset file input
-      }
-      alert(`Lesson updated successfully! ID: ${data.lesson.id}`);
-    } catch (err) {
-      setError(
-        (err as Error).message || "An error occurred while updating the lesson"
-      );
-      console.error("[updateLesson] Error:", err);
-    } finally {
-      setIsSavingLesson(false);
+      formData.append("textContent", editingLesson.content);
+    } else if (
+      (editingLesson.videoUrl || editingLesson.audioUrl) &&
+      (editingLesson.videoUrl?.startsWith("http") ||
+        editingLesson.audioUrl?.startsWith("http"))
+    ) {
+      const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
+      console.log("[updateLesson] External URL provided:", url);
+      formData.append("url", url);
+    } else {
+      console.log("[updateLesson] No new file provided");
+      formData.append("remove_file", "true"); // Indicate no file update
     }
-  };
+
+    // Cover image handling
+    if (editingLesson.coverImage instanceof File) {
+      console.log("[updateLesson] New cover image selected:", {
+        name: editingLesson.coverImage.name,
+        type: editingLesson.coverImage.type,
+        size: editingLesson.coverImage.size,
+      });
+      formData.append(
+        "cover_image",
+        editingLesson.coverImage,
+        editingLesson.coverImage.name
+      );
+      formData.append("remove_cover", "false");
+    } else if (editingLesson.remove_cover) {
+      console.log("[updateLesson] Removing cover image");
+      formData.append("remove_cover", "true");
+    } else {
+      console.log("[updateLesson] No cover image update");
+      formData.append("remove_cover", "false"); // Ensure no unintended removal
+    }
+
+    // Log FormData contents for debugging
+    console.log("[updateLesson] FormData contents:");
+    for (const [key, value] of formData.entries()) {
+      console.log(
+        `[updateLesson] ${key}:`,
+        typeof value === "string" ? value : `[File: ${value.name}]`
+      );
+    }
+
+    console.log(
+      "[updateLesson] Sending PATCH to",
+      `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`
+    );
+    const response = await fetch(
+      `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+      {
+        method: "PATCH",
+        headers: {
+          "X-Session-Token": sessionToken,
+        },
+        body: formData,
+      }
+    );
+
+    console.log(`[updateLesson] Response status: ${response.status}`);
+    const responseText = await response.text();
+    console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (e) {
+        console.error(
+          "[updateLesson] Failed to parse error response:",
+          responseText.slice(0, 200)
+        );
+        throw new Error("Invalid response format from server");
+      }
+      console.error("[updateLesson] Fetch failed:", errorData);
+      if (response.status === 401 && errorData.redirect) {
+        window.location.href = errorData.redirect;
+        return;
+      }
+      throw new Error(errorData.error || "Failed to update lesson");
+    }
+
+    const data: { lesson: Lesson } = JSON.parse(responseText);
+    console.log("[updateLesson] Lesson updated:", data);
+
+    // Refresh module details to get updated lessons
+    const moduleData = await getModuleDetails(currentModule.id);
+    if (moduleData) {
+      setCurrentModule(moduleData);
+      setModules((prev) =>
+        prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+      );
+    }
+
+    // After setting module data:
+    setEditingLesson(null);
+    updateLessonFields(lessonId, { remove_cover: false });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset file input
+    }
+    if (coverImageInputRef.current) {
+      coverImageInputRef.current.value = ""; // Reset cover image input
+    }
+    alert(`Lesson updated successfully! ID: ${data.lesson.id}`);
+  } catch (err) {
+    setError(
+      (err as Error).message || "An error occurred while updating the lesson"
+    );
+    console.error("[updateLesson] Error:", err);
+  } finally {
+    setIsSavingLesson(false);
+  }
+};
 
   // 🔧 Normalize cover image URLs so relative paths become full URLs
   const normalizeCoverImageUrl = (cover: string | null | undefined) => {

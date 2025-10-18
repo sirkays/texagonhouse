@@ -144,11 +144,16 @@ async function enqueueSubmission(body: any) {
 
   const pending = (await localforage.getItem(PENDING_KEY)) || [];
   const arr = Array.isArray(pending) ? pending : [];
-  
+
   // Check if already pending for same test
-  const existing = arr.find(p => p.testPk?.toString() === body.currentTest?.toString());
+  const existing = arr.find(
+    (p) => p.testPk?.toString() === body.currentTest?.toString()
+  );
   if (existing && !existing.maxAttemptsReached) {
-    console.warn("[CBTTest] Submission already queued for test:", body.currentTest);
+    console.warn(
+      "[CBTTest] Submission already queued for test:",
+      body.currentTest
+    );
     return existing;
   }
 
@@ -161,9 +166,13 @@ async function enqueueSubmission(body: any) {
     lastAttemptAt: 0,
     maxAttemptsReached: false,
   };
-  
+
   // Remove existing failed entry for this test
-  const cleanArr = arr.filter(p => p.testPk?.toString() !== body.currentTest?.toString() || p.maxAttemptsReached);
+  const cleanArr = arr.filter(
+    (p) =>
+      p.testPk?.toString() !== body.currentTest?.toString() ||
+      p.maxAttemptsReached
+  );
   cleanArr.push(entry);
   await localforage.setItem(PENDING_KEY, cleanArr);
   return entry;
@@ -175,31 +184,34 @@ async function getPendingSubmissions(): Promise<PendingEntry[]> {
 }
 
 // 🔧 Enhanced delete with comprehensive cleanup
-async function deletePendingSubmissionById(id: string, testPk?: string | number) {
+async function deletePendingSubmissionById(
+  id: string,
+  testPk?: string | number
+) {
   let pending = await getPendingSubmissions();
   let changed = false;
-  
+
   // Remove by ID
   const newPending = pending.filter((p) => p.id !== id);
   changed = newPending.length !== pending.length;
-  
+
   // Clean related data if testPk provided
   if (testPk && newPending.length !== pending.length) {
     await deleteSavedAnswers(testPk);
     // Remove any other corrupted entries for this test
-    const furtherClean = newPending.filter(p => 
-      !p.testPk?.toString() || p.testPk.toString() === testPk.toString() || !p.maxAttemptsReached
+    const furtherClean = newPending.filter(
+      (p) => p.testPk?.toString() !== testPk.toString()
     );
     if (furtherClean.length !== newPending.length) {
       changed = true;
       pending = furtherClean;
     }
   }
-  
+
   if (changed) {
     await localforage.setItem(PENDING_KEY, pending);
   }
-  
+
   return pending;
 }
 
@@ -325,19 +337,20 @@ export function CBTTest() {
   }, []);
 
   /* ---------- Broadcast channel for sync updates ---------- */
-  useEffect(() => {
-    const channel = new BroadcastChannel("cbt-channel");
-    channel.onmessage = async (e) => {
-      if (e.data.type === "SYNC_SUCCESS") {
-        setShowSyncSuccess(true);
-        setTimeout(() => setShowSyncSuccess(false), 5000);
-        // Trigger cleanup and UI refresh
+useEffect(() => {
+  const channel = new BroadcastChannel("cbt-channel");
+  channel.onmessage = async (e) => {
+    if (e.data.type === "SYNC_SUCCESS") {
+      setShowSyncSuccess(true);
+      setTimeout(() => setShowSyncSuccess(false), 5000);
+      if (!isProcessingRef.current) {
         await processQueue();
       }
-    };
-    channelRef.current = channel;
-    return () => channel.close();
-  }, []);
+    }
+  };
+  channelRef.current = channel;
+  return () => channel.close();
+}, []);
 
   /* ---------- 🔧 Enhanced Sync queue processing ---------- */
   async function processQueue({
@@ -348,13 +361,11 @@ export function CBTTest() {
     }
 
     const pending = await getPendingSubmissions();
-    const livePending = pending.filter(p => !p.maxAttemptsReached);
-    
+    const livePending = pending.filter((p) => !p.maxAttemptsReached);
+
     if (livePending.length === 0) {
-      // Clear UI state when no live pending
       setShowSyncMessage(false);
       setHasPendingSubmission(false);
-      // Final cleanup of dead entries
       await localforage.setItem(PENDING_KEY, []);
       return true;
     }
@@ -367,7 +378,6 @@ export function CBTTest() {
       const total = livePending.length;
       let processed = 0;
       setSyncProgress({ processed, total });
-      setShowSyncMessage(true);
 
       for (let entry of livePending) {
         if (!navigator.onLine) break;
@@ -387,8 +397,8 @@ export function CBTTest() {
         entry.attempts = attempts + 1;
         entry.lastAttemptAt = now;
 
-        // Persist state
-        const allPending = await getPendingSubmissions();
+        // Update attempts in queue
+        let allPending = await getPendingSubmissions();
         const idx = allPending.findIndex((p: any) => p.id === entry.id);
         if (idx >= 0) {
           allPending[idx] = entry;
@@ -413,45 +423,48 @@ export function CBTTest() {
             const data = await res.json();
             await saveResultLocally(entry.testPk, data);
             setTestResults((prev) => ({ ...prev, [entry.testPk]: data }));
-            
-            // Comprehensive cleanup
-            await deletePendingSubmissionById(entry.id, entry.testPk);
+
+            // Immediately remove successful submission from queue
+            allPending = await getPendingSubmissions();
+            allPending = allPending.filter((p) => p.id !== entry.id);
+            await localforage.setItem(PENDING_KEY, allPending);
+
             processed++;
             onProgress?.(processed, total);
             setSyncProgress({ processed, total });
-            
             await new Promise((r) => setTimeout(r, 500));
             success = true;
           } else {
             console.error("[CBTTest] Server rejected:", await res.text());
             if (attempts + 1 >= MAX_RETRY_ATTEMPTS) {
               entry.maxAttemptsReached = true;
-              await localforage.setItem(PENDING_KEY, allPending);
+              allPending = await getPendingSubmissions();
+              const idx = allPending.findIndex((p: any) => p.id === entry.id);
+              if (idx >= 0) {
+                allPending[idx] = entry;
+                await localforage.setItem(PENDING_KEY, allPending);
+              }
             }
-            break;
           }
         } catch (err: any) {
           console.warn("[CBTTest] Network error:", err?.message);
         }
       }
 
-      const remainingLive = (await getPendingSubmissions()).filter(p => !p.maxAttemptsReached).length;
-      
+      const remainingLive = (await getPendingSubmissions()).filter(
+        (p) => !p.maxAttemptsReached
+      ).length;
+
       if (processed > 0 && remainingLive === 0) {
         setShowSyncMessage(false);
         setShowSyncSuccess(true);
         setTimeout(() => setShowSyncSuccess(false), 5000);
-        // Final cleanup
-        const finalPending = await getPendingSubmissions();
-        if (finalPending.every(p => p.maxAttemptsReached)) {
-          await localforage.setItem(PENDING_KEY, []);
-        }
+        await localforage.setItem(PENDING_KEY, []);
         setHasPendingSubmission(false);
         success = true;
       } else if (remainingLive > 0) {
         setShowSyncMessage(true);
       }
-
     } finally {
       isProcessingRef.current = false;
       setIsSyncing(false);
@@ -465,10 +478,16 @@ export function CBTTest() {
   useEffect(() => {
     const onOnline = async () => {
       setIsOffline(false);
-      // Clear stale sync UI first
+      if (isProcessingRef.current) {
+        console.log(
+          "[CBTTest] Online event skipped: queue processing in progress"
+        );
+        return;
+      }
+
       const pending = await getPendingSubmissions();
-      const livePending = pending.filter(p => !p.maxAttemptsReached);
-      
+      const livePending = pending.filter((p) => !p.maxAttemptsReached);
+
       if (livePending.length === 0) {
         setShowSyncMessage(false);
         setHasPendingSubmission(false);
@@ -480,7 +499,7 @@ export function CBTTest() {
           setHasPendingSubmission(false);
         }
       }
-      
+
       if (wbRef.current) {
         wbRef.current.messageSW({ type: "REPLAY_QUEUE" });
       }
@@ -497,13 +516,13 @@ export function CBTTest() {
     // Periodic sync check
     syncIntervalRef.current = window.setInterval(async () => {
       const pending = await getPendingSubmissions();
-      const livePending = pending.filter(p => !p.maxAttemptsReached);
-      
+      const livePending = pending.filter((p) => !p.maxAttemptsReached);
+
       if (livePending.length === 0) {
         setShowSyncMessage(false);
         return;
       }
-      
+
       if (navigator.onLine && sessionToken && !isProcessingRef.current) {
         await processQueue();
       }
@@ -574,7 +593,7 @@ export function CBTTest() {
       (t) => t.pk?.toString() === testPk?.toString()
     );
     if (!test) return;
-    
+
     if (test.requiresSubscription && !isSubscriber) {
       setShowStartDialog(true);
       setPendingTestId(null);
@@ -588,7 +607,7 @@ export function CBTTest() {
 
     // 🔧 Check for live pending submissions first
     const pending = await getPendingSubmissions();
-    const livePending = pending.filter(p => !p.maxAttemptsReached);
+    const livePending = pending.filter((p) => !p.maxAttemptsReached);
     const hasLivePending = livePending.find(
       (p) => p.testPk?.toString() === testPk.toString()
     );
@@ -622,8 +641,9 @@ export function CBTTest() {
       await deleteSavedAnswers(testPk);
       // Clean any pending for this test (keep only dead ones)
       let pending = await getPendingSubmissions();
-      const cleanPending = pending.filter(p => 
-        p.testPk?.toString() !== testPk.toString() || p.maxAttemptsReached
+      const cleanPending = pending.filter(
+        (p) =>
+          p.testPk?.toString() !== testPk.toString() || p.maxAttemptsReached
       );
       await localforage.setItem(PENDING_KEY, cleanPending);
     }
@@ -754,38 +774,41 @@ export function CBTTest() {
   }, [suspiciousActivity]);
 
   /* ---------- 🔧 Enhanced submitTest ---------- */
-  const submitTest = async () => {
-    if (!currentTest) return;
+const submitTest = async () => {
+  if (!currentTest) return;
 
-    // Normalize answers
-    const submitAnswers: any[] = [];
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const ans = answers[i];
+  const submitAnswers: any[] = [];
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const ans = answers[i];
 
-      if (ans === undefined) continue;
+    if (ans === undefined) continue;
 
-      const entry: any = { question: q.id };
+    const entry: any = { question: q.id };
 
-      if (Array.isArray(ans)) {
-        entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
-      } else if (q.type === "essay" || q.type === "short-answer") {
-        entry.text = ans;
-      } else {
-        const numeric = Number(ans);
-        entry.choice = isNaN(numeric) ? ans : numeric;
-      }
-
-      submitAnswers.push(entry);
+    if (Array.isArray(ans)) {
+      entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
+    } else if (q.type === "essay" || q.type === "short-answer") {
+      entry.text = ans;
+    } else if (q.type === "true-false") {
+      // Map true/false to choice IDs
+      const option = q.options.find((opt: any) => opt.text.toLowerCase() === ans.toLowerCase());
+      entry.choice = option ? option.id : ans;
+    } else {
+      const numeric = Number(ans);
+      entry.choice = isNaN(numeric) ? ans : numeric;
     }
 
-    const cleanedBody = {
-      answers: submitAnswers,
-      started_at: startTime,
-      duration_seconds: initialTime - timeLeft,
-      suspicious_activity: suspiciousActivity || 0,
-      currentTest: currentTest,
-    };
+    submitAnswers.push(entry);
+  }
+
+  const cleanedBody = {
+    answers: submitAnswers,
+    started_at: startTime,
+    duration_seconds: initialTime - timeLeft,
+    suspicious_activity: suspiciousActivity || 0,
+    currentTest: currentTest,
+  };
 
     console.log("[CBTTest] Submitting test payload:", cleanedBody);
 
@@ -819,14 +842,14 @@ export function CBTTest() {
             ...prev,
             [currentTest]: { ...data, title: test?.title },
           }));
-          
+
           // Clean any stale pending entries
           let pending = await getPendingSubmissions();
-          const cleanPending = pending.filter(p => 
-            p.testPk?.toString() !== currentTest.toString()
+          const cleanPending = pending.filter(
+            (p) => p.testPk?.toString() !== currentTest.toString()
           );
           await localforage.setItem(PENDING_KEY, cleanPending);
-          
+
           await deleteSavedAnswers(currentTest);
         } else {
           throw new Error(`HTTP ${res.status}: ${await res.text()}`);
@@ -864,9 +887,16 @@ export function CBTTest() {
 
   /* ---------- 🔧 Enhanced manual retry ---------- */
   const handleManualRetry = async () => {
+    if (isProcessingRef.current) {
+      console.log(
+        "[CBTTest] Manual retry skipped: queue processing in progress"
+      );
+      return;
+    }
+
     const pending = await getPendingSubmissions();
-    const livePending = pending.filter(p => !p.maxAttemptsReached);
-    
+    const livePending = pending.filter((p) => !p.maxAttemptsReached);
+
     if (livePending.length === 0) {
       await localforage.setItem(PENDING_KEY, []);
       setShowSyncMessage(false);
@@ -878,7 +908,7 @@ export function CBTTest() {
     const success = await processQueue({
       onProgress: (processed, total) => setSyncProgress({ processed, total }),
     });
-    
+
     if (success) {
       setHasPendingSubmission(false);
     }
@@ -887,8 +917,8 @@ export function CBTTest() {
   /* ---------- 🔧 Enhanced dismiss with validation ---------- */
   const handleDismissSync = async () => {
     const pending = await getPendingSubmissions();
-    const livePending = pending.filter(p => !p.maxAttemptsReached);
-    
+    const livePending = pending.filter((p) => !p.maxAttemptsReached);
+
     if (livePending.length === 0) {
       await localforage.setItem(PENDING_KEY, []);
       setShowSyncMessage(false);
