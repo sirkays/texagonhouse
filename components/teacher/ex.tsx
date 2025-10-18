@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useCallback, useMemo} from "react";
+import {useState, useEffect, useCallback} from "react";
 import {useRouter} from "next/navigation";
 import {
   Card,
@@ -34,6 +34,7 @@ import {
   Copy,
   Edit,
   MoreHorizontal,
+  Download,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -67,7 +68,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import StudentPerformancePage from "@/app/teacher/student-performance/[id]/page";
+// Add type declarations for file-saver and html2pdf
+declare module "file-saver" {
+  export function saveAs(
+    data: Blob | string,
+    filename?: string,
+    options?: any
+  ): void;
+}
+
+declare module "html2pdf.js" {
+  const html2pdf: any;
+  export default html2pdf;
+}
 
 // Import with type assertions
 const saveAs = require("file-saver").saveAs;
@@ -165,12 +178,16 @@ export function TeacherCBTCreator() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [isEditTestOpen, setIsEditTestOpen] = useState(false);
   const [isPreviewTestOpen, setIsPreviewTestOpen] = useState(false);
+  const [isStudentPerformanceOpen, setIsStudentPerformanceOpen] =
+    useState(false);
   const [selectedTestForEdit, setSelectedTestForEdit] =
     useState<CBTTest | null>(null);
   const [selectedTestForPreview, setSelectedTestForPreview] =
     useState<CBTTest | null>(null);
   const [selectedTestForAnalytics, setSelectedTestForAnalytics] =
     useState<CBTTest | null>(null);
+  const [selectedStudentPerformance, setSelectedStudentPerformance] =
+    useState<StudentPerformance | null>(null);
   const [isAnalyticsDetailOpen, setIsAnalyticsDetailOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [tests, setTests] = useState<CBTTest[]>([]);
@@ -530,7 +547,7 @@ export function TeacherCBTCreator() {
             instructions: currentTest.instructions,
             duration: currentTest.duration,
             difficulty: currentTest.difficulty,
-            course_id: Number.parseInt(currentTest.courseId || "0"),
+            course_id: parseInt(currentTest.courseId || "0"),
             category: currentTest.category || "General",
             start_at: currentTest.start_at,
             end_at: currentTest.end_at,
@@ -837,7 +854,8 @@ export function TeacherCBTCreator() {
   };
 
   const handleViewStudentPerformance = (performance: StudentPerformance) => {
-    router.push(`/teacher/student-performance/${performance.id}`);
+    setSelectedStudentPerformance(performance);
+    setIsStudentPerformanceOpen(true);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -888,28 +906,26 @@ export function TeacherCBTCreator() {
   };
 
   // Filter and sort student performances
-  const filteredPerformances = useMemo(() => {
-    const filtered = mockStudentPerformances.filter(
+  const filteredPerformances = mockStudentPerformances
+    .filter(
       (perf) =>
         perf.studentName.toLowerCase().includes(studentFilter.toLowerCase()) &&
         (!selectedTestForAnalytics ||
           perf.testId === selectedTestForAnalytics.id)
-    );
-
-    filtered.sort((a, b) => {
-      let aValue: any = a[sortField];
-      let bValue: any = b[sortField];
-
-      if (sortField === "submittedAt") {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
-      }
-
+    )
+    .sort((a, b) => {
       const multiplier = sortOrder === "asc" ? 1 : -1;
-      return multiplier * (aValue - bValue);
+      if (sortField === "score") {
+        return multiplier * (a.score - b.score);
+      } else if (sortField === "completionTime") {
+        return multiplier * (a.completionTime - b.completionTime);
+      } else {
+        return (
+          multiplier *
+          (new Date(a.submittedAt) > new Date(b.submittedAt) ? 1 : -1)
+        );
+      }
     });
-    return filtered;
-  }, [studentFilter, sortField, sortOrder, selectedTestForAnalytics]);
 
   return (
     <div className="space-y-6">
@@ -924,25 +940,25 @@ export function TeacherCBTCreator() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Create New Test
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Manage Tests
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Test Analytics
           </TabsTrigger>
           <TabsTrigger
             value="student-performance"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             disabled={isSaving}>
             Student Performance
           </TabsTrigger>
@@ -1737,9 +1753,7 @@ export function TeacherCBTCreator() {
                         key={performance.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() =>
-                          router.push(
-                            `/teacher/student-performance/${performance.id}`
-                          )
+                          handleViewStudentPerformance(performance)
                         }>
                         <TableCell>{performance.studentName}</TableCell>
                         <TableCell>
@@ -1774,9 +1788,7 @@ export function TeacherCBTCreator() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(
-                                `/teacher/student-performance/${performance.id}`
-                              );
+                              handleViewStudentPerformance(performance);
                             }}>
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -2307,6 +2319,7 @@ export function TeacherCBTCreator() {
                                   <Badge
                                     variant="default"
                                     className="text-xs ml-auto">
+                                    {" "}
                                     Correct Answer
                                   </Badge>
                                 )}
@@ -2428,9 +2441,7 @@ export function TeacherCBTCreator() {
                             key={performance.id}
                             className="cursor-pointer hover:bg-muted/50"
                             onClick={() =>
-                              router.push(
-                                `/teacher/student-performance/${performance.id}`
-                              )
+                              handleViewStudentPerformance(performance)
                             }>
                             <TableCell>{performance.studentName}</TableCell>
                             <TableCell>
@@ -2460,9 +2471,7 @@ export function TeacherCBTCreator() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(
-                                    `/teacher/student-performance/${performance.id}`
-                                  );
+                                  handleViewStudentPerformance(performance);
                                 }}>
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -2473,6 +2482,173 @@ export function TeacherCBTCreator() {
                   </Table>
                 </CardContent>
               </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isStudentPerformanceOpen}
+        onOpenChange={setIsStudentPerformanceOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Student Performance Details</DialogTitle>
+            <DialogDescription>
+              View detailed performance for{" "}
+              {selectedStudentPerformance?.studentName}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStudentPerformance && (
+            <div id="studentPerformanceDetails" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Student Information</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Student Name
+                    </p>
+                    <p className="text-lg font-medium">
+                      {selectedStudentPerformance.studentName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Student ID</p>
+                    <p className="text-lg font-medium">
+                      {selectedStudentPerformance.studentId}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="text-lg font-medium">
+                      {selectedStudentPerformance.email}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Class</p>
+                    <p className="text-lg font-medium">
+                      {selectedStudentPerformance.classGrade}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Test Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Test Title</p>
+                    <p className="text-lg font-medium">
+                      {tests.find(
+                        (test) => test.id === selectedStudentPerformance.testId
+                      )?.title || "Unknown Test"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Score</p>
+                    <p className="text-lg font-medium">
+                      {selectedStudentPerformance.score}/
+                      {selectedStudentPerformance.totalMarks} (
+                      {selectedStudentPerformance.percentage}%)
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge
+                      variant={
+                        selectedStudentPerformance.status === "Passed"
+                          ? "default"
+                          : "destructive"
+                      }
+                      className={
+                        selectedStudentPerformance.status === "Passed"
+                          ? "bg-[#EF7B55]"
+                          : "bg-red-500"
+                      }>
+                      {selectedStudentPerformance.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Completion Time
+                    </p>
+                    <p className="text-lg font-medium">
+                      {selectedStudentPerformance.completionTime} minutes
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Submitted At
+                    </p>
+                    <p className="text-lg font-medium">
+                      {new Date(
+                        selectedStudentPerformance.submittedAt
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Answer Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Question</TableHead>
+                        <TableHead>Selected Answer</TableHead>
+                        <TableHead>Correct Answer</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedStudentPerformance.answers.map(
+                        (answer, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{answer.question}</TableCell>
+                            <TableCell>{answer.selected}</TableCell>
+                            <TableCell>{answer.correct}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  answer.status === "Correct"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                                className={
+                                  answer.status === "Correct"
+                                    ? "bg-green-500"
+                                    : "bg-red-500"
+                                }>
+                                {answer.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => exportToCSV(selectedStudentPerformance)}
+                  disabled={isSaving}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export to CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => exportToPDF(selectedStudentPerformance)}
+                  disabled={isSaving}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export to PDF
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

@@ -46,9 +46,11 @@
     "cmdk": "latest",
     "date-fns": "latest",
     "embla-carousel-react": "latest",
+    "file-saver": "^2.0.5",
     "formidable-serverless": "^1.1.1",
     "geist": "latest",
     "gsap": "latest",
+    "html2pdf.js": "^0.12.1",
     "idb": "^8.0.3",
     "input-otp": "latest",
     "localforage": "^1.10.0",
@@ -81,6 +83,8 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/html2pdf.js": "^0.10.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

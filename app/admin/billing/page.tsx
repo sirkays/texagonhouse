@@ -179,7 +179,7 @@ export default function BillingPage() {
         </div>
 
         {/* Subscription Plans */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle>Subscription Plans</CardTitle>
             <CardDescription>Available plans and pricing</CardDescription>
@@ -233,7 +233,7 @@ export default function BillingPage() {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Recent Invoices */}
         <Card>

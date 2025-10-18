@@ -52,7 +52,7 @@ import {Spinner} from "@/components/ui/spinner";
 const menuItems = [
   {title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher"},
   {
-    title: "Create CBT",
+    title: "Manage CBT",
     icon: TestTube,
     id: "cbt-creator",
     path: "/teacher/create-cbt",
