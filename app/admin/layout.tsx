@@ -402,13 +402,13 @@ const navigation = [
   {title: "Courses", icon: BookOpen, id: "courses", path: "/admin/courses"},
   {title: "Modules", icon: FileText, id: "modules", path: "/admin/modules"},
   {title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing"},
-  {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
   {
     title: "Gamification",
     icon: Award,
     id: "gamification",
     path: "/admin/gamification",
   },
+  {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
   {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
 ];
 
