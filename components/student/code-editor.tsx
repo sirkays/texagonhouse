@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -29,6 +28,7 @@ import {
   Link,
   Trash2,
   FilePlus,
+  Upload,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,10 +41,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 
-/* -------------------------------------------------- */
-/* Types from backend docs                            */
-/* -------------------------------------------------- */
 type Snippet = {
   id: number;
   lesson: number | null;
@@ -98,6 +96,8 @@ type Comment = {
 export function CodeEditor() {
   const { data: session, status } = useSession();
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
+  const [htmlCode, setHtmlCode] = useState("<h1>Hello</h1>");
+  const [cssCode, setCssCode] = useState("body { color: red; }");
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
@@ -106,7 +106,9 @@ export function CodeEditor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [fileLoading, setFileLoading] = useState<number | null>(null);
+  const [syntaxError, setSyntaxError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
@@ -115,13 +117,13 @@ export function CodeEditor() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  /* ---------- lesson list and snippets ---------- */
   const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  /* ==========  SNIPPET ROUTES  =================== */
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const fetchSnippets = async (lessonId?: string) => {
     const u = new URL("/api/code-ide/snippets", window.location.origin);
     if (lessonId) u.searchParams.set("lesson", lessonId);
@@ -142,7 +144,7 @@ export function CodeEditor() {
       lesson: selectedLesson || null,
       title: `Draft ${new Date().toISOString()}`,
       language: selectedLanguage,
-      code_text: code,
+      code_text: selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code,
       meta: {},
     };
     try {
@@ -173,12 +175,9 @@ export function CodeEditor() {
     }
   };
 
-  /* ==========  UPLOAD ROUTES  =================== */
   const fetchFileContent = async (file: UploadedFile) => {
     try {
       console.log(`Fetching content for file ${file.id} via API`);
-
-      // Use the API endpoint to get content - this handles auth and CORS
       const apiRes = await fetch(`/api/code-ide/uploads/${file.id}/content`, {
         headers: {
           "Cache-Control": "no-cache",
@@ -200,46 +199,19 @@ export function CodeEditor() {
       return content;
     } catch (error) {
       console.error("fetchFileContent error:", error);
-
-      // Fallback: try direct URL with credentials
-      if (
-        error instanceof TypeError &&
-        error.message.includes("NetworkError")
-      ) {
-        console.log("Trying direct URL fetch as fallback...");
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-          const directRes = await fetch(file.url, {
-            signal: controller.signal,
-            credentials: "include", // Include cookies/auth
-            headers: {
-              Authorization: `Bearer ${session?.user?.sessionToken || ""}`,
-            },
-          });
-
-          clearTimeout(timeoutId);
-
-          if (!directRes.ok) {
-            throw new Error(`Direct fetch failed: ${directRes.status}`);
-          }
-
-          return await directRes.text();
-        } catch (fallbackError) {
-          console.error("Direct URL fallback also failed:", fallbackError);
-          throw new Error(
-            "File content unavailable. The file may be private or the server may be experiencing issues."
-          );
-        }
-      }
-
-      throw error;
+      throw new Error(
+        "File content unavailable. The file may be private or the server may be experiencing issues."
+      );
     }
   };
 
   const uploadFile = async (file: File, lesson?: string, label?: string) => {
     if (!session?.user?.sessionToken) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert("File size exceeds 10MB limit");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -247,26 +219,38 @@ export function CodeEditor() {
     if (label) formData.append("label", label);
 
     setUploading(true);
+    setUploadProgress(0);
+
     try {
-      const res = await fetch("/api/code-ide/uploads", {
-        method: "POST",
-        body: formData,
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100;
+          setUploadProgress(percent);
+        }
       });
 
-      if (!res.ok) {
-        const error = await res
-          .json()
-          .catch(() => ({ error: "Upload failed" }));
-        throw new Error(error.error || "Upload failed");
-      }
+      const res = await new Promise<UploadedFile>((resolve, reject) => {
+        xhr.open("POST", "/api/code-ide/uploads");
+        xhr.setRequestHeader("Authorization", `Bearer ${session.user.sessionToken}`);
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(new Error(`Upload failed: ${xhr.statusText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.send(formData);
+      });
 
-      const uploaded: UploadedFile = await res.json();
-      setUploadedFiles((prev) => [uploaded, ...prev]);
-      return uploaded;
+      setUploadedFiles((prev) => [res, ...prev]);
+      return res;
     } catch (error) {
       alert(`Upload failed: ${(error as Error).message}`);
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -299,7 +283,6 @@ export function CodeEditor() {
 
       const content = await fetchFileContent(file);
 
-      // Infer language from content_type or original_name
       const contentType = file.content_type;
       const extension = file.original_name.split(".").pop()?.toLowerCase();
 
@@ -311,6 +294,8 @@ export function CodeEditor() {
         "text/css": "css",
         "text/x-java": "java",
         "text/x-c++": "cpp",
+        "image/png": "html",
+        "image/jpeg": "html",
         "text/plain":
           extension === "py"
             ? "python"
@@ -320,17 +305,27 @@ export function CodeEditor() {
             ? "html"
             : extension === "css"
             ? "css"
+            : extension === "png" || extension === "jpg" || extension === "jpeg"
+            ? "html"
             : "javascript",
       };
 
       let language = languageMap[contentType] || "javascript";
 
-      // Double-check with extension if content_type is generic
       if (contentType === "text/plain" && extension && languageMap[extension]) {
         language = languageMap[extension];
       }
 
-      setCode(content);
+      if (language === "html" && (contentType.includes("image/") || extension === "png" || extension === "jpg" || extension === "jpeg")) {
+        setHtmlCode(`<img src="${file.url}" alt="${file.original_name}" style="max-width: 100%; height: auto;" />`);
+      } else if (language === "html") {
+        setHtmlCode(content);
+      } else if (language === "css") {
+        setCssCode(content);
+      } else {
+        setCode(content);
+      }
+
       setSelectedLanguage(language);
       if (file.lesson) setSelectedLesson(String(file.lesson));
       setActiveTab("editor");
@@ -356,7 +351,6 @@ export function CodeEditor() {
       });
   };
 
-  /* ==========  SUBMISSION ROUTES  ================ */
   const fetchSubmissions = async (lessonId?: string) => {
     const u = new URL("/api/code-ide/submissions", window.location.origin);
     if (lessonId) u.searchParams.set("lesson", lessonId);
@@ -376,7 +370,7 @@ export function CodeEditor() {
     const body = {
       lesson: selectedLesson,
       language: selectedLanguage,
-      code_text: code,
+      code_text: selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code,
     };
     const res = await fetch("/api/code-ide/submissions", {
       method: "POST",
@@ -409,7 +403,6 @@ export function CodeEditor() {
     return updated;
   };
 
-  /* ==========  COMMENT ROUTE  ==================== */
   const addComment = async (submissionId: number, message: string) => {
     const res = await fetch(
       `/api/code-ide/submissions/${submissionId}/comments`,
@@ -423,9 +416,6 @@ export function CodeEditor() {
     return res.json() as Promise<Comment>;
   };
 
-  /* -------------------------------------------------- */
-  /* UI  helpers                                        */
-  /* -------------------------------------------------- */
   const languages = {
     javascript: {
       name: "JavaScript",
@@ -440,7 +430,7 @@ export function CodeEditor() {
     },
     cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
     html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
-    css: { name: "CSS", judgeId: null, template: `body{color:red;}` },
+    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
   } as const;
 
   const handleLogout = async () => {
@@ -450,9 +440,6 @@ export function CodeEditor() {
     window.location.href = "/login";
   };
 
-  /* -------------------------------------------------- */
-  /* side effects                                       */
-  /* -------------------------------------------------- */
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated" || !session?.user?.sessionToken) {
@@ -462,16 +449,16 @@ export function CodeEditor() {
       setError(null);
       setLoading(false);
       setCode(languages[selectedLanguage].template);
+      if (selectedLanguage === "html") setHtmlCode(languages.html.template);
+      if (selectedLanguage === "css") setCssCode(languages.css.template);
     }
   }, [session, status, selectedLanguage]);
 
-  /* auto-save */
   useEffect(() => {
     const t = setTimeout(() => saveSnippet().catch(() => {}), 10_000);
     return () => clearTimeout(t);
-  }, [code, selectedLanguage, selectedLesson]);
+  }, [code, htmlCode, cssCode, selectedLanguage, selectedLesson]);
 
-  /* initial load: lessons + my submissions + my snippets + files */
   useEffect(() => {
     if (status !== "authenticated") return;
     Promise.all([
@@ -492,10 +479,10 @@ export function CodeEditor() {
     ]).catch(() => {});
   }, [status]);
 
-  /* -------------------------------------------------- */
-  /* UI handlers                                        */
-  /* -------------------------------------------------- */
-  const copyCode = () => navigator.clipboard.writeText(code);
+  const copyCode = () => {
+    const text = selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code;
+    navigator.clipboard.writeText(text);
+  };
 
   const downloadCode = () => {
     const ext = {
@@ -506,7 +493,8 @@ export function CodeEditor() {
       html: "html",
       css: "css",
     } as const;
-    const blob = new Blob([code], { type: "text/plain" });
+    const content = selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code;
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
@@ -520,9 +508,12 @@ export function CodeEditor() {
 
   const resetCode = () => {
     setCode(languages[selectedLanguage].template);
+    if (selectedLanguage === "html") setHtmlCode(languages.html.template);
+    if (selectedLanguage === "css") setCssCode(languages.css.template);
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
+    setSyntaxError(null);
     setActiveTab("editor");
   };
 
@@ -530,29 +521,118 @@ export function CodeEditor() {
     const languageKey = lang as keyof typeof languages;
     setSelectedLanguage(languageKey);
     setCode(languages[languageKey].template);
+    if (languageKey === "html") setHtmlCode(languages.html.template);
+    if (languageKey === "css") setCssCode(languages.css.template);
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
+    setSyntaxError(null);
     setActiveTab("editor");
   };
 
   const handleCodeChange = (v: string) => {
-    setCode(v);
-    if (selectedLanguage === "html") setHtmlPreview(v);
-    if (selectedLanguage === "css") {
-      const html = `<!DOCTYPE html><html><head><style>${v}</style></head><body><div class="container"><h1>CSS Preview</h1><button class="button">Btn</button></div></body></html>`;
-      setHtmlPreview(html);
+    if (selectedLanguage === "html") {
+      setHtmlCode(v);
+    } else if (selectedLanguage === "css") {
+      setCssCode(v);
+    } else {
+      setCode(v);
+    }
+    setSyntaxError(null);
+
+    if (selectedLanguage === "javascript") {
+      try {
+        new Function(v);
+      } catch (e: any) {
+        setSyntaxError(`Syntax Error: ${e.message}`);
+      }
+    } else if (selectedLanguage === "css") {
+      const cssErrors = validateCSS(v);
+      if (cssErrors) {
+        setSyntaxError(cssErrors);
+      }
+    } else if (selectedLanguage === "html") {
+      const htmlErrors = validateHTML(v);
+      if (htmlErrors) {
+        setSyntaxError(htmlErrors);
+      }
+    }
+
+    // Update preview for HTML or CSS
+    if (selectedLanguage === "html" || selectedLanguage === "css") {
+      setHtmlPreview(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>${cssCode}</style>
+          </head>
+          <body>
+            ${htmlCode}
+          </body>
+        </html>
+      `);
+    }
+  };
+
+  const validateCSS = (css: string): string | null => {
+    try {
+      if (css.includes("{")) {
+        const rules = css.split("}").map((rule) => rule.trim());
+        for (const rule of rules) {
+          if (rule && !rule.includes("{")) {
+            return "Missing opening brace";
+          }
+          if (rule && !rule.includes(";")) {
+            return "Missing semicolon in CSS rule";
+          }
+        }
+      }
+      return null;
+    } catch {
+      return "Invalid CSS syntax";
+    }
+  };
+
+  const validateHTML = (html: string): string | null => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const parserError = doc.querySelector("parsererror");
+      if (parserError) {
+        return "Invalid HTML syntax";
+      }
+      return null;
+    } catch {
+      return "Invalid HTML syntax";
     }
   };
 
   const loadSnippet = async (snippet: Snippet) => {
     try {
       const detailedSnippet = await fetchSnippetDetail(snippet.id);
-      setCode(detailedSnippet.code_text);
+      if (detailedSnippet.language === "html") {
+        setHtmlCode(detailedSnippet.code_text);
+      } else if (detailedSnippet.language === "css") {
+        setCssCode(detailedSnippet.code_text);
+      } else {
+        setCode(detailedSnippet.code_text);
+      }
       setSelectedLanguage(detailedSnippet.language);
       if (detailedSnippet.lesson)
         setSelectedLesson(String(detailedSnippet.lesson));
       setActiveTab("editor");
+      setSyntaxError(null);
+      setHtmlPreview(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>${cssCode}</style>
+          </head>
+          <body>
+            ${htmlCode}
+          </body>
+        </html>
+      `);
     } catch {
       alert("Failed to load snippet details");
     }
@@ -567,6 +647,10 @@ export function CodeEditor() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && fileInputRef.current) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert("File size exceeds 10MB limit");
+        return;
+      }
       fileInputRef.current.value = "";
       await uploadFile(
         file,
@@ -576,9 +660,6 @@ export function CodeEditor() {
     }
   };
 
-  /* -------------------------------------------------- */
-  /* Pagination and Search                              */
-  /* -------------------------------------------------- */
   const filteredSnippets = mySnippets.filter((s) =>
     s.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -599,9 +680,6 @@ export function CodeEditor() {
   const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
   const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
 
-  /* -------------------------------------------------- */
-  /* run / submit / comment                             */
-  /* -------------------------------------------------- */
   const runCode = async () => {
     setIsRunning(true);
     setOutput("");
@@ -625,13 +703,19 @@ export function CodeEditor() {
         } finally {
           console.log = original;
         }
-      } else if (selectedLanguage === "html") {
-        setHtmlPreview(code);
-        setOutput("HTML rendered in preview tab");
-      } else if (selectedLanguage === "css") {
-        const html = `<!DOCTYPE html><html><head><style>${code}</style></head><body><div class="container"><h1>CSS Preview</h1><button class="button">Btn</button></div></body></html>`;
-        setHtmlPreview(html);
-        setOutput("CSS applied to preview template");
+      } else if (selectedLanguage === "html" || selectedLanguage === "css") {
+        setHtmlPreview(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>${cssCode}</style>
+            </head>
+            <body>
+              ${htmlCode}
+            </body>
+          </html>
+        `);
+        setOutput("HTML/CSS rendered in preview tab");
       } else {
         const cfg = languages[selectedLanguage];
         if (cfg.judgeId) {
@@ -691,9 +775,6 @@ export function CodeEditor() {
     }
   };
 
-  /* -------------------------------------------------- */
-  /* render                                             */
-  /* -------------------------------------------------- */
   if (loading && !fileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -728,6 +809,41 @@ export function CodeEditor() {
 
   return (
     <div className="space-y-6">
+      <style jsx>{`
+        .code-editor-textarea {
+          background: #2b2b2b;
+          color: #f8f8f2;
+          font-family: 'Fira Code', monospace;
+          border: none;
+          border-radius: 4px;
+          padding: 12px;
+          line-height: 1.5;
+          caret-color: #f8f8f2;
+        }
+        .code-editor-textarea:focus {
+          outline: none;
+          box-shadow: 0 0 0 2px #EF7B55;
+        }
+        .code-editor-textarea::selection {
+          background: #44475a;
+        }
+        .error-line {
+          border-left: 2px solid #ff5555;
+          background: #ff555522;
+        }
+        .tab-content {
+          background: #1e1e1e;
+          border-radius: 4px;
+        }
+        .syntax-error {
+          background: #ff555522;
+          border: 1px solid #ff5555;
+          color: #ff5555;
+          padding: 8px;
+          border-radius: 4px;
+          margin-top: 8px;
+        }
+      `}</style>
       <div>
         <h1 className="text-3xl font-bold">Code IDE</h1>
         <p className="text-muted-foreground">
@@ -775,7 +891,7 @@ export function CodeEditor() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="editor">
+        <TabsContent value="editor" className="tab-content">
           <Card className="flex flex-col">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -804,12 +920,17 @@ export function CodeEditor() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <Textarea
-                value={code}
+                value={selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 placeholder="Write your code here..."
-                className="flex-1 font-mono text-sm resize-none min-h-[400px]"
+                className={`code-editor-textarea flex-1 text-sm resize-none min-h-[400px] ${syntaxError ? 'error-line' : ''}`}
                 disabled={loading}
               />
+              {syntaxError && (
+                <div className="syntax-error">
+                  {syntaxError}
+                </div>
+              )}
               <div className="flex gap-2 mt-4">
                 <Button
                   onClick={runCode}
@@ -871,7 +992,7 @@ export function CodeEditor() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="output">
+        <TabsContent value="output" className="tab-content">
           <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>
@@ -892,8 +1013,8 @@ export function CodeEditor() {
                     <iframe
                       ref={iframeRef}
                       srcDoc={htmlPreview}
-                      className="w-full h-[400px] border rounded-md"
-                      title="HTML Preview"
+                      className="w-full h-[400px] border rounded-md bg-white"
+                      title="HTML/CSS Preview"
                     />
                   </TabsContent>
                   <TabsContent value="output" className="flex-1">
@@ -905,7 +1026,7 @@ export function CodeEditor() {
                   </TabsContent>
                 </Tabs>
               ) : (
-                <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
+                <div className="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-[400px] overflow-auto">
                   <pre className="whitespace-pre-wrap">
                     {output || "Run your code to see output here..."}
                   </pre>
@@ -915,7 +1036,7 @@ export function CodeEditor() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="files">
+        <TabsContent value="files" className="tab-content">
           <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Files</CardTitle>
@@ -942,19 +1063,27 @@ export function CodeEditor() {
                   {uploading ? (
                     <Spinner size="sm" className="mr-2" />
                   ) : (
-                    "Upload File"
+                    <Upload className="h-4 w-4 mr-2" />
                   )}
-                  {uploading && "ing..."}
+                  {uploading ? "Uploading..." : "Upload File"}
                 </Button>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
-                  accept=".js,.py,.java,.cpp,.html,.css,.txt,.json,.xml"
+                  accept=".js,.py,.java,.cpp,.html,.css,.txt,.json,.xml,.png,.jpg,.jpeg"
                   className="hidden"
                   disabled={uploading}
                 />
               </div>
+              {uploading && (
+                <div className="mt-2">
+                  <Progress value={uploadProgress} className="w-full" />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Uploading: {Math.round(uploadProgress)}%
+                  </p>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
               <Input
@@ -1156,7 +1285,7 @@ export function CodeEditor() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="submission">
+        <TabsContent value="submission" className="tab-content">
           <SubmissionTab
             lessons={lessons}
             selectedLesson={selectedLesson}
@@ -1174,7 +1303,6 @@ export function CodeEditor() {
   );
 }
 
-/* SubmissionTab component remains the same */
 function SubmissionTab({
   lessons,
   selectedLesson,
