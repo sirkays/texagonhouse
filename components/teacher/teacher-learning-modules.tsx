@@ -157,7 +157,7 @@ function normalizeMedia(media: string | undefined): string | undefined {
   const BASE_URL = "https://texagonbackend.epichouse.online";
   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
-  return `${BASE_URL}/media/${cleaned}`;
+  return `${BASE_URL}/media/covers/${cleaned}`;
 }
 
 export function TeacherLearningModules() {
@@ -364,23 +364,25 @@ export function TeacherLearningModules() {
 
   const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     try {
-      const response = await fetch(`${BASE_URL}/modules/${moduleId}`, {
-        method: "GET",
-        headers: headers(sessionToken),
-      });
+      const response = await fetch(
+        `${BASE_URL}/modules/${moduleId}?t=${Date.now()}`,
+        {
+          method: "GET",
+          headers: headers(sessionToken),
+        }
+      );
       if (!response.ok) {
         const errorData: APIError = await response.json();
         throw new Error(errorData.error || "Failed to fetch module details");
       }
       const module: APIModule = await response.json();
 
-      // Map lessons to include normalized cover_image
       const lessonsWithCover =
         module.lessons?.map((lesson: any) => ({
           ...lesson,
           coverImageUrl: lesson.cover_image
             ? normalizeMedia(lesson.cover_image)
-            : null, // FIX: Apply normalizeMedia
+            : null,
         })) || [];
 
       return {
@@ -973,6 +975,27 @@ export function TeacherLearningModules() {
       const responseText = await response.text();
       console.log("[saveLesson] Raw response:", responseText.slice(0, 200));
 
+      const newLesson: Lesson = {
+        ...editingLesson,
+        id: data.id,
+        coverImageUrl: data.cover_image
+          ? normalizeMedia(data.cover_image)
+          : undefined,
+        coverImage: null, // Clear temp file
+        file: null, // Clear temp file if any
+        remove_cover: false, // Reset if set
+      };
+
+      setCurrentModule((prev) => ({
+        ...prev,
+        lessons: prev.lessons.map((lesson) =>
+          lesson.id === editingLesson.id ? newLesson : lesson
+        ),
+        lessonCount: prev.lessonCount, // Update if needed
+      }));
+      setEditingLesson(newLesson);
+      alert("Lesson saved successfully!");
+
       if (!response.ok) {
         let errorData;
         try {
@@ -996,12 +1019,18 @@ export function TeacherLearningModules() {
       console.log("[saveLesson] Lesson created:", data);
 
       // Refresh module details to get updated lessons
+      // const moduleData = await getModuleDetails(currentModule.id);
+      // if (moduleData) {
+      //   setCurrentModule(moduleData);
+      //   setModules((prev) =>
+      //     prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+      //   );
+      // }
+
+      // Refresh module data to sync with server
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
         setCurrentModule(moduleData);
-        setModules((prev) =>
-          prev.map((m) => (m.id === currentModule.id ? moduleData : m))
-        );
       }
 
       setEditingLesson(null);
@@ -1019,193 +1048,198 @@ export function TeacherLearningModules() {
     }
   };
 
- const updateLesson = async (lessonId: string) => {
-  if (!sessionToken) {
-    setError("No session token available. Please log in again.");
-    console.error("[updateLesson] No session token");
-    return;
-  }
-  if (!currentModule.id) {
-    setError("No module selected. Please save the module first.");
-    console.error("[updateLesson] No module ID");
-    return;
-  }
-  if (!editingLesson) {
-    setError("No lesson selected for updating.");
-    console.error("[updateLesson] No editing lesson");
-    return;
-  }
-  if (!editingLesson.title) {
-    setError("Lesson title is required.");
-    console.error("[updateLesson] Missing lesson title");
-    return;
-  }
-
-  try {
-    setIsSavingLesson(true);
-    const formData = new FormData();
-    formData.append("title", editingLesson.title);
-    formData.append("type", editingLesson.type);
-    formData.append(
-      "duration",
-      (durationToMinutes(editingLesson.duration) * 60).toString()
-    );
-    formData.append(
-      "order",
-      editingLesson.order?.toString() ||
-        (currentModule.lessons.length + 1).toString()
-    );
-    formData.append(
-      "meta",
-      JSON.stringify({
-        description: editingLesson.content || "",
-        tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-      })
-    );
-    formData.append("active", editingLesson.active ? "true" : "false");
-
-    // Main file handling
-    if (
-      editingLesson.file instanceof File &&
-      (editingLesson.type === "video" ||
-        editingLesson.type === "audio" ||
-        editingLesson.type === "pdf")
-    ) {
-      console.log("[updateLesson] File selected:", {
-        name: editingLesson.file.name,
-        type: editingLesson.file.type,
-        size: editingLesson.file.size,
-      });
-      formData.append("file", editingLesson.file, editingLesson.file.name);
-      formData.append("remove_file", "false");
-    } else if (
-      editingLesson.type === "text" &&
-      editingLesson.content &&
-      !editingLesson.content.startsWith("http")
-    ) {
-      console.log(
-        "[updateLesson] Text content provided:",
-        editingLesson.content.slice(0, 200)
-      );
-      formData.append("textContent", editingLesson.content);
-    } else if (
-      (editingLesson.videoUrl || editingLesson.audioUrl) &&
-      (editingLesson.videoUrl?.startsWith("http") ||
-        editingLesson.audioUrl?.startsWith("http"))
-    ) {
-      const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-      console.log("[updateLesson] External URL provided:", url);
-      formData.append("url", url);
-    } else {
-      console.log("[updateLesson] No new file provided");
-      formData.append("remove_file", "true"); // Indicate no file update
+  const updateLesson = async (lessonId: string) => {
+    if (!sessionToken) {
+      setError("No session token available. Please log in again.");
+      console.error("[updateLesson] No session token");
+      return;
+    }
+    if (!currentModule.id) {
+      setError("No module selected.");
+      console.error("[updateLesson] No module ID");
+      return;
+    }
+    if (!editingLesson) {
+      setError("No lesson selected for updating.");
+      console.error("[updateLesson] No editing lesson");
+      return;
+    }
+    if (!editingLesson.title) {
+      setError("Lesson title is required.");
+      console.error("[updateLesson] Missing lesson title");
+      return;
     }
 
-    // Cover image handling
-    if (editingLesson.coverImage instanceof File) {
-      console.log("[updateLesson] New cover image selected:", {
-        name: editingLesson.coverImage.name,
-        type: editingLesson.coverImage.type,
-        size: editingLesson.coverImage.size,
-      });
+    try {
+      setIsSavingLesson(true);
+      const formData = new FormData();
+      formData.append("title", editingLesson.title);
+      formData.append("type", editingLesson.type);
       formData.append(
-        "cover_image",
-        editingLesson.coverImage,
-        editingLesson.coverImage.name
+        "duration",
+        (durationToMinutes(editingLesson.duration) * 60).toString()
       );
-      formData.append("remove_cover", "false");
-    } else if (editingLesson.remove_cover) {
-      console.log("[updateLesson] Removing cover image");
-      formData.append("remove_cover", "true");
-    } else {
-      console.log("[updateLesson] No cover image update");
-      formData.append("remove_cover", "false"); // Ensure no unintended removal
-    }
-
-    // Log FormData contents for debugging
-    console.log("[updateLesson] FormData contents:");
-    for (const [key, value] of formData.entries()) {
-      console.log(
-        `[updateLesson] ${key}:`,
-        typeof value === "string" ? value : `[File: ${value.name}]`
+      formData.append(
+        "meta",
+        JSON.stringify({
+          description: editingLesson.content || "",
+          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+        })
       );
-    }
+      formData.append("active", "true");
 
-    console.log(
-      "[updateLesson] Sending PATCH to",
-      `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`
-    );
-    const response = await fetch(
-      `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
-      {
-        method: "PATCH",
-        headers: {
-          "X-Session-Token": sessionToken,
-        },
-        body: formData,
+      if (
+        editingLesson.file &&
+        (editingLesson.type === "video" ||
+          editingLesson.type === "audio" ||
+          editingLesson.type === "pdf")
+      ) {
+        console.log("[updateLesson] File selected:", {
+          name: editingLesson.file.name,
+          type: editingLesson.file.type,
+          size: editingLesson.file.size,
+        });
+        formData.append("file", editingLesson.file, editingLesson.file.name);
+      } else if (
+        editingLesson.type === "text" &&
+        editingLesson.content &&
+        !editingLesson.content.startsWith("http")
+      ) {
+        console.log(
+          "[updateLesson] Text content provided:",
+          editingLesson.content.slice(0, 200)
+        );
+        formData.append("textContent", editingLesson.content);
+      } else if (
+        (editingLesson.videoUrl || editingLesson.audioUrl) &&
+        (editingLesson.videoUrl?.startsWith("http") ||
+          editingLesson.audioUrl?.startsWith("http"))
+      ) {
+        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
+        console.log("[updateLesson] External URL provided:", url);
+        formData.append("url", url);
       }
-    );
 
-    console.log(`[updateLesson] Response status: ${response.status}`);
-    const responseText = await response.text();
-    console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
+      if (editingLesson.coverImage) {
+        console.log("[updateLesson] Cover image selected:", {
+          name: editingLesson.coverImage.name,
+          type: editingLesson.coverImage.type,
+          size: editingLesson.coverImage.size,
+        });
+        formData.append(
+          "cover_image",
+          editingLesson.coverImage,
+          editingLesson.coverImage.name
+        );
+      } else if (editingLesson.remove_cover) {
+        console.log("[updateLesson] Remove cover flag set");
+        formData.append("remove_cover", "true");
+      }
 
-    if (!response.ok) {
-      let errorData;
+      console.log("[updateLesson] FormData contents:");
+      for (const [key, value] of formData.entries()) {
+        console.log(
+          `[updateLesson] ${key}:`,
+          typeof value === "string" ? value : `[File: ${value.name}]`
+        );
+      }
+
+      const response = await fetch(
+        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+        {
+          method: "PATCH",
+          headers: {
+            "X-Session-Token": sessionToken,
+          },
+          body: formData,
+        }
+      );
+
+      console.log(`[updateLesson] Response status: ${response.status}`);
+      const responseText = await response.text();
+      console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          console.error(
+            "[updateLesson] Failed to parse error response:",
+            responseText.slice(0, 200)
+          );
+          throw new Error("Invalid response format from server");
+        }
+        console.error("[updateLesson] Fetch failed:", errorData);
+        if (response.status === 401 && errorData.redirect) {
+          window.location.href = errorData.redirect;
+          return;
+        }
+        throw new Error(errorData.error || "Failed to update lesson");
+      }
+
+      let data;
       try {
-        errorData = JSON.parse(responseText);
+        data = JSON.parse(responseText);
       } catch (e) {
         console.error(
-          "[updateLesson] Failed to parse error response:",
+          "[updateLesson] Failed to parse success response:",
           responseText.slice(0, 200)
         );
         throw new Error("Invalid response format from server");
       }
-      console.error("[updateLesson] Fetch failed:", errorData);
-      if (response.status === 401 && errorData.redirect) {
-        window.location.href = errorData.redirect;
-        return;
+
+      console.log("[updateLesson] Update successful:", data);
+
+      const updatedLesson: Lesson = {
+        ...editingLesson,
+        id: data.lesson.id,
+        coverImageUrl: data.lesson.cover_image
+          ? normalizeMedia(data.lesson.cover_image)
+          : undefined,
+        coverImage: null,
+        file: null,
+        remove_cover: false,
+      };
+
+      setCurrentModule((prev) => ({
+        ...prev,
+        lessons: prev.lessons.map((lesson) =>
+          lesson.id === lessonId ? updatedLesson : lesson
+        ),
+      }));
+      setEditingLesson(updatedLesson);
+
+      // Refresh module data to sync with server, but prioritize PATCH cover image if GET is stale
+      const moduleData = await getModuleDetails(currentModule.id);
+      if (moduleData) {
+        const syncedLessons = moduleData.lessons.map((lesson) => {
+          if (lesson.id === lessonId) {
+            return {
+              ...lesson,
+              coverImageUrl: updatedLesson.coverImageUrl, // Override with PATCH's cover image
+            };
+          }
+          return lesson;
+        });
+        setCurrentModule({ ...moduleData, lessons: syncedLessons });
       }
-      throw new Error(errorData.error || "Failed to update lesson");
-    }
 
-    const data: { lesson: Lesson } = JSON.parse(responseText);
-    console.log("[updateLesson] Lesson updated:", data);
-
-    // Refresh module details to get updated lessons
-    const moduleData = await getModuleDetails(currentModule.id);
-    if (moduleData) {
-      setCurrentModule(moduleData);
-      setModules((prev) =>
-        prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+      alert("Lesson updated successfully!");
+    } catch (err) {
+      setError(
+        (err as Error).message || "An error occurred while updating the lesson"
       );
+      console.error("[updateLesson] Error:", err);
+    } finally {
+      setIsSavingLesson(false);
     }
-
-    // After setting module data:
-    setEditingLesson(null);
-    updateLessonFields(lessonId, { remove_cover: false });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
-    }
-    if (coverImageInputRef.current) {
-      coverImageInputRef.current.value = ""; // Reset cover image input
-    }
-    alert(`Lesson updated successfully! ID: ${data.lesson.id}`);
-  } catch (err) {
-    setError(
-      (err as Error).message || "An error occurred while updating the lesson"
-    );
-    console.error("[updateLesson] Error:", err);
-  } finally {
-    setIsSavingLesson(false);
-  }
-};
+  };
 
   // 🔧 Normalize cover image URLs so relative paths become full URLs
   const normalizeCoverImageUrl = (cover: string | null | undefined) => {
-    if (!cover) return "/placeholder-cover.png"; // fallback in /public/
-    if (cover.startsWith("http")) return cover;
-    return `https://texagonbackend.epichouse.online${cover}`;
+    if (!cover) return "/placeholder-cover.png";
+    return normalizeMedia(cover);
   };
 
   const getTypeIcon = (type: string) => {
@@ -1612,8 +1646,8 @@ export function TeacherLearningModules() {
                                     )}
                                     alt="Cover"
                                     onError={(e) => {
-                                      e.currentTarget.style.display = "none"; // Hide broken images
-                                      // Or set fallback: e.currentTarget.src = '/default-cover.png';
+                                      e.currentTarget.src =
+                                        "/placeholder-cover.png";
                                     }}
                                     className="w-6 h-4 object-cover rounded ml-1"
                                   />
@@ -1664,77 +1698,64 @@ export function TeacherLearningModules() {
                       {/* Cover Image Section */}
                       <div className="space-y-2">
                         <Label className="text-xs xs:text-sm sm:text-base">
-                          Cover Image{" "}
-                          {editingLesson.coverImage ||
-                          editingLesson.coverImageUrl
-                            ? "(Set)"
-                            : "(None)"}
+                          Cover Image
                         </Label>
-                        {(editingLesson.coverImage ||
-                          editingLesson.coverImageUrl) &&
+                        {editingLesson.coverImageUrl &&
+                        !editingLesson.coverImage &&
                         !editingLesson.remove_cover ? (
-                          <div className="space-y-2">
-                            {editingLesson.coverImage && (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  value={editingLesson.coverImage.name}
-                                  readOnly
-                                  className="text-xs xs:text-sm sm:text-base bg-gray-100"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs xs:text-sm sm:text-base shadow-md"
-                                  onClick={() =>
-                                    updateLessonFields(editingLesson.id, {
-                                      coverImage: null,
-                                      coverImageUrl: "",
-                                      remove_cover: true,
-                                    })
-                                  }
-                                >
-                                  Remove Cover
-                                </Button>
-                              </div>
-                            )}
-                            {editingLesson.coverImageUrl &&
-                              !editingLesson.coverImage && (
-                                <div className="flex items-center gap-2">
-                                  <img
-                                    src={normalizeCoverImageUrl(
-                                      editingLesson.coverImageUrl
-                                    )}
-                                    alt="Current cover"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = "none";
-                                    }}
-                                    className="w-16 h-12 object-cover rounded border"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs xs:text-sm sm:text-base shadow-md"
-                                    onClick={() =>
-                                      updateLessonFields(editingLesson.id, {
-                                        coverImage: null,
-                                        coverImageUrl: "",
-                                        remove_cover: true,
-                                      })
-                                    }
-                                  >
-                                    Remove Cover
-                                  </Button>
-                                </div>
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={normalizeCoverImageUrl(
+                                editingLesson.coverImageUrl
                               )}
+                              alt="Cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "/placeholder-cover.png";
+                              }}
+                              className="h-16 w-16 object-cover rounded"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs xs:text-sm sm:text-base shadow-md"
+                              onClick={() =>
+                                updateLessonFields(editingLesson.id, {
+                                  remove_cover: true,
+                                  coverImage: null,
+                                })
+                              }
+                            >
+                              Remove Cover
+                            </Button>
+                          </div>
+                        ) : editingLesson.coverImage ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingLesson.coverImage.name}
+                              readOnly
+                              className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs xs:text-sm sm:text-base shadow-md"
+                              onClick={() =>
+                                updateLessonFields(editingLesson.id, {
+                                  coverImage: null,
+                                  remove_cover: false,
+                                })
+                              }
+                            >
+                              Remove
+                            </Button>
                           </div>
                         ) : (
                           <>
                             <input
                               type="file"
                               ref={coverImageInputRef}
-                              id="cover-image"
                               className="hidden"
-                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              accept="image/jpeg,image/png,image/gif"
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
@@ -1748,38 +1769,25 @@ export function TeacherLearningModules() {
                                   );
                                   updateLessonFields(editingLesson.id, {
                                     coverImage: file,
-                                    coverImageUrl: "", // Clear existing URL when new file is selected
-                                    remove_cover: false, // Reset remove flag
+                                    remove_cover: false,
                                   });
-                                  if (coverImageInputRef.current) {
-                                    coverImageInputRef.current.value = "";
-                                  }
                                 }
                               }}
                             />
-                            <label
-                              htmlFor="cover-image"
-                              className="cursor-pointer"
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                              onClick={() =>
+                                coverImageInputRef.current?.click()
+                              }
                             >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() =>
-                                  coverImageInputRef.current?.click()
-                                }
-                              >
-                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                Upload Cover Image
-                              </Button>
-                            </label>
-                            <p className="text-[0.7rem] text-muted-foreground">
-                              Recommended: 16:9 aspect ratio, JPG/PNG, max 2MB
-                            </p>
+                              <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              Upload Cover Image
+                            </Button>
                           </>
                         )}
                       </div>
-
                       {/* Lesson Type */}
                       <div className="space-y-2">
                         <Label className="text-xs xs:text-sm sm:text-base">
