@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
 import {
   Card,
@@ -30,7 +28,6 @@ import {
   FilePlus,
   Upload,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
@@ -42,6 +39,23 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import CodeMirror from "@uiw/react-codemirror";
+import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
+import { java } from "@codemirror/lang-java";
+import { cpp } from "@codemirror/lang-cpp";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { monokai } from "@uiw/codemirror-theme-monokai";
+
+const codeMirrorExtensions = {
+  javascript: [javascript()],
+  python: [python()],
+  java: [java()],
+  cpp: [cpp()],
+  html: [html()],
+  css: [css()],
+} as const;
 
 type Snippet = {
   id: number;
@@ -530,35 +544,34 @@ export function CodeEditor() {
     setActiveTab("editor");
   };
 
-  const handleCodeChange = (v: string) => {
+  const handleCodeChange = (value: string) => {
     if (selectedLanguage === "html") {
-      setHtmlCode(v);
+      setHtmlCode(value);
     } else if (selectedLanguage === "css") {
-      setCssCode(v);
+      setCssCode(value);
     } else {
-      setCode(v);
+      setCode(value);
     }
     setSyntaxError(null);
 
     if (selectedLanguage === "javascript") {
       try {
-        new Function(v);
+        new Function(value);
       } catch (e: any) {
         setSyntaxError(`Syntax Error: ${e.message}`);
       }
     } else if (selectedLanguage === "css") {
-      const cssErrors = validateCSS(v);
+      const cssErrors = validateCSS(value);
       if (cssErrors) {
         setSyntaxError(cssErrors);
       }
     } else if (selectedLanguage === "html") {
-      const htmlErrors = validateHTML(v);
+      const htmlErrors = validateHTML(value);
       if (htmlErrors) {
         setSyntaxError(htmlErrors);
       }
     }
 
-    // Update preview for HTML or CSS
     if (selectedLanguage === "html" || selectedLanguage === "css") {
       setHtmlPreview(`
         <!DOCTYPE html>
@@ -791,10 +804,10 @@ export function CodeEditor() {
             <CardTitle className="text-2xl font-bold text-center">
               Session Expired
             </CardTitle>
-            <CardDescription className="text-center">
+            <p className="text-center text-muted-foreground">
               Your session has expired or you are not authenticated. Please log
               in again to continue.
-            </CardDescription>
+            </p>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Button onClick={handleLogout} className="flex items-center gap-2">
@@ -842,6 +855,20 @@ export function CodeEditor() {
           padding: 8px;
           border-radius: 4px;
           margin-top: 8px;
+        }
+        .codemirror-container {
+          border-radius: 4px;
+          overflow: hidden;
+          border: 1px solid #44475a;
+        }
+        .codemirror-container .cm-editor {
+          height: 400px;
+          font-family: 'Fira Code', monospace;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+        .codemirror-container .cm-focused {
+          outline: 2px solid #EF7B55;
         }
       `}</style>
       <div>
@@ -919,13 +946,23 @@ export function CodeEditor() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
-              <Textarea
-                value={selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code}
-                onChange={(e) => handleCodeChange(e.target.value)}
-                placeholder="Write your code here..."
-                className={`code-editor-textarea flex-1 text-sm resize-none min-h-[400px] ${syntaxError ? 'error-line' : ''}`}
-                disabled={loading}
-              />
+              <div className={`codemirror-container ${syntaxError ? 'error-line' : ''}`}>
+                <CodeMirror
+                  value={selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code}
+                  extensions={codeMirrorExtensions[selectedLanguage as keyof typeof codeMirrorExtensions]}
+                  theme={monokai}
+                  height="400px"
+                  basicSetup={{
+                    lineNumbers: true,
+                    tabSize: 2,
+                    indentOnInput: true,
+                    lineWrapping: true,
+                  }}
+                  editable={!loading}
+                  onChange={handleCodeChange}
+                  className="flex-1"
+                />
+              </div>
               {syntaxError && (
                 <div className="syntax-error">
                   {syntaxError}
@@ -1459,7 +1496,7 @@ function SubmissionTab({
                 </div>
               ))}
               <div className="flex gap-2">
-                <Textarea
+                <Input
                   placeholder="Write a comment…"
                   className="min-h-[60px] text-xs"
                   value={comment}
