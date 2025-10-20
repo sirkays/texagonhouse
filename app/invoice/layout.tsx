@@ -11,7 +11,6 @@ import {
   Receipt,
   Bell,
   ArrowLeft,
-  ChevronDown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -23,27 +22,20 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {Button} from "@/components/ui/button";
 import {Badge} from "@/components/ui/badge";
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {useMediaQuery} from "react-responsive";
-import {useState} from "react";
 
 const navigationItems = [
-  {
-    title: "Dashboard",
-    url: "/invoice",
-    icon: Home,
-    description: "Overview and analytics",
-    badge: null,
-  },
+  // {
+  //   title: "Dashboard",
+  //   url: "/invoice",
+  //   icon: Home,
+  //   description: "Overview and analytics",
+  //   badge: null,
+  // },
   {
     title: "Invoices",
     url: "/invoice/invoices",
@@ -75,21 +67,19 @@ const supportItems = [
     description: "Payment complaints and support",
     badge: "5",
   },
-  {
-    title: "Settings",
-    url: "/invoice/settings",
-    icon: Settings,
-    description: "Account and system settings",
-    badge: null,
-  },
+  // {
+  //   title: "Settings",
+  //   url: "/invoice/settings",
+  //   icon: Settings,
+  //   description: "Account and system settings",
+  //   badge: null,
+  // },
 ];
 
 function SidebarMenuContent() {
   const pathname = usePathname();
   const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
   const isMobile = useMediaQuery({maxWidth: 639});
-  const [isNavOpen, setIsNavOpen] = useState(false);
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -97,107 +87,52 @@ function SidebarMenuContent() {
     }
   };
 
+  const renderMenuItem = (item: (typeof navigationItems)[0]) => (
+    <Button
+      key={item.title}
+      variant="ghost"
+      asChild
+      className={`
+        w-full justify-start py-2 px-3 rounded-md
+        hover:bg-[#F797713a]
+        ${
+          pathname === item.url
+            ? "bg-[#EF7B553a] text-slate-600"
+            : "text-muted-foreground"
+        }
+        transition-colors
+        text-[0.85rem] xs:text-xs sm:text-sm font-medium
+      `}>
+      <Link
+        href={item.url}
+        onClick={handleLinkClick}
+        className="flex items-center justify-between w-full"
+        title={item.description}>
+        <div className="flex items-center gap-2">
+          <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+          <span>{item.title}</span>
+        </div>
+        {item.badge && (
+          <Badge
+            variant={
+              "Navigation".toLowerCase().includes(item.title.toLowerCase())
+                ? item.badge === "New"
+                  ? "default"
+                  : "secondary"
+                : "destructive"
+            }
+            className="text-xs h-5 px-2 ml-auto">
+            {item.badge}
+          </Badge>
+        )}
+      </Link>
+    </Button>
+  );
+
   return (
     <SidebarContent className="mt-4 bg-transparent px-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-between py-5 h-10 px-3 rounded-md hover:bg-[#F797713a] text-[0.85rem] xs:text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider"
-            onClick={() => setIsNavOpen(!isNavOpen)}>
-            Navigation
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${
-                isNavOpen ? "rotate-180" : ""
-              }`}
-            />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-56 bg-white rounded-md shadow-lg p-2">
-          {navigationItems.map((item) => (
-            <DropdownMenuItem
-              key={item.title}
-              asChild
-              className={`
-                py-2 px-3 rounded-md
-                hover:bg-[#F797713a]
-                ${pathname === item.url ? "bg-[#EF7B553a] text-slate-600" : ""}
-                transition-colors
-              `}>
-              <Link
-                href={item.url}
-                onClick={handleLinkClick}
-                className="flex items-center justify-between w-full"
-                title={item.description}>
-                <div className="flex items-center gap-2">
-                  <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
-                  <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                    {item.title}
-                  </span>
-                </div>
-                {item.badge && (
-                  <Badge
-                    variant={item.badge === "New" ? "default" : "secondary"}
-                    className="text-xs h-5 px-2 ml-auto">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Link>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <SidebarSeparator className="my-2" />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-between py-5 h-10 px-3 rounded-md hover:bg-[#F797713a] text-[0.85rem] xs:text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider"
-            onClick={() => setIsSupportOpen(!isSupportOpen)}>
-            Support & Settings
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${
-                isSupportOpen ? "rotate-180" : ""
-              }`}
-            />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-56 bg-white rounded-md shadow-lg p-2">
-          {supportItems.map((item) => (
-            <DropdownMenuItem
-              key={item.title}
-              asChild
-              className={`
-                py-2 px-3 rounded-md
-                hover:bg-[#F797713a]
-                ${pathname === item.url ? "bg-[#EF7B553a] text-slate-600" : ""}
-                transition-colors
-              `}>
-              <Link
-                href={item.url}
-                onClick={handleLinkClick}
-                className="flex items-center justify-between w-full"
-                title={item.description}>
-                <div className="flex items-center gap-2">
-                  <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
-                  <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                    {item.title}
-                  </span>
-                </div>
-                {item.badge && (
-                  <Badge
-                    variant="destructive"
-                    className="text-xs h-5 px-2 ml-auto">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Link>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {navigationItems.map(renderMenuItem)}
+      {supportItems.map(renderMenuItem)}
     </SidebarContent>
   );
 }

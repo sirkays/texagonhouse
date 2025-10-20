@@ -13,6 +13,9 @@ import {
   Calendar,
   Trophy,
   LogOut,
+  Receipt,
+  FileText,
+  MessageSquare,
 } from "lucide-react";
 import {
   Sidebar,
@@ -71,10 +74,11 @@ const menuItems = [
     path: "/parent/rewards",
   },
   {
-    title: "Payment History",
-    icon: CreditCard,
-    id: "payments",
-    path: "/parent/payments",
+    title: "Payments",
+    path: "/invoice/invoices",
+    icon: Receipt,
+    description: "Create and manage invoices",
+    badge: "New",
   },
 ];
 
