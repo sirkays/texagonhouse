@@ -171,15 +171,6 @@ export function InvoiceList() {
                         View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Invoice
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Reminder
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
                         <Download className="h-4 w-4 mr-2" />
                         Download PDF
                       </DropdownMenuItem>
@@ -260,23 +251,6 @@ export function InvoiceList() {
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
-                    {invoice.status === "pending" && (
-                      <Button
-                        size="sm"
-                        className="hover-lift bg-[#f79771] hover:bg-gray-300 w-full sm:w-auto py-2">
-                        <Send className="h-4 w-4 mr-2" />
-                        Send
-                      </Button>
-                    )}
-                    {invoice.status === "overdue" && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="hover-lift w-full sm:w-auto py-2">
-                        <Send className="h-4 w-4 mr-2" />
-                        Remind
-                      </Button>
-                    )}
                   </div>
                 </div>
               </CardContent>
