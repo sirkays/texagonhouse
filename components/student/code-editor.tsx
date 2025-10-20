@@ -123,6 +123,8 @@ export function CodeEditor() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileLoading, setFileLoading] = useState<number | null>(null);
   const [syntaxError, setSyntaxError] = useState<string | null>(null);
+  const [isImagePreview, setIsImagePreview] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
@@ -153,7 +155,7 @@ export function CodeEditor() {
   };
 
   const saveSnippet = async () => {
-    if (!session?.user?.sessionToken) return;
+    if (!session?.user?.sessionToken || isImagePreview) return;
     const body = {
       lesson: selectedLesson || null,
       title: `Draft ${new Date().toISOString()}`,
@@ -295,10 +297,24 @@ export function CodeEditor() {
       setLoading(true);
       console.log(`Loading file ${file.id}: ${file.original_name}`);
 
-      const content = await fetchFileContent(file);
-
       const contentType = file.content_type;
       const extension = file.original_name.split(".").pop()?.toLowerCase();
+
+      const isImage = contentType.includes("image/") || ["png", "jpg", "jpeg"].includes(extension || "");
+
+      if (isImage) {
+        setIsImagePreview(true);
+        setImagePreviewUrl(file.url);
+        setSelectedLanguage("html");
+        setHtmlCode(`<img src="${file.url}" alt="${file.original_name}" style="max-width: 100%; height: auto;" />`);
+        if (file.lesson) setSelectedLesson(String(file.lesson));
+        setActiveTab("editor");
+        console.log(`Loaded image file ${file.id} for preview`);
+        return;
+      }
+
+      setIsImagePreview(false);
+      const content = await fetchFileContent(file);
 
       const languageMap: { [key: string]: string } = {
         "text/x-python": "python",
@@ -308,8 +324,6 @@ export function CodeEditor() {
         "text/css": "css",
         "text/x-java": "java",
         "text/x-c++": "cpp",
-        "image/png": "html",
-        "image/jpeg": "html",
         "text/plain":
           extension === "py"
             ? "python"
@@ -319,8 +333,6 @@ export function CodeEditor() {
             ? "html"
             : extension === "css"
             ? "css"
-            : extension === "png" || extension === "jpg" || extension === "jpeg"
-            ? "html"
             : "javascript",
       };
 
@@ -330,9 +342,7 @@ export function CodeEditor() {
         language = languageMap[extension];
       }
 
-      if (language === "html" && (contentType.includes("image/") || extension === "png" || extension === "jpg" || extension === "jpeg")) {
-        setHtmlCode(`<img src="${file.url}" alt="${file.original_name}" style="max-width: 100%; height: auto;" />`);
-      } else if (language === "html") {
+      if (language === "html") {
         setHtmlCode(content);
       } else if (language === "css") {
         setCssCode(content);
@@ -469,6 +479,7 @@ export function CodeEditor() {
   }, [session, status, selectedLanguage]);
 
   useEffect(() => {
+    if (isImagePreview) return;
     const t = setTimeout(() => saveSnippet().catch(() => {}), 10_000);
     return () => clearTimeout(t);
   }, [code, htmlCode, cssCode, selectedLanguage, selectedLesson]);
@@ -528,6 +539,8 @@ export function CodeEditor() {
     setHtmlPreview("");
     setExecutionError("");
     setSyntaxError(null);
+    setIsImagePreview(false);
+    setImagePreviewUrl("");
     setActiveTab("editor");
   };
 
@@ -541,10 +554,13 @@ export function CodeEditor() {
     setHtmlPreview("");
     setExecutionError("");
     setSyntaxError(null);
+    setIsImagePreview(false);
+    setImagePreviewUrl("");
     setActiveTab("editor");
   };
 
   const handleCodeChange = (value: string) => {
+    if (isImagePreview) return;
     if (selectedLanguage === "html") {
       setHtmlCode(value);
     } else if (selectedLanguage === "css") {
@@ -635,6 +651,8 @@ export function CodeEditor() {
         setSelectedLesson(String(detailedSnippet.lesson));
       setActiveTab("editor");
       setSyntaxError(null);
+      setIsImagePreview(false);
+      setImagePreviewUrl("");
       setHtmlPreview(`
         <!DOCTYPE html>
         <html>
@@ -694,6 +712,10 @@ export function CodeEditor() {
   const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
 
   const runCode = async () => {
+    if (isImagePreview) {
+      setOutput("Image preview mode: No code to execute");
+      return;
+    }
     setIsRunning(true);
     setOutput("");
     setExecutionError("");
@@ -870,6 +892,23 @@ export function CodeEditor() {
         .codemirror-container .cm-focused {
           outline: 2px solid #EF7B55;
         }
+        .image-preview {
+          max-width: 100%;
+          height: auto;
+          border-radius: 4px;
+          border: 1px solid #44475a;
+          background: #2b2b2b;
+          padding: 12px;
+        }
+        .file-url {
+          font-size: 0.75rem;
+          color: #a0a0a0;
+          word-break: break-all;
+          margin-top: 4px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
       `}</style>
       <div>
         <h1 className="text-3xl font-bold">Code IDE</h1>
@@ -946,24 +985,34 @@ export function CodeEditor() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
-              <div className={`codemirror-container ${syntaxError ? 'error-line' : ''}`}>
-                <CodeMirror
-                  value={selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code}
-                  extensions={codeMirrorExtensions[selectedLanguage as keyof typeof codeMirrorExtensions]}
-                  theme={monokai}
-                  height="400px"
-                  basicSetup={{
-                    lineNumbers: true,
-                    tabSize: 2,
-                    indentOnInput: true,
-                    lineWrapping: true,
-                  }}
-                  editable={!loading}
-                  onChange={handleCodeChange}
-                  className="flex-1"
-                />
-              </div>
-              {syntaxError && (
+              {isImagePreview ? (
+                <div className="image-preview">
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Uploaded image"
+                    style={{ maxWidth: "100%", height: "auto" }}
+                  />
+                </div>
+              ) : (
+                <div className={`codemirror-container ${syntaxError ? 'error-line' : ''}`}>
+                  <CodeMirror
+                    value={selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code}
+                    extensions={codeMirrorExtensions[selectedLanguage as keyof typeof codeMirrorExtensions]}
+                    theme={monokai}
+                    height="400px"
+                    basicSetup={{
+                      lineNumbers: true,
+                      tabSize: 2,
+                      indentOnInput: true,
+                      lineWrapping: true,
+                    }}
+                    editable={!loading}
+                    onChange={handleCodeChange}
+                    className="flex-1"
+                  />
+                </div>
+              )}
+              {syntaxError && !isImagePreview && (
                 <div className="syntax-error">
                   {syntaxError}
                 </div>
@@ -983,7 +1032,7 @@ export function CodeEditor() {
                   onClick={() =>
                     saveSnippet().catch(() => alert("Save failed"))
                   }
-                  disabled={loading}
+                  disabled={loading || isImagePreview}
                 >
                   Save
                 </Button>
@@ -991,7 +1040,7 @@ export function CodeEditor() {
                   variant="outline"
                   size="sm"
                   onClick={handleSubmit}
-                  disabled={!selectedLesson || loading}
+                  disabled={!selectedLesson || loading || isImagePreview}
                 >
                   Submit
                 </Button>
@@ -999,7 +1048,7 @@ export function CodeEditor() {
                   variant="outline"
                   size="sm"
                   onClick={copyCode}
-                  disabled={loading}
+                  disabled={loading || isImagePreview}
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -1007,7 +1056,7 @@ export function CodeEditor() {
                   variant="outline"
                   size="sm"
                   onClick={downloadCode}
-                  disabled={loading}
+                  disabled={loading || isImagePreview}
                 >
                   <Download className="h-4 w-4" />
                 </Button>
@@ -1270,6 +1319,18 @@ export function CodeEditor() {
                             <p className="text-xs text-muted-foreground mt-1">
                               {new Date(file.updated_at).toLocaleString()}
                             </p>
+                            <div className="file-url">
+                              <span>{file.url}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyFileUrl(file)}
+                                title="Copy file URL"
+                                disabled={loading || fileLoading === file.id}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
                             <Button
