@@ -857,30 +857,37 @@ export function CodeEditor() {
     }
   };
 
-  // Handle New File Modal Create - Go to editor with prepopulated save data
-  const handleNewFileCreate = () => {
-    if (!newFileTitle.trim()) return alert('Title required');
-    
-    // Store prepopulated data
-    setPrepopulatedSaveData({
-      title: newFileTitle,
-      lesson: newFileLesson || ''
-    });
-    
-    // Reset editor to default state
-    resetCode();
-    setActiveTab("editor");
-    
-    // Close new file modal and reset form
-    setShowNewFileModal(false);
-    setNewFileTitle('');
-    setNewFileLesson('');
-    
-    // Auto-open save modal with prepopulated data
+// Handle New File Modal Create - Close modal, go to editor, then open save modal
+const handleNewFileCreate = () => {
+  if (!newFileTitle.trim()) return alert('Title required');
+  
+  // Close the new file modal immediately
+  setShowNewFileModal(false);
+  
+  // Close save modal first (if open)
+  setShowSaveModal(false);
+  
+  // Reset new file form
+  setNewFileTitle('');
+  setNewFileLesson('');
+  
+  // Reset editor to default state and switch to editor tab
+  resetCode();
+  setActiveTab("editor");
+  
+  // Store prepopulated data
+  setPrepopulatedSaveData({
+    title: newFileTitle,
+    lesson: newFileLesson || ''
+  });
+  
+  // Pre-populate save modal fields after a brief delay
+  setTimeout(() => {
     setSaveFileName(newFileTitle);
     setSelectedLesson(newFileLesson || '');
-    setTimeout(() => setShowSaveModal(true), 100); // Small delay to ensure editor is ready
-  };
+    setShowSaveModal(true);
+  }, 150);
+};
 
   // Effect to prepopulate save modal when new file data is set
   useEffect(() => {
