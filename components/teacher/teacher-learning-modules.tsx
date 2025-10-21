@@ -152,13 +152,13 @@ const formatDate = (dateString: string | undefined): string => {
 };
 
 // Add this utility function at the top with other utilities
-function normalizeMedia(media: string | undefined): string | undefined {
-  if (!media) return undefined;
-  const BASE_URL = "https://texagonbackend.epichouse.online";
-  const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
-  if (cleaned.startsWith("http")) return cleaned;
-  return `${BASE_URL}/media/covers/${cleaned}`;
-}
+// function normalizeMedia(media: string | undefined): string | undefined {
+//   if (!media) return undefined;
+//   const BASE_URL = "https://texagonbackend.epichouse.online";
+//   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
+//   if (cleaned.startsWith("http")) return cleaned;
+//   return `${BASE_URL}/media/covers/${cleaned}`;
+// }
 
 export function TeacherLearningModules() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -357,9 +357,11 @@ export function TeacherLearningModules() {
   function normalizeMedia(media: string | undefined): string | undefined {
     if (!media) return undefined;
     const BASE_URL = "https://texagonbackend.epichouse.online";
-    const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
-    if (cleaned.startsWith("http")) return cleaned;
-    return `${BASE_URL}/media/${cleaned}`;
+    if (media.startsWith("http")) return media;
+    let cleaned = media.replace(/^\/+/, "");
+    if (cleaned.startsWith("media/")) return `${BASE_URL}/${cleaned}`;
+    if (cleaned.startsWith("covers/")) return `${BASE_URL}/media/${cleaned}`;
+    return `${BASE_URL}/media/covers/${cleaned}`;
   }
 
   const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
@@ -812,6 +814,7 @@ export function TeacherLearningModules() {
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
         setCurrentModule(moduleData);
+        
       }
       alert(`Module updated successfully! ID: ${updatedModule.id}`);
     } catch (err) {
@@ -1031,6 +1034,9 @@ export function TeacherLearningModules() {
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
         setCurrentModule(moduleData);
+        setModules((prev) =>
+          prev.map((m) => (m.id === moduleData.id ? moduleData : m))
+        );
       }
 
       setEditingLesson(null);
@@ -1213,6 +1219,10 @@ export function TeacherLearningModules() {
       // Refresh module data to sync with server, but prioritize PATCH cover image if GET is stale
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
+        setCurrentModule(moduleData);
+        setModules((prev) =>
+          prev.map((m) => (m.id === moduleData.id ? moduleData : m))
+        );
         const syncedLessons = moduleData.lessons.map((lesson) => {
           if (lesson.id === lessonId) {
             return {
@@ -1238,7 +1248,7 @@ export function TeacherLearningModules() {
 
   // 🔧 Normalize cover image URLs so relative paths become full URLs
   const normalizeCoverImageUrl = (cover: string | null | undefined) => {
-    if (!cover) return "/placeholder-cover.png";
+    if (!cover) return "/placeholder.jpg";
     return normalizeMedia(cover);
   };
 
@@ -1647,7 +1657,7 @@ export function TeacherLearningModules() {
                                     alt="Cover"
                                     onError={(e) => {
                                       e.currentTarget.src =
-                                        "/placeholder-cover.png";
+                                        "/placeholder.jpg";
                                     }}
                                     className="w-6 h-4 object-cover rounded ml-1"
                                   />

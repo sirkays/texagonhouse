@@ -911,6 +911,30 @@ export function TeacherCBTCreator() {
     return filtered;
   }, [studentFilter, sortField, sortOrder, selectedTestForAnalytics]);
 
+  const resetForm = useCallback(() => {
+  setCurrentTest({
+    id: "",
+    title: "",
+    description: "",
+    instructions: "",
+    duration: 30,
+    totalPoints: 0,
+    questions: [],
+    difficulty: "Medium",
+    category: "",
+    courseId: "",
+    isPublished: false,
+    questionsCount: 0,
+    createdAt: "",
+    updatedAt: "",
+    start_at: "",
+    end_at: "",
+    total_marks: 0,
+  });
+  setEditingQuestion(null);
+}, []);
+  
+
   return (
     <div className="space-y-6">
       <div>
@@ -1380,7 +1404,10 @@ export function TeacherCBTCreator() {
             </div>
             <Button
               className="mt-2 bg-[#f79771] hover:bg-gray-300 shadow-md"
-              onClick={() => setActiveTab("create")}
+             onClick={() => {
+  setActiveTab("create");
+  resetForm();
+}}
               disabled={isSaving}>
               <Plus className="mr-2 h-4 w-4" />
               Create New Test

@@ -1,4 +1,4 @@
-// app/api/student/dashboard-overview/route.ts
+// app/api/teacher/overview/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -7,7 +7,7 @@ const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 export async function GET(request: Request) {
-  console.log("[Route] Received GET request to /api/student/dashboard");
+  console.log("[Route] Received GET request to /api/teacher/overview");
   const session = await getServerSession(authOptions);
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -21,13 +21,13 @@ export async function GET(request: Request) {
   try {
     console.log(
       "[Route] Fetching data from",
-      `${BASE_URL}/accounts/api/dashboard/overview/`
+      `${BASE_URL}/accounts/api/teacher/overview/`
     );
-    const res = await fetch(`${BASE_URL}/accounts/api/dashboard/overview/`, {
+    const res = await fetch(`${BASE_URL}/accounts/api/teacher/overview/`, {
       headers: {
-        Authorization: `Api-Key ${API_KEY}`,
+        Authorization: `Bearer ${session.user.sessionToken}`,
+        "X-API-Key": API_KEY,
         "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
       },
     });
 
