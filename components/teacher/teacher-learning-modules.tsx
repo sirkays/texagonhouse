@@ -49,6 +49,13 @@ import {
 import { getSession } from "next-auth/react";
 import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
 import { Spinner } from "../ui/spinner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
 // Interfaces
 interface Course {
@@ -2140,278 +2147,305 @@ export function TeacherLearningModules() {
         </TabsContent>
 
         {/* Manage and Analytics tabs remain the same as original */}
-        <TabsContent value="manage" className="space-y-3 xs:space-y-4">
-          <div className="flex flex-wrap items-start xs:items-center justify-between gap-2 xs:gap-3">
-            <div>
-              <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
-                Manage Modules
-              </h2>
-              <p className="text-muted-foreground text-[0.85rem] xs:text-xs sm:text-sm">
-                View and manage all your learning modules
-              </p>
-            </div>
-            <div className="flex gap-2 xs:gap-3 flex-col sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search modules..."
-                  className="pl-8 text-xs xs:text-sm sm:text-base"
-                />
-              </div>
-              <Select
-                value={difficultyFilter}
-                onValueChange={setDifficultyFilter}
-              >
-                <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
-                  <SelectValue placeholder="Filter by difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    value="Beginner"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
-                    Beginner
-                  </SelectItem>
-                  <SelectItem
-                    value="Intermediate"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
-                    Intermediate
-                  </SelectItem>
-                  <SelectItem
-                    value="Advanced"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
-                    Advanced
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                onClick={() => {
-                  setCurrentModule(initialModule);
-                  setActiveTab("create");
-                }}
-                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-              >
-                <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                Create New Module
-              </Button>
-            </div>
-          </div>
+<TabsContent value="manage" className="space-y-3 xs:space-y-4">
+  <div className="flex flex-wrap items-start xs:items-center justify-between gap-2 xs:gap-3">
+    <div>
+      <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
+        Manage Modules
+      </h2>
+      <p className="text-muted-foreground text-[0.85rem] xs:text-xs sm:text-sm">
+        View and manage all your learning modules
+      </p>
+    </div>
+    <div className="flex gap-2 xs:gap-3 flex-col sm:flex-row">
+      <div className="relative flex-1">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search modules..."
+          className="pl-8 text-xs xs:text-sm sm:text-base"
+        />
+      </div>
+      <Select
+        value={difficultyFilter}
+        onValueChange={setDifficultyFilter}
+      >
+        <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
+          <SelectValue placeholder="Filter by difficulty" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem
+            value="Beginner"
+            className="text-xs xs:text-sm sm:text-base"
+          >
+            Beginner
+          </SelectItem>
+          <SelectItem
+            value="Intermediate"
+            className="text-xs xs:text-sm sm:text-base"
+          >
+            Intermediate
+          </SelectItem>
+          <SelectItem
+            value="Advanced"
+            className="text-xs xs:text-sm sm:text-base"
+          >
+            Advanced
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <Button
+        onClick={() => {
+          setCurrentModule(initialModule);
+          setActiveTab("create");
+        }}
+        className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+      >
+        <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+        Create New Module
+      </Button>
+    </div>
+  </div>
 
-          {isLoadingModules ? (
-            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
-              <Spinner size="md" className="text-[#EF7B55]" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 xs:py-12 text-red-500">
-              <p className="text-[0.85rem] xs:text-xs sm:text-sm">{error}</p>
-            </div>
-          ) : (
-            <>
-              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                Showing{" "}
-                {
-                  getPaginatedModules(modules, currentPageManage)
-                    .paginatedModules.length
-                }{" "}
-                of {getPaginatedModules(modules, currentPageManage).totalCount}{" "}
-                Modules
-              </div>
+  {isLoadingModules ? (
+    <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+      <Spinner size="md" className="text-[#EF7B55]" />
+    </div>
+  ) : error ? (
+    <div className="text-center py-8 xs:py-12 text-red-500">
+      <p className="text-[0.85rem] xs:text-xs sm:text-sm">{error}</p>
+    </div>
+  ) : (
+    <>
+      <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+        Showing{" "}
+        {
+          getPaginatedModules(modules, currentPageManage)
+            .paginatedModules.length
+        }{" "}
+        of {getPaginatedModules(modules, currentPageManage).totalCount}{" "}
+        Modules
+      </div>
 
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {getPaginatedModules(
-                  modules,
-                  currentPageManage
-                ).paginatedModules.map((module) => {
-                  const Icon = getTypeIcon(module.type);
-                  return (
-                    <Card
-                      key={module.id}
-                      className="hover:shadow-lg transition-shadow"
-                    >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1 flex-1">
-                            <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                              {module.title}
-                            </CardTitle>
-                            <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
-                              {module.description}
-                            </CardDescription>
-                          </div>
-                          <Icon className="h-4 w-4 xs:h-5 xs:w-5 text-muted-foreground" />
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3 xs:space-y-4">
-                        <div className="flex items-center flex-wrap gap-2">
-                          <Badge
-                            variant={
-                              module.isPublished ? "default" : "secondary"
-                            }
-                            className={
-                              module.isPublished
-                                ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
-                                : "bg-gray-500 text-white hover:bg-gray-600"
-                            }
-                          >
-                            {module.isPublished ? "Published" : "Draft"}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
-                            {module.difficulty}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
-                            {module.category || "Uncategorized"}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
-                            {module.course.name}
-                          </Badge>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            {minutesToDuration(module.duration)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            {module.enrollments}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                            {module.rating}
-                          </div>
-                          <div>{module.createdDate}</div>
-                        </div>
-
-                        <div className="flex gap-2 flex-col lg:flex-row">
-                          <Button
-                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                            onClick={async () => {
-                              const moduleData = await getModuleDetails(
-                                module.id
-                              );
-                              if (moduleData) {
-                                setCurrentModule(moduleData);
-                                setActiveTab("create");
-                              }
-                            }}
-                          >
-                            <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={async () => {
-                              const moduleData = await getModuleDetails(
-                                module.id
-                              );
-                              if (moduleData) {
-                                setPreviewModule(moduleData);
-                                setIsPreviewOpen(true);
-                              }
-                            }}
-                          >
-                            <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Preview
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={() => deleteModule(module.id)}
-                          >
-                            <Trash2 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {getPaginatedModules(modules, currentPageManage).totalCount ===
-              0 ? (
-                <div className="text-center py-8 xs:py-12">
-                  <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
-                  <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
-                    No Modules found
-                  </h3>
-                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    Create a new module to get started
-                  </p>
+      <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {getPaginatedModules(
+          modules,
+          currentPageManage
+        ).paginatedModules.map((module) => {
+          const Icon = getTypeIcon(module.type);
+          return (
+            <Card
+              key={module.id}
+              className="hover:shadow-lg transition-shadow"
+            >
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 flex-1">
+                    <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                      {module.title}
+                    </CardTitle>
+                    <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
+                      {module.description}
+                    </CardDescription>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const moduleData = await getModuleDetails(module.id);
+                          if (moduleData) {
+                            setCurrentModule(moduleData);
+                            setActiveTab("create");
+                          }
+                        }}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Edit</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const moduleData = await getModuleDetails(module.id);
+                          if (moduleData) {
+                            setPreviewModule(moduleData);
+                            setIsPreviewOpen(true);
+                          }
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        <span>Preview</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => deleteModule(module.id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              ) : (
-                <Pagination className="mt-4">
-                  <PaginationContent>
-                    <PaginationPrevious
-                      onClick={() =>
-                        setCurrentPageManage((prev) => Math.max(prev - 1, 1))
+              </CardHeader>
+              <CardContent className="space-y-3 xs:space-y-4">
+                <div className="flex items-center flex-wrap gap-2">
+                  <Badge
+                    variant={
+                      module.isPublished ? "default" : "secondary"
+                    }
+                    className={
+                      module.isPublished
+                        ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
+                        : "bg-gray-500 text-white hover:bg-gray-600"
+                    }
+                  >
+                    {module.isPublished ? "Published" : "Draft"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[0.85rem] xs:text-xs sm:text-sm"
+                  >
+                    {module.difficulty}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[0.85rem] xs:text-xs sm:text-sm"
+                  >
+                    {module.category || "Uncategorized"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[0.85rem] xs:text-xs sm:text-sm"
+                  >
+                    {module.course.name}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                    {minutesToDuration(module.duration)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                    {module.enrollments}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
+                    {module.rating}
+                  </div>
+                  <div>{module.createdDate}</div>
+                </div>
+
+                <div className="flex gap-2 flex-col lg:flex-row">
+                  <Button
+                    className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                    onClick={async () => {
+                      const moduleData = await getModuleDetails(module.id);
+                      if (moduleData) {
+                        setCurrentModule(moduleData);
+                        setActiveTab("create");
                       }
-                      className={
-                        currentPageManage === 1
-                          ? "pointer-events-none opacity-50"
-                          : ""
+                    }}
+                  >
+                    <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                    onClick={async () => {
+                      const moduleData = await getModuleDetails(module.id);
+                      if (moduleData) {
+                        setPreviewModule(moduleData);
+                        setIsPreviewOpen(true);
                       }
-                    />
-                    {Array.from(
-                      {
-                        length: getPaginatedModules(modules, currentPageManage)
-                          .totalPages,
-                      },
-                      (_, index) => index + 1
-                    ).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={currentPageManage === page}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setCurrentPageManage(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    {getPaginatedModules(modules, currentPageManage)
-                      .totalPages > 5 && <PaginationEllipsis />}
-                    <PaginationNext
-                      onClick={() =>
-                        setCurrentPageManage((prev) =>
-                          Math.min(
-                            prev + 1,
-                            getPaginatedModules(modules, currentPageManage)
-                              .totalPages
-                          )
-                        )
-                      }
-                      className={
-                        currentPageManage ===
-                        getPaginatedModules(modules, currentPageManage)
-                          .totalPages
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </>
-          )}
-        </TabsContent>
+                    }}
+                  >
+                    <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                    Preview
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {getPaginatedModules(modules, currentPageManage).totalCount === 0 ? (
+        <div className="text-center py-8 xs:py-12">
+          <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
+          <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
+            No Modules found
+          </h3>
+          <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+            Create a new module to get started
+          </p>
+        </div>
+      ) : (
+        <Pagination className="mt-4">
+          <PaginationContent>
+            <PaginationPrevious
+              onClick={() =>
+                setCurrentPageManage((prev) => Math.max(prev - 1, 1))
+              }
+              className={
+                currentPageManage === 1
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
+            />
+            {Array.from(
+              {
+                length: getPaginatedModules(modules, currentPageManage)
+                  .totalPages,
+              },
+              (_, index) => index + 1
+            ).map((page) => (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  href="#"
+                  isActive={currentPageManage === page}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPageManage(page);
+                  }}
+                >
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            {getPaginatedModules(modules, currentPageManage)
+              .totalPages > 5 && <PaginationEllipsis />}
+            <PaginationNext
+              onClick={() =>
+                setCurrentPageManage((prev) =>
+                  Math.min(
+                    prev + 1,
+                    getPaginatedModules(modules, currentPageManage)
+                      .totalPages
+                  )
+                )
+              }
+              className={
+                currentPageManage ===
+                getPaginatedModules(modules, currentPageManage)
+                  .totalPages
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
+            />
+          </PaginationContent>
+        </Pagination>
+      )}
+    </>
+  )}
+</TabsContent>
 
         <TabsContent value="analytics" className="space-y-3 xs:space-y-4">
           {isLoadingModules ? (

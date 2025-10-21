@@ -25,8 +25,8 @@ export async function GET(request: Request) {
     );
     const res = await fetch(`${BASE_URL}/accounts/api/teacher/overview/`, {
       headers: {
-        Authorization: `Bearer ${session.user.sessionToken}`,
-        "X-API-Key": API_KEY,
+        "X-Session-Token": session.user.sessionToken,
+        Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
       },
     });
