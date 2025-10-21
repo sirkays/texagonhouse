@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import {useState} from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   Card,
   CardContent,
@@ -9,9 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {Label} from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -29,32 +30,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Textarea} from "@/components/ui/textarea";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CalendarIcon,
   Clock,
-  Video,
-  Star,
   Plus,
   CheckCircle,
   AlertCircle,
   Bell,
-  Users,
   BookOpen,
-  Shield,
-  Zap,
+  Star,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
   Edit,
   Trash2,
 } from "lucide-react";
-import {cn} from "@/lib/utils";
-import {ButtonProps, buttonVariants} from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ButtonProps, buttonVariants } from "@/components/ui/button";
 
 // Pagination Components
-const Pagination = ({className, ...props}: React.ComponentProps<"nav">) => (
+const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
     aria-label="pagination"
@@ -67,7 +64,7 @@ Pagination.displayName = "Pagination";
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
   React.ComponentProps<"ul">
->(({className, ...props}, ref) => (
+>(({ className, ...props }, ref) => (
   <ul
     ref={ref}
     className={cn("flex flex-row items-center gap-1", className)}
@@ -79,7 +76,7 @@ PaginationContent.displayName = "PaginationContent";
 const PaginationItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
->(({className, ...props}, ref) => (
+>(({ className, ...props }, ref) => (
   <li ref={ref} className={cn("", className)} {...props} />
 ));
 PaginationItem.displayName = "PaginationItem";
@@ -117,7 +114,8 @@ const PaginationPrevious = ({
     aria-label="Go to previous page"
     size="default"
     className={cn("gap-1 pl-2.5", className)}
-    {...props}>
+    {...props}
+  >
     <ChevronLeft className="h-4 w-4" />
     <span>Previous</span>
   </PaginationLink>
@@ -132,7 +130,8 @@ const PaginationNext = ({
     aria-label="Go to next page"
     size="default"
     className={cn("gap-1 pr-2.5", className)}
-    {...props}>
+    {...props}
+  >
     <span>Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
@@ -146,7 +145,8 @@ const PaginationEllipsis = ({
   <span
     aria-hidden
     className={cn("flex h-9 w-9 items-center justify-center", className)}
-    {...props}>
+    {...props}
+  >
     <MoreHorizontal className="h-4 w-4" />
     <span className="sr-only">More pages</span>
   </span>
@@ -154,127 +154,142 @@ const PaginationEllipsis = ({
 PaginationEllipsis.displayName = "PaginationEllipsis";
 
 export function TeacherTutoringBooking() {
-  const [isAvailabilityDialogOpen, setIsAvailabilityDialogOpen] =
-    useState(false);
-  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const { data: session, status } = useSession();
+  const [isAvailabilityDialogOpen, setIsAvailabilityDialogOpen] = useState(false);
   const [isEditSessionDialogOpen, setIsEditSessionDialogOpen] = useState(false);
-  const [isDeleteSessionDialogOpen, setIsDeleteSessionDialogOpen] =
-    useState(false);
+  const [isDeleteSessionDialogOpen, setIsDeleteSessionDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
-
-  // Pagination state for each tab
+  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
+  const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
+  const [upcomingTotalPages, setUpcomingTotalPages] = useState(1);
+  const [pastTotalPages, setPastTotalPages] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    availableDays: "",
+    timeSlots: "",
+    subject: "",
+    sessionType: "",
+    rate: "",
+    notes: "",
+  });
   const itemsPerPage = 3;
 
-  const [upcomingSessions, setUpcomingSessions] = useState([
-    {
-      id: 1,
-      student: "John Adebayo",
-      subject: "Mathematics",
-      date: "2024-01-20",
-      time: "2:00 PM - 3:00 PM",
-      type: "One-on-One",
-      status: "Confirmed",
-      meetingLink: "https://meet.techxagon.com/session-123",
-      cost: "₦8,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Focus on calculus and derivatives",
-      duration: 60,
-      reminderSent: true,
-    },
-    {
-      id: 2,
-      student: "Mary Adebayo",
-      subject: "English Literature",
-      date: "2024-01-22",
-      time: "4:00 PM - 5:00 PM",
-      type: "Group Session",
-      status: "Confirmed",
-      meetingLink: "https://meet.techxagon.com/session-124",
-      cost: "₦5,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Shakespeare analysis and essay writing",
-      duration: 60,
-      reminderSent: true,
-    },
-    {
-      id: 3,
-      student: "John Adebayo",
-      subject: "Physics",
-      date: "2024-01-25",
-      time: "3:00 PM - 4:00 PM",
-      type: "One-on-One",
-      status: "Pending",
-      meetingLink: null,
-      cost: "₦8,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Mechanics and motion problems",
-      duration: 60,
-      reminderSent: false,
-    },
-  ]);
+  // Fetch sessions from API
+  const fetchSessions = async (
+    tab: string,
+    page: number,
+    setData: (data: any[]) => void,
+    setTotalPages: (pages: number) => void
+  ) => {
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      console.log(
+        "[TeacherTutoringBooking] Session not authenticated, status:",
+        status,
+        "sessionToken:",
+        session?.user?.sessionToken
+      );
+      setError("Not authenticated");
+      return;
+    }
 
-  const [pastSessions, setPastSessions] = useState([
-    {
-      id: 4,
-      student: "John Adebayo",
-      subject: "Mathematics",
-      date: "2024-01-15",
-      time: "2:00 PM - 3:00 PM",
-      type: "One-on-One",
-      status: "Completed",
-      rating: 5,
-      feedback:
-        "Excellent session! John showed great improvement in understanding calculus concepts.",
-      cost: "₦8,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      hasRecording: true,
-      recordingUrl: "https://recordings.techxagon.com/session-4",
-      materials: ["Calculus_Notes.pdf", "Practice_Problems.pdf"],
-      duration: 60,
-      actualDuration: 58,
-    },
-    {
-      id: 5,
-      student: "Mary Adebayo",
-      subject: "English Literature",
-      date: "2024-01-12",
-      time: "4:00 PM - 5:00 PM",
-      type: "Group Session",
-      status: "Completed",
-      rating: 4,
-      feedback:
-        "Good session on poetry analysis. Mary participated well in discussions.",
-      cost: "₦5,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      hasRecording: true,
-      recordingUrl: "https://recordings.techxagon.com/session-5",
-      materials: ["Poetry_Analysis_Guide.pdf"],
-      duration: 60,
-      actualDuration: 62,
-    },
-  ]);
+    try {
+      console.log(
+        `[TeacherTutoringBooking] Fetching from /api/teacher/tutoring-bookings/get?tab=${tab}&page=${page}&limit=${itemsPerPage} with token:`,
+        session.user.sessionToken
+      );
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/get?tab=${tab}&page=${page}&limit=${itemsPerPage}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        }
+      );
+
+      console.log("[TeacherTutoringBooking] Fetch response status:", response.status);
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] Raw response:", text);
+
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[TeacherTutoringBooking] Response is not JSON, content-type:", contentType);
+        throw new Error(`Backend returned non-JSON response (status: ${response.status})`);
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] Fetch failed with status:", response.status, "data:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          setData([]);
+          return;
+        }
+        throw new Error(data.error || `Failed to fetch sessions (status: ${response.status})`);
+      }
+
+      console.log("[TeacherTutoringBooking] Fetch response data:", data);
+
+      // Map API data to frontend format
+      const mappedData = data.results.map((item: any) => ({
+        id: item.id,
+        student: item.student_name,
+        subject: item.course_name,
+        date: new Date(item.created_at).toISOString().split("T")[0],
+        time: item.duration_hours
+          ? `${new Date(item.created_at).toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            })} - ${new Date(
+              new Date(item.created_at).getTime() + item.duration_hours * 60 * 60 * 1000
+            ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+          : "N/A",
+        type: item.private_tutoring ? "One-on-One" : "Group Session",
+        status: item.status.charAt(0).toUpperCase() + item.status.slice(1),
+        meetingLink: null,
+        cost: `₦${parseFloat(item.price).toFixed(2)}`,
+        studentAvatar: "/placeholder.svg?height=40&width=40",
+        notes: item.notes || "",
+        duration: item.duration_hours * 60,
+        reminderSent: false,
+        rating: item.rating || 0,
+        feedback: item.feedback || "",
+        actualDuration: item.duration_hours * 60,
+        materials: [],
+      }));
+
+      setData(mappedData);
+      setTotalPages(data.pages || 1);
+      setError(null);
+    } catch (err: any) {
+      console.error(`[TeacherTutoringBooking] Error fetching sessions for tab=${tab}:`, err);
+      setError(err.message || "Failed to load sessions");
+      setData([]);
+    }
+  };
+
+  useEffect(() => {
+    if (status === "loading") return;
+    fetchSessions("upcoming", upcomingPage, setUpcomingSessions, setUpcomingTotalPages);
+    fetchSessions("past", pastPage, setPastSessions, setPastTotalPages);
+  }, [upcomingPage, pastPage, status, session]);
 
   // Pagination helpers
   const paginate = (items: any[], page: number, itemsPerPage: number) => {
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return items.slice(startIndex, endIndex);
+    return items; // API handles pagination
   };
-  const totalPages = (items: any[], itemsPerPage: number) =>
-    Math.ceil(items.length / itemsPerPage);
 
-  // Paginated data
-  const paginatedUpcoming = paginate(
-    upcomingSessions,
-    upcomingPage,
-    itemsPerPage
-  );
-  const paginatedPast = paginate(pastSessions, pastPage, itemsPerPage);
+  const totalPages = (tab: string) => {
+    return tab === "upcoming" ? upcomingTotalPages : pastTotalPages;
+  };
 
-  // Pagination navigation handlers
   const handlePageChange = (
     setPage: React.Dispatch<React.SetStateAction<number>>,
     total: number,
@@ -319,12 +334,10 @@ export function TeacherTutoringBooking() {
   };
 
   const renderStars = (rating: number) => {
-    return Array.from({length: 5}, (_, i) => (
+    return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-3 w-3 ${
-          i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-        }`}
+        className={`h-3 w-3 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
       />
     ));
   };
@@ -339,42 +352,214 @@ export function TeacherTutoringBooking() {
     setIsDeleteSessionDialogOpen(true);
   };
 
-  const handleSaveSession = () => {
-    // In a real app, this would make an API call to update the session
-    if (selectedSession) {
-      if (activeTab === "upcoming") {
-        setUpcomingSessions((prev) =>
-          prev.map((s) => (s.id === selectedSession.id ? selectedSession : s))
-        );
-      } else {
-        setPastSessions((prev) =>
-          prev.map((s) => (s.id === selectedSession.id ? selectedSession : s))
-        );
-      }
+  const handleSaveSession = async () => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
     }
-    setIsEditSessionDialogOpen(false);
-    setSelectedSession(null);
+    if (!selectedSession) return;
+
+    try {
+      const response = await fetch(`/api/teacher/tutoring-bookings/patch?tab=upcoming`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+        body: JSON.stringify({
+          id: selectedSession.id,
+          status: selectedSession.status.toLowerCase(),
+        }),
+      });
+
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] PATCH response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[TeacherTutoringBooking] PATCH response is not JSON, content-type:", contentType);
+        throw new Error(`Backend returned non-JSON response (status: ${response.status})`);
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] PATCH failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(data.error || "Failed to update session");
+      }
+
+      setUpcomingPage(1);
+      setIsEditSessionDialogOpen(false);
+      setSelectedSession(null);
+      setError(null);
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error updating session:", err);
+      setError(err.message || "Failed to update session");
+    }
   };
 
-  const handleConfirmDelete = () => {
-    // In a real app, this would make an API call to delete the session
-    if (selectedSession) {
-      if (activeTab === "upcoming") {
-        setUpcomingSessions((prev) =>
-          prev.filter((s) => s.id !== selectedSession.id)
-        );
-      } else {
-        setPastSessions((prev) =>
-          prev.filter((s) => s.id !== selectedSession.id)
-        );
-      }
+  const handleConfirmDelete = async () => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
     }
-    setIsDeleteSessionDialogOpen(false);
-    setSelectedSession(null);
+    if (!selectedSession) return;
+
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/delete?tab=${activeTab}&id=${selectedSession.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        }
+      );
+
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] DELETE response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[TeacherTutoringBooking] DELETE response is not JSON, content-type:", contentType);
+        throw new Error(`Backend returned non-JSON response (status: ${response.status})`);
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] DELETE failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(data.error || "Failed to delete session");
+      }
+
+      if (activeTab === "upcoming") {
+        setUpcomingPage(1);
+      } else {
+        setPastPage(1);
+      }
+      setIsDeleteSessionDialogOpen(false);
+      setSelectedSession(null);
+      setError(null);
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error deleting session:", err);
+      setError(err.message || "Failed to delete session");
+    }
   };
+
+  const handleSaveAvailability = async () => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
+    }
+
+    try {
+      const dayMap: { [key: string]: string[] } = {
+        "mon-fri": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        "mon-sat": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+        "tue-sat": ["tuesday", "wednesday", "thursday", "friday", "saturday"],
+      };
+      const availableDays = dayMap[formData.availableDays] || [];
+
+      const subjectToCourseId: { [key: string]: number } = {
+        Mathematics: 67,
+        Physics: 68,
+        "English Literature": 69,
+        Chemistry: 70,
+      };
+
+      const rate = parseFloat(formData.rate) || 1500.0;
+
+      const response = await fetch(`/api/teacher/tutoring-bookings/post`, {
+        method: "POST",
+        headers: {
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+        body: JSON.stringify({
+          course: subjectToCourseId[formData.subject] || 67,
+          rate_per_hour: rate.toFixed(2),
+          tutoring_duration_days: 24,
+          notes: formData.notes.slice(0, 225),
+          available_days: availableDays.map((day) => ({ day })),
+        }),
+      });
+
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] POST response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[TeacherTutoringBooking] POST response is not JSON, content-type:", contentType);
+        throw new Error(`Backend returned non-JSON response (status: ${response.status})`);
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] POST failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(data.error || "Failed to create tutoring offering");
+      }
+
+      setIsAvailabilityDialogOpen(false);
+      setError(null);
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error creating tutoring offering:", err);
+      setError(err.message || "Failed to create tutoring offering");
+    }
+  };
+
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+
+  if (error === "Not authenticated" || error === "Session expired") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              {error}
+            </CardTitle>
+            <CardDescription className="text-center">
+              Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={() => (window.location.href = "/login")}
+              className="flex items-center gap-2"
+            >
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-100 text-red-800 p-4 rounded-lg">
+          {error}
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
@@ -385,7 +570,8 @@ export function TeacherTutoringBooking() {
         <div className="flex gap-2">
           <Dialog
             open={isAvailabilityDialogOpen}
-            onOpenChange={setIsAvailabilityDialogOpen}>
+            onOpenChange={setIsAvailabilityDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                 <Plus className="h-4 w-4" />
@@ -404,79 +590,81 @@ export function TeacherTutoringBooking() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="availability-days">Available Days</Label>
-                      <Select>
+                      <Select
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, availableDays: value })
+                        }
+                      >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select days" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mon-fri">
-                            Monday - Friday
-                          </SelectItem>
-                          <SelectItem value="mon-sat">
-                            Monday - Saturday
-                          </SelectItem>
-                          <SelectItem value="tue-sat">
-                            Tuesday - Saturday
-                          </SelectItem>
+                          <SelectItem value="mon-fri">Monday - Friday</SelectItem>
+                          <SelectItem value="mon-sat">Monday - Saturday</SelectItem>
+                          <SelectItem value="tue-sat">Tuesday - Saturday</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="availability-time">
-                        Available Time Slots
-                      </Label>
-                      <Select>
+                      <Label htmlFor="availability-time">Available Time Slots</Label>
+                      <Select
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, timeSlots: value })
+                        }
+                      >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select time slots" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="2pm-6pm">
-                            2:00 PM - 6:00 PM
-                          </SelectItem>
-                          <SelectItem value="3pm-7pm">
-                            3:00 PM - 7:00 PM
-                          </SelectItem>
-                          <SelectItem value="1pm-5pm">
-                            1:00 PM - 5:00 PM
-                          </SelectItem>
+                          <SelectItem value="2pm-6pm">2:00 PM - 6:00 PM</SelectItem>
+                          <SelectItem value="3pm-7pm">3:00 PM - 7:00 PM</SelectItem>
+                          <SelectItem value="1pm-5pm">1:00 PM - 5:00 PM</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="subjects">Subjects Taught</Label>
-                    <Select>
+                    <Select
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, subject: value })
+                      }
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select subjects" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="math">Mathematics</SelectItem>
-                        <SelectItem value="physics">Physics</SelectItem>
-                        <SelectItem value="english">
-                          English Literature
-                        </SelectItem>
-                        <SelectItem value="chemistry">Chemistry</SelectItem>
+                        <SelectItem value="Mathematics">Mathematics</SelectItem>
+                        <SelectItem value="Physics">Physics</SelectItem>
+                        <SelectItem value="English Literature">English Literature</SelectItem>
+                        <SelectItem value="Chemistry">Chemistry</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="session-types">Session Types</Label>
-                    <Select>
+                    <Select
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, sessionType: value })
+                      }
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select session types" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="one-on-one">One-on-One</SelectItem>
-                        <SelectItem value="group">Group Session</SelectItem>
-                        <SelectItem value="intensive">
-                          Intensive Session
-                        </SelectItem>
+                        <SelectItem value="One-on-One">One-on-One</SelectItem>
+                        <SelectItem value="Group Session">Group Session</SelectItem>
+                        <SelectItem value="Intensive Session">Intensive Session</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="rate">Hourly Rate</Label>
-                    <Select>
+                    <Select
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, rate: value })
+                      }
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select rate" />
                       </SelectTrigger>
@@ -494,6 +682,9 @@ export function TeacherTutoringBooking() {
                       placeholder="Any specific requirements or preferences..."
                       rows={3}
                       className="w-full"
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
                     />
                   </div>
                 </div>
@@ -502,89 +693,43 @@ export function TeacherTutoringBooking() {
                 <Button
                   variant="outline"
                   onClick={() => setIsAvailabilityDialogOpen(false)}
-                  className="w-full sm:w-auto">
+                  className="w-full sm:w-auto"
+                >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => setIsAvailabilityDialogOpen(false)}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
+                  onClick={handleSaveAvailability}
+                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                >
                   Save Availability
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Dialog
-            open={isProfileDialogOpen}
-            onOpenChange={setIsProfileDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
-                <Edit className="h-4 w-4" />
-                Edit Profile
-              </Button>
-            </DialogTrigger>
+          <Dialog open={isEditSessionDialogOpen} onOpenChange={setIsEditSessionDialogOpen}>
             <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
               <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
-                <DialogTitle>Edit Profile</DialogTitle>
-                <DialogDescription>
-                  Update your professional details and teaching preferences
-                </DialogDescription>
+                <DialogTitle>Edit Session</DialogTitle>
+                <DialogDescription>Update the details of this tutoring session</DialogDescription>
               </DialogHeader>
               <div className="px-4 sm:px-6 py-4 overflow-y-auto">
                 <div className="grid gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <input
-                      id="name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      className="w-full border rounded-md p-2"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      placeholder="Describe your teaching experience and qualifications..."
-                      rows={4}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="languages">Languages</Label>
-                    <Select>
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={selectedSession?.status}
+                      onValueChange={(value) =>
+                        setSelectedSession((prev: any) => ({ ...prev, status: value }))
+                      }
+                    >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select languages" />
+                        <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="english">English</SelectItem>
-                        <SelectItem value="yoruba">Yoruba</SelectItem>
-                        <SelectItem value="igbo">Igbo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="specialization">Specialization</Label>
-                    <input
-                      id="specialization"
-                      type="text"
-                      placeholder="e.g., Advanced Mathematics, Creative Writing"
-                      className="w-full border rounded-md p-2"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="technologies">Technologies Used</Label>
-                    <Select>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select technologies" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="whiteboard">
-                          Interactive Whiteboard
-                        </SelectItem>
-                        <SelectItem value="screensharing">
-                          Screen Sharing
-                        </SelectItem>
-                        <SelectItem value="recording">Recording</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -593,14 +738,42 @@ export function TeacherTutoringBooking() {
               <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
                 <Button
                   variant="outline"
-                  onClick={() => setIsProfileDialogOpen(false)}
-                  className="w-full sm:w-auto">
+                  onClick={() => setIsEditSessionDialogOpen(false)}
+                  className="w-full sm:w-auto"
+                >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => setIsProfileDialogOpen(false)}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
-                  Save Profile
+                  onClick={handleSaveSession}
+                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                >
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isDeleteSessionDialogOpen} onOpenChange={setIsDeleteSessionDialogOpen}>
+            <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
+              <DialogHeader>
+                <DialogTitle>Delete Session</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this session? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteSessionDialogOpen(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmDelete}
+                  className="w-full sm:w-auto h-10 bg-red-600 text-white hover:bg-red-700"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Session
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -608,276 +781,43 @@ export function TeacherTutoringBooking() {
         </div>
       </div>
 
-      {/* Edit Session Dialog */}
-      <Dialog
-        open={isEditSessionDialogOpen}
-        onOpenChange={setIsEditSessionDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
-          <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
-            <DialogTitle>Edit Session</DialogTitle>
-            <DialogDescription>
-              Update the details of this tutoring session
-            </DialogDescription>
-          </DialogHeader>
-          <div className="px-4 sm:px-6 py-4 overflow-y-auto">
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="student">Student</Label>
-                <Select
-                  value={selectedSession?.student}
-                  onValueChange={(value) =>
-                    setSelectedSession((prev: any) => ({
-                      ...prev,
-                      student: value,
-                    }))
-                  }>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="John Adebayo">John Adebayo</SelectItem>
-                    <SelectItem value="Mary Adebayo">Mary Adebayo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Select
-                  value={selectedSession?.subject}
-                  onValueChange={(value) =>
-                    setSelectedSession((prev: any) => ({
-                      ...prev,
-                      subject: value,
-                    }))
-                  }>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Mathematics">Mathematics</SelectItem>
-                    <SelectItem value="Physics">Physics</SelectItem>
-                    <SelectItem value="English Literature">
-                      English Literature
-                    </SelectItem>
-                    <SelectItem value="Chemistry">Chemistry</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="session-date">Date</Label>
-                  <Select
-                    value={selectedSession?.date}
-                    onValueChange={(value) =>
-                      setSelectedSession((prev: any) => ({
-                        ...prev,
-                        date: value,
-                      }))
-                    }>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select date" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2024-01-20">
-                        January 20, 2024
-                      </SelectItem>
-                      <SelectItem value="2024-01-22">
-                        January 22, 2024
-                      </SelectItem>
-                      <SelectItem value="2024-01-25">
-                        January 25, 2024
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="session-time">Time</Label>
-                  <Select
-                    value={selectedSession?.time}
-                    onValueChange={(value) =>
-                      setSelectedSession((prev: any) => ({
-                        ...prev,
-                        time: value,
-                      }))
-                    }>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2:00 PM - 3:00 PM">
-                        2:00 PM - 3:00 PM
-                      </SelectItem>
-                      <SelectItem value="3:00 PM - 4:00 PM">
-                        3:00 PM - 4:00 PM
-                      </SelectItem>
-                      <SelectItem value="4:00 PM - 5:00 PM">
-                        4:00 PM - 5:00 PM
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="session-type">Session Type</Label>
-                <Select
-                  value={selectedSession?.type}
-                  onValueChange={(value) =>
-                    setSelectedSession((prev: any) => ({...prev, type: value}))
-                  }>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select session type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="One-on-One">One-on-One</SelectItem>
-                    <SelectItem value="Group Session">Group Session</SelectItem>
-                    <SelectItem value="Intensive Session">
-                      Intensive Session
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cost">Cost</Label>
-                <input
-                  id="cost"
-                  type="text"
-                  value={selectedSession?.cost || ""}
-                  onChange={(e) =>
-                    setSelectedSession((prev: any) => ({
-                      ...prev,
-                      cost: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter cost (e.g., ₦8,000)"
-                  className="w-full border rounded-md p-2"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={selectedSession?.notes || ""}
-                  onChange={(e) =>
-                    setSelectedSession((prev: any) => ({
-                      ...prev,
-                      notes: e.target.value,
-                    }))
-                  }
-                  placeholder="Session notes and objectives..."
-                  rows={3}
-                  className="w-full"
-                />
-              </div>
-              {activeTab === "past" && (
-                <div className="space-y-2">
-                  <Label htmlFor="feedback">Feedback</Label>
-                  <Textarea
-                    id="feedback"
-                    value={selectedSession?.feedback || ""}
-                    onChange={(e) =>
-                      setSelectedSession((prev: any) => ({
-                        ...prev,
-                        feedback: e.target.value,
-                      }))
-                    }
-                    placeholder="Session feedback..."
-                    rows={3}
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditSessionDialogOpen(false)}
-              className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveSession}
-              className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Session Dialog */}
-      <Dialog
-        open={isDeleteSessionDialogOpen}
-        onOpenChange={setIsDeleteSessionDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Delete Session</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this session? This action cannot
-              be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteSessionDialogOpen(false)}
-              className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmDelete}
-              className="w-full sm:w-auto h-10 bg-red-600 text-white hover:bg-red-700">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Session
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-4 xs:space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 xs:space-y-6">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="upcoming">
+            value="upcoming"
+          >
             Upcoming Sessions
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="past">
+            value="past"
+          >
             Past Sessions
           </TabsTrigger>
         </TabsList>
 
-        {/* UPCOMING */}
         <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
                 Upcoming Sessions ({upcomingSessions.length})
               </CardTitle>
-              <CardDescription className="text-sm">
-                Your scheduled tutoring sessions
-              </CardDescription>
+              <CardDescription className="text-sm">Your scheduled tutoring sessions</CardDescription>
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {paginatedUpcoming.map((session) => (
+                {upcomingSessions.map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                       <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
                         <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                          <AvatarImage
-                            src={session.studentAvatar || "/placeholder.svg"}
-                          />
+                          <AvatarImage src={session.studentAvatar || "/placeholder.svg"} />
                           <AvatarFallback>
-                            {session.student
-                              .split(" ")
-                              .map((n: any) => n[0])
-                              .join("")}
+                            {session.student.split(" ").map((n: string) => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="space-y-2 flex-1 min-w-0">
@@ -923,14 +863,16 @@ export function TeacherTutoringBooking() {
                           <Button
                             size="sm"
                             className="h-8"
-                            onClick={() => handleEditSession(session)}>
+                            onClick={() => handleEditSession(session)}
+                          >
                             <Edit className="h-3 w-3 mr-1" />
                             Edit
                           </Button>
                           <Button
                             size="sm"
                             className="h-8 bg-red-600 hover:bg-red-700"
-                            onClick={() => handleDeleteSession(session)}>
+                            onClick={() => handleDeleteSession(session)}
+                          >
                             <Trash2 className="h-3 w-3 mr-1" />
                             Delete
                           </Button>
@@ -940,43 +882,36 @@ export function TeacherTutoringBooking() {
                   </div>
                 ))}
               </div>
-              {upcomingSessions.length > itemsPerPage && (
+              {upcomingTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() =>
-                          handlePageChange(
-                            setUpcomingPage,
-                            totalPages(upcomingSessions, itemsPerPage),
-                            upcomingPage - 1
-                          )
+                          handlePageChange(setUpcomingPage, upcomingTotalPages, upcomingPage - 1)
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(upcomingSessions, itemsPerPage),
-                    }).map((_, index) => {
+                    {Array.from({ length: upcomingTotalPages }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === totalPages(upcomingSessions, itemsPerPage) ||
+                        page === upcomingTotalPages ||
                         (page >= upcomingPage - 1 && page <= upcomingPage + 1)
                       ) {
                         return (
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={upcomingPage === page}
-                              onClick={() => setUpcomingPage(page)}>
+                              onClick={() => setUpcomingPage(page)}
+                            >
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         );
                       } else if (
                         (page === upcomingPage - 2 && upcomingPage > 3) ||
-                        (page === upcomingPage + 2 &&
-                          upcomingPage <
-                            totalPages(upcomingSessions, itemsPerPage) - 2)
+                        (page === upcomingPage + 2 && upcomingPage < upcomingTotalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -989,11 +924,7 @@ export function TeacherTutoringBooking() {
                     <PaginationItem>
                       <PaginationNext
                         onClick={() =>
-                          handlePageChange(
-                            setUpcomingPage,
-                            totalPages(upcomingSessions, itemsPerPage),
-                            upcomingPage + 1
-                          )
+                          handlePageChange(setUpcomingPage, upcomingTotalPages, upcomingPage + 1)
                         }
                       />
                     </PaginationItem>
@@ -1004,34 +935,27 @@ export function TeacherTutoringBooking() {
           </Card>
         </TabsContent>
 
-        {/* PAST */}
         <TabsContent value="past" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
                 Past Sessions ({pastSessions.length})
               </CardTitle>
-              <CardDescription className="text-sm">
-                History of completed tutoring sessions
-              </CardDescription>
+              <CardDescription className="text-sm">History of completed tutoring sessions</CardDescription>
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {paginatedPast.map((session) => (
+                {pastSessions.map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                       <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                         <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
-                          <AvatarImage
-                            src={session.studentAvatar || "/placeholder.svg"}
-                          />
+                          <AvatarImage src={session.studentAvatar || "/placeholder.svg"} />
                           <AvatarFallback>
-                            {session.student
-                              .split(" ")
-                              .map((n: any) => n[0])
-                              .join("")}
+                            {session.student.split(" ").map((n: string) => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="space-y-2 flex-1 min-w-0">
@@ -1064,17 +988,16 @@ export function TeacherTutoringBooking() {
                           </div>
                           {session.materials && (
                             <div className="flex flex-wrap gap-2">
-                              {session.materials.map(
-                                (material: string, index: number) => (
-                                  <Button
-                                    key={index}
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs h-7">
-                                    {material}
-                                  </Button>
-                                )
-                              )}
+                              {session.materials.map((material: string, index: number) => (
+                                <Button
+                                  key={index}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-7"
+                                >
+                                  {material}
+                                </Button>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -1087,7 +1010,8 @@ export function TeacherTutoringBooking() {
                           <Button
                             size="sm"
                             className="h-8 bg-red-600 hover:bg-red-700"
-                            onClick={() => handleDeleteSession(session)}>
+                            onClick={() => handleDeleteSession(session)}
+                          >
                             <Trash2 className="h-3 w-3 mr-1" />
                             Delete
                           </Button>
@@ -1097,42 +1021,36 @@ export function TeacherTutoringBooking() {
                   </div>
                 ))}
               </div>
-              {pastSessions.length > itemsPerPage && (
+              {pastTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() =>
-                          handlePageChange(
-                            setPastPage,
-                            totalPages(pastSessions, itemsPerPage),
-                            pastPage - 1
-                          )
+                          handlePageChange(setPastPage, pastTotalPages, pastPage - 1)
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(pastSessions, itemsPerPage),
-                    }).map((_, index) => {
+                    {Array.from({ length: pastTotalPages }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === totalPages(pastSessions, itemsPerPage) ||
+                        page === pastTotalPages ||
                         (page >= pastPage - 1 && page <= pastPage + 1)
                       ) {
                         return (
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={pastPage === page}
-                              onClick={() => setPastPage(page)}>
+                              onClick={() => setPastPage(page)}
+                            >
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         );
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
-                        (page === pastPage + 2 &&
-                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
+                        (page === pastPage + 2 && pastPage < pastTotalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -1145,11 +1063,7 @@ export function TeacherTutoringBooking() {
                     <PaginationItem>
                       <PaginationNext
                         onClick={() =>
-                          handlePageChange(
-                            setPastPage,
-                            totalPages(pastSessions, itemsPerPage),
-                            pastPage + 1
-                          )
+                          handlePageChange(setPastPage, pastTotalPages, pastPage + 1)
                         }
                       />
                     </PaginationItem>
@@ -1164,18 +1078,12 @@ export function TeacherTutoringBooking() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Sessions
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {upcomingSessions.length + pastSessions.length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {upcomingSessions.length} upcoming
-            </p>
+            <div className="text-2xl font-bold">{upcomingSessions.length + pastSessions.length}</div>
+            <p className="text-xs text-muted-foreground">{upcomingSessions.length} upcoming</p>
           </CardContent>
         </Card>
         <Card>
@@ -1185,32 +1093,21 @@ export function TeacherTutoringBooking() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {pastSessions.reduce(
-                (sum, session) => sum + (session.actualDuration || 60),
-                0
-              ) / 60}
-              h
+              {pastSessions.reduce((sum, session) => sum + (session.actualDuration || 60), 0) / 60}h
             </div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Average Rating
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(
-                pastSessions.reduce((sum, session) => sum + session.rating, 0) /
-                pastSessions.length
-              ).toFixed(1)}
+              {(pastSessions.reduce((sum, session) => sum + session.rating, 0) / pastSessions.length || 0).toFixed(1)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              From {pastSessions.length} sessions
-            </p>
+            <p className="text-xs text-muted-foreground">From {pastSessions.length} sessions</p>
           </CardContent>
         </Card>
       </div>

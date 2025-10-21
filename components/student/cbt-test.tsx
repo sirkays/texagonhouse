@@ -1,4 +1,4 @@
-/* cbt-test.tsx — fully patched version with robust sync handling */
+/* cbt-test.tsx — fully patched version with robust sync handling and improved past tests tab */
 import { useState, useEffect, useMemo, useRef } from "react";
 import localforage from "localforage";
 import {
@@ -47,6 +47,7 @@ import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from "uuid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Workbox } from "workbox-window";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const MAX_RETRY_ATTEMPTS = 5; // 🔧 Max retry limit
 
@@ -98,89 +99,112 @@ type PendingEntry = {
 /* --- cache / answers / queue helpers using localforage --- */
 
 async function getTestsFromCache() {
-  const t = (await localforage.getItem(TESTS_KEY)) || [];
-  return Array.isArray(t) ? t : [];
+  try {
+    const t = (await localforage.getItem(TESTS_KEY)) || [];
+    return Array.isArray(t) ? t : [];
+  } catch (err) {
+    console.error("[Storage Error] getTestsFromCache:", err);
+    return [];
+  }
 }
 
 async function saveTestsToCache(tests: any[]) {
-  if (!Array.isArray(tests)) return;
-  await localforage.setItem(TESTS_KEY, tests);
+  try {
+    if (!Array.isArray(tests)) return;
+    await localforage.setItem(TESTS_KEY, tests);
+  } catch (err) {
+    console.error("[Storage Error] saveTestsToCache:", err);
+  }
 }
 
 async function saveAnswersLocally(testPk: string | number, payload: any) {
-  const all = (await localforage.getItem(ANSWERS_KEY)) || {};
-  const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
-  obj[testPk] = payload;
-  await localforage.setItem(ANSWERS_KEY, obj);
+  try {
+    const all = (await localforage.getItem(ANSWERS_KEY)) || {};
+    const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
+    obj[testPk] = payload;
+    await localforage.setItem(ANSWERS_KEY, obj);
+  } catch (err) {
+    console.error("[Storage Error] saveAnswersLocally:", err);
+  }
 }
 
 async function getSavedAnswers(testPk: string | number) {
-  const all = (await localforage.getItem(ANSWERS_KEY)) || {};
-  return (all && all[testPk]) || null;
+  try {
+    const all = (await localforage.getItem(ANSWERS_KEY)) || {};
+    return (all && all[testPk]) || null;
+  } catch (err) {
+    console.error("[Storage Error] getSavedAnswers:", err);
+    return null;
+  }
 }
 
 async function deleteSavedAnswers(testPk: string | number) {
-  const all = (await localforage.getItem(ANSWERS_KEY)) || {};
-  if (all && all[testPk]) {
-    delete all[testPk];
-    await localforage.setItem(ANSWERS_KEY, all);
+  try {
+    const all = (await localforage.getItem(ANSWERS_KEY)) || {};
+    if (all && all[testPk]) {
+      delete all[testPk];
+      await localforage.setItem(ANSWERS_KEY, all);
+    }
+  } catch (err) {
+    console.error("[Storage Error] deleteSavedAnswers:", err);
   }
 }
 
 async function saveResultLocally(testPk: string | number, data: any) {
-  const all = (await localforage.getItem(RESULTS_KEY)) || {};
-  const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
-  obj[testPk] = data;
-  await localforage.setItem(RESULTS_KEY, obj);
+  try {
+    const all = (await localforage.getItem(RESULTS_KEY)) || {};
+    const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
+    obj[testPk] = data;
+    await localforage.setItem(RESULTS_KEY, obj);
+  } catch (err) {
+    console.error("[Storage Error] saveResultLocally:", err);
+  }
 }
 
 // 🔧 Enhanced enqueue with validation and deduplication
 async function enqueueSubmission(body: any) {
-  // Validate body structure
-  if (!body.currentTest || !body.answers) {
-    console.error("[CBTTest] Invalid submission body:", body);
+  try {
+    // Validate body structure
+    if (!body.currentTest || !body.answers) {
+      console.error("[CBTTest] Invalid submission body:", body);
+      return null;
+    }
+
+    const pending = (await localforage.getItem(PENDING_KEY)) || [];
+    const arr = Array.isArray(pending) ? pending : [];
+
+    // Remove all entries for this testPk
+    const cleanArr = arr.filter(
+      (p) => p.testPk?.toString() !== body.currentTest?.toString()
+    );
+
+    const entry: PendingEntry = {
+      id: uuidv4(),
+      testPk: body.currentTest,
+      body: structuredClone(body), // Deep copy
+      queuedAt: Date.now(),
+      attempts: 0,
+      lastAttemptAt: 0,
+      maxAttemptsReached: false,
+    };
+
+    cleanArr.push(entry);
+    await localforage.setItem(PENDING_KEY, cleanArr);
+    return entry;
+  } catch (err) {
+    console.error("[Storage Error] enqueueSubmission:", err);
     return null;
   }
-
-  const pending = (await localforage.getItem(PENDING_KEY)) || [];
-  const arr = Array.isArray(pending) ? pending : [];
-
-  // Check if already pending for same test
-  const existing = arr.find(
-    (p) => p.testPk?.toString() === body.currentTest?.toString()
-  );
-  if (existing && !existing.maxAttemptsReached) {
-    console.warn(
-      "[CBTTest] Submission already queued for test:",
-      body.currentTest
-    );
-    return existing;
-  }
-
-  const entry: PendingEntry = {
-    id: uuidv4(),
-    testPk: body.currentTest,
-    body: { ...body }, // deep copy
-    queuedAt: Date.now(),
-    attempts: 0,
-    lastAttemptAt: 0,
-    maxAttemptsReached: false,
-  };
-
-  // Remove existing failed entry for this test
-  const cleanArr = arr.filter(
-    (p) =>
-      p.testPk?.toString() !== body.currentTest?.toString() ||
-      p.maxAttemptsReached
-  );
-  cleanArr.push(entry);
-  await localforage.setItem(PENDING_KEY, cleanArr);
-  return entry;
 }
 
 async function getPendingSubmissions(): Promise<PendingEntry[]> {
-  const pending = (await localforage.getItem(PENDING_KEY)) || [];
-  return Array.isArray(pending) ? pending : [];
+  try {
+    const pending = (await localforage.getItem(PENDING_KEY)) || [];
+    return Array.isArray(pending) ? pending : [];
+  } catch (err) {
+    console.error("[Storage Error] getPendingSubmissions:", err);
+    return [];
+  }
 }
 
 // 🔧 Enhanced delete with comprehensive cleanup
@@ -188,31 +212,32 @@ async function deletePendingSubmissionById(
   id: string,
   testPk?: string | number
 ) {
-  let pending = await getPendingSubmissions();
-  let changed = false;
+  try {
+    let pending = await getPendingSubmissions();
+    let changed = false;
 
-  // Remove by ID
-  const newPending = pending.filter((p) => p.id !== id);
-  changed = newPending.length !== pending.length;
+    // Remove by ID
+    const newPending = pending.filter((p) => p.id !== id);
+    changed = newPending.length !== pending.length;
 
-  // Clean related data if testPk provided
-  if (testPk && newPending.length !== pending.length) {
-    await deleteSavedAnswers(testPk);
-    // Remove any other corrupted entries for this test
-    const furtherClean = newPending.filter(
-      (p) => p.testPk?.toString() !== testPk.toString()
-    );
-    if (furtherClean.length !== newPending.length) {
+    // Clean related data if testPk provided
+    if (testPk && changed) {
+      await deleteSavedAnswers(testPk);
+      pending = newPending.filter(
+        (p) => p.testPk?.toString() !== testPk.toString()
+      );
       changed = true;
-      pending = furtherClean;
     }
-  }
 
-  if (changed) {
-    await localforage.setItem(PENDING_KEY, pending);
-  }
+    if (changed) {
+      await localforage.setItem(PENDING_KEY, pending);
+    }
 
-  return pending;
+    return pending;
+  } catch (err) {
+    console.error("[Storage Error] deletePendingSubmissionById:", err);
+    return [];
+  }
 }
 
 /* ---------- CBTTest component ---------- */
@@ -256,7 +281,7 @@ export function CBTTest() {
     total: number;
   } | null>(null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [view, setView] = useState<"available" | "past">("available");
+  const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">("date");
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -266,54 +291,59 @@ export function CBTTest() {
   const syncIntervalRef = useRef<number | null>(null);
   const wbRef = useRef<Workbox | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const queueLock = useRef<Promise<void> | null>(null);
 
   // 🔧 Enhanced startup migration and cleanup
   useEffect(() => {
     (async () => {
-      let pending = (await localforage.getItem(PENDING_KEY)) || [];
-      let changed = false;
+      try {
+        let pending = (await localforage.getItem(PENDING_KEY)) || [];
+        let changed = false;
 
-      if (Array.isArray(pending)) {
-        // Migrate old format and clean dead entries
-        pending = pending.map((p: any) => {
-          if (p.body?.test && !p.body.currentTest) {
-            p.body.currentTest = p.body.test;
-            delete p.body.test;
-            changed = true;
-          }
-          if (!p.testPk && p.body?.currentTest) {
-            p.testPk = p.body.currentTest;
-            changed = true;
-          }
-          // Mark old entries with high attempts as dead
-          if ((p.attempts || 0) >= MAX_RETRY_ATTEMPTS) {
-            p.maxAttemptsReached = true;
-            changed = true;
-          }
-          // Ensure valid structure
-          if (!p.body?.answers || !p.body.currentTest) {
-            p.maxAttemptsReached = true;
-            changed = true;
-          }
-          return p;
-        });
+        if (Array.isArray(pending)) {
+          // Migrate old format and clean dead entries
+          pending = pending.map((p: any) => {
+            if (p.body?.test && !p.body.currentTest) {
+              p.body.currentTest = p.body.test;
+              delete p.body.test;
+              changed = true;
+            }
+            if (!p.testPk && p.body?.currentTest) {
+              p.testPk = p.body.currentTest;
+              changed = true;
+            }
+            // Mark old entries with high attempts as dead
+            if ((p.attempts || 0) >= MAX_RETRY_ATTEMPTS) {
+              p.maxAttemptsReached = true;
+              changed = true;
+            }
+            // Ensure valid structure
+            if (!p.body?.answers || !p.body.currentTest) {
+              p.maxAttemptsReached = true;
+              changed = true;
+            }
+            return p;
+          });
 
-        // Clean dead and corrupted entries
-        const liveOnly = pending.filter((p: any) => !p.maxAttemptsReached);
-        if (liveOnly.length < pending.length) {
-          await localforage.setItem(PENDING_KEY, liveOnly);
-          changed = true;
-          console.log("[CBTTest] Cleaned dead/corrupted pending submissions");
+          // Clean dead and corrupted entries
+          const liveOnly = pending.filter((p: any) => !p.maxAttemptsReached);
+          if (liveOnly.length < pending.length) {
+            await localforage.setItem(PENDING_KEY, liveOnly);
+            changed = true;
+            console.log("[CBTTest] Cleaned dead/corrupted pending submissions");
+          }
+
+          if (changed) {
+            console.log("[CBTTest] Migrated and cleaned pending submissions");
+          }
+
+          // Update UI state based on live pending
+          const livePending = liveOnly.filter((p: any) => !p.maxAttemptsReached);
+          setHasPendingSubmission(livePending.length > 0);
+          setShowSyncMessage(livePending.length > 0 && navigator.onLine);
         }
-
-        if (changed) {
-          console.log("[CBTTest] Migrated and cleaned pending submissions");
-        }
-
-        // Update UI state based on live pending
-        const livePending = liveOnly.filter((p: any) => !p.maxAttemptsReached);
-        setHasPendingSubmission(livePending.length > 0);
-        setShowSyncMessage(livePending.length > 0 && navigator.onLine);
+      } catch (err) {
+        console.error("[Storage Error] Startup migration:", err);
       }
     })();
   }, []);
@@ -321,8 +351,12 @@ export function CBTTest() {
   /* ---------- Load results on mount ---------- */
   useEffect(() => {
     const loadResults = async () => {
-      const all = (await localforage.getItem(RESULTS_KEY)) || {};
-      setTestResults(typeof all === "object" ? all : {});
+      try {
+        const all = (await localforage.getItem(RESULTS_KEY)) || {};
+        setTestResults(typeof all === "object" ? all : {});
+      } catch (err) {
+        console.error("[Storage Error] loadResults:", err);
+      }
     };
     loadResults();
   }, []);
@@ -337,20 +371,20 @@ export function CBTTest() {
   }, []);
 
   /* ---------- Broadcast channel for sync updates ---------- */
-useEffect(() => {
-  const channel = new BroadcastChannel("cbt-channel");
-  channel.onmessage = async (e) => {
-    if (e.data.type === "SYNC_SUCCESS") {
-      setShowSyncSuccess(true);
-      setTimeout(() => setShowSyncSuccess(false), 5000);
-      if (!isProcessingRef.current) {
-        await processQueue();
+  useEffect(() => {
+    const channel = new BroadcastChannel("cbt-channel");
+    channel.onmessage = async (e) => {
+      if (e.data.type === "SYNC_SUCCESS") {
+        setShowSyncSuccess(true);
+        setTimeout(() => setShowSyncSuccess(false), 5000);
+        if (!isProcessingRef.current) {
+          await processQueue();
+        }
       }
-    }
-  };
-  channelRef.current = channel;
-  return () => channel.close();
-}, []);
+    };
+    channelRef.current = channel;
+    return () => channel.close();
+  }, []);
 
   /* ---------- 🔧 Enhanced Sync queue processing ---------- */
   async function processQueue({
@@ -360,118 +394,127 @@ useEffect(() => {
       return false;
     }
 
-    const pending = await getPendingSubmissions();
-    const livePending = pending.filter((p) => !p.maxAttemptsReached);
-
-    if (livePending.length === 0) {
-      setShowSyncMessage(false);
-      setHasPendingSubmission(false);
-      await localforage.setItem(PENDING_KEY, []);
-      return true;
+    if (queueLock.current) {
+      await queueLock.current;
     }
 
-    isProcessingRef.current = true;
-    setIsSyncing(true);
-    let success = false;
+    queueLock.current = (async () => {
+      try {
+        isProcessingRef.current = true;
+        setIsSyncing(true);
+        let success = false;
 
-    try {
-      const total = livePending.length;
-      let processed = 0;
-      setSyncProgress({ processed, total });
+        const pending = await getPendingSubmissions();
+        const livePending = pending.filter((p) => !p.maxAttemptsReached);
 
-      for (let entry of livePending) {
-        if (!navigator.onLine) break;
-
-        const attempts = entry.attempts || 0;
-        if (attempts >= MAX_RETRY_ATTEMPTS) {
-          entry.maxAttemptsReached = true;
-          continue;
+        if (livePending.length === 0) {
+          setShowSyncMessage(false);
+          setHasPendingSubmission(false);
+          await localforage.setItem(PENDING_KEY, []);
+          return true;
         }
 
-        const now = Date.now();
-        const delay = Math.min(1000 * Math.pow(2, attempts), 30_000);
-        if (entry.lastAttemptAt && now - entry.lastAttemptAt < delay) {
-          continue;
-        }
+        const total = livePending.length;
+        let processed = 0;
+        setSyncProgress({ processed, total });
 
-        entry.attempts = attempts + 1;
-        entry.lastAttemptAt = now;
+        for (let entry of livePending) {
+          if (!navigator.onLine) break;
 
-        // Update attempts in queue
-        let allPending = await getPendingSubmissions();
-        const idx = allPending.findIndex((p: any) => p.id === entry.id);
-        if (idx >= 0) {
-          allPending[idx] = entry;
-          await localforage.setItem(PENDING_KEY, allPending);
-        }
+          const attempts = entry.attempts || 0;
+          if (attempts >= MAX_RETRY_ATTEMPTS) {
+            entry.maxAttemptsReached = true;
+            continue;
+          }
 
-        try {
-          const res = await fetchWithTimeout(
-            "/api/student/cbt",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Session-Token": sessionToken,
-              },
-              body: JSON.stringify(entry.body),
-            },
-            15000
-          );
+          const now = Date.now();
+          const delay = Math.min(1000 * Math.pow(2, attempts), 30_000);
+          if (entry.lastAttemptAt && now - entry.lastAttemptAt < delay) {
+            continue;
+          }
 
-          if (res.ok) {
-            const data = await res.json();
-            await saveResultLocally(entry.testPk, data);
-            setTestResults((prev) => ({ ...prev, [entry.testPk]: data }));
+          entry.attempts = attempts + 1;
+          entry.lastAttemptAt = now;
 
-            // Immediately remove successful submission from queue
-            allPending = await getPendingSubmissions();
-            allPending = allPending.filter((p) => p.id !== entry.id);
+          // Update attempts in queue
+          let allPending = await getPendingSubmissions();
+          const idx = allPending.findIndex((p: any) => p.id === entry.id);
+          if (idx >= 0) {
+            allPending[idx] = entry;
             await localforage.setItem(PENDING_KEY, allPending);
+          }
 
-            processed++;
-            onProgress?.(processed, total);
-            setSyncProgress({ processed, total });
-            await new Promise((r) => setTimeout(r, 500));
-            success = true;
-          } else {
-            console.error("[CBTTest] Server rejected:", await res.text());
-            if (attempts + 1 >= MAX_RETRY_ATTEMPTS) {
-              entry.maxAttemptsReached = true;
+          try {
+            const res = await fetchWithTimeout(
+              "/api/student/cbt",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Session-Token": sessionToken,
+                },
+                body: JSON.stringify(entry.body),
+              },
+              15000
+            );
+
+            if (res.ok) {
+              const data = await res.json();
+              await saveResultLocally(entry.testPk, data);
+              setTestResults((prev) => ({ ...prev, [entry.testPk]: data }));
+
+              // Immediately remove successful submission from queue
               allPending = await getPendingSubmissions();
-              const idx = allPending.findIndex((p: any) => p.id === entry.id);
-              if (idx >= 0) {
-                allPending[idx] = entry;
-                await localforage.setItem(PENDING_KEY, allPending);
+              allPending = allPending.filter((p) => p.id !== entry.id);
+              await localforage.setItem(PENDING_KEY, allPending);
+
+              processed++;
+              onProgress?.(processed, total);
+              setSyncProgress({ processed, total });
+              await new Promise((r) => setTimeout(r, 500));
+              success = true;
+            } else {
+              console.error("[CBTTest] Server rejected:", await res.text());
+              if (entry.attempts >= MAX_RETRY_ATTEMPTS) {
+                entry.maxAttemptsReached = true;
+                allPending = await getPendingSubmissions();
+                const idx = allPending.findIndex((p: any) => p.id === entry.id);
+                if (idx >= 0) {
+                  allPending[idx] = entry;
+                  await localforage.setItem(PENDING_KEY, allPending);
+                }
               }
             }
+          } catch (err: any) {
+            console.warn("[CBTTest] Network error:", err?.message);
           }
-        } catch (err: any) {
-          console.warn("[CBTTest] Network error:", err?.message);
         }
+
+        const remainingLive = (await getPendingSubmissions()).filter(
+          (p) => !p.maxAttemptsReached
+        ).length;
+
+        if (processed > 0 && remainingLive === 0) {
+          setShowSyncMessage(false);
+          setShowSyncSuccess(true);
+          setTimeout(() => setShowSyncSuccess(false), 5000);
+          await localforage.setItem(PENDING_KEY, []);
+          setHasPendingSubmission(false);
+          success = true;
+        } else if (remainingLive > 0) {
+          setShowSyncMessage(true);
+        }
+
+        return success;
+      } finally {
+        isProcessingRef.current = false;
+        setIsSyncing(false);
+        setSyncProgress(null);
+        queueLock.current = null;
       }
+    })();
 
-      const remainingLive = (await getPendingSubmissions()).filter(
-        (p) => !p.maxAttemptsReached
-      ).length;
-
-      if (processed > 0 && remainingLive === 0) {
-        setShowSyncMessage(false);
-        setShowSyncSuccess(true);
-        setTimeout(() => setShowSyncSuccess(false), 5000);
-        await localforage.setItem(PENDING_KEY, []);
-        setHasPendingSubmission(false);
-        success = true;
-      } else if (remainingLive > 0) {
-        setShowSyncMessage(true);
-      }
-    } finally {
-      isProcessingRef.current = false;
-      setIsSyncing(false);
-      setSyncProgress(null);
-    }
-
-    return success;
+    return await queueLock.current;
   }
 
   /* ---------- 🔧 Enhanced Network listeners ---------- */
@@ -639,11 +682,10 @@ useEffect(() => {
 
     if (clear) {
       await deleteSavedAnswers(testPk);
-      // Clean any pending for this test (keep only dead ones)
+      // Clean any pending for this test
       let pending = await getPendingSubmissions();
       const cleanPending = pending.filter(
-        (p) =>
-          p.testPk?.toString() !== testPk.toString() || p.maxAttemptsReached
+        (p) => p.testPk?.toString() !== testPk.toString()
       );
       await localforage.setItem(PENDING_KEY, cleanPending);
     }
@@ -677,7 +719,7 @@ useEffect(() => {
     setAnswers(saved?.answers || {});
     const duration = parseInt(test.duration) * 60 || 1800;
     setInitialTime(duration);
-    setTimeLeft(saved?.duration || duration);
+    setTimeLeft(duration - (saved?.duration || 0));
     setStartTime(saved?.startTime || new Date().toISOString());
     setSuspiciousActivity(saved?.suspiciousActivity || 0);
     setIsSecureMode(true);
@@ -774,41 +816,40 @@ useEffect(() => {
   }, [suspiciousActivity]);
 
   /* ---------- 🔧 Enhanced submitTest ---------- */
-const submitTest = async () => {
-  if (!currentTest) return;
+  const submitTest = async () => {
+    if (!currentTest) return;
 
-  const submitAnswers: any[] = [];
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    const ans = answers[i];
+    const submitAnswers: any[] = [];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const ans = answers[i];
 
-    if (ans === undefined) continue;
+      if (ans === undefined) continue;
 
-    const entry: any = { question: q.id };
+      const entry: any = { question: q.id };
 
-    if (Array.isArray(ans)) {
-      entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
-    } else if (q.type === "essay" || q.type === "short-answer") {
-      entry.text = ans;
-    } else if (q.type === "true-false") {
-      // Map true/false to choice IDs
-      const option = q.options.find((opt: any) => opt.text.toLowerCase() === ans.toLowerCase());
-      entry.choice = option ? option.id : ans;
-    } else {
-      const numeric = Number(ans);
-      entry.choice = isNaN(numeric) ? ans : numeric;
+      if (Array.isArray(ans)) {
+        entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
+      } else if (q.type === "essay" || q.type === "short-answer") {
+        entry.text = ans;
+      } else if (q.type === "true-false") {
+        const option = q.options.find((opt: any) => opt.text.toLowerCase() === ans.toLowerCase());
+        entry.choice = option ? option.id : ans;
+      } else {
+        const numeric = Number(ans);
+        entry.choice = isNaN(numeric) ? ans : numeric;
+      }
+
+      submitAnswers.push(entry);
     }
 
-    submitAnswers.push(entry);
-  }
-
-  const cleanedBody = {
-    answers: submitAnswers,
-    started_at: startTime,
-    duration_seconds: initialTime - timeLeft,
-    suspicious_activity: suspiciousActivity || 0,
-    currentTest: currentTest,
-  };
+    const cleanedBody = {
+      answers: submitAnswers,
+      started_at: startTime,
+      duration_seconds: initialTime - timeLeft,
+      suspicious_activity: suspiciousActivity || 0,
+      currentTest: currentTest,
+    };
 
     console.log("[CBTTest] Submitting test payload:", cleanedBody);
 
@@ -881,7 +922,7 @@ const submitTest = async () => {
     setSuspiciousActivity(0);
     setIsSecureMode(false);
     setShowSyncMessage(false);
-    processQueue();
+    await processQueue();
     setIsOffline(!navigator.onLine);
   };
 
@@ -1529,9 +1570,30 @@ const submitTest = async () => {
     Math.ceil((availableTests?.length || 0) / testsPerPage)
   );
 
+  const sortPastTests = (tests: any[]) => {
+    return [...tests].sort((a, b) => {
+      const resA = testResults[a.pk.toString()];
+      const resB = testResults[b.pk.toString()];
+      if (pastSortBy === "score") {
+        return (resB.score || 0) - (resA.score || 0);
+      } else if (pastSortBy === "result") {
+        return resB.result.localeCompare(resA.result);
+      } else {
+        return (resB.submitted_at || resA.savedAt || 0) - (resA.submitted_at || resA.savedAt || 0);
+      }
+    });
+  };
+
   const pastTests = availableTests.filter(
     (test) => testResults[test.pk?.toString()]
   );
+  const sortedPastTests = sortPastTests(pastTests);
+  const pastTestsPerPage = testsPerPage;
+  const pastCurrentPage = currentPage;
+  const indexOfLastPastTest = pastCurrentPage * pastTestsPerPage;
+  const indexOfFirstPastTest = indexOfLastPastTest - pastTestsPerPage;
+  const currentPastTests = sortedPastTests.slice(indexOfFirstPastTest, indexOfLastPastTest);
+  const pastTotalPages = Math.max(1, Math.ceil((sortedPastTests.length || 0) / pastTestsPerPage));
 
   return (
     <div className="space-y-6">
@@ -1844,16 +1906,39 @@ const submitTest = async () => {
           </Pagination>
         </TabsContent>
         <TabsContent value="past" className="space-y-4">
-          {pastTests.length === 0 ? (
-            <p className="text-center text-muted-foreground">
-              No past attempts yet.
-            </p>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Past Attempts</h2>
+            <Select value={pastSortBy} onValueChange={(value) => setPastSortBy(value as "date" | "score" | "result")}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Sort by Date</SelectItem>
+                <SelectItem value="score">Sort by Score</SelectItem>
+                <SelectItem value="result">Sort by Result</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {currentPastTests.length === 0 ? (
+            <div className="text-center text-muted-foreground">
+              <p>No past attempts yet.</p>
+              <Button
+                variant="link"
+                onClick={() => document.querySelector('button[data-state="available"]')?.click()}
+              >
+                Start a test now
+              </Button>
+            </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {pastTests.map((test) => {
+              {currentPastTests.map((test) => {
                 const res = testResults[test.pk.toString()];
                 return (
-                  <Card key={test.pk} className="flex flex-col h-full">
+                  <Card
+                    key={test.pk}
+                    className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setShowAnswersModal(test.pk.toString())}
+                  >
                     <CardHeader>
                       <CardTitle className="text-lg">{test.title}</CardTitle>
                       <CardDescription>{test.description}</CardDescription>
@@ -1866,16 +1951,90 @@ const submitTest = async () => {
                       <p className="text-sm">Result: {res.result}</p>
                       <p className="text-sm">Answered: {res.answered}</p>
                       {res.pending_manual > 0 && (
-                        <p className="text-sm">
-                          {res.pending_manual} pending manual review
-                        </p>
+                        <Badge variant="outline" className="text-yellow-600 border-yellow-200">
+                          {res.pending_manual} Pending Review
+                        </Badge>
                       )}
+                      <p className="text-sm text-muted-foreground">
+                        Submitted: {new Date(res.submitted_at || res.savedAt || 0).toLocaleDateString()}
+                      </p>
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
           )}
+          {pastTests.length > pastTestsPerPage && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (pastCurrentPage > 1) setCurrentPage(pastCurrentPage - 1);
+                    }}
+                    className={
+                      pastCurrentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                </PaginationItem>
+                {[...Array(pastTotalPages)].map((_, index) => {
+                  const page = index + 1;
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        isActive={pastCurrentPage === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                {pastTotalPages > 5 && <PaginationEllipsis />}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (pastCurrentPage < pastTotalPages)
+                        setCurrentPage(pastCurrentPage + 1);
+                    }}
+                    className={
+                      pastCurrentPage === pastTotalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+          <Dialog open={!!showAnswersModal} onOpenChange={() => setShowAnswersModal(false)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Test Results</DialogTitle>
+                <DialogDescription>
+                  <pre className="mt-2 whitespace-pre-wrap text-sm">
+                    {JSON.stringify(testResults[showAnswersModal || ""], null, 2)}
+                  </pre>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                  onClick={() => setShowAnswersModal(false)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>
