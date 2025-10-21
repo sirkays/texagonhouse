@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import {
   Card,
   CardContent,
@@ -50,8 +51,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonProps, buttonVariants } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { se } from "date-fns/locale";
 
-/* ---------------- Pagination components (unchanged) ---------------- */
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
@@ -154,155 +156,366 @@ const PaginationEllipsis = ({
 );
 PaginationEllipsis.displayName = "PaginationEllipsis";
 
-/* ---------------- Component ---------------- */
+interface Course {
+  id: string;
+  name: string;
+  subject: string;
+  classroom: string;
+  description: string;
+  isActive: boolean;
+}
+
+interface PrivateSession {
+  id: string;
+  courseId: string;
+  courseName: string;
+  ratePerHour: string;
+  durationDays: number;
+  availableDays: string[];
+  notes?: string;
+  status: "Active" | "Inactive";
+  createdAt: string;
+}
+
+interface UpcomingSession {
+  id: number | string;
+  student: string;
+  subject: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+  meetingLink: string | null;
+  cost: string;
+  studentAvatar: string;
+  notes: string;
+  duration: number;
+}
+
+interface PastSession {
+  id: number | string;
+  student: string;
+  subject: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+  rating: number;
+  feedback: string;
+  cost: string;
+  studentAvatar: string;
+  hasRecording: boolean;
+  recordingUrl: string;
+  duration: number;
+  actualDuration: number;
+  dateCompleted: string;
+}
+
 export function TeacherTutoringBooking() {
-  // Create Private Session dialog state
+  const { data: session, status } = useSession();
   const [isCreatePrivateDialogOpen, setIsCreatePrivateDialogOpen] =
     useState(false);
-
-  // Delete dialog (now shared by upcoming + private)
   const [isDeleteSessionDialogOpen, setIsDeleteSessionDialogOpen] =
     useState(false);
   const [selectedSession, setSelectedSession] = useState<
-    | ({
-        id: number | string;
-        category: "upcoming" | "private";
-      } & any)
-    | null
+    ({ id: number | string; category: "upcoming" | "private" } & any) | null
   >(null);
-
-  // Tabs: added "private" tab
   const [activeTab, setActiveTab] = useState<"upcoming" | "private" | "past">(
     "upcoming"
   );
-
-  // Pagination state for each tab
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
   const [privatePage, setPrivatePage] = useState(1);
-  const itemsPerPage = 3;
-
-  /* ---------------- Demo data (existing) ---------------- */
-  const [upcomingSessions, setUpcomingSessions] = useState([
-    {
-      id: 1,
-      student: "John Adebayo",
-      subject: "Mathematics",
-      date: "2024-01-20",
-      time: "2:00 PM - 3:00 PM",
-      type: "One-on-One",
-      status: "Confirmed",
-      meetingLink: "https://meet.techxagon.com/session-123",
-      cost: "₦8,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Focus on calculus and derivatives",
-      duration: 60,
-    },
-    {
-      id: 2,
-      student: "Mary Adebayo",
-      subject: "English Literature",
-      date: "2024-01-22",
-      time: "4:00 PM - 5:00 PM",
-      type: "Group Session",
-      status: "Confirmed",
-      meetingLink: "https://meet.techxagon.com/session-124",
-      cost: "₦5,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Shakespeare analysis and essay writing",
-      duration: 60,
-    },
-    {
-      id: 3,
-      student: "John Adebayo",
-      subject: "Physics",
-      date: "2024-01-25",
-      time: "3:00 PM - 4:00 PM",
-      type: "One-on-One",
-      status: "Pending",
-      meetingLink: null,
-      cost: "₦8,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      notes: "Mechanics and motion problems",
-      duration: 60,
-    },
-  ]);
-
-  const [pastSessions, setPastSessions] = useState([
-    {
-      id: 4,
-      student: "John Adebayo",
-      subject: "Mathematics",
-      date: "2024-01-15",
-      time: "2:00 PM - 3:00 PM",
-      type: "One-on-One",
-      status: "Completed",
-      rating: 5,
-      feedback:
-        "Excellent session! John showed great improvement in understanding calculus concepts.",
-      cost: "₦8,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      hasRecording: true,
-      recordingUrl: "https://recordings.techxagon.com/session-4",
-      duration: 60,
-      actualDuration: 58,
-      dateCompleted: "2024-01-15",
-    },
-    {
-      id: 5,
-      student: "Mary Adebayo",
-      subject: "English Literature",
-      date: "2024-01-12",
-      time: "4:00 PM - 5:00 PM",
-      type: "Group Session",
-      status: "Completed",
-      rating: 4,
-      feedback:
-        "Good session on poetry analysis. Mary participated well in discussions.",
-      cost: "₦5,000",
-      studentAvatar: "/placeholder.svg?height=40&width=40",
-      hasRecording: true,
-      recordingUrl: "https://recordings.techxagon.com/session-5",
-      duration: 60,
-      actualDuration: 62,
-      dateCompleted: "2024-01-12",
-    },
-  ]);
-
-  /* ---------------- NEW: Private sessions state ---------------- */
-  type PrivateSession = {
-    id: string; // timestamp id
-    courseId: string;
-    courseName: string;
-    ratePerHour: string; // e.g. "7000.00"
-    durationDays: number;
-    availableDays: string[]; // monday..sunday
-    notes?: string;
-    status: "Active" | "Inactive";
-    createdAt: string; // ISO date
-  };
-
-  const courseOptions = [
-    { id: "1", name: "Mathematics" },
-    { id: "2", name: "Physics" },
-    { id: "3", name: "English Literature" },
-    { id: "4", name: "Chemistry" },
-  ];
-
+  const [upcomingTotalPages, setUpcomingTotalPages] = useState(1);
+  const [pastTotalPages, setPastTotalPages] = useState(1);
+  const [privateTotalPages, setPrivateTotalPages] = useState(1);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>(
+    []
+  );
+  const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
   const [privateSessions, setPrivateSessions] = useState<PrivateSession[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [privateCourseId, setPrivateCourseId] = useState<string | undefined>();
+  const [ratePerHour, setRatePerHour] = useState<string | undefined>();
+  const [tutoringDurationDays, setTutoringDurationDays] = useState<number>(24);
+  const [privateNotes, setPrivateNotes] = useState("");
+  const [availableDays, setAvailableDays] = useState<string[]>([]);
+  const itemsPerPage = 3;
+  const sessionToken = useMemo(
+    () => session?.user?.sessionToken || null,
+    [session?.user?.sessionToken]
+  );
 
-  /* ---------------- Pagination helpers ---------------- */
-  const paginate = (items: any[], page: number, perPage: number) => {
-    const startIndex = (page - 1) * perPage;
-    const endIndex = startIndex + perPage;
-    return items.slice(startIndex, endIndex);
+  const fetchCourses = async () => {
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      console.log(
+        "[TeacherTutoringBooking] Session not authenticated for courses, status:",
+        status
+      );
+      setError("Not authenticated");
+      setCoursesLoading(false);
+      return;
+    }
+
+    try {
+      console.log(
+        "[TeacherTutoringBooking] Fetching courses from /api/teacher/courses"
+      );
+      const response = await fetch("/api/teacher/courses", {
+        method: "GET",
+        headers: {
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+      });
+
+      console.log(
+        "[TeacherTutoringBooking] Courses fetch response status:",
+        response.status
+      );
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] Courses raw response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error(
+          "[TeacherTutoringBooking] Courses response is not JSON, content-type:",
+          contentType
+        );
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] Courses fetch failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          setCourses([]);
+          setCoursesLoading(false);
+          return;
+        }
+        throw new Error(
+          data.error || `Failed to fetch courses (status: ${response.status})`
+        );
+      }
+
+      console.log(
+        "[TeacherTutoringBooking] Courses fetch response data:",
+        data
+      );
+      setCourses(data);
+      setError(null);
+      setCoursesLoading(false);
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error fetching courses:", err);
+      setError(err.message || "Failed to load courses");
+      setCourses([]);
+      setCoursesLoading(false);
+    }
   };
-  const totalPages = (items: any[], perPage: number) =>
-    Math.ceil(items.length / perPage);
 
-  const paginatedUpcoming = paginate(upcomingSessions, upcomingPage, itemsPerPage);
-  const paginatedPast = paginate(pastSessions, pastPage, itemsPerPage);
-  const paginatedPrivate = paginate(privateSessions, privatePage, itemsPerPage);
+  const fetchSessions = async (
+    tab: "upcoming" | "past" | "private",
+    page: number,
+    setData: (data: any[]) => void,
+    setTotalPages: (pages: number) => void
+  ) => {
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      console.log(
+        "[TeacherTutoringBooking] Session not authenticated, status:",
+        status
+      );
+      setError("Not authenticated");
+      setSessionsLoading(false);
+      return;
+    }
+
+    try {
+      console.log(
+        `[TeacherTutoringBooking] Fetching sessions from /api/teacher/tutoring-bookings/get?tab=${tab}&page=${page}&limit=${itemsPerPage}`
+      );
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/get?tab=${tab}&page=${page}&limit=${itemsPerPage}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        }
+      );
+
+      console.log(
+        "[TeacherTutoringBooking] Sessions fetch response status:",
+        response.status
+      );
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] Sessions raw response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error(
+          "[TeacherTutoringBooking] Sessions response is not JSON, content-type:",
+          contentType
+        );
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] Sessions fetch failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          setData([]);
+          setSessionsLoading(false);
+          return;
+        }
+        throw new Error(
+          data.error || `Failed to fetch sessions (status: ${response.status})`
+        );
+      }
+
+      console.log(
+        "[TeacherTutoringBooking] Sessions fetch response data:",
+        data
+      );
+
+      let mappedData: any[] = [];
+      if (tab === "upcoming") {
+        mappedData = data.results.map((item: any) => ({
+          id: item.id,
+          student: item.student_name || "Unknown",
+          subject: item.course_name || "Unknown",
+          date: new Date(item.created_at).toISOString().split("T")[0],
+          time: item.duration_hours
+            ? `${new Date(item.created_at).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })} - ${new Date(
+                new Date(item.created_at).getTime() +
+                  item.duration_hours * 60 * 60 * 1000
+              ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+            : "N/A",
+          type: item.private_tutoring ? "One-on-One" : "Group Session",
+          status: item.status
+            ? item.status.charAt(0).toUpperCase() + item.status.slice(1)
+            : "Pending",
+          meetingLink: item.meeting_link || null,
+          cost: `₦${parseFloat(item.price || 0).toFixed(2)}`,
+          studentAvatar:
+            item.student_avatar || "/placeholder.svg?height=40&width=40",
+          notes: item.notes || "",
+          duration: item.duration_hours * 60 || 60,
+        }));
+      } else if (tab === "past") {
+        mappedData = data.results.map((item: any) => ({
+          id: item.id,
+          student: item.student_name || "Unknown",
+          subject: item.course_name || "Unknown",
+          date: new Date(item.created_at).toISOString().split("T")[0],
+          time: item.duration_hours
+            ? `${new Date(item.created_at).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })} - ${new Date(
+                new Date(item.created_at).getTime() +
+                  item.duration_hours * 60 * 60 * 1000
+              ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+            : "N/A",
+          type: item.private_tutoring ? "One-on-One" : "Group Session",
+          status: item.status
+            ? item.status.charAt(0).toUpperCase() + item.status.slice(1)
+            : "Completed",
+          rating: item.rating || 0,
+          feedback: item.feedback || "",
+          cost: `₦${parseFloat(item.price || 0).toFixed(2)}`,
+          studentAvatar:
+            item.student_avatar || "/placeholder.svg?height=40&width=40",
+          hasRecording: !!item.recording_url,
+          recordingUrl: item.recording_url || "",
+          duration: item.duration_hours * 60 || 60,
+          actualDuration:
+            item.actual_duration || item.duration_hours * 60 || 60,
+          dateCompleted: new Date(item.completed_at || item.created_at)
+            .toISOString()
+            .split("T")[0],
+        }));
+      } else if (tab === "private") {
+        mappedData = data.results.map((item: any) => ({
+          id: item.id.toString(),
+          courseId: item.course.toString(),
+          courseName: item.course_name || "Unknown",
+          ratePerHour: parseFloat(item.rate_per_hour || 0).toFixed(2),
+          durationDays: item.tutoring_duration_days || 24,
+          availableDays: item.available_days?.map((d: any) => d.day) || [],
+          notes: item.notes || "",
+          status: item.status
+            ? item.status.charAt(0).toUpperCase() + item.status.slice(1)
+            : "Active",
+          createdAt: new Date(item.created_at).toISOString(),
+        }));
+      }
+
+      setData(mappedData);
+      setTotalPages(data.pages || 1);
+      setError(null);
+      setSessionsLoading(false);
+    } catch (err: any) {
+      console.error(
+        `[TeacherTutoringBooking] Error fetching sessions for tab=${tab}:`,
+        err
+      );
+      setError(err.message || "Failed to load sessions");
+      setData([]);
+      setSessionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (status === "loading") return;
+    fetchCourses();
+    fetchSessions(
+      "upcoming",
+      upcomingPage,
+      setUpcomingSessions,
+      setUpcomingTotalPages
+    );
+    fetchSessions("past", pastPage, setPastSessions, setPastTotalPages);
+    fetchSessions(
+      "private",
+      privatePage,
+      setPrivateSessions,
+      setPrivateTotalPages
+    );
+  }, [status, upcomingPage, pastPage, privatePage, sessionToken]);
+
+  const paginate = (items: any[], page: number, perPage: number) => {
+    return items; // API handles pagination
+  };
+
+  const totalPages = (tab: "upcoming" | "past" | "private") => {
+    switch (tab) {
+      case "upcoming":
+        return upcomingTotalPages;
+      case "past":
+        return pastTotalPages;
+      case "private":
+        return privateTotalPages;
+      default:
+        return 1;
+    }
+  };
 
   const handlePageChange = (
     setPage: React.Dispatch<React.SetStateAction<number>>,
@@ -312,7 +525,6 @@ export function TeacherTutoringBooking() {
     if (newPage >= 1 && newPage <= total) setPage(newPage);
   };
 
-  /* ---------------- UI helpers ---------------- */
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Confirmed":
@@ -344,7 +556,9 @@ export function TeacherTutoringBooking() {
           </Badge>
         );
       case "Active":
-        return <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>;
+        return (
+          <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>
+        );
       case "Inactive":
         return <Badge variant="secondary">Inactive</Badge>;
       default:
@@ -363,23 +577,73 @@ export function TeacherTutoringBooking() {
     ));
   };
 
-  const handleDeleteSession = (session: any, category: "upcoming" | "private") => {
+  const handleDeleteSession = (
+    session: any,
+    category: "upcoming" | "private"
+  ) => {
     setSelectedSession({ ...session, category });
     setIsDeleteSessionDialogOpen(true);
   };
 
-  const handleConfirmSession = (sessionId: number) => {
-    setUpcomingSessions((prev) =>
-      prev.map((s) => (s.id === sessionId ? { ...s, status: "Confirmed" } : s))
-    );
-  };
+  const handleConfirmSession = async (sessionId: number | string) => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
+    }
 
-  /* ---------------- Create Private Session form state ---------------- */
-  const [privateCourseId, setPrivateCourseId] = useState<string | undefined>();
-  const [ratePerHour, setRatePerHour] = useState<string | undefined>();
-  const [tutoringDurationDays, setTutoringDurationDays] = useState<number>(24);
-  const [privateNotes, setPrivateNotes] = useState("");
-  const [availableDays, setAvailableDays] = useState<string[]>([]);
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/patch?tab=upcoming`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            status: "confirmed",
+          }),
+        }
+      );
+
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] PATCH response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error(
+          "[TeacherTutoringBooking] PATCH response is not JSON, content-type:",
+          contentType
+        );
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] PATCH failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(data.error || "Failed to confirm session");
+      }
+
+      setUpcomingSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId ? { ...s, status: "Confirmed" } : s
+        )
+      );
+      setError(null);
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error confirming session:", err);
+      setError(err.message || "Failed to confirm session");
+    }
+  };
 
   const toggleDay = (day: string) => {
     setAvailableDays((prev) =>
@@ -395,44 +659,298 @@ export function TeacherTutoringBooking() {
     setAvailableDays([]);
   };
 
-  const handleCreatePrivateSession = () => {
-    // Basic guard; in real code, show toasts/validation errors
-    if (!privateCourseId || !ratePerHour) {
+  const handleCreatePrivateSession = async () => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
       return;
     }
-    const course = courseOptions.find((c) => c.id === privateCourseId)!;
-    const newItem: PrivateSession = {
-      id: String(Date.now()),
-      courseId: privateCourseId,
-      courseName: course.name,
-      ratePerHour,
-      durationDays: tutoringDurationDays,
-      availableDays: [...availableDays],
-      notes: privateNotes?.trim(),
-      status: "Active",
-      createdAt: new Date().toISOString(),
-    };
-    setPrivateSessions((prev) => [newItem, ...prev]);
-    setIsCreatePrivateDialogOpen(false);
-    resetPrivateForm();
-    setActiveTab("private");
-    setPrivatePage(1);
+
+    if (!privateCourseId || !ratePerHour || availableDays.length === 0) {
+      setError(
+        "Please fill in all required fields: course, rate, and available days"
+      );
+      return;
+    }
+
+    try {
+      const course = courses.find((c) => c.id === privateCourseId);
+      if (!course) {
+        setError("Selected course is invalid");
+        return;
+      }
+
+      const response = await fetch(`/api/teacher/tutoring-bookings/post`, {
+        method: "POST",
+        headers: {
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+        body: JSON.stringify({
+          course: privateCourseId,
+          rate_per_hour: parseFloat(ratePerHour).toFixed(2),
+          tutoring_duration_days: tutoringDurationDays,
+          notes: privateNotes?.trim().slice(0, 225),
+          available_days: availableDays.map((day) => ({ day })),
+        }),
+      });
+
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] POST response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error(
+          "[TeacherTutoringBooking] POST response is not JSON, content-type:",
+          contentType
+        );
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] POST failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(
+          data.error ||
+            `Failed to create private session: ${JSON.stringify(data)}`
+        );
+      }
+
+      const newItem: PrivateSession = {
+        id: data.id.toString(),
+        courseId: privateCourseId,
+        courseName: course.name,
+        ratePerHour: parseFloat(ratePerHour).toFixed(2),
+        durationDays: tutoringDurationDays,
+        availableDays: [...availableDays],
+        notes: privateNotes?.trim(),
+        status: "Active",
+        createdAt: new Date().toISOString(),
+      };
+
+      setPrivateSessions((prev) => [newItem, ...prev]);
+      setIsCreatePrivateDialogOpen(false);
+      resetPrivateForm();
+      setActiveTab("private");
+      setPrivatePage(1);
+      setError(null);
+    } catch (err: any) {
+      console.error(
+        "[TeacherTutoringBooking] Error creating private session:",
+        err
+      );
+      setError(err.message || "Failed to create private session");
+    }
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedSession) {
-      if (selectedSession.category === "upcoming") {
-        setUpcomingSessions((prev) => prev.filter((s) => s.id !== selectedSession.id));
-      } else if (selectedSession.category === "private") {
-        setPrivateSessions((prev) => prev.filter((s) => s.id !== selectedSession.id));
-      }
+  const handleConfirmDelete = async () => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
     }
-    setIsDeleteSessionDialogOpen(false);
-    setSelectedSession(null);
+
+    if (!selectedSession) return;
+
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/delete?tab=${selectedSession.category}&id=${selectedSession.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        }
+      );
+
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] DELETE response:", text);
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error(
+          "[TeacherTutoringBooking] DELETE response is not JSON, content-type:",
+          contentType
+        );
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error("[TeacherTutoringBooking] DELETE failed:", data);
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(data.error || "Failed to delete session");
+      }
+
+      if (selectedSession.category === "upcoming") {
+        setUpcomingSessions((prev) =>
+          prev.filter((s) => s.id !== selectedSession.id)
+        );
+        setUpcomingPage(1);
+      } else if (selectedSession.category === "private") {
+        setPrivateSessions((prev) =>
+          prev.filter((s) => s.id !== selectedSession.id)
+        );
+        setPrivatePage(1);
+      }
+      setIsDeleteSessionDialogOpen(false);
+      setSelectedSession(null);
+      setError(null);
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error deleting session:", err);
+      setError(err.message || "Failed to delete session");
+    }
   };
+
+  const handleTogglePrivateSessionStatus = async (sessionId: string) => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
+    }
+
+    const sessionToToggle = privateSessions.find((s) => s.id === sessionId);
+    if (!sessionToToggle) return;
+
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/patch?tab=private`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            status: sessionToToggle.status === "Active" ? "Inactive" : "Active", // Use capitalized status
+          }),
+        }
+      );
+
+      const text = await response.text();
+      console.log(
+        "[TeacherTutoringBooking] PATCH private session response:",
+        text
+      );
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error(
+          "[TeacherTutoringBooking] PATCH private session response is not JSON, content-type:",
+          contentType
+        );
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        console.error(
+          "[TeacherTutoringBooking] PATCH private session failed:",
+          data
+        );
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          return;
+        }
+        throw new Error(data.error || "Failed to toggle session status");
+      }
+
+      setPrivateSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, status: s.status === "Active" ? "Inactive" : "Active" }
+            : s
+        )
+      );
+      setError(null);
+    } catch (err: any) {
+      console.error(
+        "[TeacherTutoringBooking] Error toggling private session status:",
+        err
+      );
+      setError(err.message || "Failed to toggle session status");
+    }
+  };
+
+  if (status === "loading" || coursesLoading || sessionsLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-transparent">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
+  }
+
+  if (error === "Not authenticated" || error === "Session expired") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              {error}
+            </CardTitle>
+            <CardDescription className="text-center">
+              Please log in again to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={() => (window.location.href = "/login")}
+              className="flex items-center gap-2"
+            >
+              Log In Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              Error
+            </CardTitle>
+            <CardDescription className="text-center">{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2"
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-100 text-red-800 p-4 rounded-lg">{error}</div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
@@ -440,8 +958,6 @@ export function TeacherTutoringBooking() {
             Manage your tutoring sessions and private offerings
           </p>
         </div>
-
-        {/* Create Private Session */}
         <div className="flex gap-2">
           <Dialog
             open={isCreatePrivateDialogOpen}
@@ -463,7 +979,6 @@ export function TeacherTutoringBooking() {
               </DialogHeader>
               <div className="px-4 sm:px-6 py-4 overflow-y-auto">
                 <div className="grid gap-4">
-                  {/* Course */}
                   <div className="space-y-2">
                     <Label htmlFor="course">Course</Label>
                     <Select
@@ -474,16 +989,14 @@ export function TeacherTutoringBooking() {
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
-                        {courseOptions.map((c) => (
+                        {courses.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
-                            {c.name}
+                            {c.name} ({c.subject})
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Rate per hour */}
                   <div className="space-y-2">
                     <Label htmlFor="rate">Rate per hour</Label>
                     <Select value={ratePerHour} onValueChange={setRatePerHour}>
@@ -497,10 +1010,10 @@ export function TeacherTutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Tutoring duration (days) */}
                   <div className="space-y-2">
-                    <Label htmlFor="duration-days">Tutoring Duration (days)</Label>
+                    <Label htmlFor="duration-days">
+                      Tutoring Duration (days)
+                    </Label>
                     <input
                       id="duration-days"
                       type="number"
@@ -512,8 +1025,6 @@ export function TeacherTutoringBooking() {
                       className="w-full border rounded-md p-2"
                     />
                   </div>
-
-                  {/* Available Days */}
                   <div className="space-y-2">
                     <Label>Available Days</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -529,7 +1040,9 @@ export function TeacherTutoringBooking() {
                         <Button
                           key={d}
                           type="button"
-                          variant={availableDays.includes(d) ? "default" : "outline"}
+                          variant={
+                            availableDays.includes(d) ? "default" : "outline"
+                          }
                           className="justify-start"
                           onClick={() => toggleDay(d)}
                         >
@@ -541,8 +1054,6 @@ export function TeacherTutoringBooking() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Notes */}
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes</Label>
                     <Textarea
@@ -576,7 +1087,6 @@ export function TeacherTutoringBooking() {
         </div>
       </div>
 
-      {/* Delete Dialog (shared) */}
       <Dialog
         open={isDeleteSessionDialogOpen}
         onOpenChange={setIsDeleteSessionDialogOpen}
@@ -620,15 +1130,12 @@ export function TeacherTutoringBooking() {
           >
             Current Private Session
           </TabsTrigger>
-
-          {/* NEW: Private Sessions tab */}
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="private"
           >
             Private Sessions
           </TabsTrigger>
-
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="past"
@@ -637,7 +1144,6 @@ export function TeacherTutoringBooking() {
           </TabsTrigger>
         </TabsList>
 
-        {/* UPCOMING */}
         <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
@@ -650,85 +1156,90 @@ export function TeacherTutoringBooking() {
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {paginatedUpcoming.map((session) => (
-                  <div
-                    key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-                      <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
-                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                          <AvatarImage
-                            src={session.studentAvatar || "/placeholder.svg"}
-                          />
-                          <AvatarFallback>
-                            {session.student
-                              .split(" ")
-                              .map((n: any) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-2 flex-1 min-w-0">
-                          <div>
-                            <h4 className="font-semibold text-base sm:text-lg truncate">
-                              {session.subject} Tutoring
-                            </h4>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              Student: {session.student}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                              <span>{session.date}</span>
+                {upcomingSessions.length === 0 ? (
+                  <div className="text-sm text-muted-foreground p-4">
+                    No current sessions yet.
+                  </div>
+                ) : (
+                  upcomingSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                        <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                            <AvatarImage src={session.studentAvatar} />
+                            <AvatarFallback>
+                              {session.student
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div>
+                              <h4 className="font-semibold text-base sm:text-lg truncate">
+                                {session.subject} Tutoring
+                              </h4>
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                Student: {session.student}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                              <span>
-                                {session.time} ({session.duration}min)
-                              </span>
+                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                              <div className="flex items-center gap-1">
+                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <span>{session.date}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <span>
+                                  {session.time} ({session.duration}min)
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground break-words">
-                            {session.notes}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {getStatusBadge(session.status)}
+                            <div className="text-xs sm:text-sm text-muted-foreground break-words">
+                              {session.notes}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {getStatusBadge(session.status)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right space-y-2 flex-shrink-0">
-                        <div className="font-medium text-green-600 text-base sm:text-lg">
-                          {session.cost}
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button
-                            size="sm"
-                            className="h-8"
-                            onClick={() => handleConfirmSession(session.id)}
-                            disabled={session.status === "Confirmed"}
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            {session.status === "Confirmed"
-                              ? "Session Confirmed"
-                              : "Confirm Session"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="h-8 bg-red-600 hover:bg-red-700"
-                            onClick={() => handleDeleteSession(session, "upcoming")}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Delete
-                          </Button>
+                        <div className="text-right space-y-2 flex-shrink-0">
+                          <div className="font-medium text-green-600 text-base sm:text-lg">
+                            {session.cost}
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              size="sm"
+                              className="h-8"
+                              onClick={() => handleConfirmSession(session.id)}
+                              disabled={session.status === "Confirmed"}
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              {session.status === "Confirmed"
+                                ? "Session Confirmed"
+                                : "Confirm Session"}
+                            </Button>
+                            {/* <Button
+                              size="sm"
+                              className="h-8 bg-red-600 hover:bg-red-700"
+                              onClick={() =>
+                                handleDeleteSession(session, "upcoming")
+                              }
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Delete
+                            </Button> */}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
-
-              {upcomingSessions.length > itemsPerPage && (
+              {upcomingTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -736,51 +1247,50 @@ export function TeacherTutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setUpcomingPage,
-                            totalPages(upcomingSessions, itemsPerPage),
+                            upcomingTotalPages,
                             upcomingPage - 1
                           )
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(upcomingSessions, itemsPerPage),
-                    }).map((_, index) => {
-                      const page = index + 1;
-                      if (
-                        page === 1 ||
-                        page === totalPages(upcomingSessions, itemsPerPage) ||
-                        (page >= upcomingPage - 1 && page <= upcomingPage + 1)
-                      ) {
-                        return (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={upcomingPage === page}
-                              onClick={() => setUpcomingPage(page)}
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        );
-                      } else if (
-                        (page === upcomingPage - 2 && upcomingPage > 3) ||
-                        (page === upcomingPage + 2 &&
-                          upcomingPage <
-                            totalPages(upcomingSessions, itemsPerPage) - 2)
-                      ) {
-                        return (
-                          <PaginationItem key={page}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        );
+                    {Array.from({ length: upcomingTotalPages }).map(
+                      (_, index) => {
+                        const page = index + 1;
+                        if (
+                          page === 1 ||
+                          page === upcomingTotalPages ||
+                          (page >= upcomingPage - 1 && page <= upcomingPage + 1)
+                        ) {
+                          return (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                isActive={upcomingPage === page}
+                                onClick={() => setUpcomingPage(page)}
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        } else if (
+                          (page === upcomingPage - 2 && upcomingPage > 3) ||
+                          (page === upcomingPage + 2 &&
+                            upcomingPage < upcomingTotalPages - 2)
+                        ) {
+                          return (
+                            <PaginationItem key={page}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          );
+                        }
+                        return null;
                       }
-                      return null;
-                    })}
+                    )}
                     <PaginationItem>
                       <PaginationNext
                         onClick={() =>
                           handlePageChange(
                             setUpcomingPage,
-                            totalPages(upcomingSessions, itemsPerPage),
+                            upcomingTotalPages,
                             upcomingPage + 1
                           )
                         }
@@ -793,7 +1303,6 @@ export function TeacherTutoringBooking() {
           </Card>
         </TabsContent>
 
-        {/* NEW: PRIVATE SESSIONS LIST */}
         <TabsContent value="private" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
@@ -807,12 +1316,14 @@ export function TeacherTutoringBooking() {
             <CardContent className="p-3">
               {privateSessions.length === 0 ? (
                 <div className="text-sm text-muted-foreground p-4">
-                  No private sessions yet. Click <span className="font-medium">Create Private Session</span> to add one.
+                  No private sessions yet. Click{" "}
+                  <span className="font-medium">Create Private Session</span> to
+                  add one.
                 </div>
               ) : (
                 <>
                   <div className="space-y-4">
-                    {paginatedPrivate.map((p) => (
+                    {privateSessions.map((p) => (
                       <div
                         key={p.id}
                         className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
@@ -824,7 +1335,9 @@ export function TeacherTutoringBooking() {
                             </h4>
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <span className="font-medium">Rate:</span>
-                              <span>₦{Number(p.ratePerHour).toLocaleString()}/hour</span>
+                              <span>
+                                ₦{Number(p.ratePerHour).toLocaleString()}/hour
+                              </span>
                               <span className="mx-1">•</span>
                               <span className="font-medium">Duration:</span>
                               <span>{p.durationDays} day(s)</span>
@@ -834,7 +1347,11 @@ export function TeacherTutoringBooking() {
                             <div className="flex flex-wrap gap-1">
                               {p.availableDays.length > 0 ? (
                                 p.availableDays.map((d) => (
-                                  <Badge key={d} variant="outline" className="text-xs capitalize">
+                                  <Badge
+                                    key={d}
+                                    variant="outline"
+                                    className="text-xs capitalize"
+                                  >
                                     {d}
                                   </Badge>
                                 ))
@@ -852,7 +1369,8 @@ export function TeacherTutoringBooking() {
                           </div>
                           <div className="text-right space-y-2 flex-shrink-0">
                             <div className="text-xs text-muted-foreground">
-                              Created: {new Date(p.createdAt).toLocaleDateString()}
+                              Created:{" "}
+                              {new Date(p.createdAt).toLocaleDateString()}
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
                               <Button
@@ -860,36 +1378,30 @@ export function TeacherTutoringBooking() {
                                 variant="outline"
                                 className="h-8"
                                 onClick={() =>
-                                  setPrivateSessions((prev) =>
-                                    prev.map((x) =>
-                                      x.id === p.id
-                                        ? {
-                                            ...x,
-                                            status: x.status === "Active" ? "Inactive" : "Active",
-                                          }
-                                        : x
-                                    )
-                                  )
+                                  handleTogglePrivateSessionStatus(p.id)
                                 }
                               >
-                                {p.status === "Active" ? "Deactivate" : "Activate"}
+                                {p.status === "Active"
+                                  ? "Deactivate"
+                                  : "Activate"}
                               </Button>
-                              <Button
+                              {/* <Button
                                 size="sm"
                                 className="h-8 bg-red-600 hover:bg-red-700"
-                                onClick={() => handleDeleteSession(p, "private")}
+                                onClick={() =>
+                                  handleDeleteSession(p, "private")
+                                }
                               >
                                 <Trash2 className="h-3 w-3 mr-1" />
                                 Delete
-                              </Button>
+                              </Button> */}
                             </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  {privateSessions.length > itemsPerPage && (
+                  {privateTotalPages > 1 && (
                     <Pagination className="mt-4 sm:mt-6">
                       <PaginationContent>
                         <PaginationItem>
@@ -897,51 +1409,51 @@ export function TeacherTutoringBooking() {
                             onClick={() =>
                               handlePageChange(
                                 setPrivatePage,
-                                totalPages(privateSessions, itemsPerPage),
+                                privateTotalPages,
                                 privatePage - 1
                               )
                             }
                           />
                         </PaginationItem>
-                        {Array.from({
-                          length: totalPages(privateSessions, itemsPerPage),
-                        }).map((_, index) => {
-                          const page = index + 1;
-                          if (
-                            page === 1 ||
-                            page === totalPages(privateSessions, itemsPerPage) ||
-                            (page >= privatePage - 1 && page <= privatePage + 1)
-                          ) {
-                            return (
-                              <PaginationItem key={page}>
-                                <PaginationLink
-                                  isActive={privatePage === page}
-                                  onClick={() => setPrivatePage(page)}
-                                >
-                                  {page}
-                                </PaginationLink>
-                              </PaginationItem>
-                            );
-                          } else if (
-                            (page === privatePage - 2 && privatePage > 3) ||
-                            (page === privatePage + 2 &&
-                              privatePage <
-                                totalPages(privateSessions, itemsPerPage) - 2)
-                          ) {
-                            return (
-                              <PaginationItem key={page}>
-                                <PaginationEllipsis />
-                              </PaginationItem>
-                            );
+                        {Array.from({ length: privateTotalPages }).map(
+                          (_, index) => {
+                            const page = index + 1;
+                            if (
+                              page === 1 ||
+                              page === privateTotalPages ||
+                              (page >= privatePage - 1 &&
+                                page <= privatePage + 1)
+                            ) {
+                              return (
+                                <PaginationItem key={page}>
+                                  <PaginationLink
+                                    isActive={privatePage === page}
+                                    onClick={() => setPrivatePage(page)}
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              );
+                            } else if (
+                              (page === privatePage - 2 && privatePage > 3) ||
+                              (page === privatePage + 2 &&
+                                privatePage < privateTotalPages - 2)
+                            ) {
+                              return (
+                                <PaginationItem key={page}>
+                                  <PaginationEllipsis />
+                                </PaginationItem>
+                              );
+                            }
+                            return null;
                           }
-                          return null;
-                        })}
+                        )}
                         <PaginationItem>
                           <PaginationNext
                             onClick={() =>
                               handlePageChange(
                                 setPrivatePage,
-                                totalPages(privateSessions, itemsPerPage),
+                                privateTotalPages,
                                 privatePage + 1
                               )
                             }
@@ -956,7 +1468,6 @@ export function TeacherTutoringBooking() {
           </Card>
         </TabsContent>
 
-        {/* PAST */}
         <TabsContent value="past" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
@@ -969,81 +1480,85 @@ export function TeacherTutoringBooking() {
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {paginatedPast.map((session) => (
-                  <div
-                    key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-                      <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
-                          <AvatarImage
-                            src={session.studentAvatar || "/placeholder.svg"}
-                          />
-                          <AvatarFallback>
-                            {session.student
-                              .split(" ")
-                              .map((n: any) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-2 flex-1 min-w-0">
-                          <div>
-                            <h4 className="font-semibold text-base sm:text-lg truncate">
-                              {session.subject} Tutoring
-                            </h4>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              Student: {session.student}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                              {session.date}
+                {pastSessions.length === 0 ? (
+                  <div className="text-sm text-muted-foreground p-4">
+                    No past sessions yet.
+                  </div>
+                ) : (
+                  pastSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+                            <AvatarImage src={session.studentAvatar} />
+                            <AvatarFallback>
+                              {session.student
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div>
+                              <h4 className="font-semibold text-base sm:text-lg truncate">
+                                {session.subject} Tutoring
+                              </h4>
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                Student: {session.student}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                              <div className="flex items-center gap-1">
+                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                                {session.date}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                                {session.time} ({session.actualDuration}min)
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs sm:text-sm">
+                              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                              <span>
+                                {" "}
+                                Date completed: {session.dateCompleted}
+                              </span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                              {session.time} ({session.actualDuration}min)
+                              {renderStars(session.rating)}
+                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">
+                                ({session.rating}/5)
+                              </span>
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
+                              "{session.feedback}"
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-1 text-xs sm:text-sm">
-                            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
-                            <span> Date completed: {session.dateCompleted ?? session.date}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1">
-                            {renderStars(session.rating)}
-                            <span className="text-xs sm:text-sm text-muted-foreground ml-1">
-                              ({session.rating}/5)
-                            </span>
-                          </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
-                            "{session.feedback}"
-                          </div>
                         </div>
-                      </div>
-                      <div className="text-right space-y-2 flex-shrink-0">
-                        <div className="font-medium text-green-600 text-base sm:text-lg">
-                          {session.cost}
+                        <div className="text-right space-y-2 flex-shrink-0">
+                          <div className="font-medium text-green-600 text-base sm:text-lg">
+                            {session.cost}
+                          </div>
+                          {session.hasRecording && (
+                            <a
+                              href={session.recordingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs sm:text-sm underline text-muted-foreground"
+                            >
+                              View recording
+                            </a>
+                          )}
                         </div>
-                        {session.hasRecording && (
-                          <a
-                            href={session.recordingUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs sm:text-sm underline text-muted-foreground"
-                          >
-                            View recording
-                          </a>
-                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
-
-              {pastSessions.length > itemsPerPage && (
+              {pastTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -1051,19 +1566,17 @@ export function TeacherTutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setPastPage,
-                            totalPages(pastSessions, itemsPerPage),
+                            pastTotalPages,
                             pastPage - 1
                           )
                         }
                       />
                     </PaginationItem>
-                    {Array.from({
-                      length: totalPages(pastSessions, itemsPerPage),
-                    }).map((_, index) => {
+                    {Array.from({ length: pastTotalPages }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === totalPages(pastSessions, itemsPerPage) ||
+                        page === pastTotalPages ||
                         (page >= pastPage - 1 && page <= pastPage + 1)
                       ) {
                         return (
@@ -1078,8 +1591,7 @@ export function TeacherTutoringBooking() {
                         );
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
-                        (page === pastPage + 2 &&
-                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
+                        (page === pastPage + 2 && pastPage < pastTotalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -1094,7 +1606,7 @@ export function TeacherTutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setPastPage,
-                            totalPages(pastSessions, itemsPerPage),
+                            pastTotalPages,
                             pastPage + 1
                           )
                         }
@@ -1108,19 +1620,23 @@ export function TeacherTutoringBooking() {
         </TabsContent>
       </Tabs>
 
-      {/* Footer stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Sessions
+            </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {upcomingSessions.length + pastSessions.length}
+              {upcomingSessions.length +
+                pastSessions.length +
+                privateSessions.length}
             </div>
             <p className="text-xs text-muted-foreground">
-              {upcomingSessions.length} current
+              {upcomingSessions.length} current, {privateSessions.length}{" "}
+              private
             </p>
           </CardContent>
         </Card>
@@ -1142,14 +1658,16 @@ export function TeacherTutoringBooking() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Average Rating
+            </CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {(
                 pastSessions.reduce((sum, session) => sum + session.rating, 0) /
-                pastSessions.length
+                  pastSessions.length || 0
               ).toFixed(1)}
             </div>
             <p className="text-xs text-muted-foreground">
