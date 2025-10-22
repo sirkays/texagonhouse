@@ -776,11 +776,11 @@ export function LearningModules() {
                         Updated:{" "}
                         {new Date(video.updated_at).toLocaleDateString()}
                       </div>
-                      {video.popularity > 0 && (
+                      {/* {video.popularity > 0 && (
                         <div className="col-span-2">
                           <StarRating popularity={video.popularity} />
                         </div>
-                      )}
+                      )} */}
                     </div>
 
                     <div className="mt-auto flex flex-wrap gap-3 pt-4">
@@ -865,11 +865,11 @@ export function LearningModules() {
                         Updated:{" "}
                         {new Date(audio.updated_at).toLocaleDateString()}
                       </div>
-                      {audio.popularity > 0 && (
+                      {/* {audio.popularity > 0 && (
                         <div className="col-span-2">
                           <StarRating popularity={audio.popularity} />
                         </div>
-                      )}
+                      )} */}
                     </div>
                     <div className="space-y-2">
                       {/* <div className="flex justify-between text-sm">
@@ -943,11 +943,11 @@ export function LearningModules() {
                       )}
                       <div>Module: {pdf.module_order}</div>
                       <div>Lesson: {pdf.lesson_order}</div>
-                      {pdf.popularity > 0 && (
+                      {/* {pdf.popularity > 0 && (
                         <div className="col-span-2">
                           <StarRating popularity={pdf.popularity} />
                         </div>
-                      )}
+                      )} */}
                     </div>
                     <div className="mt-auto pt-4 flex flex-wrap gap-2">
                       <Button
@@ -1025,11 +1025,11 @@ export function LearningModules() {
                         : "TBD"}
                     </div>
                     <div>Active: {tutorial.isActiveNow ? "Yes" : "No"}</div>
-                    {tutorial.popularity > 0 && (
+                    {/* {tutorial.popularity > 0 && (
                       <div className="col-span-2">
                         <StarRating popularity={tutorial.popularity} />
                       </div>
-                    )}
+                    )} */}
                   </div>
                   <Button
                     className="w-full mt-auto"

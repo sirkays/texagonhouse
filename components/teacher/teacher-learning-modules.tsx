@@ -2339,10 +2339,10 @@ export function TeacherLearningModules() {
                             <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             {module.enrollments}
                           </div>
-                          <div className="flex items-center gap-1">
+                          {/* <div className="flex items-center gap-1">
                             <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
                             {module.rating}
-                          </div>
+                          </div> */}
                           <div>{module.createdDate}</div>
                         </div>
 
@@ -2590,10 +2590,10 @@ export function TeacherLearningModules() {
                               <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                               {module.enrollments} enrolled
                             </div>
-                            <div className="flex items-center gap-1">
+                            {/* <div className="flex items-center gap-1">
                               <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
                               {module.rating}
-                            </div>
+                            </div> */}
                             <div>
                               Completion: {Math.floor(Math.random() * 30) + 70}%
                             </div>

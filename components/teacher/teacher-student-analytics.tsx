@@ -351,10 +351,10 @@ export function TeacherStudentAnalytics() {
                             <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             {course.students} students
                           </div>
-                          <div className="flex items-center gap-1">
+                          {/* <div className="flex items-center gap-1">
                             <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
                             {course.rating}
-                          </div>
+                          </div> */}
                         </div>
                       </div>
                       <Button

@@ -592,10 +592,10 @@ export function ResourceMaterials() {
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div>Pages: {pdf.pages || "—"}</div>
                       <div>Size: {pdf.size || "—"}</div>
-                      <div className="flex items-center gap-1">
+                      {/* <div className="flex items-center gap-1">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         {pdf.rating}
-                      </div>
+                      </div> */}
                       <div>{pdf.downloads || 0} downloads</div>
                     </div>
                     <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
@@ -673,10 +673,10 @@ export function ResourceMaterials() {
                         <Eye className="h-3 w-3" />
                         {video.views || 0} views
                       </div>
-                      <div className="flex items-center gap-1">
+                      {/* <div className="flex items-center gap-1">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         {video.rating}
-                      </div>
+                      </div> */}
                     </div>
                     <div className="mt-auto pt-4">
                       <Button
@@ -723,10 +723,10 @@ export function ResourceMaterials() {
                         <Headphones className="h-3 w-3" />
                         {audio.listens || 0} listens
                       </div>
-                      <div className="flex items-center gap-1">
+                      {/* <div className="flex items-center gap-1">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         {audio.rating}
-                      </div>
+                      </div> */}
                     </div>
                     <div className="mt-auto pt-4">
                       <Button
