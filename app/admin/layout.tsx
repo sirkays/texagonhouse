@@ -1102,6 +1102,7 @@ import {
   BarChart3,
   UserCircle,
   BookMarked,
+  CheckCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -1178,6 +1179,12 @@ const navigation = [
   },
   {title: "Courses", icon: BookOpen, id: "courses", path: "/admin/courses"},
   {title: "Modules", icon: FileText, id: "modules", path: "/admin/modules"},
+  {
+    title: "Student Verifier",
+    icon: CheckCircle,
+    id: "student-verifier",
+    path: "/admin/student-verifier",
+  },
   {title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing"},
   {
     title: "Gamification",
