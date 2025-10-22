@@ -1,10 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -23,7 +18,14 @@ import {
   Save,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -131,18 +133,18 @@ export function CodeEditor() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // New File Modal states
   const [showNewFileModal, setShowNewFileModal] = useState(false);
   const [newFileTitle, setNewFileTitle] = useState("");
   const [newFileLesson, setNewFileLesson] = useState("");
-  
+
   // Pre-populated save data from new file modal
   const [prepopulatedSaveData, setPrepopulatedSaveData] = useState<{
     title: string;
     lesson: string;
   } | null>(null);
-  
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
@@ -150,7 +152,7 @@ export function CodeEditor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
@@ -173,36 +175,42 @@ export function CodeEditor() {
   };
 
   const saveAsFile = async () => {
-    if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim()) return;
-    
+    if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
+      return;
+
     setIsSaving(true);
     try {
       const body = {
         title: saveFileName.trim(),
         language: selectedLanguage,
-        code_text: selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code,
+        code_text:
+          selectedLanguage === "html"
+            ? htmlCode
+            : selectedLanguage === "css"
+            ? cssCode
+            : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
 
-      const res = await fetch('/api/code-ide/snippets', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
+      const res = await fetch("/api/code-ide/snippets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Save failed');
+        throw new Error(errorData.error || "Save failed");
       }
-      
+
       const savedSnippet: Snippet = await res.json();
-      setMySnippets(prev => [savedSnippet, ...prev]);
+      setMySnippets((prev) => [savedSnippet, ...prev]);
       setShowSaveModal(false);
-      setSaveFileName('');
+      setSaveFileName("");
       setPrepopulatedSaveData(null); // Clear prepopulated data
-      alert('Snippet saved successfully!');
+      alert("Snippet saved successfully!");
     } catch (error) {
       alert(`Save failed: ${(error as Error).message}`);
     } finally {
@@ -281,7 +289,10 @@ export function CodeEditor() {
 
       const res = await new Promise<UploadedFile>((resolve, reject) => {
         xhr.open("POST", "/api/code-ide/uploads");
-        xhr.setRequestHeader("Authorization", `Bearer ${session.user.sessionToken}`);
+        xhr.setRequestHeader(
+          "Authorization",
+          `Bearer ${session.user.sessionToken}`
+        );
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(JSON.parse(xhr.responseText));
@@ -333,13 +344,17 @@ export function CodeEditor() {
       const contentType = file.content_type;
       const extension = file.original_name.split(".").pop()?.toLowerCase();
 
-      const isImage = contentType.includes("image/") || ["png", "jpg", "jpeg"].includes(extension || "");
+      const isImage =
+        contentType.includes("image/") ||
+        ["png", "jpg", "jpeg"].includes(extension || "");
 
       if (isImage) {
         setIsImagePreview(true);
         setImagePreviewUrl(file.url);
         setSelectedLanguage("html");
-        setHtmlCode(`<img src="${file.url}" alt="${file.original_name}" style="max-width: 100%; height: auto;" />`);
+        setHtmlCode(
+          `<img src="${file.url}" alt="${file.original_name}" style="max-width: 100%; height: auto;" />`
+        );
         if (file.lesson) setSelectedLesson(String(file.lesson));
         setActiveTab("editor");
         console.log(`Loaded image file ${file.id} for preview`);
@@ -424,16 +439,21 @@ export function CodeEditor() {
 
   const createSubmission = async () => {
     if (!selectedLesson) throw new Error("No lesson selected");
-    
+
     const body = {
       lesson: parseInt(selectedLesson),
       language: selectedLanguage,
-      code_text: selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code,
+      code_text:
+        selectedLanguage === "html"
+          ? htmlCode
+          : selectedLanguage === "css"
+          ? cssCode
+          : code,
     };
 
     const res = await fetch("/api/code-ide/submissions", {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -541,7 +561,12 @@ export function CodeEditor() {
   }, [status]);
 
   const copyCode = () => {
-    const text = selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code;
+    const text =
+      selectedLanguage === "html"
+        ? htmlCode
+        : selectedLanguage === "css"
+        ? cssCode
+        : code;
     navigator.clipboard.writeText(text);
   };
 
@@ -554,7 +579,12 @@ export function CodeEditor() {
       html: "html",
       css: "css",
     } as const;
-    const content = selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code;
+    const content =
+      selectedLanguage === "html"
+        ? htmlCode
+        : selectedLanguage === "css"
+        ? cssCode
+        : code;
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
@@ -756,6 +786,7 @@ export function CodeEditor() {
     setIsRunning(true);
     setOutput("");
     setExecutionError("");
+    setSuccessMessage(null); // Clear any previous success message
     try {
       if (error === "Session expired" || error === "Not authenticated") {
         setOutput("Session expired. Please log in again.");
@@ -771,6 +802,7 @@ export function CodeEditor() {
           setOutput(
             logs.join("\n") || "Code executed successfully (no output)"
           );
+          setSuccessMessage("Code executed successfully!"); // Set success message
         } catch (e: any) {
           setOutput(`Error: ${e.message}`);
         } finally {
@@ -778,17 +810,18 @@ export function CodeEditor() {
         }
       } else if (selectedLanguage === "html" || selectedLanguage === "css") {
         setHtmlPreview(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <style>${cssCode}</style>
-            </head>
-            <body>
-              ${htmlCode}
-            </body>
-          </html>
-        `);
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>${cssCode}</style>
+          </head>
+          <body>
+            ${htmlCode}
+          </body>
+        </html>
+      `);
         setOutput("HTML/CSS rendered in preview tab");
+        setSuccessMessage("HTML/CSS rendered successfully!"); // Set success message
       } else {
         const cfg = languages[selectedLanguage];
         if (cfg.judgeId) {
@@ -817,6 +850,7 @@ export function CodeEditor() {
             const result = await res.json();
             if (result.status?.id === 3) {
               setOutput(result.stdout || "Success (no output)");
+              setSuccessMessage("Code executed successfully!"); // Set success message
             } else if (result.status?.id === 6) {
               setOutput(
                 `Compilation Error:\n${result.compile_output || result.stderr}`
@@ -844,6 +878,10 @@ export function CodeEditor() {
     } finally {
       setIsRunning(false);
       setActiveTab("output");
+      // Clear success message after 3 seconds
+      if (successMessage) {
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
     }
   };
 
@@ -857,37 +895,37 @@ export function CodeEditor() {
     }
   };
 
-// Handle New File Modal Create - Close modal, go to editor, then open save modal
-const handleNewFileCreate = () => {
-  if (!newFileTitle.trim()) return alert('Title required');
-  
-  // Close the new file modal immediately
-  setShowNewFileModal(false);
-  
-  // Close save modal first (if open)
-  setShowSaveModal(false);
-  
-  // Reset new file form
-  setNewFileTitle('');
-  setNewFileLesson('');
-  
-  // Reset editor to default state and switch to editor tab
-  resetCode();
-  setActiveTab("editor");
-  
-  // Store prepopulated data
-  setPrepopulatedSaveData({
-    title: newFileTitle,
-    lesson: newFileLesson || ''
-  });
-  
-  // Pre-populate save modal fields after a brief delay
-  setTimeout(() => {
-    setSaveFileName(newFileTitle);
-    setSelectedLesson(newFileLesson || '');
-    setShowSaveModal(true);
-  }, 150);
-};
+  // Handle New File Modal Create - Close modal, go to editor, then open save modal
+  const handleNewFileCreate = () => {
+    if (!newFileTitle.trim()) return alert("Title required");
+
+    // Close the new file modal immediately
+    setShowNewFileModal(false);
+
+    // Close save modal first (if open)
+    setShowSaveModal(false);
+
+    // Reset new file form
+    setNewFileTitle("");
+    setNewFileLesson("");
+
+    // Reset editor to default state and switch to editor tab
+    resetCode();
+    setActiveTab("editor");
+
+    // Store prepopulated data
+    setPrepopulatedSaveData({
+      title: newFileTitle,
+      lesson: newFileLesson || "",
+    });
+
+    // Pre-populate save modal fields after a brief delay
+    setTimeout(() => {
+      setSaveFileName(newFileTitle);
+      setSelectedLesson(newFileLesson || "");
+      setShowSaveModal(true);
+    }, 150);
+  };
 
   // Effect to prepopulate save modal when new file data is set
   useEffect(() => {
@@ -958,8 +996,8 @@ const handleNewFileCreate = () => {
               <Label htmlFor="snippet-lesson" className="text-right">
                 Lesson
               </Label>
-              <Select 
-                value={selectedLesson} 
+              <Select
+                value={selectedLesson}
                 onValueChange={(value) => setSelectedLesson(value)}
               >
                 <SelectTrigger className="col-span-3">
@@ -980,7 +1018,7 @@ const handleNewFileCreate = () => {
               variant="outline"
               onClick={() => {
                 setShowSaveModal(false);
-                setSaveFileName('');
+                setSaveFileName("");
                 setPrepopulatedSaveData(null);
               }}
               disabled={isSaving}
@@ -992,8 +1030,12 @@ const handleNewFileCreate = () => {
               disabled={!saveFileName.trim() || isSaving}
               className="bg-[#EF7B55] hover:bg-[#F79771]"
             >
-              {isSaving ? <Spinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-              {isSaving ? 'Saving...' : 'Save Snippet'}
+              {isSaving ? (
+                <Spinner size="sm" className="mr-2" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {isSaving ? "Saving..." : "Save Snippet"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1005,7 +1047,8 @@ const handleNewFileCreate = () => {
           <DialogHeader>
             <DialogTitle>New Snippet</DialogTitle>
             <DialogDescription>
-              Create a new snippet. Fill in details and click "Create" to start editing.
+              Create a new snippet. Fill in details and click "Create" to start
+              editing.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -1026,10 +1069,7 @@ const handleNewFileCreate = () => {
               <Label htmlFor="new-lesson" className="text-right">
                 Lesson
               </Label>
-              <Select 
-                value={newFileLesson} 
-                onValueChange={setNewFileLesson}
-              >
+              <Select value={newFileLesson} onValueChange={setNewFileLesson}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select lesson (optional)" />
                 </SelectTrigger>
@@ -1048,8 +1088,8 @@ const handleNewFileCreate = () => {
               variant="outline"
               onClick={() => {
                 setShowNewFileModal(false);
-                setNewFileTitle('');
-                setNewFileLesson('');
+                setNewFileTitle("");
+                setNewFileLesson("");
               }}
             >
               Cancel
@@ -1070,7 +1110,7 @@ const handleNewFileCreate = () => {
         .code-editor-textarea {
           background: #2b2b2b;
           color: #f8f8f2;
-          font-family: 'Fira Code', monospace;
+          font-family: "Fira Code", monospace;
           border: none;
           border-radius: 4px;
           padding: 8px;
@@ -1081,7 +1121,7 @@ const handleNewFileCreate = () => {
         }
         .code-editor-textarea:focus {
           outline: none;
-          box-shadow: 0 0 0 2px #EF7B55;
+          box-shadow: 0 0 0 2px #ef7b55;
         }
         .code-editor-textarea::selection {
           background: #44475a;
@@ -1114,12 +1154,12 @@ const handleNewFileCreate = () => {
           height: 50vh;
           min-height: 200px;
           max-height: 600px;
-          font-family: 'Fira Code', monospace;
+          font-family: "Fira Code", monospace;
           font-size: 0.875rem;
           line-height: 1.5;
         }
         .codemirror-container .cm-focused {
-          outline: 2px solid #EF7B55;
+          outline: 2px solid #ef7b55;
         }
         .image-preview {
           max-width: 100%;
@@ -1155,7 +1195,7 @@ const handleNewFileCreate = () => {
           min-width: 80px;
         }
         .language-tabs .tab-trigger[data-state="active"] {
-          background: #EF7B55;
+          background: #ef7b55;
           color: white;
         }
         .main-tabs {
@@ -1273,8 +1313,8 @@ const handleNewFileCreate = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Code IDE</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            Write, run, and test your code in multiple programming languages with
-            real-time execution
+            Write, run, and test your code in multiple programming languages
+            with real-time execution
           </p>
         </div>
 
@@ -1321,7 +1361,9 @@ const handleNewFileCreate = () => {
             <Card className="flex flex-col w-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg sm:text-xl">Code Editor</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl">
+                    Code Editor
+                  </CardTitle>
                   <Button variant="outline" size="sm" onClick={resetCode}>
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -1354,10 +1396,24 @@ const handleNewFileCreate = () => {
                     />
                   </div>
                 ) : (
-                  <div className={`codemirror-container ${syntaxError ? 'error-line' : ''}`}>
+                  <div
+                    className={`codemirror-container ${
+                      syntaxError ? "error-line" : ""
+                    }`}
+                  >
                     <CodeMirror
-                      value={selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code}
-                      extensions={codeMirrorExtensions[selectedLanguage as keyof typeof codeMirrorExtensions]}
+                      value={
+                        selectedLanguage === "html"
+                          ? htmlCode
+                          : selectedLanguage === "css"
+                          ? cssCode
+                          : code
+                      }
+                      extensions={
+                        codeMirrorExtensions[
+                          selectedLanguage as keyof typeof codeMirrorExtensions
+                        ]
+                      }
                       theme={monokai}
                       height="50vh"
                       basicSetup={{
@@ -1373,9 +1429,7 @@ const handleNewFileCreate = () => {
                   </div>
                 )}
                 {syntaxError && !isImagePreview && (
-                  <div className="syntax-error">
-                    {syntaxError}
-                  </div>
+                  <div className="syntax-error">{syntaxError}</div>
                 )}
                 <div className="editor-buttons mt-4">
                   <Button
@@ -1447,6 +1501,12 @@ const handleNewFileCreate = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1">
+                {successMessage && (
+                  <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{successMessage}</AlertDescription>
+                  </Alert>
+                )}
                 {(selectedLanguage === "html" || selectedLanguage === "css") &&
                 htmlPreview ? (
                   <Tabs defaultValue="preview" className="h-full flex flex-col">
@@ -1557,7 +1617,7 @@ const handleNewFileCreate = () => {
                         .map((s) => (
                           <Card key={s.id} className="p-4 snippet-item">
                             <div className="flex justify-between items-center">
-                              <span 
+                              <span
                                 className="font-medium cursor-pointer hover:text-primary flex-1"
                                 onClick={() => loadSnippet(s)}
                                 title="Click to load into editor"
@@ -1639,9 +1699,7 @@ const handleNewFileCreate = () => {
                                     : ""
                                 }`}
                                 onClick={() =>
-                                  !loading &&
-                                  !fileLoading &&
-                                  loadFile(file)
+                                  !loading && !fileLoading && loadFile(file)
                                 }
                                 title={
                                   fileLoading === file.id
