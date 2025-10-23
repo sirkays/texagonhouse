@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import {useRouter} from "next/navigation";
 import {
   Card,
   CardContent,
@@ -19,11 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {toast} from "sonner";
 import {
   Search,
   Filter,
   Star,
-  ShoppingCart,
+  ShoppingCart as ShoppingCartIcon,
   Heart,
   BookOpen,
   Video,
@@ -34,8 +36,43 @@ import {
   List,
 } from "lucide-react";
 
-export function ProductCatalog() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+interface Product {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  originalPrice?: number;
+  category?: string;
+  type?: string;
+  rating?: number;
+  reviews?: number;
+  image?: string;
+  instructor?: string;
+  duration?: string;
+  students?: number;
+  bestseller?: boolean;
+  bnplAvailable?: boolean;
+  author?: string;
+  brand?: string;
+  pages?: number;
+  publisher?: string;
+  specs?: string;
+  warranty?: string;
+  inStock?: boolean;
+  narrator?: string;
+  episodes?: number;
+  includes?: string;
+  value?: string;
+  format?: string;
+  jobGuarantee?: boolean;
+}
+
+interface ProductCatalogProps {
+  onAddToCart: (product: Product) => void;
+}
+
+export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
@@ -172,11 +209,11 @@ export function ProductCatalog() {
       case "price-high":
         return b.price - a.price;
       case "rating":
-        return b.rating - a.rating;
+        return (b.rating ?? 0) - (a.rating ?? 0);
       case "newest":
         return b.id - a.id;
       default:
-        return b.reviews - a.reviews;
+        return (b.reviews ?? 0) - (a.reviews ?? 0);
     }
   });
 
@@ -184,106 +221,70 @@ export function ProductCatalog() {
     return Math.round(((original - current) / original) * 100);
   };
 
-  const ProductCard = ({product}: {product: any}) => (
-    <Card className="group hover:shadow-lg transition-all duration-200">
-      <div className="relative">
-        <img
-          src={product.image || "/placeholder.svg"}
-          alt={product.name}
-          className="w-full h-48 object-cover rounded-t-lg"
-        />
-        {product.bestseller && (
-          <Badge className="absolute top-2 left-2 bg-orange-500 text-white">
-            Bestseller
-          </Badge>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 bg-white/80 hover:bg-white">
-          <Heart className="h-4 w-4" />
-        </Button>
-        {product.originalPrice > product.price && (
-          <Badge className="absolute bottom-2 left-2 bg-red-500 text-white">
-            {getDiscountPercentage(product.originalPrice, product.price)}% OFF
-          </Badge>
-        )}
-      </div>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <CardTitle className="text-lg line-clamp-2 group-hover:text-blue-600 transition-colors">
-            {product.name}
-          </CardTitle>
-        </div>
-        <CardDescription className="line-clamp-2">
-          {product.description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center">
-            {Array.from({length: 5}).map((_, i) => (
-              <Star
-                key={i}
-                className={`h-4 w-4 ${
-                  i < Math.floor(product.rating)
-                    ? "fill-yellow-400 text-yellow-400"
-                    : "text-gray-300"
-                }`}
-              />
-            ))}
+  const ProductCard = ({
+    product,
+    onAddToCart,
+  }: {
+    product: Product;
+    onAddToCart: (product: Product) => void;
+  }) => {
+    const fullStars = Math.floor(product.rating || 0);
+    const halfStar = (product.rating || 0) - fullStars >= 0.5;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+    return (
+      <div
+        onClick={() => router.push(`/store/${product.id}`)}
+        className="block cursor-pointer">
+        <div className="relative flex flex-col gap-2 p-2 border border-transparent hover:border-gray-300 transition-shadow hover:shadow-md">
+          <div className="relative">
+            <img
+              src={product.image || "/placeholder.svg"}
+              alt={product.name}
+              className="w-full max-h-48 h-auto object-cover"
+            />
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCart(product);
+                toast.success(`${product.name} has been added to your cart.`);
+              }}>
+              <ShoppingCartIcon className="h-5 w-5 text-black" />
+            </button>
           </div>
-          <span className="text-sm font-medium">{product.rating}</span>
-          <span className="text-sm text-muted-foreground">
-            ({product.reviews})
-          </span>
-        </div>
-
-        <div className="space-y-1">
-          {product.instructor && (
-            <p className="text-sm text-muted-foreground">
-              by {product.instructor}
-            </p>
-          )}
-          {product.author && (
-            <p className="text-sm text-muted-foreground">by {product.author}</p>
-          )}
-          {product.duration && (
-            <p className="text-sm text-muted-foreground">{product.duration}</p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="truncate text-sm font-medium">{product.name}</div>
+          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold">${product.price}</span>
-              {product.originalPrice > product.price && (
-                <span className="text-sm text-muted-foreground line-through">
-                  ${product.originalPrice}
-                </span>
-              )}
+              {Array.from({length: 5}).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`h-4 w-4 ${
+                    i < Math.floor(product.rating ?? 0)
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                />
+              ))}
             </div>
-            {product.bnplAvailable && (
-              <p className="text-xs text-green-600">
-                or 4 payments of ${(product.price / 4).toFixed(2)}
-              </p>
-            )}
+            <div className="flex gap-2 text-sm">
+              <span className="font-medium">{product.rating}</span>
+              <span className="text-muted-foreground">({product.reviews})</span>
+            </div>
+          </div>
+
+          <div className="font-bold text-lg">${product.price}</div>
+          <div className="text-xs text-gray-600">
+            or 4 payments of ${(product.price / 4).toFixed(2)}
           </div>
         </div>
-
-        <div className="flex gap-2">
-          <Button className="flex-1">
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            Add to Cart
-          </Button>
-          <Button variant="outline">Buy Now</Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mt-8 mx-auto" style={{width: "90%"}}>
       <div>
         <h1 className="text-3xl font-bold">Educational Store</h1>
         <p className="text-muted-foreground">
@@ -292,73 +293,38 @@ export function ProductCatalog() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-4 mt-4 mb-6 w-full">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <input
+            type="text"
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none"
           />
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="popular">Most Popular</SelectItem>
-            <SelectItem value="rating">Highest Rated</SelectItem>
-            <SelectItem value="price-low">Price: Low to High</SelectItem>
-            <SelectItem value="price-high">Price: High to Low</SelectItem>
-            <SelectItem value="newest">Newest</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === "grid" ? "default" : "outline"}
-            size="icon"
-            onClick={() => setViewMode("grid")}>
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "outline"}
-            size="icon"
-            onClick={() => setViewMode("list")}>
-            <List className="h-4 w-4" />
-          </Button>
-        </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="w-full md:w-48 rounded-md border border-gray-300 bg-white py-2 px-3 focus:border-blue-500 focus:outline-none">
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="w-full md:w-48 rounded-md border border-gray-300 bg-white py-2 px-3 focus:border-blue-500 focus:outline-none">
+          <option value="popular">Most Popular</option>
+          <option value="rating">Highest Rated</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+          <option value="newest">Newest</option>
+        </select>
       </div>
-
-      {/* Category Tabs */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-7">
-          {categories.map((category) => {
-            const IconComponent = category.icon;
-            return (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className="flex items-center gap-1">
-                <IconComponent className="h-4 w-4" />
-                <span className="hidden md:inline">{category.name}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
 
       {/* Results Count */}
       <div className="flex items-center justify-between">
@@ -372,14 +338,13 @@ export function ProductCatalog() {
       </div>
 
       {/* Products Grid */}
-      <div
-        className={`grid gap-6 ${
-          viewMode === "grid"
-            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-            : "grid-cols-1"
-        }`}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {sortedProducts.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard
+            key={product.id}
+            product={product}
+            onAddToCart={onAddToCart}
+          />
         ))}
       </div>
 
