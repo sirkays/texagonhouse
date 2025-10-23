@@ -122,7 +122,7 @@ export default function ResetPasswordContent() {
               </div>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-bold mb-6">
+            <h2 className="text-2xl text-center sm:text-3xl font-bold mb-6">
               Check Your Email
             </h2>
 
