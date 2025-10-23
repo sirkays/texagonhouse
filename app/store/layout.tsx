@@ -1,8 +1,8 @@
-// app/parent/layout.tsx
+// app/store/layout.tsx
 "use client";
 
 import {CartProvider} from "@/providers/CartProvider";
 
-export default function ParentLayout({children}: {children: React.ReactNode}) {
+export default function StoreLayout({children}: {children: React.ReactNode}) {
   return <CartProvider>{children}</CartProvider>;
 }
