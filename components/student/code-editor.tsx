@@ -177,6 +177,23 @@ export function CodeEditor() {
     return r.json() as Promise<Snippet>;
   };
 
+  const fetchLessons = async () => {
+  try {
+    const res = await fetch("/api/student/lessons");
+    if (!res.ok) throw new Error("Failed to fetch lessons");
+    const data = await res.json();
+    const lessonList = Array.isArray(data) ? data : data.results || [];
+    setLessons(
+      lessonList.map((l: any) => ({
+        id: String(l.id),
+        title: l.title || `Lesson ${l.id}`,
+      }))
+    );
+  } catch (err) {
+    console.error("Failed to load lessons:", err);
+  }
+};
+
   const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
       return;
@@ -546,25 +563,22 @@ export function CodeEditor() {
     }
   }, [session, status, selectedLanguage]);
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    Promise.all([
-      fetchSnippets().then((snips) => {
-        const uniq = Array.from(
-          new Set(snips.map((s) => s.lesson).filter(Boolean))
-        );
-        setLessons(uniq.map((l) => ({ id: String(l), title: `Lesson ${l}` })));
-        setMySnippets(snips);
-      }),
-      fetchSubmissions()
-        .then(setMySubmissions)
-        .catch(() => {}),
-      fetch("/api/code-ide/uploads")
-        .then((res) => (res.ok ? res.json() : []))
-        .then(setUploadedFiles)
-        .catch(() => setUploadedFiles([])),
-    ]).catch(() => {});
-  }, [status]);
+useEffect(() => {
+  if (status !== "authenticated") return;
+  Promise.all([
+    fetchLessons(),
+    fetchSnippets().then((snips) => {
+      setMySnippets(snips);
+    }),
+    fetchSubmissions()
+      .then(setMySubmissions)
+      .catch(() => {}),
+    fetch("/api/code-ide/uploads")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setUploadedFiles)
+      .catch(() => setUploadedFiles([])),
+  ]).catch(() => {});
+}, [status]);
 
   const copyCode = () => {
     const text =
