@@ -8,8 +8,8 @@ const BASE_URL =
 const API_KEY =
   process.env.API_KEY || "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
-export async function GET(request: Request) {
-  console.log("[Route] Received GET request to /api/store/orders");
+export async function POST(request: Request) {
+  console.log("[Route] Received POST request to /api/store/reviews");
   const session = await getServerSession(authOptions);
   console.log("[Route] Session data:", {
     sessionToken: session?.user?.sessionToken,
@@ -21,44 +21,22 @@ export async function GET(request: Request) {
   }
 
   try {
-    const {searchParams} = new URL(request.url);
-    const orderId = searchParams.get("id");
+    const body = await request.json();
+    const {productId, rating, title, reviewBody} = body;
 
-    if (orderId) {
-      console.log(
-        "[Route] Fetching order detail from",
-        `${BASE_URL}/orders/${orderId}/`
-      );
-      const res = await fetch(`${BASE_URL}/orders/${orderId}/`, {
-        headers: {
-          Authorization: `Api-Key ${API_KEY}`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-      });
-
-      console.log("[Route] API response status:", res.status);
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-
-      if (!res.ok) {
-        console.log("[Route] API fetch failed:", data);
-        return NextResponse.json(
-          {error: data.detail || "Failed to fetch order"},
-          {status: res.status}
-        );
-      }
-
-      return NextResponse.json(data);
-    }
-
-    console.log("[Route] Fetching orders from", `${BASE_URL}/orders/`);
-    const res = await fetch(`${BASE_URL}/orders/`, {
+    console.log("[Route] Creating review for product", productId);
+    const res = await fetch(`${BASE_URL}/reviews/${productId}/`, {
+      method: "POST",
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
+      body: JSON.stringify({
+        rating,
+        title,
+        body: reviewBody,
+      }),
     });
 
     console.log("[Route] API response status:", res.status);
@@ -68,12 +46,12 @@ export async function GET(request: Request) {
     if (!res.ok) {
       console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch orders"},
+        {error: data.detail || "Failed to create review"},
         {status: res.status}
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {status: 201});
   } catch (error) {
     console.error("[Route] Error:", error);
     return NextResponse.json(

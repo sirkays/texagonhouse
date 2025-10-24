@@ -1,138 +1,379 @@
+// "use client"
+
+// import { useProductDetail } from "@/lib/hooks/use-catalog"
+// import { useCart } from "@/lib/hooks/use-cart"
+// import { useRouter } from "next/navigation"
+// import { Button } from "@/components/ui/button"
+// import { Badge } from "@/components/ui/badge"
+// import { Star, ArrowLeft, ShoppingCart } from "lucide-react"
+// import { toast } from "sonner"
+// import { useState } from "react"
+
+// export default function ProductDetailPage({
+//   params,
+// }: {
+//   params: { productId: string }
+// }) {
+//   const router = useRouter()
+//   const { product, isLoading, error } = useProductDetail(params.productId)
+//   const { addToCart } = useCart()
+//   const [quantity, setQuantity] = useState(1)
+//   const [isAdding, setIsAdding] = useState(false)
+
+//   if (isLoading) {
+//     return (
+//       <div className="min-h-screen flex items-center justify-center">
+//         <p>Loading product...</p>
+//       </div>
+//     )
+//   }
+
+//   if (error || !product) {
+//     return (
+//       <div className="min-h-screen flex items-center justify-center">
+//         <div className="text-center">
+//           <p className="text-red-600 mb-4">Product not found</p>
+//           <Button onClick={() => router.back()}>Go Back</Button>
+//         </div>
+//       </div>
+//     )
+//   }
+
+//   const handleAddToCart = async () => {
+//     try {
+//       setIsAdding(true)
+//       await addToCart(product.id, quantity)
+//       toast.success(`Added ${quantity} item(s) to cart!`)
+//     } catch (error) {
+//       toast.error("Failed to add to cart")
+//     } finally {
+//       setIsAdding(false)
+//     }
+//   }
+
+//   const handleBuyNow = async () => {
+//     try {
+//       setIsAdding(true)
+//       await addToCart(product.id, quantity)
+//       router.push("/store/checkout")
+//     } catch (error) {
+//       toast.error("Failed to proceed")
+//     } finally {
+//       setIsAdding(false)
+//     }
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-background">
+//       <div className="container mx-auto px-4 py-8">
+//         {/* Back Button */}
+//         <Button variant="outline" onClick={() => router.back()} className="mb-6">
+//           <ArrowLeft className="mr-2 h-4 w-4" />
+//           Back
+//         </Button>
+
+//         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+//           {/* Product Image */}
+//           <div>
+//             <img src={product.image || "/placeholder.svg"} alt={product.title} className="w-full rounded-lg border" />
+//           </div>
+
+//           {/* Product Details */}
+//           <div className="space-y-6">
+//             <div>
+//               <h1 className="text-3xl font-bold mb-2">{product.title}</h1>
+//               <p className="text-muted-foreground">{product.description}</p>
+//             </div>
+
+//             {/* Rating */}
+//             <div className="flex items-center gap-2">
+//               <div className="flex">
+//                 {Array.from({ length: 5 }).map((_, i) => (
+//                   <Star
+//                     key={i}
+//                     className={`h-5 w-5 ${
+//                       i < Math.floor(product.rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+//                     }`}
+//                   />
+//                 ))}
+//               </div>
+//               <span className="text-sm text-gray-600">
+//                 {product.rating} ({product.rating_count} reviews)
+//               </span>
+//             </div>
+
+//             {/* Price */}
+//             <div className="space-y-2">
+//               <div className="flex items-baseline gap-2">
+//                 <span className="text-4xl font-bold">${product.price}</span>
+//                 {product.original_price && (
+//                   <span className="text-lg text-gray-500 line-through">${product.original_price}</span>
+//                 )}
+//               </div>
+//               {product.bnpl_enabled && (
+//                 <p className="text-sm text-green-600">or 4 payments of ${(product.price / 4).toFixed(2)} with BNPL</p>
+//               )}
+//             </div>
+
+//             {/* Product Info */}
+//             <div className="space-y-2">
+//               <div className="flex gap-2">
+//                 <Badge>{product.type}</Badge>
+//                 {product.bnpl_enabled && <Badge variant="secondary">BNPL Available</Badge>}
+//               </div>
+//             </div>
+
+//             {/* Quantity Selector */}
+//             <div className="flex items-center gap-4">
+//               <span className="font-semibold">Quantity:</span>
+//               <div className="flex items-center border rounded">
+//                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2 hover:bg-gray-100">
+//                   −
+//                 </button>
+//                 <span className="px-4 py-2 font-semibold">{quantity}</span>
+//                 <button onClick={() => setQuantity(quantity + 1)} className="px-3 py-2 hover:bg-gray-100">
+//                   +
+//                 </button>
+//               </div>
+//             </div>
+
+//             {/* Action Buttons */}
+//             <div className="flex gap-4">
+//               <Button size="lg" className="flex-1" onClick={handleBuyNow} disabled={isAdding}>
+//                 Buy Now
+//               </Button>
+//               <Button
+//                 size="lg"
+//                 variant="outline"
+//                 className="flex-1 bg-transparent"
+//                 onClick={handleAddToCart}
+//                 disabled={isAdding}
+//               >
+//                 <ShoppingCart className="mr-2 h-4 w-4" />
+//                 Add to Cart
+//               </Button>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
+
 "use client";
 
-import { use } from "react"
-import Link from "next/link"
-import { ProductDetail } from "@/components/store/product-detail"
+import {useProductDetail} from "@/lib/hooks/use-catalog";
+import {useCart} from "@/lib/hooks/use-cart";
+import {useReviews} from "@/lib/hooks/use-reviews";
+import {useRouter} from "next/navigation";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Star, ArrowLeft, ShoppingCart} from "lucide-react";
+import {toast} from "sonner";
+import {useState} from "react";
+import {Input} from "@/components/ui/input";
 
-const products = [
-  {
-    id: 1,
-    name: "Complete React Development Course",
-    description:
-      "Master React from basics to advanced concepts with hands-on projects",
-    price: 89.99,
-    originalPrice: 129.99,
-    category: "courses",
-    type: "digital",
-    rating: 4.8,
-    reviews: 2847,
-    image: "/placeholder.svg?height=200&width=300",
-    instructor: "Sarah Chen",
-    duration: "40 hours",
-    students: 15420,
-    bestseller: true,
-    bnplAvailable: true,
-  },
-  {
-    id: 2,
-    name: "Python Programming Textbook",
-    description:
-      "Comprehensive guide to Python programming with practical examples",
-    price: 45.99,
-    originalPrice: 59.99,
-    category: "books",
-    type: "physical",
-    rating: 4.6,
-    reviews: 1234,
-    image: "/placeholder.svg?height=200&width=300",
-    author: "Dr. Michael Johnson",
-    pages: 650,
-    publisher: "TechBooks",
-    inStock: true,
-    bnplAvailable: true,
-  },
-  {
-    id: 3,
-    name: "JavaScript Fundamentals Audio Course",
-    description:
-      "Learn JavaScript on-the-go with this comprehensive audio course",
-    price: 29.99,
-    originalPrice: 39.99,
-    category: "audio",
-    type: "digital",
-    rating: 4.5,
-    reviews: 892,
-    image: "/placeholder.svg?height=200&width=300",
-    narrator: "Alex Rodriguez",
-    duration: "12 hours",
-    episodes: 24,
-    bnplAvailable: false,
-  },
-  {
-    id: 4,
-    name: "Programming Laptop - Student Edition",
-    description:
-      "High-performance laptop optimized for coding and development",
-    price: 899.99,
-    originalPrice: 1199.99,
-    category: "hardware",
-    type: "physical",
-    rating: 4.7,
-    reviews: 456,
-    image: "/placeholder.svg?height=200&width=300",
-    brand: "TechPro",
-    specs: "Intel i7, 16GB RAM, 512GB SSD",
-    warranty: "2 years",
-    inStock: true,
-    bnplAvailable: true,
-  },
-  {
-    id: 5,
-    name: "Data Science Toolkit",
-    description:
-      "Complete toolkit with books, software licenses, and project templates",
-    price: 199.99,
-    originalPrice: 299.99,
-    category: "bundles",
-    type: "mixed",
-    rating: 4.9,
-    reviews: 678,
-    image: "/placeholder.svg?height=200&width=300",
-    includes: "3 Books, 5 Software Licenses, 20 Templates",
-    value: "$500+",
-    bnplAvailable: true,
-  },
-  {
-    id: 6,
-    name: "Web Development Bootcamp",
-    description: "Intensive 12-week bootcamp covering full-stack development",
-    price: 2499.99,
-    originalPrice: 3499.99,
-    category: "bootcamps",
-    type: "service",
-    rating: 4.9,
-    reviews: 234,
-    image: "/placeholder.svg?height=200&width=300",
-    duration: "12 weeks",
-    format: "Live Online",
-    jobGuarantee: true,
-    bnplAvailable: true,
-  },
-]
+export default function ProductDetailPage({
+  params,
+}: {
+  params: {productId: string};
+}) {
+  const router = useRouter();
+  const {product, isLoading, error} = useProductDetail(params.productId);
+  const {addToCart} = useCart();
+  const {submitReview, isLoading: isSubmitting} = useReviews(params.productId);
+  const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
+  const [review, setReview] = useState({rating: 0, title: "", body: ""});
 
-
-export default function ProductDetailPage({ params }: { params: Promise<{ productId: string }> }) {
-  const resolvedParams = use(params)
-  const productId = parseInt(resolvedParams.productId, 10)
-  const product = products.find((p) => p.id === productId)
-
-  if (!product) {
+  if (isLoading) {
     return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-        <Link href="/store" className="text-blue-600 underline">
-          Back to Store
-        </Link>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading product...
       </div>
-    )
+    );
   }
 
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Product not found</p>
+          <Button onClick={() => router.back()}>Go Back</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleAddToCart = async () => {
+    try {
+      setIsAdding(true);
+      await addToCart(product.id, quantity);
+      toast.success(`Added ${quantity} item(s) to cart!`);
+    } catch (error) {
+      toast.error("Failed to add to cart");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    try {
+      setIsAdding(true);
+      await addToCart(product.id, quantity);
+      router.push("/store/checkout");
+    } catch (error) {
+      toast.error("Failed to proceed");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (review.rating && review.title && review.body) {
+      await submitReview(review);
+      toast.success("Review submitted!");
+      setReview({rating: 0, title: "", body: ""});
+    } else {
+      toast.error("Please fill all review fields");
+    }
+  };
+
   return (
-    <div className="container mx-auto p-4">
-      <Link href="/store" className="text-blue-600 underline mb-4 inline-block">
-        &larr; Back to Store
-      </Link>
-      <ProductDetail product={product} />
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <img
+              src={product.image || "/placeholder.svg"}
+              alt={product.title}
+              className="w-full rounded-lg border"
+            />
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{product.title}</h1>
+              <p className="text-muted-foreground">{product.description}</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {Array.from({length: 5}).map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-5 w-5 ${
+                      i < Math.floor(product.rating || 0)
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-gray-600">
+                {product.rating} ({product.rating_count} reviews)
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold">${product.price}</span>
+              </div>
+              {product.bnpl_enabled && (
+                <p className="text-sm text-green-600">
+                  or 4 payments of ${(product.price / 4).toFixed(2)} with BNPL
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Badge>{product.type}</Badge>
+                {product.bnpl_enabled && (
+                  <Badge variant="secondary">BNPL Available</Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <span className="font-semibold">Quantity:</span>
+              <div className="flex items-center border rounded">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-3 py-2 hover:bg-gray-100">
+                  −
+                </button>
+                <span className="px-4 py-2 font-semibold">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="px-3 py-2 hover:bg-gray-100">
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                size="lg"
+                className="flex-1"
+                onClick={handleBuyNow}
+                disabled={isAdding}>
+                Buy Now
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="flex-1 bg-transparent"
+                onClick={handleAddToCart}
+                disabled={isAdding}>
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Add to Cart
+              </Button>
+            </div>
+
+            {/* Review Form */}
+            <div>
+              <h3 className="text-xl font-semibold mb-2">Write a Review</h3>
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <Input
+                  type="number"
+                  min="0"
+                  max="5"
+                  placeholder="Rating (0-5)"
+                  value={review.rating}
+                  onChange={(e) =>
+                    setReview({...review, rating: Number(e.target.value)})
+                  }
+                />
+                <Input
+                  placeholder="Review Title"
+                  value={review.title}
+                  onChange={(e) =>
+                    setReview({...review, title: e.target.value})
+                  }
+                />
+                <Input
+                  placeholder="Review Body"
+                  value={review.body}
+                  onChange={(e) => setReview({...review, body: e.target.value})}
+                />
+                <Button type="submit" disabled={isSubmitting}>
+                  Submit Review
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
