@@ -1,15 +1,8 @@
+// app/invoice/invoices/page.tsx
 "use client";
-import {InvoiceHeader} from "@/components/invoice/invoice-header";
-import {InvoiceList} from "@/components/invoice/invoice-list";
-import {SidebarTrigger} from "@/components/ui/sidebar";
-import {Separator} from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbLink,
-} from "@/components/ui/breadcrumb";
+import { InvoiceHeader } from "@/components/invoice/invoice-header";
+import { InvoiceList } from "@/components/invoice/invoice-list";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function InvoicesPage() {
   return (

@@ -1,117 +1,64 @@
+// components/invoice/invoice-list.tsx
 "use client";
 
-import {useState} from "react";
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {PaymentStatusBadge} from "@/components/invoice/payment-status-badge";
-import {InvoiceDetailsModal} from "@/components/invoice/invoice-details-modal";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { PaymentStatusBadge } from "@/components/invoice/payment-status-badge";
+import { InvoiceDetailsModal } from "@/components/invoice/invoice-details-modal";
+import { Spinner } from "@/components/ui/spinner";
 import {
   MoreHorizontal,
   Eye,
-  Edit,
-  Send,
   Download,
   Calendar,
   DollarSign,
-  User,
   Building2,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 interface Invoice {
-  id: string;
+  id: number;
   number: string;
-  client: {
-    name: string;
-    company: string;
-    email: string;
-  };
-  amount: number;
-  status: "paid" | "pending" | "overdue" | "failed";
-  dueDate: string;
-  issueDate: string;
-  description: string;
-  items: number;
+  amount: string;
+  currency: string;
+  issued_at: string;
+  due_at: string;
+  status: "open" | "paid" | "void" | "uncollectible" | "active";
+  meta: { generated_for: string; parent_profile_id: number };
 }
 
-const mockInvoices: Invoice[] = [
-  {
-    id: "INV-001",
-    number: "INV-2024-001",
-    client: {
-      name: "John Smith",
-      company: "Acme Corp",
-      email: "john@acme.com",
-    },
-    amount: 2500.0,
-    status: "paid",
-    dueDate: "2024-02-15",
-    issueDate: "2024-01-15",
-    description: "Web Development Services",
-    items: 3,
-  },
-  {
-    id: "INV-002",
-    number: "INV-2024-002",
-    client: {
-      name: "Sarah Johnson",
-      company: "Tech Solutions Inc",
-      email: "sarah@techsolutions.com",
-    },
-    amount: 1800.0,
-    status: "pending",
-    dueDate: "2024-02-20",
-    issueDate: "2024-01-20",
-    description: "UI/UX Design Package",
-    items: 2,
-  },
-  {
-    id: "INV-003",
-    number: "INV-2024-003",
-    client: {
-      name: "Michael Brown",
-      company: "StartupXYZ",
-      email: "mike@startupxyz.com",
-    },
-    amount: 3200.0,
-    status: "overdue",
-    dueDate: "2024-01-30",
-    issueDate: "2024-01-01",
-    description: "Full Stack Development",
-    items: 5,
-  },
-  {
-    id: "INV-004",
-    number: "INV-2024-004",
-    client: {
-      name: "Emily Davis",
-      company: "Creative Agency",
-      email: "emily@creative.com",
-    },
-    amount: 950.0,
-    status: "failed",
-    dueDate: "2024-02-10",
-    issueDate: "2024-01-10",
-    description: "Brand Identity Design",
-    items: 1,
-  },
-];
-
 export function InvoiceList() {
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
-    null
-  );
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleViewInvoice = (invoiceId: string) => {
-    setSelectedInvoiceId(invoiceId);
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        const res = await fetch("/api/billing");
+        if (!res.ok) throw new Error("Failed to fetch invoices");
+        const data = await res.json();
+        setInvoices(data.results || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInvoices();
+  }, []);
+
+  const handleViewInvoice = (id: number) => {
+    setSelectedInvoiceId(id);
     setIsModalOpen(true);
   };
 
@@ -119,6 +66,22 @@ export function InvoiceList() {
     setIsModalOpen(false);
     setSelectedInvoiceId(null);
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <p className="text-destructive">Error: {error}</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -132,19 +95,18 @@ export function InvoiceList() {
               Manage and track your invoice status
             </p>
           </div>
-          <Badge
-            variant="outline"
-            className="bg-primary/10 text-primary border-primary/20 w-fit">
-            {mockInvoices.length} Total
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 w-fit">
+            {invoices.length} Total
           </Badge>
         </div>
 
         <div className="grid gap-3">
-          {mockInvoices.map((invoice, index) => (
+          {invoices.map((invoice, index) => (
             <Card
               key={invoice.id}
               className="hover-lift border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur animate-slide-up"
-              style={{animationDelay: `${index * 0.1}s`}}>
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
@@ -155,7 +117,7 @@ export function InvoiceList() {
                       <PaymentStatusBadge status={invoice.status} size="sm" />
                     </div>
                     <p className="text-xs text-muted-foreground md:text-sm">
-                      {invoice.description}
+                      Generated for parent profile
                     </p>
                   </div>
                   <DropdownMenu>
@@ -165,8 +127,7 @@ export function InvoiceList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem
-                        onClick={() => handleViewInvoice(invoice.id)}>
+                      <DropdownMenuItem onClick={() => handleViewInvoice(invoice.id)}>
                         <Eye className="h-4 w-4 mr-2" />
                         View Details
                       </DropdownMenuItem>
@@ -183,14 +144,11 @@ export function InvoiceList() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
                       <Building2 className="h-4 w-4" />
-                      <span>Client</span>
+                      <span>Profile</span>
                     </div>
                     <div>
                       <p className="font-semibold text-sm md:text-base">
-                        {invoice.client.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {invoice.client.company}
+                        Parent ID: {invoice.meta.parent_profile_id}
                       </p>
                     </div>
                   </div>
@@ -201,10 +159,7 @@ export function InvoiceList() {
                       <span>Amount</span>
                     </div>
                     <p className="font-bold text-base md:text-lg">
-                      $
-                      {invoice.amount.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}
+                      {invoice.currency} {Number(invoice.amount).toLocaleString()}
                     </p>
                   </div>
 
@@ -214,7 +169,7 @@ export function InvoiceList() {
                       <span>Due Date</span>
                     </div>
                     <p className="font-medium text-sm md:text-base">
-                      {new Date(invoice.dueDate).toLocaleDateString("en-US", {
+                      {new Date(invoice.due_at).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -224,30 +179,30 @@ export function InvoiceList() {
 
                   <div className="space-y-1">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                      <User className="h-4 w-4" />
-                      <span>Items</span>
+                      <Calendar className="h-4 w-4" />
+                      <span>Issued</span>
                     </div>
                     <p className="font-medium text-sm md:text-base">
-                      {invoice.items} items
+                      {new Date(invoice.issued_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
+                <div className="flex flex-col gap, sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
                   <div className="text-xs text-muted-foreground">
-                    Issued:{" "}
-                    {new Date(invoice.issueDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    Status: <Badge variant="outline">{invoice.status}</Badge>
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 mt-2 sm:mt-0">
                     <Button
                       variant="outline"
                       size="sm"
                       className="hover-lift bg-transparent w-full sm:w-auto py-2"
-                      onClick={() => handleViewInvoice(invoice.id)}>
+                      onClick={() => handleViewInvoice(invoice.id)}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>

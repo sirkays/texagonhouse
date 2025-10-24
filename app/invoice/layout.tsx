@@ -50,13 +50,13 @@ const navigationItems = [
     description: "Transaction history and details",
     badge: null,
   },
-  {
-    title: "Payments",
-    url: "/invoice/payments",
-    icon: CreditCard,
-    description: "Payment tracking and status",
-    badge: "23",
-  },
+  // {
+  //   title: "Payments",
+  //   url: "/invoice/payments",
+  //   icon: CreditCard,
+  //   description: "Payment tracking and status",
+  //   badge: "23",
+  // },
 ];
 
 const supportItems = [
