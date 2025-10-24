@@ -157,6 +157,9 @@ export function CodeEditor() {
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadSuccessMessage, setUploadSuccessMessage] = useState<
+    string | null
+  >(null);
 
   const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
@@ -305,6 +308,9 @@ export function CodeEditor() {
       });
 
       setUploadedFiles((prev) => [res, ...prev]);
+      setActiveTab("files"); // Switch to Files tab
+      setUploadSuccessMessage("File uploaded successfully!"); // Set success message
+      setTimeout(() => setUploadSuccessMessage(null), 3000); // Clear after 3s
       return res;
     } catch (error) {
       alert(`Upload failed: ${(error as Error).message}`);
@@ -832,7 +838,8 @@ export function CodeEditor() {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "X-RapidAPI-Key": "YOUR_VALID_RAPIDAPI_KEY_HERE",
+                  "X-RapidAPI-Key":
+                    "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
                   "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
                 },
                 body: JSON.stringify({
@@ -1545,6 +1552,12 @@ export function CodeEditor() {
             <Card className="flex flex-col w-full">
               <CardHeader>
                 <CardTitle className="text-lg sm:text-xl">Files</CardTitle>
+                {uploadSuccessMessage && (
+                  <Alert className="mt-2 bg-green-50 border-green-200 text-green-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{uploadSuccessMessage}</AlertDescription>
+                  </Alert>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
@@ -1615,17 +1628,17 @@ export function CodeEditor() {
                             new Date(a.updated_at).getTime()
                         )
                         .map((s) => (
-                          <Card key={s.id} className="p-4 snippet-item">
-                            <div className="flex justify-between items-center">
+                          <Card key={s.id} className="p-4 overflow-hidden">
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                               <span
-                                className="font-medium cursor-pointer hover:text-primary flex-1"
+                                className="font-medium cursor-pointer hover:text-primary truncate flex-1"
                                 onClick={() => loadSnippet(s)}
                                 title="Click to load into editor"
                               >
                                 {s.title}
                               </span>
-                              <div className="flex items-center gap-2 ml-4">
-                                <span className="text-muted-foreground text-xs">
+                              <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <span className="text-muted-foreground text-xs truncate">
                                   {new Date(s.updated_at).toLocaleString()}
                                 </span>
                                 <Button
@@ -1648,7 +1661,7 @@ export function CodeEditor() {
                               </div>
                             </div>
                             {s.lesson && (
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-muted-foreground mt-1 truncate">
                                 Lesson {s.lesson}
                               </p>
                             )}
@@ -1689,11 +1702,11 @@ export function CodeEditor() {
                       </p>
                     ) : (
                       paginatedUploads.map((file) => (
-                        <Card key={file.id} className="p-4">
-                          <div className="flex flex-col sm:flex-row justify-between items-start">
+                        <Card key={file.id} className="p-4 overflow-hidden">
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                             <div className="flex-1">
                               <h4
-                                className={`font-medium cursor-pointer hover:text-primary ${
+                                className={`font-medium cursor-pointer hover:text-primary truncate ${
                                   fileLoading === file.id
                                     ? "opacity-50 cursor-wait"
                                     : ""
@@ -1712,17 +1725,17 @@ export function CodeEditor() {
                                   <Spinner size="sm" className="inline ml-2" />
                                 )}
                               </h4>
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-sm text-muted-foreground truncate">
                                 {file.original_name} •{" "}
                                 {Math.round(file.size_bytes / 1024)} KB •
                                 {file.lesson
                                   ? ` Lesson ${file.lesson}`
                                   : " No lesson"}
                               </p>
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-muted-foreground mt-1 truncate">
                                 {new Date(file.updated_at).toLocaleString()}
                               </p>
-                              <div className="file-url">
+                              <div className="text-xs text-muted-foreground mt-1 truncate">
                                 <span>{file.url}</span>
                                 <Button
                                   variant="ghost"
@@ -1730,12 +1743,13 @@ export function CodeEditor() {
                                   onClick={() => copyFileUrl(file)}
                                   title="Copy file URL"
                                   disabled={loading || fileLoading === file.id}
+                                  className="ml-2"
                                 >
                                   <Copy className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
                               <Button
                                 variant="ghost"
                                 size="sm"

@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -23,25 +23,23 @@ import {
   Edit,
   Bookmark,
   LogIn,
-  Eye,
-  ExternalLink,
-  Download,
 } from "lucide-react";
-import {VideoModal} from "./video-modal";
-import {NoteEditor} from "./note-editor";
-import {BookmarkManager} from "./bookmark-manager";
-import {AudioPlayer} from "./audio-player";
-import {useSession} from "next-auth/react";
-import {useRouter} from "next/navigation";
-import {Spinner} from "@/components/ui/spinner";
+import { VideoModal } from "./video-modal";
+import { NoteEditor } from "./note-editor";
+import { BookmarkManager } from "./bookmark-manager";
+import { AudioPlayer } from "./audio-player";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Note {
-  id: string;
-  title: string;
+  id: number;
+  student: number;
+  lesson: number;
   content: string;
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
+  is_private: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface SavedItem {
@@ -67,23 +65,29 @@ interface SavedItem {
     title: string;
     speaker: string;
     duration: string;
-    progress: number;
+    beprogress: number;
     audioUrl: string;
   }[];
 }
 
 interface Bookmark {
-  id: string;
+  id: number;
+  student: number;
   lessonId: number;
   lessonTitle: string;
-  positionSeconds: number;
   note: string;
-  createdAt: string;
-  updatedAt: string;
+  position_seconds: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Lesson {
+  id: number;
+  title: string;
 }
 
 export function MyMaterials() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -92,7 +96,7 @@ export function MyMaterials() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
-  const [selectedAudio, setSelectedAudio] = useState<any>(null);
+  const [selectedAudio, setSelectedAudio] =  useState<any>(null);
   const [data, setData] = useState<{
     saved: SavedItem;
     notes: Note[];
@@ -100,12 +104,14 @@ export function MyMaterials() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
 
-  // Fallback data for UI stability
+  const defaultThumbnail = "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
+
   const fallbackData = {
     saved: {
       videos: [
@@ -115,7 +121,7 @@ export function MyMaterials() {
           instructor: "Sarah Johnson",
           duration: "2h 45m",
           progress: 65,
-          thumbnail: "https://source.unsplash.com/random/300x200?sig=1",
+          thumbnail: defaultThumbnail,
           videoUrl: "/sample-video.mp4",
         },
         {
@@ -124,7 +130,7 @@ export function MyMaterials() {
           instructor: "Mike Chen",
           duration: "3h 20m",
           progress: 30,
-          thumbnail: "https://source.unsplash.com/random/300x200?sig=1",
+          thumbnail: defaultThumbnail,
           videoUrl: "/sample-video.mp4",
         },
       ],
@@ -167,21 +173,23 @@ export function MyMaterials() {
     },
     notes: [
       {
-        id: "1",
-        title: "React Hooks Notes",
+        id: 1,
+        student: 345,
+        lesson: 1,
         content: "useState and useEffect are the most commonly used hooks...",
-        tags: ["react", "hooks", "frontend"],
-        createdAt: "2024-01-15T00:00:00Z",
-        updatedAt: "2024-01-15T00:00:00Z",
+        is_private: true,
+        created_at: "2024-01-15T00:00:00Z",
+        updated_at: "2024-01-15T00:00:00Z",
       },
       {
-        id: "2",
-        title: "Python Data Structures",
+        id: 2,
+        student: 345,
+        lesson: 2,
         content:
           "Lists, dictionaries, and sets are fundamental data structures...",
-        tags: ["python", "data-structures", "programming"],
-        createdAt: "2024-01-10T00:00:00Z",
-        updatedAt: "2024-01-12T00:00:00Z",
+        is_private: true,
+        created_at: "2024-01-10T00:00:00Z",
+        updated_at: "2024-01-12T00:00:00Z",
       },
     ],
     bookmarks: [],
@@ -192,7 +200,7 @@ export function MyMaterials() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       console.log("[MyMaterials] Logout API response status:", response.status);
       const data = await response.json();
@@ -213,62 +221,199 @@ export function MyMaterials() {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      console.log("[MyMaterials] Initiating fetch for /api/student/materials");
-      if (status !== "authenticated" || !sessionToken) {
-        console.log(
-          "[MyMaterials] Session not authenticated, status:",
-          status,
-          "sessionToken:",
-          session?.user?.sessionToken
-        );
-        setError("Not authenticated");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        console.log(
-          "[MyMaterials] Fetching from /api/student/materials with token:",
-          session.user.sessionToken
-        );
-        const res = await fetch("/api/student/materials", {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-          },
-        });
-        console.log("[MyMaterials] Fetch response status:", res.status);
-        if (!res.ok) {
-          console.error("[MyMaterials] Fetch failed with status:", res.status);
-          if (res.status === 401 || res.status === 403) {
-            setError("Session expired");
-            setData(null); // Prevent fallback data on session expiry
-            setLoading(false);
-            return;
-          }
-          setError(
-            res.status === 404
-              ? "Materials endpoint not found"
-              : "Failed to fetch materials"
-          );
-          setData(fallbackData); // Use fallback data for other errors
-          throw new Error("Fetch failed");
-        }
-        const json = await res.json();
-        console.log("[MyMaterials] Fetch response data:", json);
-        setData(json);
-        setError(null); // Clear error on success
-      } catch (e) {
-        console.error("[MyMaterials] Fetch error:", e);
-        setError("Session expired"); // Assume session expiry for any error when authenticated
-        setData(null); // Prevent fallback data
-      }
+  const fetchData = async () => {
+    console.log("[MyMaterials] Initiating fetch for /api/student/materials");
+    if (status !== "authenticated" || !sessionToken) {
+      console.log(
+        "[MyMaterials] Session not authenticated, status:",
+        status,
+        "sessionToken:",
+        session?.user?.sessionToken
+      );
+      setError("Not authenticated");
       setLoading(false);
-    };
+      return;
+    }
+
+    try {
+      console.log(
+        "[MyMaterials] Fetching from /api/student/materials with token:",
+        session.user.sessionToken
+      );
+      const res = await fetch("/api/student/materials", {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
+      });
+      console.log("[MyMaterials] Fetch response status:", res.status);
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error(
+          "[MyMaterials] Fetch failed with status:",
+          res.status,
+          "details:",
+          errorData
+        );
+        if (res.status === 401 || res.status === 403) {
+          setError("Session expired");
+          setData(null);
+          setLoading(false);
+          return;
+        }
+        setError(
+          res.status === 404
+            ? "Materials endpoint not found"
+            : `Failed to fetch materials: ${JSON.stringify(errorData)}`
+        );
+        setData(fallbackData);
+        throw new Error("Fetch failed");
+      }
+      const json = await res.json();
+      console.log("[MyMaterials] Fetch response data:", json);
+
+      const bookmarksWithTitles = json.bookmarks.map((bookmark) => {
+        if (!bookmark.lessonId) {
+          console.warn("[MyMaterials] Bookmark missing lessonId:", bookmark);
+          return {
+            ...bookmark,
+            lessonTitle: "Unknown Lesson",
+          };
+        }
+        return {
+          ...bookmark,
+          lessonTitle:
+            json.saved.videos.find((v) => v.id === bookmark.lessonId.toString())?.title ||
+            `Lesson ${bookmark.lessonId}`,
+        };
+      });
+
+      setData({ ...json, bookmarks: bookmarksWithTitles });
+      setError(null);
+    } catch (e) {
+      console.error("[MyMaterials] Fetch error:", e);
+      setError(`Session expired: ${e.message}`);
+      setData(null);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchData();
   }, [sessionToken, status]);
+
+  // Extract lessons from videos
+  useEffect(() => {
+    if (data?.saved?.videos) {
+      const lessonList: Lesson[] = data.saved.videos.map((v) => ({
+        id: parseInt(v.id),
+        title: v.title,
+      }));
+      setLessons(lessonList);
+    }
+  }, [data]);
+
+  const handleSaveNote = async (note: Note) => {
+    if (!note.lesson) {
+      setError("Please select a lesson for the note.");
+      return;
+    }
+    if (!note.content?.trim()) {
+      setError("Note content cannot be empty.");
+      return;
+    }
+
+    const normalizedNote: Note = {
+      ...note,
+      content: note.content.trim(),
+      created_at: note.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log("[MyMaterials] Saving note:", normalizedNote);
+
+    try {
+      let response;
+      if (selectedNote) {
+        response = await fetch("/api/student/notes", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken || "",
+          },
+          body: JSON.stringify({
+            id: normalizedNote.id,
+            lesson: normalizedNote.lesson,
+            content: normalizedNote.content,
+            is_private: normalizedNote.is_private,
+            student: session?.user?.id,
+          }),
+        });
+      } else {
+        response = await fetch("/api/student/notes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken || "",
+          },
+          body: JSON.stringify({
+            lesson: normalizedNote.lesson,
+            content: normalizedNote.content,
+            is_private: normalizedNote.is_private,
+            student: session?.user?.id,
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed: ${JSON.stringify(errorData)}`);
+      }
+
+      const savedNote = await response.json();
+      setData((prev) => ({
+        ...prev!,
+        notes: selectedNote
+          ? prev!.notes.map((n) => (n.id === savedNote.id ? savedNote : n))
+          : [...prev!.notes, savedNote],
+      }));
+
+      setNoteEditorOpen(false);
+      setSelectedNote(null);
+      setError(null);
+    } catch (err: any) {
+      console.error("[MyMaterials] Save error:", err);
+      setError(err.message);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: number) => {
+    console.log("[MyMaterials] Sending DELETE to /api/student/notes for note ID:", noteId);
+    try {
+      const response = await fetch(`/api/student/notes`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken || "",
+        },
+        body: JSON.stringify({ id: noteId }),
+      });
+      console.log("[MyMaterials] DELETE response status:", response.status);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("[MyMaterials] Delete note error details:", errorData);
+        throw new Error(`Failed to delete note: ${JSON.stringify(errorData)}`);
+      }
+      setData((prev) => ({
+        ...prev!,
+        notes: prev!.notes.filter((n) => n.id !== noteId),
+      }));
+      setError(null);
+    } catch (err: any) {
+      console.error("[MyMaterials] Note delete error:", err);
+      setError(err.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -319,7 +464,8 @@ export function MyMaterials() {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2">
+              className="flex items-center gap-2"
+            >
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -367,41 +513,6 @@ export function MyMaterials() {
     setNoteEditorOpen(true);
   };
 
-  const handleSaveNote = (note: Note) => {
-    const normalizedNote: Note = {
-      ...note,
-      createdAt:
-        note.createdAt instanceof Date
-          ? note.createdAt.toISOString()
-          : note.createdAt,
-      updatedAt:
-        note.updatedAt instanceof Date
-          ? note.updatedAt.toISOString()
-          : note.updatedAt,
-    };
-
-    if (selectedNote) {
-      setData({
-        ...data!,
-        notes: notes.map((n) =>
-          n.id === normalizedNote.id ? normalizedNote : n
-        ),
-      });
-    } else {
-      setData({
-        ...data!,
-        notes: [...notes, normalizedNote],
-      });
-    }
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    setData({
-      ...data!,
-      notes: notes.filter((n) => n.id !== noteId),
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -423,8 +534,9 @@ export function MyMaterials() {
         </div>
         <Button
           className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-          variant="outline">
-          <Filter className="mr-2 h-4 w-4 " />
+          variant="outline"
+        >
+          <Filter className="mr-2 h-4 w-4" />
           Search
         </Button>
       </div>
@@ -433,22 +545,20 @@ export function MyMaterials() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="saved"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Saved Items
           </TabsTrigger>
           <TabsTrigger
-            value="downloads"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
-            Downloads
-          </TabsTrigger>
-          <TabsTrigger
             value="notes"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             My Notes
           </TabsTrigger>
           <TabsTrigger
             value="bookmarks"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
             Bookmarks
           </TabsTrigger>
         </TabsList>
@@ -463,32 +573,30 @@ export function MyMaterials() {
               {savedItems.videos.map((video) => (
                 <Card
                   key={video.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                >
                   <CardHeader className="p-0">
                     <div className="relative">
                       <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                        {video.thumbnail ? (
+                        {video.thumbnail && video.thumbnail !== defaultThumbnail ? (
                           <>
                             <img
                               src={
-                                video.thumbnail.startsWith('http')
+                                video.thumbnail.startsWith("http")
                                   ? video.thumbnail
                                   : `https://texagonbackend.epichouse.online${video.thumbnail}`
                               }
                               alt={video.title}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                console.error(
+                                console.warn(
                                   "[MyMaterials] Image load error for:",
-                                  video.thumbnail
+                                  video.thumbnail,
+                                  "using default thumbnail"
                                 );
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                                e.currentTarget.src = defaultThumbnail;
                               }}
                             />
-                            <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden bg-muted">
-                              <Video className="h-8 w-8 text-muted-foreground" />
-                            </div>
                           </>
                         ) : (
                           <Video className="h-8 w-8 text-muted-foreground" />
@@ -498,7 +606,8 @@ export function MyMaterials() {
                         <Button
                           size="sm"
                           className="rounded-full bg-transparent h-10 w-10 text-white hover:bg-[#f7977192] hover:text-white"
-                          onClick={() => handleWatchVideo(video)}>
+                          onClick={() => handleWatchVideo(video)}
+                        >
                           <Play className="h-4 w-4" />
                         </Button>
                       </div>
@@ -509,18 +618,6 @@ export function MyMaterials() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col flex-1 px-4">
-                    {/* <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{video.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{ width: `${video.progress}%` }}
-                        />
-                      </div>
-                    </div> */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -531,7 +628,8 @@ export function MyMaterials() {
                       <Button
                         size="sm"
                         className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                        onClick={() => handleWatchVideo(video)}>
+                        onClick={() => handleWatchVideo(video)}
+                      >
                         <Play className="mr-2 h-3 w-3" />
                         Continue Watching
                       </Button>
@@ -551,7 +649,8 @@ export function MyMaterials() {
               {savedItems.audio.map((audio) => (
                 <Card
                   key={audio.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                >
                   <CardHeader>
                     <div className="space-y-1">
                       <CardTitle className="text-lg">{audio.title}</CardTitle>
@@ -559,18 +658,6 @@ export function MyMaterials() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col flex-1">
-                    {/* <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{audio.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{ width: `${audio.progress}%` }}
-                        />
-                      </div>
-                    </div> */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -581,7 +668,8 @@ export function MyMaterials() {
                       <Button
                         size="sm"
                         className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                        onClick={() => handlePlayAudio(audio)}>
+                        onClick={() => handlePlayAudio(audio)}
+                      >
                         <Play className="mr-2 h-3 w-3" />
                         Continue Listening
                       </Button>
@@ -593,69 +681,13 @@ export function MyMaterials() {
           </div>
         </TabsContent>
 
-        <TabsContent value="downloads" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {savedItems.pdfs.map((pdf) => (
-              <Card
-                key={pdf.id}
-                className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{pdf.title}</CardTitle>
-                      <CardDescription>by {pdf.author}</CardDescription>
-                    </div>
-                    <FileText className="h-8 w-8 text-[#EF7B55]" />
-                  </div>
-                </CardHeader>
-                <CardContent className="flex flex-col flex-1">
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div>Pages: {pdf.pages ?? "N/A"}</div>
-                    <div>Size: {pdf.size ?? "N/A"}</div>
-                  </div>
-                  <div className="mt-auto pt-4 flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 h-10 w-full bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                      onClick={() => handlePreviewPdf(pdf)}>
-                      <Eye className="mr-2 h-3 w-3" />
-                      Preview
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 w-full h-10 shadow-md"
-                      onClick={() => {
-                        if (!pdf.downloadUrl) {
-                          console.error(
-                            "[MyMaterials] No downloadUrl for download:",
-                            pdf.title
-                          );
-                          return;
-                        }
-                        const link = document.createElement("a");
-                        link.href = pdf.downloadUrl;
-                        link.download = pdf.title || "document.pdf";
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}>
-                      <Download className="mr-2 h-3 w-3" />
-                      Download
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
         <TabsContent value="notes" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">My Notes</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => handleOpenNote()}>
+              onClick={() => handleOpenNote()}
+            >
               <Edit className="mr-2 h-4 w-4" />
               Create New Note
             </Button>
@@ -665,28 +697,24 @@ export function MyMaterials() {
               <Card key={note.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="space-y-1">
-                    <CardTitle className="text-lg">{note.title}</CardTitle>
+                    <CardTitle className="text-lg">
+                      Lesson {note.lesson}
+                    </CardTitle>
                     <CardDescription className="line-clamp-2">
                       {note.content}
                     </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-1">
-                    {note.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Updated {new Date(note.updatedAt).toLocaleDateString()}
+                    Updated {new Date(note.updated_at).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       className="flex-1 w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                      onClick={() => handleOpenNote(note)}>
+                      onClick={() => handleOpenNote(note)}
+                    >
                       <Edit className="mr-2 h-3 w-3" />
                       Open
                     </Button>
@@ -694,7 +722,8 @@ export function MyMaterials() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDeleteNote(note.id)}
-                      className="flex-1 w-full h-10 shadow-md">
+                      className="flex-1 w-full h-10 shadow-md"
+                    >
                       Delete
                     </Button>
                   </div>
@@ -709,7 +738,8 @@ export function MyMaterials() {
             <h3 className="text-lg font-semibold">My Bookmarks</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => setBookmarkManagerOpen(true)}>
+              onClick={() => setBookmarkManagerOpen(true)}
+            >
               <Bookmark className="mr-2 h-4 w-4" />
               Manage Bookmarks
             </Button>
@@ -731,7 +761,8 @@ export function MyMaterials() {
               {bookmarks.map((bookmark) => (
                 <Card
                   key={bookmark.id}
-                  className="hover:shadow-lg transition-shadow">
+                  className="hover:shadow-lg transition-shadow"
+                >
                   <CardHeader>
                     <div className="space-y-1">
                       <CardTitle className="text-lg">
@@ -744,11 +775,11 @@ export function MyMaterials() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-sm text-muted-foreground">
-                      Position: {bookmark.positionSeconds}s
+                      Position: {bookmark.position_seconds}s
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Updated{" "}
-                      {new Date(bookmark.updatedAt).toLocaleDateString()}
+                      {new Date(bookmark.updated_at).toLocaleDateString()}
                     </div>
                   </CardContent>
                 </Card>
@@ -773,13 +804,18 @@ export function MyMaterials() {
       />
       <NoteEditor
         isOpen={noteEditorOpen}
-        onClose={() => setNoteEditorOpen(false)}
-        note={selectedNote ? selectedNote : undefined}
+        onClose={() => {
+          setNoteEditorOpen(false);
+          setSelectedNote(null);
+        }}
+        note={selectedNote || undefined}
         onSave={handleSaveNote}
+        lessons={lessons}
       />
       <BookmarkManager
         isOpen={bookmarkManagerOpen}
         onClose={() => setBookmarkManagerOpen(false)}
+        refreshData={fetchData}
       />
     </div>
   );

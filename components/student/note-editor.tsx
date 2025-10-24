@@ -11,15 +11,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Plus, X, Tag } from "lucide-react";
 
-interface Note {
-  id: string;
+interface Lesson {
+  id: number;
   title: string;
+}
+
+interface Note {
+  id?: number;
+  student?: number;
+  lesson: number;
   content: string;
-  tags: string[];
-  createdAt: string; // Changed from Date to string to match MyMaterials
-  updatedAt: string; // Changed from Date to string to match MyMaterials
+  is_private: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface NoteEditorProps {
@@ -27,51 +34,67 @@ interface NoteEditorProps {
   onClose: () => void;
   note?: Note;
   onSave: (note: Note) => void;
+  lessons: Lesson[];
 }
 
-export function NoteEditor({ isOpen, onClose, note, onSave }: NoteEditorProps) {
-  const [title, setTitle] = useState("");
+export function NoteEditor({ isOpen, onClose, note, onSave, lessons }: NoteEditorProps) {
+  const [lessonId, setLessonId] = useState<string>("");
   const [content, setContent] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
+  const [isPrivate, setIsPrivate] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Sync with incoming note
   useEffect(() => {
-    if (note) {
-      setTitle(note.title);
-      setContent(note.content);
-      setTags(note.tags);
-    } else {
-      setTitle("");
+    if (note && isOpen) {
+      setLessonId(note.lesson?.toString() || "");
+      setContent(note.content || "");
+      setIsPrivate(note.is_private ?? true);
+    } else if (isOpen) {
+      setLessonId("");
       setContent("");
-      setTags([]);
+      setIsPrivate(true);
     }
     setHasUnsavedChanges(false);
+    setError(null);
   }, [note, isOpen]);
 
-  // Auto-save functionality
+  // Auto-save
   useEffect(() => {
-    if (!isOpen || (!title && !content)) return;
+    if (!isOpen || !hasUnsavedChanges) return;
 
-    const autoSaveTimer = setTimeout(() => {
-      if (hasUnsavedChanges) {
+    const timer = setTimeout(() => {
+      if (validate()) {
         handleSave(false);
       }
-    }, 2000); // Auto-save after 2 seconds of inactivity
+    }, 2000);
 
-    return () => clearTimeout(autoSaveTimer);
-  }, [title, content, tags, hasUnsavedChanges, isOpen]);
+    return () => clearTimeout(timer);
+  }, [content, lessonId, isPrivate, hasUnsavedChanges, isOpen]);
+
+  const validate = (): boolean => {
+    if (!lessonId) {
+      setError("Please select a lesson.");
+      return false;
+    }
+    if (!content.trim()) {
+      setError("Note content cannot be empty.");
+      return false;
+    }
+    setError(null);
+    return true;
+  };
 
   const handleSave = (closeAfterSave = true) => {
-    if (!title.trim()) return;
+    if (!validate()) return;
 
     const savedNote: Note = {
-      id: note?.id || Date.now().toString(),
-      title: title.trim(),
+      ...(note?.id ? { id: note.id } : {}),
+      lesson: parseInt(lessonId),
       content: content.trim(),
-      tags,
-      createdAt: note?.createdAt || new Date().toISOString(), // Convert Date to ISO string
-      updatedAt: new Date().toISOString(), // Convert Date to ISO string
+      is_private: isPrivate,
+      created_at: note?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     onSave(savedNote);
@@ -82,90 +105,67 @@ export function NoteEditor({ isOpen, onClose, note, onSave }: NoteEditorProps) {
     }
   };
 
-  const addTag = () => {
-    if (newTag.trim() && !tags.includes(newTag.trim())) {
-      setTags([...tags, newTag.trim()]);
-      setNewTag("");
-      setHasUnsavedChanges(true);
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove));
-    setHasUnsavedChanges(true);
-  };
-
-  const handleTitleChange = (value: string) => {
-    setTitle(value);
-    setHasUnsavedChanges(true);
-  };
-
   const handleContentChange = (value: string) => {
     setContent(value);
     setHasUnsavedChanges(true);
   };
 
+  const handleLessonChange = (value: string) => {
+    setLessonId(value);
+    setHasUnsavedChanges(true);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className="
-      w-[95%] sm:w-[90%] md:w-[80%] lg:w-[70%] xl:w-[60%] 
-      max-w-4xl h-[80vh] flex flex-col 
-      mx-auto rounded-xl p-4 sm:p-6
-    "
-      >
+      <DialogContent className="w-[95%] sm:w-[90%] md:w-[80%] lg:w-[70%] xl:w-[60%] max-w-4xl h-[80vh] flex flex-col mx-auto rounded-xl p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>{note ? "Edit Note" : "Create New Note"}</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-scroll overflow-y-auto scrollbar-hide">
-          {/* Title */}
-          <Input
-            placeholder="Note title..."
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            className="text-lg font-semibold"
-          />
-
-          {/* Tags */}
+        <div className="flex-1 space-y-4 overflow-y-auto">
+          {/* Lesson Selector */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <label className="text-sm font-medium flex items-center gap-2">
               <Tag className="h-4 w-4" />
-              <span className="text-sm font-medium">Tags</span>
-            </div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="flex items-center gap-1"
-                >
-                  {tag}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-4 w-4 p-0 hover:bg-transparent"
-                    onClick={() => removeTag(tag)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a tag..."
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && addTag()}
-                className="flex-1"
-              />
-              <Button variant="outline" size="sm" onClick={addTag}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+              Lesson
+            </label>
+            <Select value={lessonId} onValueChange={handleLessonChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a lesson..." />
+              </SelectTrigger>
+              <SelectContent>
+                {lessons.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    No lessons available
+                  </SelectItem>
+                ) : (
+                  lessons.map((lesson) => (
+                    <SelectItem key={lesson.id} value={lesson.id.toString()}>
+                      Lesson {lesson.id}: {lesson.title}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Privacy Toggle */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_private"
+              checked={isPrivate}
+              onChange={(e) => {
+                setIsPrivate(e.target.checked);
+                setHasUnsavedChanges(true);
+              }}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label htmlFor="is_private" className="text-sm font-medium">
+              Private note
+            </label>
           </div>
 
           {/* Content */}
@@ -179,11 +179,21 @@ export function NoteEditor({ isOpen, onClose, note, onSave }: NoteEditorProps) {
             />
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <p className="text-sm text-red-500">{error}</p>
+          )}
+
+          {/* Save Button + Unsaved Indicator */}
           <div className="flex items-center w-full gap-2">
             {hasUnsavedChanges && (
               <span className="text-sm text-orange-500">Unsaved changes</span>
             )}
-            <Button onClick={() => handleSave(true)} disabled={!title.trim()}>
+            <Button
+              onClick={() => handleSave(true)}
+              disabled={!lessonId || !content.trim()}
+              className="ml-auto"
+            >
               <Save className="h-4 w-4 mr-2" />
               Save
             </Button>
@@ -192,8 +202,8 @@ export function NoteEditor({ isOpen, onClose, note, onSave }: NoteEditorProps) {
           {/* Metadata */}
           {note && (
             <div className="text-xs text-muted-foreground border-t pt-2">
-              <div>Created: {new Date(note.createdAt).toLocaleDateString()}</div>
-              <div>Last updated: {new Date(note.updatedAt).toLocaleDateString()}</div>
+              <div>Created: {new Date(note.created_at!).toLocaleDateString()}</div>
+              <div>Last updated: {new Date(note.updated_at!).toLocaleDateString()}</div>
             </div>
           )}
         </div>

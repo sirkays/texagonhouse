@@ -1358,14 +1358,14 @@ export function CBTTest() {
           </DialogContent>
         </Dialog>
 
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center sm:flex-row flex-col gap-4 justify-between">
+          <div className=" flex sm:self-auto self-start items-start sm:items-center flex-col sm:flex-row gap-2">
             <h1 className="text-3xl font-bold">{test?.title}</h1>
             <p className="text-muted-foreground">
               Question {currentQuestion + 1} of {questions.length}
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row self-start sm:self-auto items-start sm:items-center gap-4">
             {isSecureMode && (
               <div className="flex items-center gap-2 text-red-600">
                 <Shield className="h-4 w-4" />
