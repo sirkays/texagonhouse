@@ -86,6 +86,7 @@ interface ResourcesData {
 export function ResourceMaterials() {
   const {data: session, status} = useSession();
   const [searchQuery, setSearchQuery] = useState("");
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
@@ -183,8 +184,8 @@ export function ResourceMaterials() {
 
       try {
         const queryParams = new URLSearchParams();
-        if (searchQuery) {
-          queryParams.append("q", searchQuery);
+        if (appliedSearchQuery) {
+          queryParams.append("q", appliedSearchQuery);
         } else {
           if (selectedCourseId)
             queryParams.append("course_id", selectedCourseId.toString());
@@ -252,7 +253,7 @@ export function ResourceMaterials() {
     };
 
     fetchResources();
-  }, [sessionToken, status, searchQuery, selectedCourseId, selectedModuleId]);
+  }, [sessionToken, status, appliedSearchQuery, selectedCourseId, selectedModuleId]);
 
   const handlePreviewPdf = (pdf: Resource) => {
     setSelectedPdf(pdf);
@@ -278,13 +279,9 @@ export function ResourceMaterials() {
     setAudioPlayerOpen(true);
   };
 
-  const handleReadJournal = (journal: Resource) => {
-    window.open(`/journal/${journal.id}`, "_blank");
-  };
-
   const handleDownloadJournal = (journal: Resource) => {
     const link = document.createElement("a");
-    link.href = journal.url || `#`;
+    link.href = journal.pdfUrl || `#`;
     link.download = `${journal.title}.pdf`;
     document.body.appendChild(link);
     link.click();
@@ -522,8 +519,9 @@ export function ResourceMaterials() {
           />
         </div>
         <Button
-          className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-          variant="outline">
+          className={`h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white ${appliedSearchQuery ? 'bg-[#F79771] text-white' : ''}`}
+          variant="outline"
+          onClick={() => setAppliedSearchQuery(searchQuery)}>
           <Filter className="mr-2 h-4 w-4" />
           Filter
         </Button>
@@ -775,13 +773,15 @@ export function ResourceMaterials() {
                       <div>Citations: {journal.citations || 0}</div>
                     </div>
                     <div className="mt-auto pt-4 flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                        onClick={() => handleReadJournal(journal)}>
-                        <BookOpen className="mr-2 h-3 w-3" />
-                        Read
-                      </Button>
+                      {journal.pdfUrl && (
+                        <Button
+                          size="sm"
+                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                          onClick={() => handlePreviewPdf(journal)}>
+                          <BookOpen className="mr-2 h-3 w-3" />
+                          Read
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
