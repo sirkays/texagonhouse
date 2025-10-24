@@ -2532,21 +2532,6 @@ export function TeacherLearningModules() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="pb-1 xs:pb-2">
-                    <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                      Revenue
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                      12,450
-                    </div>
-                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                      +22% from last month
-                    </p>
-                  </CardContent>
-                </Card>
               </div>
 
               <Card>
@@ -2555,7 +2540,7 @@ export function TeacherLearningModules() {
                     Module Performance
                   </CardTitle>
                   <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-                    Detailed analytics for each module
+                    Analytics for each module
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -2603,14 +2588,7 @@ export function TeacherLearningModules() {
                           <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium text-green-600">
                             {Math.floor(Math.random() * 5000) + 1000}
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs xs:text-sm sm:text-base shadow-md"
-                          >
-                            <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            View Details
-                          </Button>
+
                         </div>
                       </div>
                     ))}

@@ -1583,7 +1583,7 @@ export function TeacherCBTCreator() {
           <div>
             <h2 className="text-2xl font-bold">Test Analytics</h2>
             <p className="text-muted-foreground">
-              Monitor test performance and student results
+              Breif Overview of Performance
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -1638,7 +1638,7 @@ export function TeacherCBTCreator() {
               </CardContent>
             </Card>
           </div>
-          <Card>
+          {/*<Card>
             <CardHeader>
               <CardTitle>Test Performance Overview</CardTitle>
               <CardDescription>
@@ -1682,7 +1682,7 @@ export function TeacherCBTCreator() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card>*/}
         </TabsContent>
 
         <TabsContent value="student-performance" className="space-y-6">
@@ -2361,7 +2361,7 @@ export function TeacherCBTCreator() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      {/*<Dialog
         open={isAnalyticsDetailOpen}
         onOpenChange={setIsAnalyticsDetailOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2503,7 +2503,7 @@ export function TeacherCBTCreator() {
             </div>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog>*/}
     </div>
   );
 }
