@@ -209,6 +209,19 @@ export function TeacherLearningModules() {
   const modulesPerPage = 3;
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
 
+  const [analytics, setAnalytics] = useState<{
+    aggregates: { total_enrollments: number; completion_rate: number };
+    pagination: {
+      total_count: number;
+      total_pages: number;
+      current_page: number;
+      page_size: number;
+    };
+    modules: Module[];
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
   // Fetch session token
   useEffect(() => {
     const fetchToken = async () => {
@@ -344,6 +357,44 @@ export function TeacherLearningModules() {
       fetchModules();
     }
   }, [activeTab, search, difficultyFilter, sessionToken]);
+
+  // NEW: Fetch analytics separately
+  useEffect(() => {
+    if (activeTab === "analytics" && sessionToken) {
+      const fetchAnalytics = async () => {
+        setAnalyticsLoading(true);
+        setAnalyticsError(null);
+        try {
+          const query = new URLSearchParams();
+          if (search) query.set("search", search);
+          if (difficultyFilter)
+            query.set("difficulty", difficultyFilter.toLowerCase());
+          query.set("active", "true");
+          query.set("page", currentPageAnalytics.toString());
+          query.set("page_size", "10");
+
+          const res = await fetch(
+            `/api/teacher/module-analytics?${query.toString()}`,
+            { headers: headers(sessionToken) }
+          );
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Failed to load analytics");
+          }
+
+          const data = await res.json();
+          setAnalytics(data);
+        } catch (err) {
+          setAnalyticsError((err as Error).message);
+        } finally {
+          setAnalyticsLoading(false);
+        }
+      };
+
+      fetchAnalytics();
+    }
+  }, [activeTab, search, difficultyFilter, currentPageAnalytics, sessionToken]);
 
   // Auto-set next order when course is selected for new module
   useEffect(() => {
@@ -2457,23 +2508,50 @@ export function TeacherLearningModules() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-3 xs:space-y-4">
-          {isLoadingModules ? (
-            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
-              <Spinner size="md" className="text-[#EF7B55]" />
+          {analyticsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Spinner size="md" />
             </div>
-          ) : error ? (
-            <div className="text-center py-8 xs:py-12 text-red-500">
-              <p className="text-[0.85rem] xs:text-xs sm:text-sm">{error}</p>
+          ) : analyticsError ? (
+            <div className="text-center py-8 text-red-500">
+              {analyticsError}
             </div>
-          ) : (
+          ) : analytics ? (
             <>
               <div>
+                issuing{" "}
                 <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
                   Module Analytics
                 </h2>
                 <p className="text-muted-foreground text-[0.85rem] xs:text-xs sm:text-sm">
                   Track performance and engagement of your learning modules
                 </p>
+              </div>
+
+              <div className="flex gap-2 xs:gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search modules..."
+                    className="pl-8 text-xs xs:text-sm"
+                  />
+                </div>
+                <Select
+                  value={difficultyFilter}
+                  onValueChange={setDifficultyFilter}
+                >
+                  <SelectTrigger className="w-[140px] text-xs xs:text-sm">
+                    <SelectValue placeholder="Difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -2485,51 +2563,21 @@ export function TeacherLearningModules() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                      {modules.reduce(
-                        (sum, module) => sum + module.enrollments,
-                        0
-                      )}
+                      {analytics.aggregates.total_enrollments}
                     </div>
-                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                      +18% from last month
-                    </p>
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="pb-1 xs:pb-2">
                     <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                      Completion Rate
+                      Avg. Completion Rate
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                      78%
+                      {analytics.aggregates.completion_rate.toFixed(1)}%
                     </div>
-                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                      +5% from last month
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-1 xs:pb-2">
-                    <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                      Average Rating
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                      {modules.length
-                        ? (
-                            modules.reduce(
-                              (sum, module) => sum + module.rating,
-                              0
-                            ) / modules.length
-                          ).toFixed(1)
-                        : 0}
-                    </div>
-                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                      +0.2 from last month
-                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -2539,79 +2587,48 @@ export function TeacherLearningModules() {
                   <CardTitle className="text-sm xs:text-base sm:text-lg">
                     Module Performance
                   </CardTitle>
-                  <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-                    Analytics for each module
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
-                    Showing{" "}
-                    {
-                      getPaginatedModules(modules, currentPageAnalytics)
-                        .paginatedModules.length
-                    }{" "}
-                    of{" "}
-                    {
-                      getPaginatedModules(modules, currentPageAnalytics)
-                        .totalCount
-                    }{" "}
-                    Modules
+                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2">
+                    Page {analytics.pagination.current_page} of{" "}
+                    {analytics.pagination.total_pages}
                   </div>
                   <div className="space-y-2 xs:space-y-3">
-                    {getPaginatedModules(
-                      modules,
-                      currentPageAnalytics
-                    ).paginatedModules.map((module) => (
-                      <div
-                        key={module.id}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg"
-                      >
-                        <div className="space-y-1 flex-1">
-                          <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
-                            {module.title}
-                          </h4>
-                          <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              {module.enrollments} enrolled
-                            </div>
-                            {/* <div className="flex items-center gap-1">
-                              <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                              {module.rating}
-                            </div> */}
-                            <div>
-                              Completion: {Math.floor(Math.random() * 30) + 70}%
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-2 sm:mt-0 text-right space-y-2">
-                          <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium text-green-600">
-                            {Math.floor(Math.random() * 5000) + 1000}
-                          </div>
-
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {getPaginatedModules(modules, currentPageAnalytics)
-                    .totalCount === 0 ? (
-                    <div className="text-center py-8 xs:py-12">
-                      <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
-                      <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
-                        No Modules found
-                      </h3>
-                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                        Create a new module to get started
+                    {analytics.modules.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">
+                        No modules found
                       </p>
-                    </div>
-                  ) : (
+                    ) : (
+                      analytics.modules.map((module) => (
+                        <div
+                          key={module.id}
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg"
+                        >
+                          <div className="space-y-1 flex-1">
+                            <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
+                              {module.title}
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                {module.enrollments} enrolled
+                              </div>
+                              <div>
+                                Completion: {module.completion.toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {analytics.pagination.total_pages > 1 && (
                     <Pagination className="mt-4">
                       <PaginationContent>
                         <PaginationPrevious
                           onClick={() =>
-                            setCurrentPageAnalytics((prev) =>
-                              Math.max(prev - 1, 1)
-                            )
+                            setCurrentPageAnalytics((p) => Math.max(p - 1, 1))
                           }
                           className={
                             currentPageAnalytics === 1
@@ -2620,45 +2637,27 @@ export function TeacherLearningModules() {
                           }
                         />
                         {Array.from(
-                          {
-                            length: getPaginatedModules(
-                              modules,
-                              currentPageAnalytics
-                            ).totalPages,
-                          },
-                          (_, index) => index + 1
-                        ).map((page) => (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              href="#"
-                              isActive={currentPageAnalytics === page}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setCurrentPageAnalytics(page);
-                              }}
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ))}
-                        {getPaginatedModules(modules, currentPageAnalytics)
-                          .totalPages > 5 && <PaginationEllipsis />}
+                          { length: analytics.pagination.total_pages },
+                          (_, i) => (
+                            <PaginationItem key={i + 1}>
+                              <PaginationLink
+                                isActive={currentPageAnalytics === i + 1}
+                                onClick={() => setCurrentPageAnalytics(i + 1)}
+                              >
+                                {i + 1}
+                              </PaginationLink>
+                            </PaginationItem>
+                          )
+                        )}
                         <PaginationNext
                           onClick={() =>
-                            setCurrentPageAnalytics((prev) =>
-                              Math.min(
-                                prev + 1,
-                                getPaginatedModules(
-                                  modules,
-                                  currentPageAnalytics
-                                ).totalPages
-                              )
+                            setCurrentPageAnalytics((p) =>
+                              Math.min(p + 1, analytics.pagination.total_pages)
                             )
                           }
                           className={
                             currentPageAnalytics ===
-                            getPaginatedModules(modules, currentPageAnalytics)
-                              .totalPages
+                            analytics.pagination.total_pages
                               ? "pointer-events-none opacity-50"
                               : ""
                           }
@@ -2669,7 +2668,7 @@ export function TeacherLearningModules() {
                 </CardContent>
               </Card>
             </>
-          )}
+          ) : null}
         </TabsContent>
       </Tabs>
       <PreviewModal

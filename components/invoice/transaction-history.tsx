@@ -1,12 +1,14 @@
+// components/invoice/transaction-history.tsx
 "use client";
 
-import {useState, useMemo} from "react";
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Input} from "@/components/ui/input";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {PaymentStatusBadge} from "@/components/invoice/payment-status-badge";
-import {Search, Filter, Calendar, ArrowUpDown} from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { PaymentStatusBadge } from "@/components/invoice/payment-status-badge";
+import { Spinner } from "@/components/ui/spinner";
+import { Search, Filter, Calendar, ArrowUpDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,18 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
-import {Calendar as CalendarComponent} from "@/components/ui/calendar";
-import {format} from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 interface Transaction {
-  id: string;
+  id: string | number;
+  type: "subscription" | "store";
+  reference: string;
+  amount: string;
+  currency: string;
+  status: "success" | "failed" | "pending";
   date: string;
-  amount: number;
-  recipient: string;
-  status: "paid" | "pending" | "overdue" | "failed";
-  type: string;
-  invoiceNumber: string;
+  customer: string;
+  invoice_number?: string;
+  order_id?: string;
 }
 
 interface TransactionHistoryProps {
@@ -33,108 +38,77 @@ interface TransactionHistoryProps {
   selectedTransaction: string | null;
 }
 
-// Mock data - in real app this would come from API
-const mockTransactions: Transaction[] = [
-  {
-    id: "TXN-001",
-    date: "2024-01-15",
-    amount: 2500.0,
-    recipient: "Acme Corporation",
-    status: "paid",
-    type: "Invoice",
-    invoiceNumber: "INV-2024-001",
-  },
-  {
-    id: "TXN-002",
-    date: "2024-01-14",
-    amount: 1200.5,
-    recipient: "Tech Solutions Ltd",
-    status: "pending",
-    type: "Invoice",
-    invoiceNumber: "INV-2024-002",
-  },
-  {
-    id: "TXN-003",
-    date: "2024-01-12",
-    amount: 850.0,
-    recipient: "Digital Services Inc",
-    status: "overdue",
-    type: "Invoice",
-    invoiceNumber: "INV-2024-003",
-  },
-  {
-    id: "TXN-004",
-    date: "2024-01-10",
-    amount: 3200.75,
-    recipient: "Global Enterprises",
-    status: "paid",
-    type: "Invoice",
-    invoiceNumber: "INV-2024-004",
-  },
-  {
-    id: "TXN-005",
-    date: "2024-01-08",
-    amount: 675.25,
-    recipient: "StartUp Co",
-    status: "failed",
-    type: "Invoice",
-    invoiceNumber: "INV-2024-005",
-  },
-  {
-    id: "TXN-006",
-    date: "2024-01-05",
-    amount: 4100.0,
-    recipient: "Enterprise Solutions",
-    status: "paid",
-    type: "Invoice",
-    invoiceNumber: "INV-2024-006",
-  },
-];
-
 export function TransactionHistory({
   onSelectTransaction,
   selectedTransaction,
 }: TransactionHistoryProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<{from?: Date; to?: Date}>({});
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Fetch transactions
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (searchTerm) params.append("search", searchTerm);
+        if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+        if (dateRange.from) params.append("from_date", format(dateRange.from, "yyyy-MM-dd"));
+        if (dateRange.to) params.append("to_date", format(dateRange.to, "yyyy-MM-dd"));
+
+        const res = await fetch(`/api/billing/transactions?${params.toString()}`);
+        if (!res.ok) throw new Error("Failed to load transactions");
+
+        const data = await res.json();
+        setTransactions(data.results || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [searchTerm, statusFilter, dateRange]);
+
   const filteredAndSortedTransactions = useMemo(() => {
-    const filtered = mockTransactions.filter((transaction) => {
+    const filtered = transactions.filter((tx) => {
       const matchesSearch =
-        transaction.recipient
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        transaction.invoiceNumber
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        transaction.id.toLowerCase().includes(searchTerm.toLowerCase());
+        tx.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (tx.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        (tx.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        tx.customer.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "all" || transaction.status === statusFilter;
+        statusFilter === "all" || tx.status === statusFilter;
 
       const matchesDateRange =
-        (!dateRange.from || new Date(transaction.date) >= dateRange.from) &&
-        (!dateRange.to || new Date(transaction.date) <= dateRange.to);
+        (!dateRange.from || new Date(tx.date) >= dateRange.from) &&
+        (!dateRange.to || new Date(tx.date) <= dateRange.to);
 
       return matchesSearch && matchesStatus && matchesDateRange;
     });
 
-    // Sort transactions
     filtered.sort((a, b) => {
       let comparison = 0;
       if (sortBy === "date") {
         comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
       } else if (sortBy === "amount") {
-        comparison = a.amount - b.amount;
+        comparison = parseFloat(a.amount) - parseFloat(b.amount);
       }
       return sortOrder === "asc" ? comparison : -comparison;
     });
 
     return filtered;
-  }, [searchTerm, statusFilter, dateRange, sortBy, sortOrder]);
+  }, [transactions, searchTerm, statusFilter, dateRange, sortBy, sortOrder]);
 
   const toggleSort = (field: "date" | "amount") => {
     if (sortBy === field) {
@@ -145,17 +119,39 @@ export function TransactionHistory({
     }
   };
 
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Spinner size="md" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-destructive mb-4">Error: {error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="h-fit">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg">Transaction History</CardTitle>
 
-        {/* Search and Filters */}
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search transactions..."
+              placeholder="Search by ref, invoice, order..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -170,10 +166,9 @@ export function TransactionHistory({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
 
@@ -198,7 +193,8 @@ export function TransactionHistory({
               variant="outline"
               size="sm"
               onClick={() => toggleSort("date")}
-              className="flex items-center gap-2">
+              className="flex items-center gap-2"
+            >
               Date
               <ArrowUpDown className="h-3 w-3" />
             </Button>
@@ -207,7 +203,8 @@ export function TransactionHistory({
               variant="outline"
               size="sm"
               onClick={() => toggleSort("amount")}
-              className="flex items-center gap-2">
+              className="flex items-center gap-2"
+            >
               Amount
               <ArrowUpDown className="h-3 w-3" />
             </Button>
@@ -223,47 +220,55 @@ export function TransactionHistory({
             </div>
           ) : (
             <div className="space-y-1">
-              {filteredAndSortedTransactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  onClick={() => onSelectTransaction(transaction.id)}
-                  className={`p-4 border-b cursor-pointer transition-colors hover:bg-muted/50 ${
-                    selectedTransaction === transaction.id
-                      ? "bg-accent/50 border-l-4 border-l-primary"
-                      : ""
-                  }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {transaction.recipient}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {transaction.invoiceNumber}
-                      </Badge>
+              {filteredAndSortedTransactions.map((tx) => {
+                const displayId = tx.type === "subscription" ? tx.invoice_number : tx.order_id;
+                const statusMap: Record<string, "paid" | "pending" | "overdue" | "failed"> = {
+                  success: "paid",
+                  failed: "failed",
+                  pending: "pending",
+                };
+
+                return (
+                  <div
+                    key={tx.id}
+                    onClick={() => onSelectTransaction(tx.id.toString())}
+                    className={`p-4 border-b cursor-pointer transition-colors hover:bg-muted/50 ${
+                      selectedTransaction === tx.id.toString()
+                        ? "bg-accent/50 border-l-4 border-l-primary"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">
+                          {tx.customer}
+                        </span>
+                        {displayId && (
+                          <Badge variant="outline" className="text-xs">
+                            {displayId}
+                          </Badge>
+                        )}
+                      </div>
+                      <PaymentStatusBadge status={statusMap[tx.status] || "pending"} />
                     </div>
-                    <PaymentStatusBadge status={transaction.status} />
-                  </div>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {format(new Date(transaction.date), "MMM dd, yyyy")}
-                    </span>
-                    <span className="font-semibold">
-                      $
-                      {transaction.amount.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {format(new Date(tx.date), "MMM dd, yyyy")}
+                      </span>
+                      <span className="font-semibold">
+                        {tx.currency} {Number(tx.amount).toLocaleString()}
+                      </span>
+                    </div>
 
-                  <div className="mt-1">
-                    <span className="text-xs text-muted-foreground">
-                      ID: {transaction.id}
-                    </span>
+                    <div className="mt-1">
+                      <span className="text-xs text-muted-foreground">
+                        Ref: {tx.reference}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
