@@ -1,48 +1,42 @@
 "use client";
 
 import {useState} from "react";
+import {useSearchParams} from "next/navigation";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
-import {ProductCatalogAPI} from "@/components/store/product-catalog-api";
-import {ShoppingCartAPI} from "@/components/store/shopping-cart-api";
-import {OrderManagementAPI} from "@/components/store/order-management-api";
-import {useCart} from "@/lib/hooks/use-cart";
+import {ProductCatalog} from "@/components/store/product-catalog";
+import {ShoppingCart} from "@/components/store/shopping-cart";
+import {OrderManagement} from "@/components/store/order-management";
+import {useCart} from "@/providers/CartProvider";
 
 export default function StorePage() {
-  const [activeTab, setActiveTab] = useState("catalog");
-  const {cart} = useCart();
-
-  const cartItemCount = cart?.items?.length || 0;
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "catalog";
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const {addToCart, getTotalItems, setCartItems} = useCart();
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold">Educational Store</h1>
-          <p className="text-muted-foreground mt-2">
-            Discover courses, books, and tools to accelerate your learning
-          </p>
-        </div>
-
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
           className="space-y-8">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
             <TabsTrigger value="catalog">Store</TabsTrigger>
-            <TabsTrigger value="cart">Cart ({cartItemCount})</TabsTrigger>
+            <TabsTrigger value="cart">Cart ({getTotalItems()})</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="catalog" className="space-y-6">
-            <ProductCatalogAPI />
+          <TabsContent value="catalog">
+            <ProductCatalog onAddToCart={addToCart} />
           </TabsContent>
 
-          <TabsContent value="cart" className="space-y-6">
-            <ShoppingCartAPI />
+          <TabsContent value="cart">
+            <ShoppingCart />
           </TabsContent>
 
-          <TabsContent value="orders" className="space-y-6">
-            <OrderManagementAPI />
+          <TabsContent value="orders">
+            <OrderManagement />
           </TabsContent>
         </Tabs>
       </div>
