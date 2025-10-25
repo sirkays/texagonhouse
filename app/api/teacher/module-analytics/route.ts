@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   noStore();
   const endpoint = "/assessments/api/teacher/module-analytics/";
   const { searchParams } = new URL(req.url);
-  const fullUrl = `${BASE_URL}${endpoint}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[ModuleAnalyticsAPI] GET modules:", fullUrl);
 
   const session = await getServerSession(authOptions);

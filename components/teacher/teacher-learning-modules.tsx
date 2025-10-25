@@ -374,7 +374,7 @@ export function TeacherLearningModules() {
           query.set("page_size", "10");
 
           const res = await fetch(
-            `/api/teacher/module-analytics?${query.toString()}`,
+            `/api/teacher/module-analytics`,
             { headers: headers(sessionToken) }
           );
 
@@ -2519,7 +2519,6 @@ export function TeacherLearningModules() {
           ) : analytics ? (
             <>
               <div>
-                issuing{" "}
                 <h2 className="text-lg xs:text-xl sm:text-2xl font-bold">
                   Module Analytics
                 </h2>
@@ -2528,31 +2527,7 @@ export function TeacherLearningModules() {
                 </p>
               </div>
 
-              <div className="flex gap-2 xs:gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search modules..."
-                    className="pl-8 text-xs xs:text-sm"
-                  />
-                </div>
-                <Select
-                  value={difficultyFilter}
-                  onValueChange={setDifficultyFilter}
-                >
-                  <SelectTrigger className="w-[140px] text-xs xs:text-sm">
-                    <SelectValue placeholder="Difficulty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="beginner">Beginner</SelectItem>
-                    <SelectItem value="intermediate">Intermediate</SelectItem>
-                    <SelectItem value="advanced">Advanced</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/*  */}
 
               <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
