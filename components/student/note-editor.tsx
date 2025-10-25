@@ -55,22 +55,21 @@ export function NoteEditor({ isOpen, onClose, note, onSave, lessons }: NoteEdito
       setContent("");
       setIsPrivate(true);
     }
-    setHasUnsavedChanges(false);
     setError(null);
   }, [note, isOpen]);
 
   // Auto-save
-  useEffect(() => {
-    if (!isOpen || !hasUnsavedChanges) return;
+  // useEffect(() => {
+  //   if (!isOpen || !hasUnsavedChanges) return;
 
-    const timer = setTimeout(() => {
-      if (validate()) {
-        handleSave(false);
-      }
-    }, 2000);
+  //   const timer = setTimeout(() => {
+  //     if (validate()) {
+  //       handleSave(false);
+  //     }
+  //   }, 2000);
 
-    return () => clearTimeout(timer);
-  }, [content, lessonId, isPrivate, hasUnsavedChanges, isOpen]);
+  //   return () => clearTimeout(timer);
+  // }, [content, lessonId, isPrivate, hasUnsavedChanges, isOpen]);
 
   const validate = (): boolean => {
     if (!lessonId) {
@@ -98,7 +97,6 @@ export function NoteEditor({ isOpen, onClose, note, onSave, lessons }: NoteEdito
     };
 
     onSave(savedNote);
-    setHasUnsavedChanges(false);
 
     if (closeAfterSave) {
       onClose();
@@ -107,12 +105,12 @@ export function NoteEditor({ isOpen, onClose, note, onSave, lessons }: NoteEdito
 
   const handleContentChange = (value: string) => {
     setContent(value);
-    setHasUnsavedChanges(true);
+  
   };
 
   const handleLessonChange = (value: string) => {
     setLessonId(value);
-    setHasUnsavedChanges(true);
+  
   };
 
   return (
@@ -159,7 +157,7 @@ export function NoteEditor({ isOpen, onClose, note, onSave, lessons }: NoteEdito
               checked={isPrivate}
               onChange={(e) => {
                 setIsPrivate(e.target.checked);
-                setHasUnsavedChanges(true);
+                
               }}
               className="h-4 w-4 rounded border-gray-300"
             />
@@ -186,9 +184,7 @@ export function NoteEditor({ isOpen, onClose, note, onSave, lessons }: NoteEdito
 
           {/* Save Button + Unsaved Indicator */}
           <div className="flex items-center w-full gap-2">
-            {hasUnsavedChanges && (
-              <span className="text-sm text-orange-500">Unsaved changes</span>
-            )}
+      
             <Button
               onClick={() => handleSave(true)}
               disabled={!lessonId || !content.trim()}

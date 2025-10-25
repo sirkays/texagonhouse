@@ -92,11 +92,11 @@ export function MyMaterials() {
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
-  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  // const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  // const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [bookmarkManagerOpen, setBookmarkManagerOpen] = useState(false);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
-  const [selectedAudio, setSelectedAudio] =  useState<any>(null);
+  const [selectedAudio, setSelectedAudio] = useState<any>(null);
   const [data, setData] = useState<{
     saved: SavedItem;
     notes: Note[];
@@ -110,7 +110,8 @@ export function MyMaterials() {
     [session?.user?.sessionToken]
   );
 
-  const defaultThumbnail = "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
+  const defaultThumbnail =
+    "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
 
   const fallbackData = {
     saved: {
@@ -283,8 +284,8 @@ export function MyMaterials() {
         return {
           ...bookmark,
           lessonTitle:
-            json.saved.videos.find((v) => v.id === bookmark.lessonId.toString())?.title ||
-            `Lesson ${bookmark.lessonId}`,
+            json.saved.videos.find((v) => v.id === bookmark.lessonId.toString())
+              ?.title || `Lesson ${bookmark.lessonId}`,
         };
       });
 
@@ -388,7 +389,10 @@ export function MyMaterials() {
   };
 
   const handleDeleteNote = async (noteId: number) => {
-    console.log("[MyMaterials] Sending DELETE to /api/student/notes for note ID:", noteId);
+    console.log(
+      "[MyMaterials] Sending DELETE to /api/student/notes for note ID:",
+      noteId
+    );
     try {
       const response = await fetch(`/api/student/notes`, {
         method: "DELETE",
@@ -508,10 +512,10 @@ export function MyMaterials() {
     setAudioPlayerOpen(true);
   };
 
-  const handleOpenNote = (note?: Note) => {
-    setSelectedNote(note || null);
-    setNoteEditorOpen(true);
-  };
+  // const handleOpenNote = (note?: Note) => {
+  //   setSelectedNote(note || null);
+  //   setNoteEditorOpen(true);
+  // };
 
   return (
     <div className="space-y-6">
@@ -555,12 +559,12 @@ export function MyMaterials() {
           >
             My Notes
           </TabsTrigger>
-          <TabsTrigger
+          {/* <TabsTrigger
             value="bookmarks"
             className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
           >
             Bookmarks
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="saved" className="space-y-6">
@@ -578,7 +582,8 @@ export function MyMaterials() {
                   <CardHeader className="p-0">
                     <div className="relative">
                       <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                        {video.thumbnail && video.thumbnail !== defaultThumbnail ? (
+                        {video.thumbnail &&
+                        video.thumbnail !== defaultThumbnail ? (
                           <>
                             <img
                               src={
@@ -686,7 +691,7 @@ export function MyMaterials() {
             <h3 className="text-lg font-semibold">My Notes</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => handleOpenNote()}
+              onClick={() => router.push("/student/notes/create")}
             >
               <Edit className="mr-2 h-4 w-4" />
               Create New Note
@@ -713,7 +718,7 @@ export function MyMaterials() {
                     <Button
                       size="sm"
                       className="flex-1 w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                      onClick={() => handleOpenNote(note)}
+                      onClick={() => router.push(`/student/notes/${note.id}`)}
                     >
                       <Edit className="mr-2 h-3 w-3" />
                       Open
@@ -802,7 +807,7 @@ export function MyMaterials() {
         audioUrl={selectedAudio?.audioUrl}
         duration={selectedAudio?.duration}
       />
-      <NoteEditor
+      {/* <NoteEditor
         isOpen={noteEditorOpen}
         onClose={() => {
           setNoteEditorOpen(false);
@@ -811,7 +816,7 @@ export function MyMaterials() {
         note={selectedNote || undefined}
         onSave={handleSaveNote}
         lessons={lessons}
-      />
+      /> */}
       <BookmarkManager
         isOpen={bookmarkManagerOpen}
         onClose={() => setBookmarkManagerOpen(false)}
