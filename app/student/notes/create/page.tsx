@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tag, ArrowLeft, Type } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -16,15 +23,16 @@ interface Lesson {
 export default function CreateNotePage() {
   const router = useRouter();
   const { data: session } = useSession();
+
   const [lessonId, setLessonId] = useState("");
+  const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [isPrivate, setIsPrivate] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lessons, setLessons] = useState<Lesson[]>([]);
 
-  // Fetch lessons on mount
-  useState(() => {
+  // ✅ Fetch lessons on mount
+  useEffect(() => {
     const fetchLessons = async () => {
       if (!session?.user?.sessionToken) return;
       try {
@@ -40,15 +48,16 @@ export default function CreateNotePage() {
           setLessons(lessonList);
         }
       } catch (err) {
-        console.error("Failed to load lessons");
+        console.error("Failed to load lessons", err);
       }
     };
     fetchLessons();
-  });
+  }, [session?.user?.sessionToken]);
 
+  // ✅ Save new note
   const handleSave = async () => {
-    if (!lessonId || !content.trim()) {
-      setError("Please select a lesson and write a note.");
+    if (!lessonId || !content.trim() || !title.trim()) {
+      setError("Please fill in all fields (title, lesson, and content).");
       return;
     }
 
@@ -61,9 +70,10 @@ export default function CreateNotePage() {
           "X-Session-Token": session?.user?.sessionToken || "",
         },
         body: JSON.stringify({
+          title: title.trim(),
           lesson: parseInt(lessonId),
           content: content.trim(),
-          is_private: isPrivate,
+          is_private: true, // ✅ always private
           student: session?.user?.id,
         }),
       });
@@ -80,6 +90,7 @@ export default function CreateNotePage() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
             variant="ghost"
@@ -91,7 +102,22 @@ export default function CreateNotePage() {
           <h1 className="text-2xl font-bold">Create New Note</h1>
         </div>
 
+        {/* Form */}
         <div className="space-y-6 bg-card p-6 rounded-xl shadow-sm">
+          {/* Title */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center gap-2">
+              <Type className="h-4 w-4" />
+              Title
+            </label>
+            <Input
+              placeholder="Enter a title for your note..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          {/* Lesson */}
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <Tag className="h-4 w-4" />
@@ -103,7 +129,9 @@ export default function CreateNotePage() {
               </SelectTrigger>
               <SelectContent>
                 {lessons.length === 0 ? (
-                  <SelectItem value="none" disabled>No lessons available</SelectItem>
+                  <SelectItem value="none" disabled>
+                    No lessons available
+                  </SelectItem>
                 ) : (
                   lessons.map((lesson) => (
                     <SelectItem key={lesson.id} value={lesson.id.toString()}>
@@ -115,19 +143,7 @@ export default function CreateNotePage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_private"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <label htmlFor="is_private" className="text-sm font-medium">
-              Private note
-            </label>
-          </div>
-
+          {/* Content */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Content</label>
             <Textarea
@@ -140,8 +156,12 @@ export default function CreateNotePage() {
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
+          {/* Save button */}
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={loading || !lessonId || !content.trim()}>
+            <Button
+              onClick={handleSave}
+              disabled={loading || !lessonId || !content.trim() || !title.trim()}
+            >
               {loading ? "Saving..." : "Save Note"}
             </Button>
           </div>

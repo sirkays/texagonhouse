@@ -1036,11 +1036,34 @@ export function TeacherLearningModules() {
       const responseText = await response.text();
       console.log("[saveLesson] Raw response:", responseText.slice(0, 200));
 
+      // Parse once
+      let parsed: any;
+      try {
+        parsed = responseText ? JSON.parse(responseText) : null;
+      } catch (e) {
+        console.error("[saveLesson] Failed to parse JSON:", responseText.slice(0, 200));
+        throw new Error("Invalid response format from server");
+      }
+
+      // Handle errors first
+      if (!response.ok) {
+        const errorData = parsed || {};
+        console.error("[saveLesson] Fetch failed:", errorData);
+        if (response.status === 401 && errorData.redirect) {
+          window.location.href = errorData.redirect;
+          return;
+        }
+        throw new Error(errorData.error || "Failed to create lesson");
+      }
+
+      // Success path — support both {lesson: {...}} and bare lesson
+      const serverLesson = parsed?.lesson ?? parsed;
+
       const newLesson: Lesson = {
         ...editingLesson,
-        id: data.id,
-        coverImageUrl: data.cover_image
-          ? normalizeMedia(data.cover_image)
+        id: serverLesson.id,
+        coverImageUrl: serverLesson.cover_image
+          ? normalizeMedia(serverLesson.cover_image)
           : undefined,
         coverImage: null, // Clear temp file
         file: null, // Clear temp file if any

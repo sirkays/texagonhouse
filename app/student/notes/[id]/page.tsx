@@ -2,9 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, ArrowLeft, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tag, ArrowLeft, Loader2, Type } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -16,8 +23,9 @@ interface Lesson {
 interface Note {
   id: number;
   lesson: number;
+  title?: string;
   content: string;
-  is_private: boolean;
+  is_private?: boolean;
 }
 
 export default function EditNotePage() {
@@ -27,8 +35,8 @@ export default function EditNotePage() {
   const noteId = params.id as string;
 
   const [lessonId, setLessonId] = useState("");
+  const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [isPrivate, setIsPrivate] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +55,7 @@ export default function EditNotePage() {
         });
         if (materialsRes.ok) {
           const materialsData = await materialsRes.json();
-          const lessonList = materialsData.saved.videos.map((v: any) => ({
+          const lessonList = (materialsData.saved?.videos ?? []).map((v: any) => ({
             id: parseInt(v.id),
             title: v.title,
           }));
@@ -60,14 +68,15 @@ export default function EditNotePage() {
         });
         if (noteRes.ok) {
           const noteData: Note = await noteRes.json();
+          console.log(noteData, " smvdkmvlfvmfk")
           setNote(noteData);
-          setLessonId(noteData.lesson.toString());
-          setContent(noteData.content);
-          setIsPrivate(noteData.is_private);
+          setLessonId(noteData.lesson?.toString() ?? "");
+          setTitle(noteData.title ?? "");
+          setContent(noteData.content ?? "");
         } else {
           setError("Note not found");
         }
-      } catch (err) {
+      } catch {
         setError("Failed to load note");
       } finally {
         setLoading(false);
@@ -75,11 +84,11 @@ export default function EditNotePage() {
     };
 
     fetchData();
-  }, [session, noteId]);
+  }, [session?.user?.sessionToken, noteId]);
 
   const handleSave = async () => {
-    if (!lessonId || !content.trim()) {
-      setError("Please select a lesson and write a note.");
+    if (!lessonId || !title.trim() || !content.trim()) {
+      setError("Please fill in all fields (title, lesson, and content).");
       return;
     }
 
@@ -92,10 +101,11 @@ export default function EditNotePage() {
           "X-Session-Token": session?.user?.sessionToken || "",
         },
         body: JSON.stringify({
-          id: parseInt(noteId),
-          lesson: parseInt(lessonId),
+          id: parseInt(noteId, 10),
+          lesson: parseInt(lessonId, 10),
+          title: title.trim(),
           content: content.trim(),
-          is_private: isPrivate,
+          is_private: true, // 🔒 always private
           student: session?.user?.id,
         }),
       });
@@ -122,7 +132,9 @@ export default function EditNotePage() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={() => router.push("/student/materials")}>Back to Materials</Button>
+          <Button onClick={() => router.push("/student/materials")}>
+            Back to Materials
+          </Button>
         </div>
       </div>
     );
@@ -143,6 +155,20 @@ export default function EditNotePage() {
         </div>
 
         <div className="space-y-6 bg-card p-6 rounded-xl shadow-sm">
+          {/* Title */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center gap-2">
+              <Type className="h-4 w-4" />
+              Title
+            </label>
+            <Input
+              placeholder="Update the note title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          {/* Lesson */}
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <Tag className="h-4 w-4" />
@@ -154,7 +180,9 @@ export default function EditNotePage() {
               </SelectTrigger>
               <SelectContent>
                 {lessons.length === 0 ? (
-                  <SelectItem value="none" disabled>No lessons available</SelectItem>
+                  <SelectItem value="none" disabled>
+                    No lessons available
+                  </SelectItem>
                 ) : (
                   lessons.map((lesson) => (
                     <SelectItem key={lesson.id} value={lesson.id.toString()}>
@@ -166,23 +194,11 @@ export default function EditNotePage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_private"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <label htmlFor="is_private" className="text-sm font-medium">
-              Private note
-            </label>
-          </div>
-
+          {/* Content */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Content</label>
             <Textarea
-              placeholder="Start writing your note..."
+              placeholder="Update your note..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="min-h-[300px] resize-none"
@@ -199,7 +215,10 @@ export default function EditNotePage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving || !lessonId || !content.trim()}>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !lessonId || !title.trim() || !content.trim()}
+            >
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

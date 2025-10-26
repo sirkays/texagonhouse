@@ -5,7 +5,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import formidable from "formidable-serverless";
 import fs from "fs/promises";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 const FILE_FIELD_NAME = "file";
 const COVER_IMAGE_FIELD_NAME = "cover_image";
@@ -24,6 +24,7 @@ export async function PATCH(
   const moduleId = params.id;
   const lessonId = params.lessonId;
   const endpoint = `/learning/api/teacher/modules/${moduleId}/lessons/${lessonId}/`;
+
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[LessonUpdateAPI] Initiating PATCH request for:", fullUrl);
 

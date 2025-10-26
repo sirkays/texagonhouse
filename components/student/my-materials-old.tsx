@@ -24,7 +24,6 @@ import {
   Bookmark,
   LogIn,
   Download,
-  Trash,
 } from "lucide-react";
 import { VideoModal } from "./video-modal";
 import { NoteEditor } from "./note-editor";
@@ -112,7 +111,7 @@ export function MyMaterials() {
   const [currentPageVideos, setCurrentPageVideos] = useState(1);
   const [currentPagePdfs, setCurrentPagePdfs] = useState(1);
   const [currentPageAudio, setCurrentPageAudio] = useState(1);
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
@@ -381,7 +380,7 @@ export function MyMaterials() {
   };
 
   const handleDeleteNote = async (noteId: number) => {
-    setDeletingIds((prev) => new Set([...prev, `note-${noteId}`]));
+    setDeletingIds((prev) => new Set([...prev, noteId]));
     console.log(
       "[MyMaterials] Sending DELETE to /api/student/notes for note ID:",
       noteId
@@ -412,56 +411,7 @@ export function MyMaterials() {
     } finally {
       setDeletingIds((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(`note-${noteId}`);
-        return newSet;
-      });
-    }
-  };
-
-  const handleDeleteSavedItem = async (type: 'videos' | 'pdfs' | 'audio', id: string) => {
-    const key = `${type}-${id}`;
-    setDeletingIds((prev) => new Set([...prev, key]));
-    console.log(
-      "[MyMaterials] Sending DELETE to /api/student/materials for item ID:",
-      id,
-      "type:",
-      type
-    );
-    try {
-      const response = await fetch(`/api/student/materials`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken || "",
-        },
-        body: JSON.stringify({ id }),
-      });
-      console.log("[MyMaterials] DELETE response status:", response.status);
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("[MyMaterials] Delete item error details:", errorData);
-        throw new Error(`Failed to delete item: ${JSON.stringify(errorData)}`);
-      }
-      setData((prev) => {
-        if (!prev) return prev;
-        const newSaved = { ...prev.saved };
-        newSaved[type] = newSaved[type].filter((item) => item.id !== id);
-        // Reset page if necessary
-        const totalItems = newSaved[type].length;
-        const maxPage = Math.ceil(totalItems / itemsPerPage);
-        if (type === 'videos' && currentPageVideos > maxPage) setCurrentPageVideos(maxPage || 1);
-        if (type === 'pdfs' && currentPagePdfs > maxPage) setCurrentPagePdfs(maxPage || 1);
-        if (type === 'audio' && currentPageAudio > maxPage) setCurrentPageAudio(maxPage || 1);
-        return { ...prev, saved: newSaved };
-      });
-      setError(null);
-    } catch (err: any) {
-      console.error("[MyMaterials] Item delete error:", err);
-      setError(err.message);
-    } finally {
-      setDeletingIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(key);
+        newSet.delete(noteId);
         return newSet;
       });
     }
@@ -697,34 +647,20 @@ export function MyMaterials() {
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 px-4">
-                        {/*<div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {video.duration}
                           </div>
-                        </div>*/}
-                        <div className="mt-auto pt-4 flex gap-2">
+                        </div>
+                        <div className="mt-auto pt-4">
                           <Button
                             size="sm"
-                            className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                            className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                             onClick={() => handleWatchVideo(video)}
                           >
                             <Play className="mr-2 h-3 w-3" />
                             Continue Watching
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteSavedItem('videos', video.id)}
-                            className="flex-1 h-10 shadow-md"
-                            disabled={deletingIds.has(`videos-${video.id}`)}
-                          >
-                            {deletingIds.has(`videos-${video.id}`) ? "Deleting..." : (
-                              <>
-                                <Trash className="mr-2 h-3 w-3" />
-                                Delete
-                              </>
-                            )}
                           </Button>
                         </div>
                       </CardContent>
@@ -783,28 +719,14 @@ export function MyMaterials() {
                             {pdf.pages} pages • {pdf.size}
                           </div>
                         </div>
-                        <div className="mt-auto pt-4 flex gap-2">
+                        <div className="mt-auto pt-4">
                           <Button
                             size="sm"
-                            className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                            className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                             onClick={() => handlePreviewPdf(pdf)}
                           >
                             <Download className="mr-2 h-3 w-3" />
                             Preview
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteSavedItem('pdfs', pdf.id)}
-                            className="flex-1 h-10 shadow-md"
-                            disabled={deletingIds.has(`pdfs-${pdf.id}`)}
-                          >
-                            {deletingIds.has(`pdfs-${pdf.id}`) ? "Deleting..." : (
-                              <>
-                                <Trash className="mr-2 h-3 w-3" />
-                                Delete
-                              </>
-                            )}
                           </Button>
                         </div>
                       </CardContent>
@@ -858,34 +780,20 @@ export function MyMaterials() {
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1">
-                        {/*<div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {audio.duration}
                           </div>
-                        </div>*/}
-                        <div className="mt-auto pt-4 flex gap-2">
+                        </div>
+                        <div className="mt-auto pt-4">
                           <Button
                             size="sm"
-                            className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                            className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
                             onClick={() => handlePlayAudio(audio)}
                           >
                             <Play className="mr-2 h-3 w-3" />
                             Continue Listening
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteSavedItem('audio', audio.id)}
-                            className="flex-1 h-10 shadow-md"
-                            disabled={deletingIds.has(`audio-${audio.id}`)}
-                          >
-                            {deletingIds.has(`audio-${audio.id}`) ? "Deleting..." : (
-                              <>
-                                <Trash className="mr-2 h-3 w-3" />
-                                Delete
-                              </>
-                            )}
                           </Button>
                         </div>
                       </CardContent>
@@ -964,9 +872,9 @@ export function MyMaterials() {
                           variant="outline"
                           onClick={() => handleDeleteNote(note.id)}
                           className="flex-1 w-full h-10 shadow-md"
-                          disabled={deletingIds.has(`note-${note.id}`)}
+                          disabled={deletingIds.has(note.id)}
                         >
-                          {deletingIds.has(`note-${note.id}`) ? "Deleting..." : "Delete"}
+                          {deletingIds.has(note.id) ? "Deleting..." : "Delete"}
                         </Button>
                       </div>
                     </CardContent>
