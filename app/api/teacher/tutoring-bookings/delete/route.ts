@@ -1,3 +1,4 @@
+// app/api/teacher/tutoring-bookings/delete/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -16,34 +17,57 @@ export async function DELETE(request: Request) {
   const tab = searchParams.get("tab") || "upcoming";
   const id = searchParams.get("id");
 
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
   try {
     const res = await fetch(`${ENDPOINT}?tab=${tab}&id=${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
     });
 
-    const text = await res.text();
-    console.log("[Route] Raw DELETE response:", text);
+    console.log("[Route] Raw DELETE response status:", res.status);
 
+    // 204 No Content: Success, no body
+    if (res.status === 204) {
+      return new Response(null, { status: 204 });
+    }
+
+    // For all other cases, try to parse JSON
+    const text = await res.text();
     const contentType = res.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      console.error("[Route] DELETE response is not JSON, content-type:", contentType);
+
+    if (!contentType?.includes("application/json") && text) {
+      console.error("[Route] Non-JSON response:", text);
       return NextResponse.json(
-        { error: `Backend returned non-JSON response (status: ${res.status})` },
+        { error: "Backend returned invalid response" },
+        { status: 502 }
+      );
+    }
+
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON from backend" },
+        { status: 502 }
+      );
+    }
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: data.detail || "Failed to delete" },
         { status: res.status }
       );
     }
 
-    const data = JSON.parse(text);
-    if (!res.ok) {
-      return NextResponse.json({ error: data.detail || "Failed to delete session" }, { status: res.status });
-    }
-
     return NextResponse.json(data);
+
   } catch (error) {
     console.error("[Route] DELETE error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

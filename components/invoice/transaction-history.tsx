@@ -48,10 +48,22 @@ export function TransactionHistory({
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
 
   // Fetch transactions
   useEffect(() => {
@@ -59,7 +71,7 @@ export function TransactionHistory({
       try {
         setLoading(true);
         const params = new URLSearchParams();
-        if (searchTerm) params.append("search", searchTerm);
+        if (debouncedSearchTerm) params.append("search", debouncedSearchTerm);
         if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
         if (dateRange.from) params.append("from_date", format(dateRange.from, "yyyy-MM-dd"));
         if (dateRange.to) params.append("to_date", format(dateRange.to, "yyyy-MM-dd"));
@@ -77,7 +89,7 @@ export function TransactionHistory({
     };
 
     fetchTransactions();
-  }, [searchTerm, statusFilter, dateRange]);
+  }, [debouncedSearchTerm, statusFilter, dateRange]);
 
   const filteredAndSortedTransactions = useMemo(() => {
     const filtered = transactions.filter((tx) => {
@@ -189,7 +201,7 @@ export function TransactionHistory({
               </PopoverContent>
             </Popover>
 
-            <Button
+            {/* <Button
               variant="outline"
               size="sm"
               onClick={() => toggleSort("date")}
@@ -197,7 +209,7 @@ export function TransactionHistory({
             >
               Date
               <ArrowUpDown className="h-3 w-3" />
-            </Button>
+            </Button> */}
 
             <Button
               variant="outline"

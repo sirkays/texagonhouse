@@ -27,6 +27,7 @@ import {Badge} from "@/components/ui/badge";
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {useMediaQuery} from "react-responsive";
+import { useRouter } from "next/navigation";
 
 const navigationItems = [
   // {
@@ -80,6 +81,8 @@ function SidebarMenuContent() {
   const pathname = usePathname();
   const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
   const isMobile = useMediaQuery({maxWidth: 639});
+
+  
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -138,6 +141,8 @@ function SidebarMenuContent() {
 }
 
 export default function FinanceLayout({children}: {children: React.ReactNode}) {
+
+  const router = useRouter();
   return (
     <SidebarProvider className="bg-white">
       <div className="flex min-h-screen w-full font-sans">
@@ -195,7 +200,7 @@ export default function FinanceLayout({children}: {children: React.ReactNode}) {
           </header>
 
           <main className="flex-1 p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center text-slate-900 mb-5 cursor-pointer">
+            <div className="flex items-center text-slate-900 mb-5 cursor-pointer" onClick={() => router.push('/parent')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </div>

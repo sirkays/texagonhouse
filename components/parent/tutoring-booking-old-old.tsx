@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -154,7 +154,10 @@ PaginationEllipsis.displayName = "PaginationEllipsis";
 
 // TutoringBooking Component
 export function TutoringBooking() {
+  // Removed global “+ Book Tutoring” modal state
   const [activeTab, setActiveTab] = useState("upcoming");
+
+  // New: card-level booking modal controls
   const [isCardBookingOpen, setIsCardBookingOpen] = useState(false);
   const [bookingTutorId, setBookingTutorId] = useState<number | null>(null);
 
@@ -175,99 +178,220 @@ export function TutoringBooking() {
     setPreferredDays([]);
   };
 
-  // Pagination state
+  // Pagination state for each tab
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
   const [tutorsPage, setTutorsPage] = useState(1);
-  const itemsPerPage = 3;
+  const itemsPerPage = 3; // showing 3 per page
 
-  // Data states
-  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
-  const [upcomingTotalPages, setUpcomingTotalPages] = useState(1);
-  const [pastSessions, setPastSessions] = useState<any[]>([]);
-  const [pastTotalPages, setPastTotalPages] = useState(1);
-  const [availableTutors, setAvailableTutors] = useState<any[]>([]);
-  const [tutorsTotalPages, setTutorsTotalPages] = useState(1);
-  const [children, setChildren] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    total_tutoring: 0,
-    upcoming_count: 0,
-    hours_completed: 0,
-    average_rating: 0,
-    active_tutors: 0,
-  });
+  const upcomingSessions = [
+    {
+      id: 1,
+      child: "John Adebayo",
+      tutor: "Dr. Sarah Wilson",
+      subject: "Mathematics",
+      date: "2024-01-20",
+      time: "2:00 PM - 3:00 PM",
+      type: "One-on-One",
+      status: "Confirmed",
+      meetingLink: "https://meet.techxagon.com/session-123",
+      cost: "₦8,000",
+      tutorAvatar: "/placeholder.svg?height=40&width=40",
+      notes: "Focus on calculus and derivatives",
+      hasRecording: false,
+      canReschedule: true,
+      paymentStatus: "Paid",
+      sessionType: "Premium",
+      duration: 60,
+      reminderSent: true,
+    },
+    {
+      id: 2,
+      child: "Mary Adebayo",
+      subject: "English Literature",
+      tutor: "Prof. Michael Johnson",
+      date: "2024-01-22",
+      time: "4:00 PM - 5:00 PM",
+      type: "Group Session",
+      status: "Confirmed",
+      meetingLink: "https://meet.techxagon.com/session-124",
+      cost: "₦5,000",
+      tutorAvatar: "/placeholder.svg?height=40&width=40",
+      notes: "Shakespeare analysis and essay writing",
+      hasRecording: false,
+      canReschedule: true,
+      paymentStatus: "Paid",
+      sessionType: "Standard",
+      duration: 60,
+      reminderSent: true,
+    },
+    {
+      id: 3,
+      child: "John Adebayo",
+      tutor: "Mrs. Adebayo Funmi",
+      subject: "Physics",
+      date: "2024-01-25",
+      time: "3:00 PM - 4:00 PM",
+      type: "One-on-One",
+      status: "Pending",
+      meetingLink: null,
+      cost: "₦8,000",
+      tutorAvatar: "/placeholder.svg?height=40&width=40",
+      notes: "Mechanics and motion problems",
+      hasRecording: false,
+      canReschedule: true,
+      paymentStatus: "Pending",
+      sessionType: "Premium",
+      duration: 60,
+      reminderSent: false,
+    },
+  ];
 
-  // Fetch functions
-  const fetchUpcoming = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`);
-    if (res.ok) {
-      const data = await res.json();
-      setUpcomingSessions(data.results);
-      setUpcomingTotalPages(data.total_pages);
-    }
-  };
+  const pastSessions = [
+    {
+      id: 4,
+      child: "John Adebayo",
+      tutor: "Dr. Sarah Wilson",
+      subject: "Mathematics",
+      date: "2024-01-15",
+      time: "2:00 PM - 3:00 PM",
+      type: "One-on-One",
+      status: "Completed",
+      rating: 5,
+      feedback:
+        "Excellent session! John showed great improvement in understanding calculus concepts.",
+      cost: "₦8,000",
+      tutorAvatar: "/placeholder.svg?height=40&width=40",
+      hasRecording: true,
+      recordingUrl: "https://recordings.techxagon.com/session-4",
+      materials: ["Calculus_Notes.pdf", "Practice_Problems.pdf"],
+      sessionType: "Premium",
+      duration: 60,
+      actualDuration: 58,
+    },
+    {
+      id: 5,
+      child: "Mary Adebayo",
+      tutor: "Prof. Michael Johnson",
+      subject: "English Literature",
+      date: "2024-01-12",
+      time: "4:00 PM - 5:00 PM",
+      type: "Group Session",
+      status: "Completed",
+      rating: 4,
+      feedback:
+        "Good session on poetry analysis. Mary participated well in discussions.",
+      cost: "₦5,000",
+      tutorAvatar: "/placeholder.svg?height=40&width=40",
+      hasRecording: true,
+      recordingUrl: "https://recordings.techxagon.com/session-5",
+      materials: ["Poetry_Analysis_Guide.pdf"],
+      sessionType: "Standard",
+      duration: 60,
+      actualDuration: 62,
+    },
+  ];
 
-  const fetchPast = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`);
-    if (res.ok) {
-      const data = await res.json();
-      setPastSessions(data.results);
-      setPastTotalPages(data.total_pages);
-    }
-  };
-
-  const fetchTutors = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`);
-    if (res.ok) {
-      const data = await res.json();
-      setAvailableTutors(data.results);
-      setTutorsTotalPages(data.total_pages);
-    }
-  };
-
-  const fetchChildren = async () => {
-    const res = await fetch(`/api/tutor/tutoring/children`);
-    if (res.ok) {
-      const data = await res.json();
-      setChildren(data);
-    }
-  };
-
-  const fetchStats = async () => {
-    const res = await fetch(`/api/tutor/tutoring/stats`);
-    if (res.ok) {
-      const data = await res.json();
-      setStats(data);
-    }
-  };
-
-  useEffect(() => {
-    fetchChildren();
-    fetchStats();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "upcoming") {
-      fetchUpcoming(upcomingPage);
-    }
-  }, [activeTab, upcomingPage]);
-
-  useEffect(() => {
-    if (activeTab === "past") {
-      fetchPast(pastPage);
-    }
-  }, [activeTab, pastPage]);
-
-  useEffect(() => {
-    if (activeTab === "tutors") {
-      fetchTutors(tutorsPage);
-    }
-  }, [activeTab, tutorsPage]);
+  const availableTutors = [
+    {
+      id: 1,
+      name: "Dr. Sarah Wilson",
+      course: "Mathematics",
+      modules: [
+        "Algebra & Functions",
+        "Calculus",
+        "Probability & Statistics",
+        "Vectors",
+        "Mechanics",
+      ],
+      rating: 4.9,
+      experience: "10+ years",
+      rate: "₦8,000/hour",
+      avatar: "/placeholder.svg?height=40&width=40",
+      availability: "Mon-Fri: 2PM-6PM",
+      specialization: "Advanced Mathematics, Calculus",
+      totalSessions: 1247,
+      responseTime: "< 2 hours",
+      languages: ["English", "Yoruba"],
+      verified: true,
+      premiumTutor: true,
+      sessionTypes: ["One-on-One", "Group", "Intensive"],
+      technologies: ["Interactive Whiteboard", "Screen Sharing", "Recording"],
+    },
+    {
+      id: 2,
+      name: "Prof. Michael Johnson",
+      course: "English Literature",
+      modules: [
+        "Poetry",
+        "Shakespeare",
+        "Prose Analysis",
+        "Essay Writing",
+        "Critical Theory",
+      ],
+      rating: 4.8,
+      experience: "15+ years",
+      rate: "₦7,500/hour",
+      avatar: "/placeholder.svg?height=40&width=40",
+      availability: "Mon-Sat: 3PM-7PM",
+      specialization: "Literature Analysis, Creative Writing",
+      totalSessions: 892,
+      responseTime: "< 4 hours",
+      languages: ["English"],
+      verified: true,
+      premiumTutor: false,
+      sessionTypes: ["One-on-One", "Group"],
+      technologies: ["Screen Sharing", "Recording"],
+    },
+    {
+      id: 3,
+      name: "Mrs. Adebayo Funmi",
+      course: "Physics",
+      modules: [
+        "Mechanics",
+        "Waves & Optics",
+        "Electricity & Magnetism",
+        "Thermodynamics",
+        "Modern Physics",
+      ],
+      rating: 4.7,
+      experience: "8+ years",
+      rate: "₦7,000/hour",
+      avatar: "/placeholder.svg?height=40&width=40",
+      availability: "Tue-Sat: 1PM-5PM",
+      specialization: "Science Fundamentals, Lab Work",
+      totalSessions: 634,
+      responseTime: "< 6 hours",
+      languages: ["English", "Yoruba", "Igbo"],
+      verified: true,
+      premiumTutor: false,
+      sessionTypes: ["One-on-One"],
+      technologies: ["Interactive Whiteboard", "Screen Sharing"],
+    },
+  ];
 
   const bookingTutor =
     bookingTutorId != null
       ? availableTutors.find((t) => t.id === bookingTutorId) || null
       : null;
+
+  // Pagination helpers
+  const paginate = (items: any[], page: number, itemsPerPage: number) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return items.slice(startIndex, endIndex);
+  };
+  const totalPages = (items: any[], itemsPerPage: number) =>
+    Math.ceil(items.length / itemsPerPage);
+
+  // Paginated data
+  const paginatedUpcoming = paginate(
+    upcomingSessions,
+    upcomingPage,
+    itemsPerPage
+  );
+  const paginatedPast = paginate(pastSessions, pastPage, itemsPerPage);
+  const paginatedTutors = paginate(availableTutors, tutorsPage, itemsPerPage);
 
   // Pagination navigation handlers
   const handlePageChange = (
@@ -357,22 +481,23 @@ export function TutoringBooking() {
     });
   };
 
-  const handleBookSubmit = async () => {
+  const handleBookSubmit = () => {
+    // you can replace this with your submit handler
     const payload = {
-      student_id: parseInt(child),
-      private_tutoring_id: bookingTutorId,
-      duration_hours: parseInt(duration),
-      notes: `Learning objectives: ${learningObjectives}\nPreferred days: ${preferredDays.join(', ')}\nPreferred time: ${preferredTime}\n${notes}`,
+      tutorId: bookingTutorId,
+      tutorName: bookingTutor?.name,
+      course: bookingTutor?.course,
+      child,
+      preferred_days: preferredDays,
+      preferred_time: preferredTime,
+      duration,
+      learning_objectives: learningObjectives,
+      notes,
     };
-    const res = await fetch("/api/tutor/tutoring/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      setIsCardBookingOpen(false);
-      resetBookingForm();
-    }
+    // eslint-disable-next-line no-console
+    console.log("BOOK TUTORING PAYLOAD", payload);
+    setIsCardBookingOpen(false);
+    resetBookingForm();
   };
 
   return (
@@ -384,6 +509,7 @@ export function TutoringBooking() {
             Book and manage premium one-on-one tutoring with expert educators
           </p>
         </div>
+        {/* Removed the top-right “+ Book Tutoring” button and global dialog */}
       </div>
 
       <Tabs
@@ -417,7 +543,7 @@ export function TutoringBooking() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
-                Current Tutoring
+                Current Tutoring ({upcomingSessions.length})
               </CardTitle>
               <CardDescription className="text-sm">
                 Your scheduled tutoring
@@ -425,7 +551,7 @@ export function TutoringBooking() {
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {upcomingSessions.map((session) => (
+                {paginatedUpcoming.map((session) => (
                   <div
                     key={session.id}
                     className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
@@ -484,7 +610,7 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
-              {upcomingTotalPages > 1 && (
+              {upcomingSessions.length > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -492,19 +618,19 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setUpcomingPage,
-                            upcomingTotalPages,
+                            totalPages(upcomingSessions, itemsPerPage),
                             upcomingPage - 1
                           )
                         }
                       />
                     </PaginationItem>
                     {Array.from({
-                      length: upcomingTotalPages,
+                      length: totalPages(upcomingSessions, itemsPerPage),
                     }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === upcomingTotalPages ||
+                        page === totalPages(upcomingSessions, itemsPerPage) ||
                         (page >= upcomingPage - 1 && page <= upcomingPage + 1)
                       ) {
                         return (
@@ -520,7 +646,8 @@ export function TutoringBooking() {
                       } else if (
                         (page === upcomingPage - 2 && upcomingPage > 3) ||
                         (page === upcomingPage + 2 &&
-                          upcomingPage < upcomingTotalPages - 2)
+                          upcomingPage <
+                            totalPages(upcomingSessions, itemsPerPage) - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -535,7 +662,7 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setUpcomingPage,
-                            upcomingTotalPages,
+                            totalPages(upcomingSessions, itemsPerPage),
                             upcomingPage + 1
                           )
                         }
@@ -553,7 +680,7 @@ export function TutoringBooking() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
-                Past Tutoring
+                Past Tutoring ({pastSessions.length})
               </CardTitle>
               <CardDescription className="text-sm">
                 History of completed tutoring with recordings
@@ -561,7 +688,7 @@ export function TutoringBooking() {
             </CardHeader>
             <CardContent className="p-3">
               <div className="space-y-4">
-                {pastSessions.map((session) => (
+                {paginatedPast.map((session) => (
                   <div
                     key={session.id}
                     className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
@@ -599,8 +726,14 @@ export function TutoringBooking() {
                                 {session.time} ({session.actualDuration}min)
                               </div>
                             </div>
+                            <div className="flex items-center gap-1">
+                              {renderStars(session.rating)}
+                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">
+                                ({session.rating}/5)
+                              </span>
+                            </div>
                             <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
-                              "{session.notes}"
+                              "{session.feedback}"
                             </div>
                           </div>
                         </div>
@@ -609,7 +742,7 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
-              {pastTotalPages > 1 && (
+              {pastSessions.length > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -617,19 +750,19 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setPastPage,
-                            pastTotalPages,
+                            totalPages(pastSessions, itemsPerPage),
                             pastPage - 1
                           )
                         }
                       />
                     </PaginationItem>
                     {Array.from({
-                      length: pastTotalPages,
+                      length: totalPages(pastSessions, itemsPerPage),
                     }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === pastTotalPages ||
+                        page === totalPages(pastSessions, itemsPerPage) ||
                         (page >= pastPage - 1 && page <= pastPage + 1)
                       ) {
                         return (
@@ -645,7 +778,7 @@ export function TutoringBooking() {
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
                         (page === pastPage + 2 &&
-                          pastPage < pastTotalPages - 2)
+                          pastPage < totalPages(pastSessions, itemsPerPage) - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -660,7 +793,7 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setPastPage,
-                            pastTotalPages,
+                            totalPages(pastSessions, itemsPerPage),
                             pastPage + 1
                           )
                         }
@@ -678,24 +811,23 @@ export function TutoringBooking() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">
-                Expert Tutors
+                Expert Tutors ({availableTutors.length})
               </CardTitle>
               <CardDescription className="text-sm">
-                Browse and select from our verified expert expert educators
+                Browse and select from our verified expert educators
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:border">
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {availableTutors.map((tutor) => (
+                {paginatedTutors.map((tutor) => (
                   <div
                     key={tutor.id}
-                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]"
-                  >
+                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
                         <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
                         <AvatarFallback>
-                          {tutor.teacher_name
+                          {tutor.name
                             .split(" ")
                             .map((n: any) => n[0])
                             .join("")}
@@ -704,7 +836,7 @@ export function TutoringBooking() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold text-base sm:text-lg truncate">
-                            {tutor.teacher_name}
+                            {tutor.name}
                           </h4>
                           {tutor.verified && (
                             <Shield className="h-4 w-4 text-blue-500" />
@@ -759,7 +891,7 @@ export function TutoringBooking() {
                       </div>
                       <div>
                         <span className="font-medium">Available:</span>
-                        <div>{tutor.availability_days.join(", ")}</div>
+                        <div>{tutor.availability}</div>
                       </div>
                       <div className="text-xs text-muted-foreground break-words">
                         <span className="font-medium">Technologies:</span>{" "}
@@ -787,7 +919,7 @@ export function TutoringBooking() {
                 ))}
               </div>
 
-              {tutorsTotalPages > 1 && (
+              {availableTutors.length > itemsPerPage && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -795,19 +927,19 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setTutorsPage,
-                            tutorsTotalPages,
+                            totalPages(availableTutors, itemsPerPage),
                             tutorsPage - 1
                           )
                         }
                       />
                     </PaginationItem>
                     {Array.from({
-                      length: tutorsTotalPages,
+                      length: totalPages(availableTutors, itemsPerPage),
                     }).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
-                        page === tutorsTotalPages ||
+                        page === totalPages(availableTutors, itemsPerPage) ||
                         (page >= tutorsPage - 1 && page <= tutorsPage + 1)
                       ) {
                         return (
@@ -823,7 +955,8 @@ export function TutoringBooking() {
                       } else if (
                         (page === tutorsPage - 2 && tutorsPage > 3) ||
                         (page === tutorsPage + 2 &&
-                          tutorsPage < tutorsTotalPages - 2)
+                          tutorsPage <
+                            totalPages(availableTutors, itemsPerPage) - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -838,7 +971,7 @@ export function TutoringBooking() {
                         onClick={() =>
                           handlePageChange(
                             setTutorsPage,
-                            tutorsTotalPages,
+                            totalPages(availableTutors, itemsPerPage),
                             tutorsPage + 1
                           )
                         }
@@ -865,7 +998,7 @@ export function TutoringBooking() {
               <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
                 <DialogTitle>
                   {bookingTutor
-                    ? `Book ${bookingTutor.course} with ${bookingTutor.teacher_name}`
+                    ? `Book ${bookingTutor.course} with ${bookingTutor.name}`
                     : "Book Tutoring"}
                 </DialogTitle>
                 <DialogDescription>
@@ -883,11 +1016,8 @@ export function TutoringBooking() {
                         <SelectValue placeholder="Choose child" />
                       </SelectTrigger>
                       <SelectContent>
-                        {children.map((ch: any) => (
-                          <SelectItem key={ch.id} value={ch.id.toString()}>
-                            {ch.name} ({ch.classroom})
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="john">John Adebayo (SS3)</SelectItem>
+                        <SelectItem value="mary">Mary Adebayo (SS1)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -949,15 +1079,15 @@ export function TutoringBooking() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="duration">Duration (hours)</Label>
+                      <Label htmlFor="duration">Duration</Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger id="duration" className="w-full">
                           <SelectValue placeholder="Choose duration" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">1 hour</SelectItem>
-                          <SelectItem value="2">2 hours</SelectItem>
-                          <SelectItem value="3">3 hours</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                          <SelectItem value="90">1.5 hours</SelectItem>
+                          <SelectItem value="120">2 hours</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1027,10 +1157,10 @@ export function TutoringBooking() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.total_tutoring}
+              {upcomingSessions.length + pastSessions.length}
             </div>
             <p className="text-xs text-muted-foreground">
-              {stats.upcoming_count} upcoming tutoring
+              {upcomingSessions.length} upcoming tutoring
             </p>
           </CardContent>
         </Card>
@@ -1043,7 +1173,11 @@ export function TutoringBooking() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.hours_completed}h
+              {pastSessions.reduce(
+                (sum, session) => sum + (session.actualDuration || 60),
+                0
+              ) / 60}
+              h
             </div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
@@ -1057,10 +1191,13 @@ export function TutoringBooking() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.average_rating.toFixed(1)}
+              {(
+                pastSessions.reduce((sum, session) => sum + session.rating, 0) /
+                pastSessions.length
+              ).toFixed(1)}
             </div>
             <p className="text-xs text-muted-foreground">
-              From past tutoring
+              From {pastSessions.length} tutoring
             </p>
           </CardContent>
         </Card>
@@ -1070,7 +1207,7 @@ export function TutoringBooking() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.active_tutors}</div>
+            <div className="text-2xl font-bold">{availableTutors.length}</div>
             <p className="text-xs text-muted-foreground">Available now</p>
           </CardContent>
         </Card>

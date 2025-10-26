@@ -1,9 +1,15 @@
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Download, AlertCircle, Plus, Filter, Search} from "lucide-react";
-import {Input} from "@/components/ui/input";
+// components/invoice/invoice-header.tsx
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Download, Filter, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useInvoiceFilters } from "@/hooks/use-invoice-filters";
 
 export function InvoiceHeader() {
+  const { searchTerm, setSearchTerm, exportCSV } = useInvoiceFilters();
+
   return (
     <header className="z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container mx-auto px-4 py-4 max-w-7xl">
@@ -31,6 +37,8 @@ export function InvoiceHeader() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search invoices..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full bg-background/50 backdrop-blur"
                 />
               </div>
@@ -46,6 +54,7 @@ export function InvoiceHeader() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={exportCSV}
                 className="hover-lift bg-transparent w-full sm:w-auto py-2">
                 <Download className="h-4 w-4 mr-2" />
                 Export

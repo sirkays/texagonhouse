@@ -2,7 +2,6 @@
 "use client";
 import { InvoiceHeader } from "@/components/invoice/invoice-header";
 import { InvoiceList } from "@/components/invoice/invoice-list";
-import { Spinner } from "@/components/ui/spinner";
 
 export default function InvoicesPage() {
   return (
