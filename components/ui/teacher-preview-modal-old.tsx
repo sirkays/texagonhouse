@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, Users, Star, Video, Headphones, FileText, BookOpen } from "lucide-react";
 
 interface PreviewModalProps {
@@ -39,9 +38,10 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* Important: contain overflow and build our own sticky header/footer */}
       <DialogContent className="max-w-[90vw] sm:max-w-2xl max-h-[90vh] p-0 overflow-hidden">
         <div className="flex h-full max-h-[90vh] flex-col">
-          {/* Sticky Header */}
+          {/* Sticky header */}
           <div className="sticky top-0 z-10 border-b bg-background px-6 py-4">
             <DialogHeader className="p-0">
               <DialogTitle className="text-lg xs:text-xl sm:text-2xl">
@@ -53,9 +53,9 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
             </DialogHeader>
           </div>
 
-          {/* Main Scrollable Area */}
+          {/* Main body – only this area can scroll its children */}
           <div className="flex-1 min-h-0 overflow-hidden px-6 py-4 space-y-6">
-            {/* Module Details */}
+            {/* Module details (static) */}
             <div className="space-y-2">
               <h3 className="text-sm xs:text-base sm:text-lg font-semibold">Module Details</h3>
               <p className="text-[0.85rem] xs:text-xs sm:text-sm break-words">
@@ -94,7 +94,7 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
               </div>
             </div>
 
-            {/* Lessons (Scrollable) */}
+            {/* Lessons (scrolls independently) */}
             <div className="space-y-3 min-h-0">
               <h3 className="text-sm xs:text-base sm:text-lg font-semibold">Lessons</h3>
 
@@ -103,58 +103,58 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
                   No lessons available
                 </p>
               ) : (
-                <ScrollArea className="h-[36vh] xs:h-[42vh] sm:h-[50vh] pr-2">
-                  <div className="space-y-2">
-                    {module.lessons.map((lesson, index) => (
-                      <div key={lesson.id} className="p-2 xs:p-3 rounded-lg border bg-muted/50">
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(lesson.type)}
-                          <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                            Lesson {index + 1}: {lesson.title || "Untitled"}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs capitalize"
-                          >
-                            {lesson.type}
-                          </Badge>
-                        </div>
-
-                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mt-1">
-                          Duration: {lesson.duration || "N/A"}
-                        </p>
-
-                        {lesson.type === "video" && lesson.videoUrl && (
-                          <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground break-all">
-                            Video: {lesson.videoUrl}
-                          </p>
-                        )}
-                        {lesson.type === "audio" && lesson.audioUrl && (
-                          <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground break-all">
-                            Audio: {lesson.audioUrl}
-                          </p>
-                        )}
-                        {lesson.type === "text" && lesson.content && (
-                          <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground line-clamp-2">
-                            Content: {lesson.content}
-                          </p>
-                        )}
+                <div
+                  className="
+                    space-y-2 overflow-y-auto pr-2
+                    h-[36vh] xs:h-[42vh] sm:h-[50vh]
+                    overscroll-contain
+                  "
+                >
+                  {module.lessons.map((lesson, index) => (
+                    <div key={lesson.id} className="p-2 xs:p-3 rounded-lg border bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        {getTypeIcon(lesson.type)}
+                        <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
+                          Lesson {index + 1}: {lesson.title || "Untitled"}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs capitalize"
+                        >
+                          {lesson.type}
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+
+                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mt-1">
+                        Duration: {lesson.duration || "N/A"}
+                      </p>
+
+                      {lesson.type === "video" && lesson.videoUrl && (
+                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground break-all">
+                          Video: {lesson.videoUrl}
+                        </p>
+                      )}
+                      {lesson.type === "audio" && lesson.audioUrl && (
+                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground break-all">
+                          Audio: {lesson.audioUrl}
+                        </p>
+                      )}
+                      {lesson.type === "text" && lesson.content && (
+                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground line-clamp-2">
+                          Content: {lesson.content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
 
-          {/* Sticky Footer */}
+          {/* Sticky footer with the Close button always visible */}
           <div className="sticky bottom-0 z-10 border-t bg-background px-6 py-3">
             <DialogFooter className="p-0">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="text-xs xs:text-sm sm:text-base"
-              >
+              <Button variant="outline" onClick={onClose} className="text-xs xs:text-sm sm:text-base">
                 Close
               </Button>
             </DialogFooter>

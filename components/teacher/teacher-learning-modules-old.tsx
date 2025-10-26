@@ -249,9 +249,7 @@ export function TeacherLearningModules() {
           }
           throw new Error(errorData.error || "Failed to fetch courses");
         }
-        let data: Course[] = await response.json();
-        // Normalize IDs to strings
-        data = data.map((c) => ({ ...c, id: String(c.id) }));
+        const data: Course[] = await response.json();
         setCourses(data);
       } catch (err) {
         setError(
@@ -278,9 +276,7 @@ export function TeacherLearningModules() {
           }
           throw new Error(errorData.error || "Failed to fetch categories");
         }
-        let data: Category[] = await response.json();
-        // Normalize IDs to strings
-        data = data.map((c) => ({ ...c, id: String(c.id) }));
+        const data: Category[] = await response.json();
         setCategories(data);
       } catch (err) {
         setError(
@@ -325,9 +321,9 @@ export function TeacherLearningModules() {
             }
             throw new Error(errorData.error || "Failed to fetch modules");
           }
-          let data: APIModule[] = await response.json();
+          const data: APIModule[] = await response.json();
           const sanitizedModules: Module[] = data.map((module) => ({
-            id: String(module.id),
+            id: module.id,
             title: module.title,
             description: module.description,
             type: module.type || "video",
@@ -341,7 +337,7 @@ export function TeacherLearningModules() {
             isPublished: module.isPublished,
             createdDate: formatDate(module.createdAt),
             course: {
-              id: module.course?.id ? String(module.course.id) : undefined,
+              id: module.course?.id || "",
               name: module.course?.name || "",
             },
             lessons: module.lessons || [],
@@ -387,9 +383,7 @@ export function TeacherLearningModules() {
             throw new Error(err.detail || "Failed to load analytics");
           }
 
-          let data = await res.json();
-          // Normalize module IDs
-          data.modules = data.modules.map((m: Module) => ({ ...m, id: String(m.id), course: { ...m.course, id: m.course?.id ? String(m.course.id) : undefined } }));
+          const data = await res.json();
           setAnalytics(data);
         } catch (err) {
           setAnalyticsError((err as Error).message);
@@ -446,14 +440,13 @@ export function TeacherLearningModules() {
       const lessonsWithCover =
         module.lessons?.map((lesson: any) => ({
           ...lesson,
-          id: String(lesson.id),
           coverImageUrl: lesson.cover_image
             ? normalizeMedia(lesson.cover_image)
             : null,
         })) || [];
 
       return {
-        id: String(module.id),
+        id: module.id,
         title: module.title,
         description: module.description,
         type: module.type || "video",
@@ -467,7 +460,7 @@ export function TeacherLearningModules() {
         isPublished: module.isPublished,
         createdDate: formatDate(module.createdAt),
         course: {
-          id: module.course?.id ? String(module.course.id) : undefined,
+          id: module.course?.id || "",
           name: module.course?.name || "",
         },
         lessons: lessonsWithCover,
@@ -741,7 +734,7 @@ export function TeacherLearningModules() {
       }
       const data: APIModule = await response.json();
       const newModule: Module = {
-        id: String(data.id),
+        id: data.id,
         title: data.title,
         description: data.description,
         type: currentModule.type,
@@ -754,7 +747,7 @@ export function TeacherLearningModules() {
         isPublished: data.isPublished,
         createdDate: formatDate(data.createdAt),
         course: {
-          id: data.course?.id ? String(data.course.id) : undefined,
+          id: data.course?.id || "",
           name: data.course?.name || "",
         },
         lessons: currentModule.lessons,
@@ -850,7 +843,7 @@ export function TeacherLearningModules() {
 
       const data: { module: APIModule } = await response.json();
       const updatedModule: Module = {
-        id: String(data.module.id),
+        id: data.module.id,
         title: data.module.title,
         description: data.module.description,
         type: currentModule.type,
@@ -864,7 +857,7 @@ export function TeacherLearningModules() {
         isPublished: data.module.isPublished,
         createdDate: formatDate(data.module.createdAt),
         course: {
-          id: data.module.course?.id ? String(data.module.course.id) : undefined,
+          id: data.module.course?.id || "",
           name: data.module.course?.name || "",
         },
         lessons: currentModule.lessons,
@@ -1068,7 +1061,7 @@ export function TeacherLearningModules() {
 
       const newLesson: Lesson = {
         ...editingLesson,
-        id: String(serverLesson.id),
+        id: serverLesson.id,
         coverImageUrl: serverLesson.cover_image
           ? normalizeMedia(serverLesson.cover_image)
           : undefined,
@@ -1108,6 +1101,15 @@ export function TeacherLearningModules() {
 
       const data: { lesson: Lesson } = JSON.parse(responseText);
       console.log("[saveLesson] Lesson created:", data);
+
+      // Refresh module details to get updated lessons
+      // const moduleData = await getModuleDetails(currentModule.id);
+      // if (moduleData) {
+      //   setCurrentModule(moduleData);
+      //   setModules((prev) =>
+      //     prev.map((m) => (m.id === currentModule.id ? moduleData : m))
+      //   );
+      // }
 
       // Refresh module data to sync with server
       const moduleData = await getModuleDetails(currentModule.id);
@@ -1279,7 +1281,7 @@ export function TeacherLearningModules() {
 
       const updatedLesson: Lesson = {
         ...editingLesson,
-        id: String(data.lesson.id),
+        id: data.lesson.id,
         coverImageUrl: data.lesson.cover_image
           ? normalizeMedia(data.lesson.cover_image)
           : undefined,
