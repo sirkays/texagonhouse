@@ -5,7 +5,8 @@ import { unstable_noStore as noStore } from "next/cache";
 import formidable from "formidable-serverless";
 import fs from "fs/promises";
 
-const BASE_URL = "http://127.0.0.1:9098";
+//const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL = "https://texagonbackend.epichouse.online";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 const FILE_FIELD_NAME = "file";
 const COVER_IMAGE_FIELD_NAME = "cover_image";
