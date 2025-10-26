@@ -750,71 +750,83 @@ export function TeacherTutoringBooking() {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!session?.user?.sessionToken) {
-      setError("Not authenticated");
-      return;
-    }
+ const handleConfirmDelete = async () => {
+  if (!session?.user?.sessionToken) {
+    setError("Not authenticated");
+    return;
+  }
 
-    if (!selectedSession) return;
+  if (!selectedSession) return;
 
-    try {
-      const response = await fetch(
-        `/api/teacher/tutoring-bookings/delete?tab=${selectedSession.category}&id=${selectedSession.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-            "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
-          },
-        }
-      );
-
-      const text = await response.text();
-      console.log("[TeacherTutoringBooking] DELETE response:", text);
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.error(
-          "[TeacherTutoringBooking] DELETE response is not JSON, content-type:",
-          contentType
-        );
-        throw new Error(
-          `Backend returned non-JSON response (status: ${response.status})`
-        );
+  try {
+    const response = await fetch(
+      `/api/teacher/tutoring-bookings/delete?tab=${selectedSession.category}&id=${selectedSession.id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+          "X-Session-Token": session.user.sessionToken,
+        },
       }
+    );
 
-      const data = JSON.parse(text);
+    console.log("[TeacherTutoringBooking] DELETE status:", response.status);
 
-      if (!response.ok) {
-        console.error("[TeacherTutoringBooking] DELETE failed:", data);
-        if (response.status === 401 || response.status === 403) {
-          setError("Session expired");
-          return;
-        }
-        throw new Error(data.error || "Failed to delete session");
-      }
-
+    // Handle 204 No Content → success, no body
+    if (response.status === 204) {
+      // Remove from UI
       if (selectedSession.category === "upcoming") {
         setUpcomingSessions((prev) =>
           prev.filter((s) => s.id !== selectedSession.id)
         );
-        setUpcomingPage(1);
       } else if (selectedSession.category === "private") {
         setPrivateSessions((prev) =>
           prev.filter((s) => s.id !== selectedSession.id)
         );
-        setPrivatePage(1);
       }
       setIsDeleteSessionDialogOpen(false);
       setSelectedSession(null);
       setError(null);
-    } catch (err: any) {
-      console.error("[TeacherTutoringBooking] Error deleting session:", err);
-      setError(err.message || "Failed to delete session");
+      return;
     }
-  };
+
+    // For all other statuses, try to read body
+    const text = await response.text();
+    console.log("[TeacherTutoringBooking] DELETE response:", text);
+
+    let data: any = {};
+    const contentType = response.headers.get("content-type");
+    if (text && contentType?.includes("application/json")) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid JSON response from server");
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || data.detail || "Failed to delete session");
+    }
+
+    // If we get here with 200/201 and JSON, still remove from UI
+    if (selectedSession.category === "upcoming") {
+      setUpcomingSessions((prev) =>
+        prev.filter((s) => s.id !== selectedSession.id)
+      );
+    } else if (selectedSession.category === "private") {
+      setPrivateSessions((prev) =>
+        prev.filter((s) => s.id !== selectedSession.id)
+      );
+    }
+
+    setIsDeleteSessionDialogOpen(false);
+    setSelectedSession(null);
+    setError(null);
+  } catch (err: any) {
+    console.error("[TeacherTutoringBooking] Error deleting session:", err);
+    setError(err.message || "Failed to delete session");
+  }
+};
 
   const handleTogglePrivateSessionStatus = async (sessionId: string) => {
     if (!session?.user?.sessionToken) {
@@ -997,18 +1009,29 @@ export function TeacherTutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
+                                  <div className="space-y-2">
                     <Label htmlFor="rate">Rate per hour</Label>
-                    <Select value={ratePerHour} onValueChange={setRatePerHour}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select rate" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7000.00">₦7,000/hour</SelectItem>
-                        <SelectItem value="7500.00">₦7,500/hour</SelectItem>
-                        <SelectItem value="8000.00">₦8,000/hour</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        ₦
+                      </span>
+                      <input
+                        id="rate"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={ratePerHour || ""}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, "");
+                          setRatePerHour(val ? parseFloat(val).toFixed(2) : "");
+                        }}
+                        placeholder="7500"
+                        className="w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        /hour
+                      </span>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="duration-days">
@@ -1373,7 +1396,7 @@ export function TeacherTutoringBooking() {
                               {new Date(p.createdAt).toLocaleDateString()}
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
-                              <Button
+                              {/* <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-8"
@@ -1384,8 +1407,8 @@ export function TeacherTutoringBooking() {
                                 {p.status === "Active"
                                   ? "Deactivate"
                                   : "Activate"}
-                              </Button>
-                              {/* <Button
+                              </Button> */}
+                              <Button
                                 size="sm"
                                 className="h-8 bg-red-600 hover:bg-red-700"
                                 onClick={() =>
@@ -1394,7 +1417,7 @@ export function TeacherTutoringBooking() {
                               >
                                 <Trash2 className="h-3 w-3 mr-1" />
                                 Delete
-                              </Button> */}
+                              </Button>
                             </div>
                           </div>
                         </div>

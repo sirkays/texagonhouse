@@ -1,7 +1,7 @@
 // components/invoice/invoice-list.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useInvoiceFilters } from "@/hooks/use-invoice-filters";
 
 interface Invoice {
   id: number;
@@ -35,14 +36,20 @@ interface Invoice {
 }
 
 export function InvoiceList() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const {
+    invoices,
+    setInvoices,
+    searchTerm,
+  } = useInvoiceFilters();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Initial load
   useEffect(() => {
-    const fetchInvoices = async () => {
+    const fetchInitial = async () => {
       try {
         const res = await fetch("/api/billing");
         if (!res.ok) throw new Error("Failed to fetch invoices");
@@ -54,8 +61,8 @@ export function InvoiceList() {
         setLoading(false);
       }
     };
-    fetchInvoices();
-  }, []);
+    fetchInitial();
+  }, [setInvoices]);
 
   const handleViewInvoice = (id: number) => {
     setSelectedInvoiceId(id);
@@ -66,6 +73,37 @@ export function InvoiceList() {
     setIsModalOpen(false);
     setSelectedInvoiceId(null);
   };
+
+// components/invoice/invoice-list.tsx (updated downloadPDF only)
+const downloadPDF = async (id: number) => {
+  try {
+    const res = await fetch(`/api/billing/invoice/${id}/pdf`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/pdf",
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("PDF API error:", res.status, text);
+      throw new Error(`Failed to generate PDF: ${res.status} ${res.statusText}`);
+    }
+
+    const blob = await res.blob();
+    if (blob.size === 0) throw new Error("Empty PDF response");
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("PDF download failed:", err);
+    alert("Could not download PDF. Please try again.");
+  }
+};
 
   if (loading) {
     return (
@@ -101,116 +139,123 @@ export function InvoiceList() {
         </div>
 
         <div className="grid gap-3">
-          {invoices.map((invoice, index) => (
-            <Card
-              key={invoice.id}
-              className="hover-lift border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur animate-slide-up"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-base font-semibold md:text-lg">
-                        {invoice.number}
-                      </CardTitle>
-                      <PaymentStatusBadge status={invoice.status} size="sm" />
+          {invoices
+            .filter((invoice) =>
+              searchTerm
+                ? invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  invoice.meta.parent_profile_id.toString().includes(searchTerm)
+                : true
+            )
+            .map((invoice, index) => (
+              <Card
+                key={invoice.id}
+                className="hover-lift border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur animate-slide-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base font-semibold md:text-lg">
+                          {invoice.number}
+                        </CardTitle>
+                        <PaymentStatusBadge status={invoice.status} size="sm" />
+                      </div>
+                      <p className="text-xs text-muted-foreground md:text-sm">
+                        Generated for parent profile
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground md:text-sm">
-                      Generated for parent profile
-                    </p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                          <MoreHorizontal className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => handleViewInvoice(invoice.id)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => downloadPDF(invoice.id)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download PDF
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
-                        <MoreHorizontal className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => handleViewInvoice(invoice.id)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                      <Building2 className="h-4 w-4" />
-                      <span>Profile</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                        <Building2 className="h-4 w-4" />
+                        <span>Profile</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm md:text-base">
+                          Parent ID: {invoice.meta.parent_profile_id}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm md:text-base">
-                        Parent ID: {invoice.meta.parent_profile_id}
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                        <DollarSign className="h-4 w-4" />
+                        <span>Amount</span>
+                      </div>
+                      <p className="font-bold text-base md:text-lg">
+                        {invoice.currency} {Number(invoice.amount).toLocaleString()}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                        <Calendar className="h-4 w-4" />
+                        <span>Due Date</span>
+                      </div>
+                      <p className="font-medium text-sm md:text-base">
+                        {new Date(invoice.due_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                        <Calendar className="h-4 w-4" />
+                        <span>Issued</span>
+                      </div>
+                      <p className="font-medium text-sm md:text-base">
+                        {new Date(invoice.issued_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Amount</span>
+                  <div className="flex flex-col gap, sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
+                    <div className="text-xs text-muted-foreground">
+                      Status: <Badge variant="outline">{invoice.status}</Badge>
                     </div>
-                    <p className="font-bold text-base md:text-lg">
-                      {invoice.currency} {Number(invoice.amount).toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                      <Calendar className="h-4 w-4" />
-                      <span>Due Date</span>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 mt-2 sm:mt-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover-lift bg-transparent w-full sm:w-auto py-2"
+                        onClick={() => handleViewInvoice(invoice.id)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
                     </div>
-                    <p className="font-medium text-sm md:text-base">
-                      {new Date(invoice.due_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
                   </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                      <Calendar className="h-4 w-4" />
-                      <span>Issued</span>
-                    </div>
-                    <p className="font-medium text-sm md:text-base">
-                      {new Date(invoice.issued_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap, sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
-                  <div className="text-xs text-muted-foreground">
-                    Status: <Badge variant="outline">{invoice.status}</Badge>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 mt-2 sm:mt-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hover-lift bg-transparent w-full sm:w-auto py-2"
-                      onClick={() => handleViewInvoice(invoice.id)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
         </div>
       </div>
 
