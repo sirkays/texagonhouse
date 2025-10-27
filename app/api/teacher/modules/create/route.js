@@ -4,7 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+//const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken) => ({
