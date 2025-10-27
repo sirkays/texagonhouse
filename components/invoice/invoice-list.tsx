@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   Calendar,
   DollarSign,
   Building2,
+  CreditCard,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,6 +25,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useInvoiceFilters } from "@/hooks/use-invoice-filters";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Invoice {
   id: number;
@@ -36,33 +46,79 @@ interface Invoice {
 }
 
 export function InvoiceList() {
-  const {
-    invoices,
-    setInvoices,
-    searchTerm,
-  } = useInvoiceFilters();
+  const { invoices, setInvoices, searchTerm } = useInvoiceFilters();
 
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
+    null
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [invoiceId, setInvoiceId] = useState<string | "">("");
 
-  // Initial load
+  const fetchInvoices = async () => {
+    try {
+      const res = await fetch("/api/billing");
+      if (!res.ok) throw new Error("Failed to fetch invoices");
+      const data = await res.json();
+      setInvoices(data.results || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchInitial = async () => {
-      try {
-        const res = await fetch("/api/billing");
-        if (!res.ok) throw new Error("Failed to fetch invoices");
-        const data = await res.json();
-        setInvoices(data.results || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInitial();
+    fetchInvoices();
   }, [setInvoices]);
+
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const tx_ref = searchParams.get("tx_ref");
+    const transaction_id = searchParams.get("transaction_id");
+    const invoice_number = searchParams.get("invoice_number");
+    if (status === "completed" && tx_ref && transaction_id && invoice_number) {
+      confirmPayment(invoice_number, tx_ref, transaction_id);
+    }
+  }, [searchParams]);
+
+  // const redirect_url = `${window.location.origin}/invoice/invoices`;
+
+  const confirmPayment = async (
+    invoice_id: string,
+    tx_ref: string,
+    transaction_id: string
+  ) => {
+    setPaymentLoading(true);
+    try {
+      const res = await fetch("/api/billing?action=confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id, tx_ref, transaction_id }),
+      });
+      if (!res.ok) throw new Error("Failed to confirm payment");
+      await fetchInvoices();
+      setIsSuccessModalOpen(true);
+    } catch (err) {
+      alert("Failed to confirm payment");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  console.log(
+    "Invoices:",
+    invoices.map((inv) => ({
+      id: inv.id,
+      number: inv.number,
+      status: inv.status,
+    })),
+    invoiceId
+  );
 
   const handleViewInvoice = (id: number) => {
     setSelectedInvoiceId(id);
@@ -74,38 +130,68 @@ export function InvoiceList() {
     setSelectedInvoiceId(null);
   };
 
-// components/invoice/invoice-list.tsx (updated downloadPDF only)
-const downloadPDF = async (id: number) => {
-  try {
-    const res = await fetch(`/api/billing/invoice/${id}/pdf`, {
-      method: "GET",
-      headers: {
-        "Accept": "application/pdf",
-      },
-    });
+  const downloadPDF = async (id: number) => {
+    try {
+      const res = await fetch(`/api/billing/invoice/${id}/pdf`, {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf",
+        },
+      });
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("PDF API error:", res.status, text);
-      throw new Error(`Failed to generate PDF: ${res.status} ${res.statusText}`);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("PDF API error:", res.status, text);
+        throw new Error(
+          `Failed to generate PDF: ${res.status} ${res.statusText}`
+        );
+      }
+
+      const blob = await res.blob();
+      if (blob.size === 0) throw new Error("Empty PDF response");
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF download failed:", err);
+      alert("Could not download PDF. Please try again.");
     }
+  };
 
-    const blob = await res.blob();
-    if (blob.size === 0) throw new Error("Empty PDF response");
+  const handlePayInvoice = async (invoice_number: string) => {
+    setPaymentLoading(true);
+    try {
+      const redirect_url = `${window.location.origin}/invoice/invoices`;
+      const full_redirect_url = `${redirect_url}?invoice_number=${encodeURIComponent(
+        invoice_number
+      )}`;
+      const res = await fetch("/api/billing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice_id: invoice_number,
+          redirect_url: full_redirect_url,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to initiate payment");
+      const data = await res.json();
+      if (data.payment_link) {
+        window.location.href = data.payment_link;
+      } else {
+        alert("Payment initiated, but no URL provided");
+      }
+    } catch (err) {
+      alert("Failed to initiate payment");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invoice-${id}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error("PDF download failed:", err);
-    alert("Could not download PDF. Please try again.");
-  }
-};
-
-  if (loading) {
+  if (loading || paymentLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Spinner size="md" className="text-black" />
@@ -133,7 +219,10 @@ const downloadPDF = async (id: number) => {
               Manage and track your invoice status
             </p>
           </div>
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 w-fit">
+          <Badge
+            variant="outline"
+            className="bg-primary/10 text-primary border-primary/20 w-fit"
+          >
             {invoices.length} Total
           </Badge>
         </div>
@@ -142,7 +231,9 @@ const downloadPDF = async (id: number) => {
           {invoices
             .filter((invoice) =>
               searchTerm
-                ? invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                ? invoice.number
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase()) ||
                   invoice.meta.parent_profile_id.toString().includes(searchTerm)
                 : true
             )
@@ -167,19 +258,35 @@ const downloadPDF = async (id: number) => {
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-9 p-0"
+                        >
                           <MoreHorizontal className="h-5 w-5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => handleViewInvoice(invoice.id)}>
+                        <DropdownMenuItem
+                          onClick={() => handleViewInvoice(invoice.id)}
+                        >
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => downloadPDF(invoice.id)}>
+                        <DropdownMenuItem
+                          onClick={() => downloadPDF(invoice.id)}
+                        >
                           <Download className="h-4 w-4 mr-2" />
                           Download PDF
                         </DropdownMenuItem>
+                        {invoice.status === "open" && (
+                          <DropdownMenuItem
+                            onClick={() => handlePayInvoice(invoice.number)}
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Pay Now
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -204,7 +311,8 @@ const downloadPDF = async (id: number) => {
                         <span>Amount</span>
                       </div>
                       <p className="font-bold text-base md:text-lg">
-                        {invoice.currency} {Number(invoice.amount).toLocaleString()}
+                        {invoice.currency}{" "}
+                        {Number(invoice.amount).toLocaleString()}
                       </p>
                     </div>
 
@@ -228,16 +336,19 @@ const downloadPDF = async (id: number) => {
                         <span>Issued</span>
                       </div>
                       <p className="font-medium text-sm md:text-base">
-                        {new Date(invoice.issued_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {new Date(invoice.issued_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }
+                        )}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap, sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
                     <div className="text-xs text-muted-foreground">
                       Status: <Badge variant="outline">{invoice.status}</Badge>
                     </div>
@@ -251,6 +362,17 @@ const downloadPDF = async (id: number) => {
                         <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
+                      {invoice.status === "open" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hover-lift bg-transparent w-full sm:w-auto py-2"
+                          onClick={() => handlePayInvoice(invoice.number)}
+                        >
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Pay
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -258,6 +380,20 @@ const downloadPDF = async (id: number) => {
             ))}
         </div>
       </div>
+
+      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Payment Successful</DialogTitle>
+            <DialogDescription>
+              Your payment has been confirmed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setIsSuccessModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <InvoiceDetailsModal
         invoiceId={selectedInvoiceId}

@@ -457,7 +457,7 @@ export function TeacherTutoringBooking() {
         mappedData = data.results.map((item: any) => ({
           id: item.id.toString(),
           courseId: item.course.toString(),
-          courseName: item.course_name || "Unknown",
+          courseName: item.course_name,
           title: item.title || "My Private Tutoring",
           ratePerHour: parseFloat(item.rate_per_hour || 0).toFixed(2),
           durationDays: item.tutoring_duration_days || 24,

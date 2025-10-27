@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock, AlertTriangle, XCircle } from "lucide-react"
 
 interface PaymentStatusBadgeProps {
-  status: "paid" | "pending" | "overdue" | "failed"
+  status: "paid" | "pending" | "overdue" | "failed" | "open" | "void"  | "uncollectible" | "active"
   className?: string
   showIcon?: boolean
   size?: "sm" | "md" | "lg"
@@ -33,6 +33,30 @@ export function PaymentStatusBadge({ status, className, showIcon = true, size = 
       variant: "destructive" as const,
       icon: XCircle,
       className: "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20",
+    },
+    open: {
+      label: "Open",
+      variant: "outline" as const,
+      icon: Clock,
+      className: "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
+    },
+    void: {
+      label: "Void",
+      variant: "outline" as const,  
+      icon: XCircle,
+      className: "bg-muted/10 text-muted border-muted/20 hover:bg-muted/20",
+    },
+    uncollectible: {
+      label: "Uncollectible",
+      variant: "outline" as const,  
+      icon: XCircle,
+      className: "bg-muted/10 text-muted border-muted/20 hover:bg-muted/20",
+    },
+    active: {
+      label: "Active",
+      variant: "outline" as const, 
+      icon: CheckCircle,
+      className: "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
     },
   }
 
