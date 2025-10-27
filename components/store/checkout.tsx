@@ -19,7 +19,7 @@ import {Separator} from "@/components/ui/separator";
 import {Badge} from "@/components/ui/badge";
 import {ArrowLeft, CreditCard, Trash2, ShoppingBag} from "lucide-react";
 import {useToast} from "@/hooks/use-toast";
-import { useCart } from "@/providers/CartProvider";
+import {useCart} from "@/providers/CartProvider";
 import {
   Select,
   SelectContent,
@@ -31,7 +31,13 @@ import {
 export default function CheckoutPage() {
   const router = useRouter();
   const {toast} = useToast();
-  const { cartItems, updateQuantity, removeFromCart, buyNowProduct, setBuyNowProduct } = useCart();
+  const {
+    cartItems,
+    updateQuantity,
+    removeFromCart,
+    buyNowProduct,
+    setBuyNowProduct,
+  } = useCart();
   const displayItems = buyNowProduct ? [buyNowProduct] : cartItems;
 
   const [formData, setFormData] = useState({
@@ -53,7 +59,9 @@ export default function CheckoutPage() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const shipping = displayItems.some((item) => item.type === "physical") ? 9.99 : 0;
+  const shipping = displayItems.some((item) => item.type === "physical")
+    ? 9.99
+    : 0;
   const tax = subtotal * 0.08;
   const total = subtotal + shipping + tax;
 
@@ -69,7 +77,7 @@ export default function CheckoutPage() {
   const handleQuantityChange = (id: number, newQuantity: number) => {
     if (newQuantity < 1) return;
     if (buyNowProduct && buyNowProduct.id === id) {
-      setBuyNowProduct({ ...buyNowProduct, quantity: newQuantity });
+      setBuyNowProduct({...buyNowProduct, quantity: newQuantity});
     } else {
       updateQuantity(id, newQuantity);
     }

@@ -1,6 +1,8 @@
+// Page is done with routing
+
 "use client";
 
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {
   Card,
@@ -37,7 +39,8 @@ import {
 } from "lucide-react";
 
 interface Product {
-  id: number;
+  id: string;
+  slug: string;
   name: string;
   description?: string;
   price: number;
@@ -76,112 +79,43 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
+  const [products, setProducts] = useState<Product[]>([]);
 
-  const products = [
-    {
-      id: 1,
-      name: "Complete React Development Course",
-      description:
-        "Master React from basics to advanced concepts with hands-on projects",
-      price: 89.99,
-      originalPrice: 129.99,
-      category: "courses",
-      type: "digital",
-      rating: 4.8,
-      reviews: 2847,
-      image: "/placeholder.svg?height=200&width=300",
-      instructor: "Sarah Chen",
-      duration: "40 hours",
-      students: 15420,
-      bestseller: true,
-      bnplAvailable: true,
-    },
-    {
-      id: 2,
-      name: "Python Programming Textbook",
-      description:
-        "Comprehensive guide to Python programming with practical examples",
-      price: 45.99,
-      originalPrice: 59.99,
-      category: "books",
-      type: "physical",
-      rating: 4.6,
-      reviews: 1234,
-      image: "/placeholder.svg?height=200&width=300",
-      author: "Dr. Michael Johnson",
-      pages: 650,
-      publisher: "TechBooks",
-      inStock: true,
-      bnplAvailable: true,
-    },
-    {
-      id: 3,
-      name: "JavaScript Fundamentals Audio Course",
-      description:
-        "Learn JavaScript on-the-go with this comprehensive audio course",
-      price: 29.99,
-      originalPrice: 39.99,
-      category: "audio",
-      type: "digital",
-      rating: 4.5,
-      reviews: 892,
-      image: "/placeholder.svg?height=200&width=300",
-      narrator: "Alex Rodriguez",
-      duration: "12 hours",
-      episodes: 24,
-      bnplAvailable: false,
-    },
-    {
-      id: 4,
-      name: "Programming Laptop - Student Edition",
-      description:
-        "High-performance laptop optimized for coding and development",
-      price: 899.99,
-      originalPrice: 1199.99,
-      category: "hardware",
-      type: "physical",
-      rating: 4.7,
-      reviews: 456,
-      image: "/placeholder.svg?height=200&width=300",
-      brand: "TechPro",
-      specs: "Intel i7, 16GB RAM, 512GB SSD",
-      warranty: "2 years",
-      inStock: true,
-      bnplAvailable: true,
-    },
-    {
-      id: 5,
-      name: "Data Science Toolkit",
-      description:
-        "Complete toolkit with books, software licenses, and project templates",
-      price: 199.99,
-      originalPrice: 299.99,
-      category: "bundles",
-      type: "mixed",
-      rating: 4.9,
-      reviews: 678,
-      image: "/placeholder.svg?height=200&width=300",
-      includes: "3 Books, 5 Software Licenses, 20 Templates",
-      value: "$500+",
-      bnplAvailable: true,
-    },
-    {
-      id: 6,
-      name: "Web Development Bootcamp",
-      description: "Intensive 12-week bootcamp covering full-stack development",
-      price: 2499.99,
-      originalPrice: 3499.99,
-      category: "bootcamps",
-      type: "service",
-      rating: 4.9,
-      reviews: 234,
-      image: "/placeholder.svg?height=200&width=300",
-      duration: "12 weeks",
-      format: "Live Online",
-      jobGuarantee: true,
-      bnplAvailable: true,
-    },
-  ];
+  useEffect(() => {
+    const fetchProducts = async () => {
+      let sortParam = sortBy;
+      if (sortBy === "price-low") sortParam = "price_asc";
+      if (sortBy === "price-high") sortParam = "price_desc";
+      if (sortBy === "rating") sortParam = "rating";
+      if (sortBy === "newest") sortParam = "newest";
+      if (sortBy === "popular") sortParam = "popular";
+
+      const categoryParam =
+        selectedCategory !== "all" ? `&category=${selectedCategory}` : "";
+
+      const res = await fetch(
+        `/api/store/products?q=${searchQuery}${categoryParam}&sort=${sortParam}&page_size=100`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const mappedProducts = data.results.results.map((p: any) => ({
+        id: p.id, // uuid as string
+        slug: p.slug || p.id, // Fallback to id if slug is missing
+        name: p.title,
+        description: p.description,
+        price: parseFloat(p.price),
+        category: p.category,
+        type: p.type,
+        rating: p.rating,
+        reviews: p.rating_count,
+        image: p.image,
+        bnplAvailable: p.bnpl_enabled,
+        // Add other fields as needed, default others
+      }));
+      setProducts(mappedProducts);
+    };
+    fetchProducts();
+  }, [searchQuery, selectedCategory, sortBy]);
 
   const categories = [
     {id: "all", name: "All Products", icon: Grid3X3},
@@ -193,48 +127,36 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
     {id: "bootcamps", name: "Bootcamps", icon: Star},
   ];
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products; // Already filtered by API
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortBy) {
-      case "price-low":
-        return a.price - b.price;
-      case "price-high":
-        return b.price - a.price;
-      case "rating":
-        return (b.rating ?? 0) - (a.rating ?? 0);
-      case "newest":
-        return b.id - a.id;
-      default:
-        return (b.reviews ?? 0) - (a.reviews ?? 0);
-    }
-  });
+  const sortedProducts = filteredProducts; // Already sorted by API
 
   const getDiscountPercentage = (original: number, current: number) => {
     return Math.round(((original - current) / original) * 100);
   };
 
-  const ProductCard = ({
-    product,
-    onAddToCart,
-  }: {
-    product: Product;
-    onAddToCart: (product: Product) => void;
-  }) => {
+  const handleAddToCart = async (product: Product) => {
+    try {
+      const res = await fetch("/api/store/cart/add", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({product_id: product.id, quantity: 1}),
+      });
+      if (!res.ok) throw new Error("Failed to add to cart");
+      toast.success(`${product.name} added to cart!`);
+    } catch (error) {
+      toast.error("Failed to add to cart");
+    }
+  };
+
+  const ProductCard = ({product}: {product: Product}) => {
     const fullStars = Math.floor(product.rating || 0);
     const halfStar = (product.rating || 0) - fullStars >= 0.5;
     const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
 
     return (
       <div
-        onClick={() => router.push(`/store/${product.id}`)}
+        onClick={() => router.push(`/store/products/${product.slug}`)}
         className="block cursor-pointer">
         <div className="relative flex flex-col gap-2 p-2 border border-transparent hover:border-gray-300 transition-shadow hover:shadow-md">
           <div className="relative">
@@ -248,8 +170,7 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
               className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
               onClick={(e) => {
                 e.stopPropagation();
-                onAddToCart(product);
-                toast.success(`${product.name} has been added to your cart.`);
+                handleAddToCart(product);
               }}>
               <ShoppingCartIcon className="h-5 w-5 text-black" />
             </button>
@@ -340,11 +261,7 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
       {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {sortedProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            onAddToCart={onAddToCart}
-          />
+          <ProductCard key={product.id} product={product} />
         ))}
       </div>
 
