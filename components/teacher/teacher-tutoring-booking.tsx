@@ -169,6 +169,7 @@ interface PrivateSession {
   id: string;
   courseId: string;
   courseName: string;
+  title: string; // ← add
   ratePerHour: string;
   durationDays: number;
   availableDays: string[];
@@ -233,6 +234,7 @@ export function TeacherTutoringBooking() {
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>(
     []
   );
+  const [privateTitle, setPrivateTitle] = useState("My Private Tutoring");
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
   const [privateSessions, setPrivateSessions] = useState<PrivateSession[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
@@ -456,6 +458,7 @@ export function TeacherTutoringBooking() {
           id: item.id.toString(),
           courseId: item.course.toString(),
           courseName: item.course_name || "Unknown",
+          title: item.title || "My Private Tutoring",
           ratePerHour: parseFloat(item.rate_per_hour || 0).toFixed(2),
           durationDays: item.tutoring_duration_days || 24,
           availableDays: item.available_days?.map((d: any) => d.day) || [],
@@ -657,6 +660,7 @@ export function TeacherTutoringBooking() {
     setTutoringDurationDays(24);
     setPrivateNotes("");
     setAvailableDays([]);
+    setPrivateTitle("My Private Tutoring")
   };
 
   const handleCreatePrivateSession = async () => {
@@ -688,6 +692,7 @@ export function TeacherTutoringBooking() {
         },
         body: JSON.stringify({
           course: privateCourseId,
+          title: privateTitle,
           rate_per_hour: parseFloat(ratePerHour).toFixed(2),
           tutoring_duration_days: tutoringDurationDays,
           notes: privateNotes?.trim().slice(0, 225),
@@ -727,6 +732,7 @@ export function TeacherTutoringBooking() {
         id: data.id.toString(),
         courseId: privateCourseId,
         courseName: course.name,
+        title: privateTitle,
         ratePerHour: parseFloat(ratePerHour).toFixed(2),
         durationDays: tutoringDurationDays,
         availableDays: [...availableDays],
@@ -750,31 +756,67 @@ export function TeacherTutoringBooking() {
     }
   };
 
- const handleConfirmDelete = async () => {
-  if (!session?.user?.sessionToken) {
-    setError("Not authenticated");
-    return;
-  }
+  const handleConfirmDelete = async () => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
+    }
 
-  if (!selectedSession) return;
+    if (!selectedSession) return;
 
-  try {
-    const response = await fetch(
-      `/api/teacher/tutoring-bookings/delete?tab=${selectedSession.category}&id=${selectedSession.id}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
-          "X-Session-Token": session.user.sessionToken,
-        },
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/delete?tab=${selectedSession.category}&id=${selectedSession.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
+            "X-Session-Token": session.user.sessionToken,
+          },
+        }
+      );
+
+      console.log("[TeacherTutoringBooking] DELETE status:", response.status);
+
+      // Handle 204 No Content → success, no body
+      if (response.status === 204) {
+        // Remove from UI
+        if (selectedSession.category === "upcoming") {
+          setUpcomingSessions((prev) =>
+            prev.filter((s) => s.id !== selectedSession.id)
+          );
+        } else if (selectedSession.category === "private") {
+          setPrivateSessions((prev) =>
+            prev.filter((s) => s.id !== selectedSession.id)
+          );
+        }
+        setIsDeleteSessionDialogOpen(false);
+        setSelectedSession(null);
+        setError(null);
+        return;
       }
-    );
 
-    console.log("[TeacherTutoringBooking] DELETE status:", response.status);
+      // For all other statuses, try to read body
+      const text = await response.text();
+      console.log("[TeacherTutoringBooking] DELETE response:", text);
 
-    // Handle 204 No Content → success, no body
-    if (response.status === 204) {
-      // Remove from UI
+      let data: any = {};
+      const contentType = response.headers.get("content-type");
+      if (text && contentType?.includes("application/json")) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error("Invalid JSON response from server");
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || data.detail || "Failed to delete session"
+        );
+      }
+
+      // If we get here with 200/201 and JSON, still remove from UI
       if (selectedSession.category === "upcoming") {
         setUpcomingSessions((prev) =>
           prev.filter((s) => s.id !== selectedSession.id)
@@ -784,49 +826,15 @@ export function TeacherTutoringBooking() {
           prev.filter((s) => s.id !== selectedSession.id)
         );
       }
+
       setIsDeleteSessionDialogOpen(false);
       setSelectedSession(null);
       setError(null);
-      return;
+    } catch (err: any) {
+      console.error("[TeacherTutoringBooking] Error deleting session:", err);
+      setError(err.message || "Failed to delete session");
     }
-
-    // For all other statuses, try to read body
-    const text = await response.text();
-    console.log("[TeacherTutoringBooking] DELETE response:", text);
-
-    let data: any = {};
-    const contentType = response.headers.get("content-type");
-    if (text && contentType?.includes("application/json")) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid JSON response from server");
-      }
-    }
-
-    if (!response.ok) {
-      throw new Error(data.error || data.detail || "Failed to delete session");
-    }
-
-    // If we get here with 200/201 and JSON, still remove from UI
-    if (selectedSession.category === "upcoming") {
-      setUpcomingSessions((prev) =>
-        prev.filter((s) => s.id !== selectedSession.id)
-      );
-    } else if (selectedSession.category === "private") {
-      setPrivateSessions((prev) =>
-        prev.filter((s) => s.id !== selectedSession.id)
-      );
-    }
-
-    setIsDeleteSessionDialogOpen(false);
-    setSelectedSession(null);
-    setError(null);
-  } catch (err: any) {
-    console.error("[TeacherTutoringBooking] Error deleting session:", err);
-    setError(err.message || "Failed to delete session");
-  }
-};
+  };
 
   const handleTogglePrivateSessionStatus = async (sessionId: string) => {
     if (!session?.user?.sessionToken) {
@@ -1009,7 +1017,18 @@ export function TeacherTutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-                                  <div className="space-y-2">
+                   <div className="space-y-2">
+                        <Label htmlFor="title">Title</Label>
+                        <input
+                          id="title"
+                          type="text"
+                          value={privateTitle}
+                          onChange={(e) => setPrivateTitle(e.target.value)}
+                          placeholder="My Private Tutoring"
+                          className="w-full border rounded-md p-2"
+                        />
+                      </div>
+                  <div className="space-y-2">
                     <Label htmlFor="rate">Rate per hour</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -1354,7 +1373,7 @@ export function TeacherTutoringBooking() {
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                           <div className="space-y-2">
                             <h4 className="font-semibold text-base sm:text-lg">
-                              {p.courseName} — Private Tutoring
+                              {p.title} — {p.courseName}
                             </h4>
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <span className="font-medium">Rate:</span>
