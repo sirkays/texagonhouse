@@ -1,6 +1,5 @@
-/* cbt-test.tsx — fully patched version with robust sync handling and improved past tests tab */
-import { useState, useEffect, useMemo, useRef } from "react";
-import localforage from "localforage";
+/* cbt-test.tsx — online-only version */
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -31,7 +30,6 @@ import {
   Shield,
   AlertTriangle,
   LogIn,
-  ArrowLeft,
 } from "lucide-react";
 import {
   Pagination,
@@ -44,24 +42,8 @@ import {
 } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
-import { v4 as uuidv4 } from "uuid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Workbox } from "workbox-window";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const MAX_RETRY_ATTEMPTS = 5; // 🔧 Max retry limit
-
-/* ---------- localforage setup ---------- */
-localforage.config({
-  name: "studentCBTApp",
-  storeName: "cbt_storage",
-  description: "Offline storage for CBT tests",
-});
-
-const TESTS_KEY = "tests_cache_v1";
-const ANSWERS_KEY = "answers_v1";
-const PENDING_KEY = "pending_submissions_v1";
-const RESULTS_KEY = "results_v1";
 
 /* ---------- utility helpers ---------- */
 
@@ -82,161 +64,6 @@ async function fetchWithTimeout(
   } catch (err) {
     clearTimeout(timer);
     throw err;
-  }
-}
-
-// 🔧 Enhanced pending entry type
-type PendingEntry = {
-  id: string;
-  testPk: string | number;
-  body: any;
-  queuedAt: number;
-  attempts?: number;
-  lastAttemptAt?: number;
-  maxAttemptsReached?: boolean;
-};
-
-/* --- cache / answers / queue helpers using localforage --- */
-
-async function getTestsFromCache() {
-  try {
-    const t = (await localforage.getItem(TESTS_KEY)) || [];
-    return Array.isArray(t) ? t : [];
-  } catch (err) {
-    console.error("[Storage Error] getTestsFromCache:", err);
-    return [];
-  }
-}
-
-async function saveTestsToCache(tests: any[]) {
-  try {
-    if (!Array.isArray(tests)) return;
-    await localforage.setItem(TESTS_KEY, tests);
-  } catch (err) {
-    console.error("[Storage Error] saveTestsToCache:", err);
-  }
-}
-
-async function saveAnswersLocally(testPk: string | number, payload: any) {
-  try {
-    const all = (await localforage.getItem(ANSWERS_KEY)) || {};
-    const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
-    obj[testPk] = payload;
-    await localforage.setItem(ANSWERS_KEY, obj);
-  } catch (err) {
-    console.error("[Storage Error] saveAnswersLocally:", err);
-  }
-}
-
-async function getSavedAnswers(testPk: string | number) {
-  try {
-    const all = (await localforage.getItem(ANSWERS_KEY)) || {};
-    return (all && all[testPk]) || null;
-  } catch (err) {
-    console.error("[Storage Error] getSavedAnswers:", err);
-    return null;
-  }
-}
-
-async function deleteSavedAnswers(testPk: string | number) {
-  try {
-    const all = (await localforage.getItem(ANSWERS_KEY)) || {};
-    if (all && all[testPk]) {
-      delete all[testPk];
-      await localforage.setItem(ANSWERS_KEY, all);
-    }
-  } catch (err) {
-    console.error("[Storage Error] deleteSavedAnswers:", err);
-  }
-}
-
-async function saveResultLocally(testPk: string | number, data: any) {
-  try {
-    const all = (await localforage.getItem(RESULTS_KEY)) || {};
-    const obj = typeof all === "object" && !Array.isArray(all) ? all : {};
-    obj[testPk] = data;
-    await localforage.setItem(RESULTS_KEY, obj);
-  } catch (err) {
-    console.error("[Storage Error] saveResultLocally:", err);
-  }
-}
-
-// 🔧 Enhanced enqueue with validation and deduplication
-async function enqueueSubmission(body: any) {
-  try {
-    // Validate body structure
-    if (!body.currentTest || !body.answers) {
-      console.error("[CBTTest] Invalid submission body:", body);
-      return null;
-    }
-
-    const pending = (await localforage.getItem(PENDING_KEY)) || [];
-    const arr = Array.isArray(pending) ? pending : [];
-
-    // Remove all entries for this testPk
-    const cleanArr = arr.filter(
-      (p) => p.testPk?.toString() !== body.currentTest?.toString()
-    );
-
-    const entry: PendingEntry = {
-      id: uuidv4(),
-      testPk: body.currentTest,
-      body: structuredClone(body), // Deep copy
-      queuedAt: Date.now(),
-      attempts: 0,
-      lastAttemptAt: 0,
-      maxAttemptsReached: false,
-    };
-
-    cleanArr.push(entry);
-    await localforage.setItem(PENDING_KEY, cleanArr);
-    return entry;
-  } catch (err) {
-    console.error("[Storage Error] enqueueSubmission:", err);
-    return null;
-  }
-}
-
-async function getPendingSubmissions(): Promise<PendingEntry[]> {
-  try {
-    const pending = (await localforage.getItem(PENDING_KEY)) || [];
-    return Array.isArray(pending) ? pending : [];
-  } catch (err) {
-    console.error("[Storage Error] getPendingSubmissions:", err);
-    return [];
-  }
-}
-
-// 🔧 Enhanced delete with comprehensive cleanup
-async function deletePendingSubmissionById(
-  id: string,
-  testPk?: string | number
-) {
-  try {
-    let pending = await getPendingSubmissions();
-    let changed = false;
-
-    // Remove by ID
-    const newPending = pending.filter((p) => p.id !== id);
-    changed = newPending.length !== pending.length;
-
-    // Clean related data if testPk provided
-    if (testPk && changed) {
-      await deleteSavedAnswers(testPk);
-      pending = newPending.filter(
-        (p) => p.testPk?.toString() !== testPk.toString()
-      );
-      changed = true;
-    }
-
-    if (changed) {
-      await localforage.setItem(PENDING_KEY, pending);
-    }
-
-    return pending;
-  } catch (err) {
-    console.error("[Storage Error] deletePendingSubmissionById:", err);
-    return [];
   }
 }
 
@@ -266,20 +93,7 @@ export function CBTTest() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showSyncMessage, setShowSyncMessage] = useState(false);
-  const [showSyncSuccess, setShowSyncSuccess] = useState(false);
   const [showAnswersModal, setShowAnswersModal] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showResumeDialog, setShowResumeDialog] = useState(false);
-  const [hasPendingSubmission, setHasPendingSubmission] = useState(false);
-  const [pendingStartTestPk, setPendingStartTestPk] = useState<
-    string | number | null
-  >(null);
-  const [syncProgress, setSyncProgress] = useState<{
-    processed: number;
-    total: number;
-  } | null>(null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">("date");
 
@@ -287,301 +101,8 @@ export function CBTTest() {
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
-  const isProcessingRef = useRef(false);
-  const syncIntervalRef = useRef<number | null>(null);
-  const wbRef = useRef<Workbox | null>(null);
-  const channelRef = useRef<BroadcastChannel | null>(null);
-  const queueLock = useRef<Promise<void> | null>(null);
 
-  // 🔧 Enhanced startup migration and cleanup
-  useEffect(() => {
-    (async () => {
-      try {
-        let pending = (await localforage.getItem(PENDING_KEY)) || [];
-        let changed = false;
-
-        if (Array.isArray(pending)) {
-          // Migrate old format and clean dead entries
-          pending = pending.map((p: any) => {
-            if (p.body?.test && !p.body.currentTest) {
-              p.body.currentTest = p.body.test;
-              delete p.body.test;
-              changed = true;
-            }
-            if (!p.testPk && p.body?.currentTest) {
-              p.testPk = p.body.currentTest;
-              changed = true;
-            }
-            // Mark old entries with high attempts as dead
-            if ((p.attempts || 0) >= MAX_RETRY_ATTEMPTS) {
-              p.maxAttemptsReached = true;
-              changed = true;
-            }
-            // Ensure valid structure
-            if (!p.body?.answers || !p.body.currentTest) {
-              p.maxAttemptsReached = true;
-              changed = true;
-            }
-            return p;
-          });
-
-          // Clean dead and corrupted entries
-          const liveOnly = pending.filter((p: any) => !p.maxAttemptsReached);
-          if (liveOnly.length < pending.length) {
-            await localforage.setItem(PENDING_KEY, liveOnly);
-            changed = true;
-            console.log("[CBTTest] Cleaned dead/corrupted pending submissions");
-          }
-
-          if (changed) {
-            console.log("[CBTTest] Migrated and cleaned pending submissions");
-          }
-
-          // Update UI state based on live pending
-          const livePending = liveOnly.filter((p: any) => !p.maxAttemptsReached);
-          setHasPendingSubmission(livePending.length > 0);
-          setShowSyncMessage(livePending.length > 0 && navigator.onLine);
-        }
-      } catch (err) {
-        console.error("[Storage Error] Startup migration:", err);
-      }
-    })();
-  }, []);
-
-  /* ---------- Load results on mount ---------- */
-  useEffect(() => {
-    const loadResults = async () => {
-      try {
-        const all = (await localforage.getItem(RESULTS_KEY)) || {};
-        setTestResults(typeof all === "object" ? all : {});
-      } catch (err) {
-        console.error("[Storage Error] loadResults:", err);
-      }
-    };
-    loadResults();
-  }, []);
-
-  /* ---------- Register Service Worker ---------- */
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      const wb = new Workbox("/sw.js");
-      wb.register();
-      wbRef.current = wb;
-    }
-  }, []);
-
-  /* ---------- Broadcast channel for sync updates ---------- */
-  useEffect(() => {
-    const channel = new BroadcastChannel("cbt-channel");
-    channel.onmessage = async (e) => {
-      if (e.data.type === "SYNC_SUCCESS") {
-        setShowSyncSuccess(true);
-        setTimeout(() => setShowSyncSuccess(false), 5000);
-        if (!isProcessingRef.current) {
-          await processQueue();
-        }
-      }
-    };
-    channelRef.current = channel;
-    return () => channel.close();
-  }, []);
-
-  /* ---------- 🔧 Enhanced Sync queue processing ---------- */
-  async function processQueue({
-    onProgress,
-  }: { onProgress?: (processed: number, total: number) => void } = {}) {
-    if (!navigator.onLine || !sessionToken || isProcessingRef.current) {
-      return false;
-    }
-
-    if (queueLock.current) {
-      await queueLock.current;
-    }
-
-    queueLock.current = (async () => {
-      try {
-        isProcessingRef.current = true;
-        setIsSyncing(true);
-        let success = false;
-
-        const pending = await getPendingSubmissions();
-        const livePending = pending.filter((p) => !p.maxAttemptsReached);
-
-        if (livePending.length === 0) {
-          setShowSyncMessage(false);
-          setHasPendingSubmission(false);
-          await localforage.setItem(PENDING_KEY, []);
-          return true;
-        }
-
-        const total = livePending.length;
-        let processed = 0;
-        setSyncProgress({ processed, total });
-
-        for (let entry of livePending) {
-          if (!navigator.onLine) break;
-
-          const attempts = entry.attempts || 0;
-          if (attempts >= MAX_RETRY_ATTEMPTS) {
-            entry.maxAttemptsReached = true;
-            continue;
-          }
-
-          const now = Date.now();
-          const delay = Math.min(1000 * Math.pow(2, attempts), 30_000);
-          if (entry.lastAttemptAt && now - entry.lastAttemptAt < delay) {
-            continue;
-          }
-
-          entry.attempts = attempts + 1;
-          entry.lastAttemptAt = now;
-
-          // Update attempts in queue
-          let allPending = await getPendingSubmissions();
-          const idx = allPending.findIndex((p: any) => p.id === entry.id);
-          if (idx >= 0) {
-            allPending[idx] = entry;
-            await localforage.setItem(PENDING_KEY, allPending);
-          }
-
-          try {
-            const res = await fetchWithTimeout(
-              "/api/student/cbt",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Session-Token": sessionToken,
-                },
-                body: JSON.stringify(entry.body),
-              },
-              15000
-            );
-
-            if (res.ok) {
-              const data = await res.json();
-              await saveResultLocally(entry.testPk, data);
-              setTestResults((prev) => ({ ...prev, [entry.testPk]: data }));
-
-              // Immediately remove successful submission from queue
-              allPending = await getPendingSubmissions();
-              allPending = allPending.filter((p) => p.id !== entry.id);
-              await localforage.setItem(PENDING_KEY, allPending);
-
-              processed++;
-              onProgress?.(processed, total);
-              setSyncProgress({ processed, total });
-              await new Promise((r) => setTimeout(r, 500));
-              success = true;
-            } else {
-              console.error("[CBTTest] Server rejected:", await res.text());
-              if (entry.attempts >= MAX_RETRY_ATTEMPTS) {
-                entry.maxAttemptsReached = true;
-                allPending = await getPendingSubmissions();
-                const idx = allPending.findIndex((p: any) => p.id === entry.id);
-                if (idx >= 0) {
-                  allPending[idx] = entry;
-                  await localforage.setItem(PENDING_KEY, allPending);
-                }
-              }
-            }
-          } catch (err: any) {
-            console.warn("[CBTTest] Network error:", err?.message);
-          }
-        }
-
-        const remainingLive = (await getPendingSubmissions()).filter(
-          (p) => !p.maxAttemptsReached
-        ).length;
-
-        if (processed > 0 && remainingLive === 0) {
-          setShowSyncMessage(false);
-          setShowSyncSuccess(true);
-          setTimeout(() => setShowSyncSuccess(false), 5000);
-          await localforage.setItem(PENDING_KEY, []);
-          setHasPendingSubmission(false);
-          success = true;
-        } else if (remainingLive > 0) {
-          setShowSyncMessage(true);
-        }
-
-        return success;
-      } finally {
-        isProcessingRef.current = false;
-        setIsSyncing(false);
-        setSyncProgress(null);
-        queueLock.current = null;
-      }
-    })();
-
-    return await queueLock.current;
-  }
-
-  /* ---------- 🔧 Enhanced Network listeners ---------- */
-  useEffect(() => {
-    const onOnline = async () => {
-      setIsOffline(false);
-      if (isProcessingRef.current) {
-        console.log(
-          "[CBTTest] Online event skipped: queue processing in progress"
-        );
-        return;
-      }
-
-      const pending = await getPendingSubmissions();
-      const livePending = pending.filter((p) => !p.maxAttemptsReached);
-
-      if (livePending.length === 0) {
-        setShowSyncMessage(false);
-        setHasPendingSubmission(false);
-        await localforage.setItem(PENDING_KEY, []);
-      } else {
-        setShowSyncMessage(true);
-        const success = await processQueue();
-        if (success) {
-          setHasPendingSubmission(false);
-        }
-      }
-
-      if (wbRef.current) {
-        wbRef.current.messageSW({ type: "REPLAY_QUEUE" });
-      }
-    };
-
-    const onOffline = () => {
-      setIsOffline(true);
-      setIsSyncing(false);
-    };
-
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-
-    // Periodic sync check
-    syncIntervalRef.current = window.setInterval(async () => {
-      const pending = await getPendingSubmissions();
-      const livePending = pending.filter((p) => !p.maxAttemptsReached);
-
-      if (livePending.length === 0) {
-        setShowSyncMessage(false);
-        return;
-      }
-
-      if (navigator.onLine && sessionToken && !isProcessingRef.current) {
-        await processQueue();
-      }
-    }, 10000);
-
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
-    };
-  }, [sessionToken]);
-
-  /* ---------- Fetch tests list and cache ---------- */
+  /* ---------- Fetch tests list ---------- */
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated" || !sessionToken) {
@@ -615,13 +136,11 @@ export function CBTTest() {
 
         const d = await res.json();
         const tests = Array.isArray(d.tests) ? d.tests : [];
-        await saveTestsToCache(tests);
         setAvailableTests(tests);
+        setTestResults(d.results || {});
         setError(null);
       } catch (err: any) {
-        const cached = await getTestsFromCache();
-        setAvailableTests(cached);
-        setIsOffline(true);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -630,7 +149,7 @@ export function CBTTest() {
     fetchTests();
   }, [sessionToken, status]);
 
-  /* ---------- start / resume logic ---------- */
+  /* ---------- start logic ---------- */
   const startTest = async (testPk: string | number) => {
     const test = (availableTests || []).find(
       (t) => t.pk?.toString() === testPk?.toString()
@@ -648,47 +167,16 @@ export function CBTTest() {
       return;
     }
 
-    // 🔧 Check for live pending submissions first
-    const pending = await getPendingSubmissions();
-    const livePending = pending.filter((p) => !p.maxAttemptsReached);
-    const hasLivePending = livePending.find(
-      (p) => p.testPk?.toString() === testPk.toString()
-    );
-    const saved = await getSavedAnswers(testPk);
-
-    if (hasLivePending) {
-      setHasPendingSubmission(true);
-      setShowResumeDialog(true);
-      setPendingStartTestPk(testPk);
-      return;
-    } else if (saved) {
-      setHasPendingSubmission(false);
-      setShowResumeDialog(true);
-      setPendingStartTestPk(testPk);
-      return;
-    }
-
-    await handleStartTestProceed(testPk, false);
+    await handleStartTestProceed(testPk);
   };
 
   const handleStartTestProceed = async (
-    testPk: string | number,
-    clear = false
+    testPk: string | number
   ) => {
     const test = (availableTests || []).find(
       (t) => t.pk?.toString() === testPk?.toString()
     );
     if (!test) return;
-
-    if (clear) {
-      await deleteSavedAnswers(testPk);
-      // Clean any pending for this test
-      let pending = await getPendingSubmissions();
-      const cleanPending = pending.filter(
-        (p) => p.testPk?.toString() !== testPk.toString()
-      );
-      await localforage.setItem(PENDING_KEY, cleanPending);
-    }
 
     const items = Array.isArray(test.items)
       ? test.items
@@ -711,50 +199,18 @@ export function CBTTest() {
       points: item.points,
     }));
 
-    const saved = await getSavedAnswers(testPk);
-
     setQuestions(mappedQuestions);
     setCurrentTest(testPk?.toString());
     setCurrentQuestion(0);
-    setAnswers(saved?.answers || {});
+    setAnswers({});
     const duration = parseInt(test.duration) * 60 || 1800;
     setInitialTime(duration);
-    setTimeLeft(duration - (saved?.duration || 0));
-    setStartTime(saved?.startTime || new Date().toISOString());
-    setSuspiciousActivity(saved?.suspiciousActivity || 0);
+    setTimeLeft(duration);
+    setStartTime(new Date().toISOString());
+    setSuspiciousActivity(0);
     setIsSecureMode(true);
     if (test.type === "exam") setExamAttempts((p) => p + 1);
   };
-
-  const handleDialogConfirm = async (
-    choice: "resume" | "restart" | "discard"
-  ) => {
-    setShowResumeDialog(false);
-    if (!pendingStartTestPk) return;
-    const clear = choice === "restart" || hasPendingSubmission;
-    await handleStartTestProceed(pendingStartTestPk, clear);
-    setPendingStartTestPk(null);
-    setHasPendingSubmission(false);
-  };
-
-  /* ---------- saving progress periodically ---------- */
-  useEffect(() => {
-    if (!currentTest) return;
-    saveAnswersLocally(currentTest, {
-      answers,
-      startTime,
-      duration: initialTime - timeLeft,
-      suspiciousActivity,
-      savedAt: Date.now(),
-    });
-  }, [
-    answers,
-    timeLeft,
-    suspiciousActivity,
-    currentTest,
-    startTime,
-    initialTime,
-  ]);
 
   /* ---------- timer ---------- */
   useEffect(() => {
@@ -815,7 +271,7 @@ export function CBTTest() {
     }
   }, [suspiciousActivity]);
 
-  /* ---------- 🔧 Enhanced submitTest ---------- */
+  /* ---------- submitTest ---------- */
   const submitTest = async () => {
     if (!currentTest) return;
 
@@ -857,60 +313,38 @@ export function CBTTest() {
     setIsSecureMode(false);
     setSuspiciousActivity(0);
 
-    let data = null;
     try {
-      if (navigator.onLine && sessionToken) {
-        const res = await fetchWithTimeout(
-          "/api/student/cbt",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-Token": sessionToken,
-            },
-            body: JSON.stringify(cleanedBody),
+      const res = await fetchWithTimeout(
+        "/api/student/cbt",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
           },
-          15000
+          body: JSON.stringify(cleanedBody),
+        },
+        15000
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const test = availableTests.find(
+          (t) => t.pk.toString() === currentTest
         );
-
-        if (res.ok) {
-          data = await res.json();
-          const test = availableTests.find(
-            (t) => t.pk.toString() === currentTest
-          );
-          await saveResultLocally(currentTest, { ...data, title: test?.title });
-          setTestResults((prev) => ({
-            ...prev,
-            [currentTest]: { ...data, title: test?.title },
-          }));
-
-          // Clean any stale pending entries
-          let pending = await getPendingSubmissions();
-          const cleanPending = pending.filter(
-            (p) => p.testPk?.toString() !== currentTest.toString()
-          );
-          await localforage.setItem(PENDING_KEY, cleanPending);
-
-          await deleteSavedAnswers(currentTest);
-        } else {
-          throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-        }
+        setTestResults((prev) => ({
+          ...prev,
+          [currentTest]: { ...data, title: test?.title },
+        }));
       } else {
-        await enqueueSubmission(cleanedBody);
-        setShowSyncMessage(true);
+        console.error(`HTTP ${res.status}: ${await res.text()}`);
       }
     } catch (err: any) {
-      console.warn("[CBTTest] Submit failed, queuing:", err);
-      await enqueueSubmission(cleanedBody);
-      setShowSyncMessage(true);
-      setTimeout(() => processQueue(), 1000);
+      console.error("[CBTTest] Submit failed:", err);
     }
-
-    // Always cleanup local answers after submit attempt
-    await deleteSavedAnswers(currentTest);
   };
 
-  const handleResetToList = async () => {
+  const handleResetToList = () => {
     setCurrentTest(null);
     setTestCompleted(false);
     setQuestions([]);
@@ -921,50 +355,6 @@ export function CBTTest() {
     setStartTime(null);
     setSuspiciousActivity(0);
     setIsSecureMode(false);
-    setShowSyncMessage(false);
-    await processQueue();
-    setIsOffline(!navigator.onLine);
-  };
-
-  /* ---------- 🔧 Enhanced manual retry ---------- */
-  const handleManualRetry = async () => {
-    if (isProcessingRef.current) {
-      console.log(
-        "[CBTTest] Manual retry skipped: queue processing in progress"
-      );
-      return;
-    }
-
-    const pending = await getPendingSubmissions();
-    const livePending = pending.filter((p) => !p.maxAttemptsReached);
-
-    if (livePending.length === 0) {
-      await localforage.setItem(PENDING_KEY, []);
-      setShowSyncMessage(false);
-      setHasPendingSubmission(false);
-      return;
-    }
-
-    setShowSyncMessage(true);
-    const success = await processQueue({
-      onProgress: (processed, total) => setSyncProgress({ processed, total }),
-    });
-
-    if (success) {
-      setHasPendingSubmission(false);
-    }
-  };
-
-  /* ---------- 🔧 Enhanced dismiss with validation ---------- */
-  const handleDismissSync = async () => {
-    const pending = await getPendingSubmissions();
-    const livePending = pending.filter((p) => !p.maxAttemptsReached);
-
-    if (livePending.length === 0) {
-      await localforage.setItem(PENDING_KEY, []);
-      setShowSyncMessage(false);
-      setHasPendingSubmission(false);
-    }
   };
 
   /* ---------- UI helpers ---------- */
@@ -975,19 +365,7 @@ export function CBTTest() {
   };
 
   function handleAnswerChangeLocal(value: any) {
-    setAnswers((prev) => {
-      const newAnswers = { ...prev, [currentQuestion]: value };
-      if (currentTest) {
-        saveAnswersLocally(currentTest, {
-          answers: newAnswers,
-          startTime,
-          duration: initialTime - timeLeft,
-          suspiciousActivity,
-          savedAt: Date.now(),
-        });
-      }
-      return newAnswers;
-    });
+    setAnswers((prev) => ({ ...prev, [currentQuestion]: value }));
   }
 
   function previousQuestion() {
@@ -997,14 +375,6 @@ export function CBTTest() {
   function nextQuestion() {
     setCurrentQuestion((prev) => Math.min(questions.length - 1, prev + 1));
   }
-
-  // Initial cache hydration
-  useEffect(() => {
-    (async () => {
-      const cached = await getTestsFromCache();
-      if (cached?.length) setAvailableTests(cached);
-    })();
-  }, []);
 
   if (status === "loading") {
     return (
@@ -1076,53 +446,10 @@ export function CBTTest() {
 
     return (
       <div className="space-y-6">
-        {isOffline && (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">You are working offline.</p>
-          </div>
-        )}
-
-        {showSyncSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg transition-all duration-700 ease-in-out opacity-100">
-            <p className="text-sm font-medium text-green-800">
-              All progress synced successfully!
-            </p>
-          </div>
-        )}
-
-        {showSyncMessage && (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-800">
-                  Syncing submissions in progress…
-                </p>
-                {syncProgress && (
-                  <p className="text-xs text-muted-foreground">{`Processed ${syncProgress.processed} of ${syncProgress.total}`}</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleManualRetry}
-                  disabled={isSyncing}
-                >
-                  Retry Sync
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleDismissSync}>
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {result
-              ? `Your result: ${result.result}`
-              : "Your answers are saved locally and will sync automatically."}
+            {result ? `Your result: ${result.result}` : ""}
           </p>
         </div>
 
@@ -1133,9 +460,7 @@ export function CBTTest() {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {result
-                ? "Thank you for completing the test."
-                : "Answers stored locally – they will upload when you regain connectivity."}
+              {result ? "Thank you for completing the test." : ""}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -1154,23 +479,6 @@ export function CBTTest() {
                     ? "Congratulations! You have passed the test."
                     : "Unfortunately, you did not pass. Better luck next time!"}
                 </p>
-              </div>
-            )}
-
-            {!result && (
-              <div className="text-center">
-                <Button
-                  onClick={async () => {
-                    const r = testResults[currentTest ?? ""] ?? null;
-                    if (r)
-                      setTestResults((prev) => ({
-                        ...prev,
-                        [currentTest ?? ""]: r,
-                      }));
-                  }}
-                >
-                  Check for Score
-                </Button>
               </div>
             )}
 
@@ -1244,12 +552,6 @@ export function CBTTest() {
 
     return (
       <div className="space-y-6">
-        {isOffline && (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">You are working offline.</p>
-          </div>
-        )}
-
         <Dialog
           open={showSecurityWarning}
           onOpenChange={setShowSecurityWarning}
@@ -1274,58 +576,6 @@ export function CBTTest() {
               >
                 I Understand
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {hasPendingSubmission ? "Pending Submission" : "Resume Test"}
-              </DialogTitle>
-              <DialogDescription>
-                {hasPendingSubmission
-                  ? "Your previous attempt was submitted offline and is waiting to sync. Starting a new attempt will discard the previous one."
-                  : "You have saved progress for this test. Would you like to resume or start over?"}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowResumeDialog(false);
-                  setPendingStartTestPk(null);
-                  setHasPendingSubmission(false);
-                }}
-                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              >
-                Cancel
-              </Button>
-              {hasPendingSubmission ? (
-                <Button
-                  onClick={() => handleDialogConfirm("restart")}
-                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
-                  Start New Attempt
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    onClick={() => handleDialogConfirm("resume")}
-                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  >
-                    Resume
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDialogConfirm("restart")}
-                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  >
-                    Restart
-                  </Button>
-                </>
-              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1403,19 +653,7 @@ export function CBTTest() {
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={(val) => {
-                      setAnswers((prev) => {
-                        const newAnswers = { ...prev, [currentQuestion]: val };
-                        if (currentTest) {
-                          saveAnswersLocally(currentTest, {
-                            answers: newAnswers,
-                            startTime,
-                            duration: initialTime - timeLeft,
-                            suspiciousActivity,
-                            savedAt: Date.now(),
-                          });
-                        }
-                        return newAnswers;
-                      });
+                      setAnswers((prev) => ({ ...prev, [currentQuestion]: val }));
                     }}
                   >
                     {currentQ.options?.map((option: any) => (
@@ -1579,7 +817,7 @@ export function CBTTest() {
       } else if (pastSortBy === "result") {
         return resB.result.localeCompare(resA.result);
       } else {
-        return (resB.submitted_at || resA.savedAt || 0) - (resA.submitted_at || resA.savedAt || 0);
+        return (resB.submitted_at || 0) - (resA.submitted_at || 0);
       }
     });
   };
@@ -1597,102 +835,6 @@ export function CBTTest() {
 
   return (
     <div className="space-y-6">
-      {isOffline && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">You are working offline.</p>
-        </div>
-      )}
-
-      {showSyncSuccess && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg transition-all duration-700 ease-in-out opacity-100">
-          <p className="text-sm font-medium text-green-800">
-            All progress synced successfully!
-          </p>
-        </div>
-      )}
-
-      {showSyncMessage && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-800">
-                Syncing submissions in progress…
-              </p>
-              {syncProgress && (
-                <p className="text-xs text-muted-foreground">
-                  Processed {syncProgress.processed} of {syncProgress.total}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleManualRetry}
-                disabled={isSyncing}
-                className="text-blue-700 border-blue-300 hover:bg-blue-100"
-              >
-                Retry Now
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleDismissSync}>
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {hasPendingSubmission ? "Pending Submission" : "Resume Test"}
-            </DialogTitle>
-            <DialogDescription>
-              {hasPendingSubmission
-                ? "Your previous attempt was submitted offline and is waiting to sync. Starting a new attempt will discard the previous one."
-                : "You have saved progress for this test. Would you like to resume or start over?"}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowResumeDialog(false);
-                setPendingStartTestPk(null);
-                setHasPendingSubmission(false);
-              }}
-              className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-            >
-              Cancel
-            </Button>
-            {hasPendingSubmission ? (
-              <Button
-                onClick={() => handleDialogConfirm("restart")}
-                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              >
-                Start New Attempt
-              </Button>
-            ) : (
-              <>
-                <Button
-                  onClick={() => handleDialogConfirm("resume")}
-                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
-                  Resume
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleDialogConfirm("restart")}
-                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
-                  Restart
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
         <DialogContent>
           <DialogHeader>
@@ -1956,7 +1098,7 @@ export function CBTTest() {
                         </Badge>
                       )}
                       <p className="text-sm text-muted-foreground">
-                        Submitted: {new Date(res.submitted_at || res.savedAt || 0).toLocaleDateString()}
+                        Submitted: {new Date(res.submitted_at || 0).toLocaleDateString()}
                       </p>
                     </CardContent>
                   </Card>
