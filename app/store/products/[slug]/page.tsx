@@ -56,7 +56,8 @@ export default function ProductPage({params}: {params: {slug: string}}) {
     }
 
     fetchProduct();
-  }, [params.slug]);
+  }, []);
+  // }, [params.slug]);
 
   if (loading) {
     return <div className="text-center p-6">Loading...</div>;

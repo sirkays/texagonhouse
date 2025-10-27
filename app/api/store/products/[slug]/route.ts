@@ -138,7 +138,7 @@ export async function GET(
   try {
     const response = await fetch(fullUrl, {
       method: "GET",
-      headers: headers(sessionToken),
+      headers: headers(sessionToken ? sessionToken : undefined),
     });
 
     const rawResponse = await response.text();
