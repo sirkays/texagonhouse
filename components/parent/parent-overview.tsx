@@ -24,6 +24,7 @@ import {
   CreditCard,
   Target,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Child {
   id: number;
@@ -146,7 +147,11 @@ export function ParentOverview() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
+        <Spinner className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center" />
+      </div>
+    );
   }
 
   if (error) {
