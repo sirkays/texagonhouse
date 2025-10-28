@@ -660,7 +660,7 @@ export function TeacherTutoringBooking() {
     setTutoringDurationDays(24);
     setPrivateNotes("");
     setAvailableDays([]);
-    setPrivateTitle("My Private Tutoring")
+    setPrivateTitle("My Private Tutoring");
   };
 
   const handleCreatePrivateSession = async () => {
@@ -1017,17 +1017,17 @@ export function TeacherTutoringBooking() {
                       </SelectContent>
                     </Select>
                   </div>
-                   <div className="space-y-2">
-                        <Label htmlFor="title">Title</Label>
-                        <input
-                          id="title"
-                          type="text"
-                          value={privateTitle}
-                          onChange={(e) => setPrivateTitle(e.target.value)}
-                          placeholder="My Private Tutoring"
-                          className="w-full border rounded-md p-2"
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <input
+                      id="title"
+                      type="text"
+                      value={privateTitle}
+                      onChange={(e) => setPrivateTitle(e.target.value)}
+                      placeholder="My Private Tutoring"
+                      className="w-full border rounded-md p-2"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="rate">Rate per hour</Label>
                     <div className="relative">
@@ -1373,7 +1373,9 @@ export function TeacherTutoringBooking() {
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                           <div className="space-y-2">
                             <h4 className="font-semibold text-base sm:text-lg">
-                              {p.title} — {p.courseName}
+                              {p.title} —{" "}
+                              {courses.find((c) => c.id === p.courseId)?.name ||
+                                p.courseName}
                             </h4>
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <span className="font-medium">Rate:</span>
