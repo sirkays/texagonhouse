@@ -138,6 +138,8 @@ const headers = (sessionToken: string | null) => ({
 // Utilities
 const durationToMinutes = (duration: string): number => {
   if (!duration) return 0;
+  duration = String(duration);
+  console.log("dat ",duration)
   const parts = duration.match(/(\d+)h\s*(\d+)m/);
   if (!parts) return parseInt(duration) || 0;
   const hours = parseInt(parts[1]) || 0;
