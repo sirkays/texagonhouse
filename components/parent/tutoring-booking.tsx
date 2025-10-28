@@ -207,6 +207,8 @@ export function TutoringBooking() {
     }
   };
 
+
+  console.log(upcomingSessions, 'upcoming sessions')
   const fetchPast = async (page: number) => {
     const res = await fetch(`/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`);
     if (res.ok) {
@@ -729,6 +731,10 @@ export function TutoringBooking() {
                         <div>
                           <span className="font-medium">Course:</span>{" "}
                           <span className="text-sm">{tutor.course}</span>
+                        </div>
+                        <div>
+                          {/* <span className="font-medium">Title: </span> */}
+                          <span className="text-sm">{tutor.title}</span>
                         </div>
                         <div>
                           <span className="font-medium">Modules:</span>
