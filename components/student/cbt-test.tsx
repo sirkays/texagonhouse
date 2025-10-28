@@ -1,4 +1,4 @@
-/* cbt-test.tsx — online-only version */
+/* cbt-test.tsx — online-only version WITH server-backed Past Attempts */
 import { useState, useEffect, useMemo } from "react";
 import {
   Card,
@@ -43,7 +43,13 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /* ---------- utility helpers ---------- */
 
@@ -66,6 +72,41 @@ async function fetchWithTimeout(
     throw err;
   }
 }
+
+/* ---------- lightweight types for attempts ---------- */
+type Attempt = {
+  id: number;
+  test_id: number;
+  test?: {
+    id: number;
+    title: string;
+    duration_minutes?: number;
+    total_marks?: string | number;
+    visibility?: string;
+    start_at?: string | null;
+    end_at?: string | null;
+    course_id?: number;
+    course_name?: string;
+  };
+  student?: number;
+  started_at?: string | null;
+  submitted_at?: string | null;
+  score?: string | number | null;
+  status?: "in_progress" | "submitted" | "graded" | string;
+  answers?: Record<string, any>;
+  is_submitted?: boolean;
+  is_graded?: boolean;
+  is_open_now?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type AttemptsPayload = {
+  count: number;
+  page: number;
+  page_size: number;
+  results: Attempt[];
+};
 
 /* ---------- CBTTest component ---------- */
 
@@ -93,16 +134,32 @@ export function CBTTest() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAnswersModal, setShowAnswersModal] = useState(false);
+  // Split the two modals to avoid type clashes:
+  const [showSubmittedAnswersModal, setShowSubmittedAnswersModal] =
+    useState(false); // for "Test Completed" view
+  const [pastAttemptModalId, setPastAttemptModalId] = useState<string | null>(
+    null
+  ); // for "Past Attempts" details
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">("date");
+  const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">(
+    "date"
+  );
+
+  // NEW: attempts state (from backend)
+  const [attempts, setAttempts] = useState<AttemptsPayload>({
+    count: 0,
+    page: 1,
+    page_size: 20,
+    results: [],
+  });
+  const [attemptsPage, setAttemptsPage] = useState(1);
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
 
-  /* ---------- Fetch tests list ---------- */
+  /* ---------- Fetch tests list + server attempts ---------- */
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated" || !sessionToken) {
@@ -111,11 +168,15 @@ export function CBTTest() {
       return;
     }
 
-    const fetchTests = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
+        const qs = new URLSearchParams();
+        qs.set("page", String(attemptsPage));
+        qs.set("page_size", "20");
+
         const res = await fetchWithTimeout(
-          "/api/student/cbt",
+          `/api/student/cbt?${qs.toString()}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -138,6 +199,20 @@ export function CBTTest() {
         const tests = Array.isArray(d.tests) ? d.tests : [];
         setAvailableTests(tests);
         setTestResults(d.results || {});
+
+        if (d.attempts?.results) {
+          setAttempts({
+            count: Number(d.attempts.count ?? d.attempts.results.length ?? 0),
+            page: Number(d.attempts.page ?? 1),
+            page_size: Number(d.attempts.page_size ?? 20),
+            results: Array.isArray(d.attempts.results)
+              ? d.attempts.results
+              : [],
+          });
+        } else {
+          setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
+        }
+
         setError(null);
       } catch (err: any) {
         setError(err.message);
@@ -146,8 +221,8 @@ export function CBTTest() {
       }
     };
 
-    fetchTests();
-  }, [sessionToken, status]);
+    fetchData();
+  }, [sessionToken, status, attemptsPage]);
 
   /* ---------- start logic ---------- */
   const startTest = async (testPk: string | number) => {
@@ -170,9 +245,7 @@ export function CBTTest() {
     await handleStartTestProceed(testPk);
   };
 
-  const handleStartTestProceed = async (
-    testPk: string | number
-  ) => {
+  const handleStartTestProceed = async (testPk: string | number) => {
     const test = (availableTests || []).find(
       (t) => t.pk?.toString() === testPk?.toString()
     );
@@ -289,7 +362,9 @@ export function CBTTest() {
       } else if (q.type === "essay" || q.type === "short-answer") {
         entry.text = ans;
       } else if (q.type === "true-false") {
-        const option = q.options.find((opt: any) => opt.text.toLowerCase() === ans.toLowerCase());
+        const option = q.options.find(
+          (opt: any) => opt.text.toLowerCase() === ans.toLowerCase()
+        );
         entry.choice = option ? option.id : ans;
       } else {
         const numeric = Number(ans);
@@ -334,8 +409,10 @@ export function CBTTest() {
         );
         setTestResults((prev) => ({
           ...prev,
-          [currentTest]: { ...data, title: test?.title },
+          [currentTest!]: { ...data, title: test?.title },
         }));
+        // refresh attempts list (resets to first page)
+        setAttemptsPage(1);
       } else {
         console.error(`HTTP ${res.status}: ${await res.text()}`);
       }
@@ -507,7 +584,7 @@ export function CBTTest() {
               {result && (
                 <Button
                   variant="outline"
-                  onClick={() => setShowAnswersModal(true)}
+                  onClick={() => setShowSubmittedAnswersModal(true)}
                 >
                   View Submitted Answers
                 </Button>
@@ -516,7 +593,10 @@ export function CBTTest() {
           </CardContent>
         </Card>
 
-        <Dialog open={showAnswersModal} onOpenChange={setShowAnswersModal}>
+        <Dialog
+          open={showSubmittedAnswersModal}
+          onOpenChange={setShowSubmittedAnswersModal}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Submitted Answers</DialogTitle>
@@ -529,7 +609,7 @@ export function CBTTest() {
             <DialogFooter>
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setShowAnswersModal(false)}
+                onClick={() => setShowSubmittedAnswersModal(false)}
               >
                 Close
               </Button>
@@ -653,7 +733,10 @@ export function CBTTest() {
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={(val) => {
-                      setAnswers((prev) => ({ ...prev, [currentQuestion]: val }));
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [currentQuestion]: val,
+                      }));
                     }}
                   >
                     {currentQ.options?.map((option: any) => (
@@ -797,6 +880,41 @@ export function CBTTest() {
     );
   }
 
+  /* ---------- helpers for past attempts ---------- */
+  const safeNum = (v: any) => {
+    const n = typeof v === "string" ? parseFloat(v) : Number(v);
+    return isNaN(n) ? 0 : n;
+  };
+  const percentFromAttempt = (a: Attempt) => {
+    const score = safeNum(a.score);
+    const total = safeNum(a.test?.total_marks ?? 0);
+    if (total <= 0) return 0;
+    return Math.round((score / total) * 100);
+  };
+
+  // Sort attempts by selected sort
+  const sortedAttempts = [...(attempts.results || [])].sort((a, b) => {
+    if (pastSortBy === "score") {
+      return safeNum(b.score) - safeNum(a.score);
+    } else if (pastSortBy === "result") {
+      return (b.status || "").localeCompare(a.status || "");
+    } else {
+      // date: by submitted_at (fallback to started_at/created_at)
+      const da =
+        new Date(a.submitted_at || a.started_at || a.created_at || 0).getTime();
+      const db =
+        new Date(b.submitted_at || b.started_at || b.created_at || 0).getTime();
+      return db - da;
+    }
+  });
+
+  // Attempts pagination (server-backed)
+  const pastTotalPages = Math.max(
+    1,
+    Math.ceil((attempts.count || 0) / (attempts.page_size || 20))
+  );
+  const pastCurrentPage = attempts.page || 1;
+
   /* ---------- default tests list ---------- */
   const indexOfLastTest = currentPage * testsPerPage;
   const indexOfFirstTest = indexOfLastTest - testsPerPage;
@@ -808,33 +926,12 @@ export function CBTTest() {
     Math.ceil((availableTests?.length || 0) / testsPerPage)
   );
 
-  const sortPastTests = (tests: any[]) => {
-    return [...tests].sort((a, b) => {
-      const resA = testResults[a.pk.toString()];
-      const resB = testResults[b.pk.toString()];
-      if (pastSortBy === "score") {
-        return (resB.score || 0) - (resA.score || 0);
-      } else if (pastSortBy === "result") {
-        return resB.result.localeCompare(resA.result);
-      } else {
-        return (resB.submitted_at || 0) - (resA.submitted_at || 0);
-      }
-    });
-  };
-
-  const pastTests = availableTests.filter(
-    (test) => testResults[test.pk?.toString()]
-  );
-  const sortedPastTests = sortPastTests(pastTests);
-  const pastTestsPerPage = testsPerPage;
-  const pastCurrentPage = currentPage;
-  const indexOfLastPastTest = pastCurrentPage * pastTestsPerPage;
-  const indexOfFirstPastTest = indexOfLastPastTest - pastTestsPerPage;
-  const currentPastTests = sortedPastTests.slice(indexOfFirstPastTest, indexOfLastPastTest);
-  const pastTotalPages = Math.max(1, Math.ceil((sortedPastTests.length || 0) / pastTestsPerPage));
+  const hasTests =
+    Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
 
   return (
     <div className="space-y-6">
+      {/* ---------- Start dialog (unchanged behavior) ---------- */}
       <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
         <DialogContent>
           <DialogHeader>
@@ -911,146 +1008,202 @@ export function CBTTest() {
             Past Attempts
           </TabsTrigger>
         </TabsList>
+
+        {/* ---------- Available Tests ---------- */}
         <TabsContent value="available" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {currentTests.map((test) => {
-              const res = testResults[test.pk?.toString()] ?? null;
-              return (
-                <Card
-                  key={test.pk}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                >
-                  <CardHeader>
-                    <div className="sm:flex items-center justify-between">
-                      <CardTitle className="text-lg">{test.title}</CardTitle>
-                      <div className="flex gap-2">
-                        <Badge
-                          variant={
-                            test.difficulty === "Beginner"
-                              ? "default"
-                              : test.difficulty === "Intermediate"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {test.difficulty}
-                        </Badge>
-                        {test.type === "exam" && (
-                          <Badge
-                            variant="outline"
-                            className="text-red-600 border-red-200"
-                          >
-                            <Shield className="h-3 w-3 mr-1" />
-                            Secure Exam
-                          </Badge>
+          {/* Loading state for tests fetch */}
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3">
+                <Spinner size="md" className="text-orange-500" />
+                <p className="text-sm text-muted-foreground">
+                  Loading tests…
+                </p>
+              </div>
+            </div>
+          ) : !hasTests ? (
+            // ---------- EMPTY STATE WHEN NO TESTS ----------
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4">
+                  <AlertTriangle className="h-12 w-12 text-amber-500" />
+                </div>
+                <CardTitle className="text-2xl">No tests available</CardTitle>
+                <CardDescription>
+                  We couldn’t find any assessments for you right now.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  If you think this is a mistake, try refreshing. You can also
+                  check back later or contact your instructor.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => (window.location.href = "/")}
+                  >
+                    Go to Dashboard
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {currentTests.map((test) => {
+                  const res = testResults[test.pk?.toString()] ?? null;
+                  return (
+                    <Card
+                      key={test.pk}
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                    >
+                      <CardHeader>
+                        <div className="sm:flex items-center justify-between">
+                          <CardTitle className="text-lg">{test.title}</CardTitle>
+                          <div className="flex gap-2">
+                            <Badge
+                              variant={
+                                test.difficulty === "Beginner"
+                                  ? "default"
+                                  : test.difficulty === "Intermediate"
+                                  ? "secondary"
+                                  : "destructive"
+                              }
+                            >
+                              {test.difficulty}
+                            </Badge>
+                            {test.type === "exam" && (
+                              <Badge
+                                variant="outline"
+                                className="text-red-600 border-red-200"
+                              >
+                                <Shield className="h-3 w-3 mr-1" />
+                                Secure Exam
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <CardDescription>{test.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 flex flex-col gap-4">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>
+                            {test.questions ||
+                              (Array.isArray(test.items)
+                                ? test.items.length
+                                : "-")}{" "}
+                            questions
+                          </span>
+                          <span>{test.duration}</span>
+                        </div>
+
+                        {res && (
+                          <p className="text-sm text-green-600">
+                            Previous Score: {res.score} / {res.total_points}
+                          </p>
                         )}
-                      </div>
-                    </div>
-                    <CardDescription>{test.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 flex flex-col gap-4">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>
-                        {test.questions ||
-                          (Array.isArray(test.items)
-                            ? test.items.length
-                            : "-")}{" "}
-                        questions
-                      </span>
-                      <span>{test.duration}</span>
-                    </div>
 
-                    {res && (
-                      <p className="text-sm text-green-600">
-                        Previous Score: {res.score} / {res.total_points}
-                      </p>
-                    )}
+                        {test.requiresSubscription && !isSubscriber && (
+                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-sm text-yellow-800">
+                              <Shield className="h-4 w-4 inline mr-1" />
+                              Requires active subscription
+                            </p>
+                          </div>
+                        )}
 
-                    {test.requiresSubscription && !isSubscriber && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          <Shield className="h-4 w-4 inline mr-1" />
-                          Requires active subscription
-                        </p>
-                      </div>
-                    )}
+                        <div className="mt-auto">
+                          <Button
+                            onClick={() => startTest(test.pk)}
+                            className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                            disabled={
+                              (test.type === "exam" &&
+                                examAttempts >= maxAttempts) ||
+                              (test.requiresSubscription && !isSubscriber)
+                            }
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            {test.type === "exam"
+                              ? "Start Secure Exam"
+                              : "Start Quiz"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
 
-                    <div className="mt-auto">
-                      <Button
-                        onClick={() => startTest(test.pk)}
-                        className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        disabled={
-                          (test.type === "exam" &&
-                            examAttempts >= maxAttempts) ||
-                          (test.requiresSubscription && !isSubscriber)
-                        }
-                      >
-                        <Play className="mr-2 h-4 w-4" />
-                        {test.type === "exam"
-                          ? "Start Secure Exam"
-                          : "Start Quiz"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 1) setCurrentPage(currentPage - 1);
-                  }}
-                  className={
-                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
-                  }
-                />
-              </PaginationItem>
-              {[...Array(totalPages)].map((_, index) => {
-                const page = index + 1;
-                return (
-                  <PaginationItem key={page}>
-                    <PaginationLink
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
                       href="#"
-                      isActive={currentPage === page}
                       onClick={(e) => {
                         e.preventDefault();
-                        setCurrentPage(page);
+                        if (currentPage > 1) setCurrentPage(currentPage - 1);
                       }}
-                    >
-                      {page}
-                    </PaginationLink>
+                      className={
+                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                      }
+                    />
                   </PaginationItem>
-                );
-              })}
-              {totalPages > 5 && <PaginationEllipsis />}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage < totalPages)
-                      setCurrentPage(currentPage + 1);
-                  }}
-                  className={
-                    currentPage === totalPages
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+                  {[...Array(totalPages)].map((_, index) => {
+                    const page = index + 1;
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={currentPage === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  {totalPages > 5 && <PaginationEllipsis />}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages)
+                          setCurrentPage(currentPage + 1);
+                      }}
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </>
+          )}
         </TabsContent>
+
+        {/* ---------- Past Attempts (server-backed) ---------- */}
         <TabsContent value="past" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Past Attempts</h2>
-            <Select value={pastSortBy} onValueChange={(value) => setPastSortBy(value as "date" | "score" | "result")}>
+            <Select
+              value={pastSortBy}
+              onValueChange={(value) =>
+                setPastSortBy(value as "date" | "score" | "result")
+              }
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -1061,44 +1214,57 @@ export function CBTTest() {
               </SelectContent>
             </Select>
           </div>
-          {currentPastTests.length === 0 ? (
+
+          {sortedAttempts.length === 0 ? (
             <div className="text-center text-muted-foreground">
               <p>No past attempts yet.</p>
               <Button
                 variant="link"
-                onClick={() => document.querySelector('button[data-state="available"]')?.click()}
+                onClick={() =>
+                  document
+                    .querySelector('button[data-state="available"]')
+                    //@ts-ignore
+                    ?.click()
+                }
               >
                 Start a test now
               </Button>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {currentPastTests.map((test) => {
-                const res = testResults[test.pk.toString()];
+              {sortedAttempts.map((a) => {
+                const pct = percentFromAttempt(a);
+                console.log(sortedAttempts, " sorted");
+                const submittedDate = a.submitted_at
+                  ? new Date(a.submitted_at).toLocaleDateString()
+                  : a.started_at
+                  ? new Date(a.started_at).toLocaleDateString()
+                  : "";
                 return (
                   <Card
-                    key={test.pk}
+                    key={a.id}
                     className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setShowAnswersModal(test.pk.toString())}
                   >
                     <CardHeader>
-                      <CardTitle className="text-lg">{test.title}</CardTitle>
-                      <CardDescription>{test.description}</CardDescription>
+                      <CardTitle className="text-lg">
+                        {a.test?.title || `Test #${a.test_id}`}
+                      </CardTitle>
+                      <CardDescription>
+                        {a.test?.course_name || "—"}
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-4">
-                      <p className="text-sm text-green-600">
-                        Score: {res.score} / {res.total_points} (
-                        {res.percentage}%)
+                    <CardContent className="flex-1 flex flex-col gap-3">
+                      <p className="text-sm">
+                        <span className="font-medium">Status: </span>
+                        <Badge variant="outline">{a.status || "—"}</Badge>
                       </p>
-                      <p className="text-sm">Result: {res.result}</p>
-                      <p className="text-sm">Answered: {res.answered}</p>
-                      {res.pending_manual > 0 && (
-                        <Badge variant="outline" className="text-yellow-600 border-yellow-200">
-                          {res.pending_manual} Pending Review
-                        </Badge>
-                      )}
+                      <p className="text-sm">
+                        <span className="font-medium">Score: </span>
+                        {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
+                        {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        Submitted: {new Date(res.submitted_at || 0).toLocaleDateString()}
+                        Submitted: {submittedDate || "—"}
                       </p>
                     </CardContent>
                   </Card>
@@ -1106,7 +1272,8 @@ export function CBTTest() {
               })}
             </div>
           )}
-          {pastTests.length > pastTestsPerPage && (
+
+          {attempts.count > attempts.page_size && (
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
@@ -1114,10 +1281,13 @@ export function CBTTest() {
                     href="#"
                     onClick={(e) => {
                       e.preventDefault();
-                      if (pastCurrentPage > 1) setCurrentPage(pastCurrentPage - 1);
+                      if (pastCurrentPage > 1)
+                        setAttemptsPage(pastCurrentPage - 1);
                     }}
                     className={
-                      pastCurrentPage === 1 ? "pointer-events-none opacity-50" : ""
+                      pastCurrentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : ""
                     }
                   />
                 </PaginationItem>
@@ -1130,7 +1300,7 @@ export function CBTTest() {
                         isActive={pastCurrentPage === page}
                         onClick={(e) => {
                           e.preventDefault();
-                          setCurrentPage(page);
+                          setAttemptsPage(page);
                         }}
                       >
                         {page}
@@ -1145,7 +1315,7 @@ export function CBTTest() {
                     onClick={(e) => {
                       e.preventDefault();
                       if (pastCurrentPage < pastTotalPages)
-                        setCurrentPage(pastCurrentPage + 1);
+                        setAttemptsPage(pastCurrentPage + 1);
                     }}
                     className={
                       pastCurrentPage === pastTotalPages
@@ -1157,26 +1327,6 @@ export function CBTTest() {
               </PaginationContent>
             </Pagination>
           )}
-          <Dialog open={!!showAnswersModal} onOpenChange={() => setShowAnswersModal(false)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Test Results</DialogTitle>
-                <DialogDescription>
-                  <pre className="mt-2 whitespace-pre-wrap text-sm">
-                    {JSON.stringify(testResults[showAnswersModal || ""], null, 2)}
-                  </pre>
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  onClick={() => setShowAnswersModal(false)}
-                >
-                  Close
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,18 +1,17 @@
+// app/api/student/cbt/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+// const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
-async function fetchWithTimeout(url, options) {
+async function fetchWithTimeout(url: string, options: any) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeout);
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
+    const response = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeoutId);
     return response;
   } catch (err) {
@@ -21,7 +20,7 @@ async function fetchWithTimeout(url, options) {
   }
 }
 
-export async function GET(request) {
+export async function GET(request: Request) {
   console.log("[Route] Received GET request to /api/student/cbt");
   const session = await getServerSession(authOptions);
 
@@ -31,10 +30,15 @@ export async function GET(request) {
   }
 
   try {
-    const url = `${BASE_URL}/assessments/api/tests/available/`;
-    console.log("[Route] Fetching tests from:", url);
+    // Pass through query params (e.g., page, page_size, status, etc.)
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const qp = queryString ? `?${queryString}` : "";
 
-    const res = await fetchWithTimeout(url, {
+    // Available tests
+    const testsUrl = `${BASE_URL}/assessments/api/tests/available/`;
+    console.log("[Route] Fetching tests from:", testsUrl);
+    const testsRes = await fetchWithTimeout(testsUrl, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
@@ -42,21 +46,47 @@ export async function GET(request) {
       },
       timeout: 8000,
     });
-
-    console.log("[Route] External API response status:", res.status);
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
+    if (!testsRes.ok) {
+      const errorText = await testsRes.text();
+      console.error("[Route] External API error response (tests):", errorText);
       return NextResponse.json(
-        { error: `Failed to fetch data: ${errorText}` },
-        { status: res.status }
+        { error: `Failed to fetch tests: ${errorText}` },
+        { status: testsRes.status }
       );
     }
+    const testsData = await testsRes.json();
 
-    const data = await res.json();
-    console.log("[Route] External API response data:", data);
-    return NextResponse.json(data, { status: 200 });
-  } catch (error) {
+    // Student test attempts (paginated)
+    // NOTE: The docs say /assessments + /api/student/test-attempts
+    const attemptsUrl = `${BASE_URL}/assessments/api/student/test-attempts/${qp}`;
+    console.log("[Route] Fetching attempts from:", attemptsUrl);
+    const attemptsRes = await fetchWithTimeout(attemptsUrl, {
+      headers: {
+        Authorization: `Api-Key ${API_KEY}`,
+        "Content-Type": "application/json",
+        "X-Session-Token": session.user.sessionToken,
+      },
+      timeout: 8000,
+    });
+    if (!attemptsRes.ok) {
+      const errorText = await attemptsRes.text();
+      console.error("[Route] External API error response (attempts):", errorText);
+      return NextResponse.json(
+        { error: `Failed to fetch attempts: ${errorText}` },
+        { status: attemptsRes.status }
+      );
+    }
+    const attemptsData = await attemptsRes.json();
+
+    // Return a single combined payload
+    const payload = {
+      ...(Array.isArray(testsData?.tests) ? { tests: testsData.tests } : {}),
+      ...(testsData?.results ? { results: testsData.results } : {}),
+      attempts: attemptsData, // full paginated object
+    };
+    console.log("[Route] Combined GET payload keys:", Object.keys(payload));
+    return NextResponse.json(payload, { status: 200 });
+  } catch (error: any) {
     console.error("[Route] Error fetching data:", error);
     return NextResponse.json(
       { error: "Internal server error", details: error.message },
@@ -65,7 +95,7 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+export async function POST(request: Request) {
   console.log("[Route] Received POST request to /api/student/cbt");
   const session = await getServerSession(authOptions);
 
@@ -76,12 +106,12 @@ export async function POST(request) {
 
   const maxRetries = 3;
   let attempt = 0;
-  let body;
+  let body: any;
 
   try {
     body = await request.json();
     console.log("[Route] Raw POST body:", body);
-  } catch (err) {
+  } catch (err: any) {
     console.error("[Route] Error parsing request body:", err);
     return NextResponse.json(
       { error: "Invalid request body", details: err.message },
@@ -89,7 +119,6 @@ export async function POST(request) {
     );
   }
 
-  // ✅ Normalize and validate test ID
   const testId = body.test || body.testPk || body.currentTest;
   if (!testId) {
     console.error("[Route] Missing test ID in request body");
@@ -99,31 +128,34 @@ export async function POST(request) {
     );
   }
 
-  // ✅ Normalize answer structure according to API spec
-  const answers = (body.answers || []).map((a) => {
-    const questionId = a.question;
-    if (!questionId) return null;
-  
-    const cleaned = { question: Number(questionId) };
-  
-    if (Array.isArray(a.choice)) {
-      cleaned.choices = a.choice.map(Number);
-    } else if (Array.isArray(a.choices)) {
-      cleaned.choices = a.choices.map(Number);
-    } else if (a.text !== undefined) {
-      cleaned.text = a.text;
-    } else if (a.choice !== undefined) {
-      const numeric = Number(a.choice);
-      if (!isNaN(numeric)) {
-        cleaned.choice = numeric;
-      } else {
-        console.warn(`[Route] Skipping invalid non-numeric choice for question ${questionId}:`, a.choice);
+  const answers = (body.answers || [])
+    .map((a: any) => {
+      const questionId = a.question;
+      if (!questionId) return null;
+
+      const cleaned: any = { question: Number(questionId) };
+
+      if (Array.isArray(a.choice)) {
+        cleaned.choices = a.choice.map(Number);
+      } else if (Array.isArray(a.choices)) {
+        cleaned.choices = a.choices.map(Number);
+      } else if (a.text !== undefined) {
+        cleaned.text = a.text;
+      } else if (a.choice !== undefined) {
+        const numeric = Number(a.choice);
+        if (!isNaN(numeric)) {
+          cleaned.choice = numeric;
+        } else {
+          console.warn(
+            `[Route] Skipping invalid non-numeric choice for question ${questionId}:`,
+            a.choice
+          );
+        }
       }
-    }
-  
-    return cleaned;
-  }).filter(Boolean);
-  
+
+      return cleaned;
+    })
+    .filter(Boolean);
 
   if (!answers.length) {
     return NextResponse.json(
@@ -171,7 +203,7 @@ export async function POST(request) {
       const data = await res.json();
       console.log("[Route] External API response data:", data);
       return NextResponse.json(data, { status: 200 });
-    } catch (err) {
+    } catch (err: any) {
       console.error(`[Route] Attempt ${attempt + 1} failed:`, err.message);
       attempt++;
       if (attempt === maxRetries) {
