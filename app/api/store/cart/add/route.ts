@@ -129,7 +129,6 @@ export async function POST(req: Request) {
     console.log("[StoreCartAddAPI] Backend raw response:", rawResponse);
 
     if (!response.ok) {
-      console.log(response," response..... ")
       if (response.status === 401)
         return NextResponse.json(
           { error: "Session expired", redirect: "/login" },

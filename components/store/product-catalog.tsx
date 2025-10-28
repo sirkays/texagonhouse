@@ -50,8 +50,22 @@ interface Product {
   jobGuarantee?: boolean;
 }
 
+type CatalogAddPayload = {
+  productId: string;
+  name: string;
+  price: number;
+  image?: string;
+  type?: string;
+  originalPrice?: number;
+  bnplAvailable?: boolean;
+  instructor?: string;
+  author?: string;
+  brand?: string;
+};
+
 interface ProductCatalogProps {
-  onAddToCart: (product: Product) => void;
+  // IMPORTANT: Provider will do the API call. This component won't.
+  onAddToCart: (product: CatalogAddPayload) => Promise<void>;
 }
 
 export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
@@ -62,13 +76,12 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Per-product in-flight lock to prevent double POSTs
+  // Local per-product disable to prevent spam clicks on the UI
   const inFlightRef = useRef<Set<string>>(new Set());
   const [adding, setAdding] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const controller = new AbortController();
-
     const fetchProducts = async () => {
       try {
         setLoading(true);
@@ -120,7 +133,6 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
         setLoading(false);
       }
     };
-
     fetchProducts();
     return () => controller.abort();
   }, [searchQuery, selectedCategory, sortBy]);
@@ -132,53 +144,38 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
     { id: "audio", name: "Audio Courses", icon: Headphones },
     { id: "hardware", name: "Hardware", icon: Laptop },
     { id: "bundles", name: "Bundles", icon: Package },
-    { id: "bootcamps", name: "Bootcamps", icon: Star },
+    { id: "bootcamps", name: "Bootcamps", icon: Grid3X3 },
   ];
 
-  const filteredProducts = products; // already filtered by API
-  const sortedProducts = filteredProducts; // already sorted by API
+  const filteredProducts = products;
+  const sortedProducts = filteredProducts;
 
-  const addToCart = async (product: Product, quantity = 1) => {
-    const key = product.id;
-
-    // prevent duplicate in-flight requests for the same product
-    if (inFlightRef.current.has(key)) return null;
+  const handleAddClick = async (p: Product) => {
+    const key = p.id;
+    if (inFlightRef.current.has(key)) return;
 
     inFlightRef.current.add(key);
     setAdding((s) => ({ ...s, [key]: true }));
 
-    // Create an idempotency key for this specific attempt
-    const idemKey =
-      (typeof crypto !== "undefined" && "randomUUID" in crypto && crypto.randomUUID()) ||
-      `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
     try {
-      const res = await fetch("/api/store/cart/add", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-idempotency-key": idemKey,
-        },
-        body: JSON.stringify({
-          product_id: product.id,
-          quantity,
-        }),
+      // Delegate to provider (the ONLY place that hits the API)
+      await onAddToCart({
+        productId: p.id,
+        name: p.name,
+        price: Number(p.price),
+        image: p.image,
+        type: p.type,
+        originalPrice: p.originalPrice,
+        bnplAvailable: p.bnplAvailable,
+        instructor: p.instructor,
+        author: p.author,
+        brand: p.brand,
       });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          data?.error || `Failed to add to cart (status ${res.status})`
-        );
-      }
-
-      onAddToCart(product);
-      toast.success(`${product.name} added to cart!`);
-      return data;
+      // toast is handled in provider too; it's OK to keep a local one if you prefer
+      // toast.success(`${p.name} added to cart!`);
     } catch (e: any) {
-      console.error("[addToCart] error:", e);
+      console.error("[ProductCatalog] addToCart error:", e);
       toast.error(e?.message || "Could not add to cart");
-      return null;
     } finally {
       inFlightRef.current.delete(key);
       setAdding((s) => ({ ...s, [key]: false }));
@@ -192,7 +189,7 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
         className="block cursor-pointer"
       >
         <div className="flex items-center gap-4 p-3 border border-transparent hover:border-gray-300 hover:shadow-md transition-shadow rounded-md min-h-36 sm:minh-40">
-          {/* Product Image */}
+          {/* Image */}
           <div className="relative w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 flex-shrink-0">
             <img
               src={product.image || "/placeholder.svg"}
@@ -205,7 +202,7 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!adding[product.id]) addToCart(product, 1);
+                if (!adding[product.id]) handleAddClick(product);
               }}
               disabled={!!adding[product.id]}
               aria-label={`Add ${product.name} to cart`}
@@ -214,7 +211,7 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
             </button>
           </div>
 
-          {/* Product Details */}
+          {/* Details */}
           <div className="flex flex-col justify-between flex-1 min-w-0">
             <div className="font-medium text-sm truncate">{product.name}</div>
 
@@ -323,7 +320,7 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
         </Button>
       </div>
 
-      {/* Product Grid */}
+      {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {loading
           ? Array.from({ length: skeletonCount }).map((_, i) => (
@@ -334,7 +331,7 @@ export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
             ))}
       </div>
 
-      {/* Empty state */}
+      {/* Empty */}
       {!loading && sortedProducts.length === 0 && (
         <div className="text-center text-muted-foreground py-10">
           No products found. Try adjusting your search or filters.
