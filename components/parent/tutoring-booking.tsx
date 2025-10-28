@@ -225,6 +225,8 @@ export function TutoringBooking() {
     }
   };
 
+  console.log("Available Tutors:", availableTutors);
+
   const fetchChildren = async () => {
     const res = await fetch(`/api/tutor/tutoring/children`);
     if (res.ok) {
@@ -741,10 +743,10 @@ export function TutoringBooking() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
+                        {/* <div>
                           <span className="font-medium">Experience:</span>
                           <div className="truncate">{tutor.experience}</div>
-                        </div>
+                        </div> */}
                         <div>
                           <span className="font-medium">Rate:</span>
                           <div className="text-green-600 font-medium">
@@ -753,10 +755,10 @@ export function TutoringBooking() {
                         </div>
                       </div>
 
-                      <div>
+                      {/* <div>
                         <span className="font-medium">Languages:</span>{" "}
                         {tutor.languages.join(", ")}
-                      </div>
+                      </div> */}
                       <div>
                         <span className="font-medium">Available:</span>
                         <div>{tutor.availability_days.join(", ")}</div>
@@ -922,7 +924,7 @@ export function TutoringBooking() {
 
                   {/* Preferred Time & Duration */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <Label htmlFor="pref-time">Preferred Time</Label>
                       <Select
                         value={preferredTime}
@@ -946,9 +948,9 @@ export function TutoringBooking() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
 
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <Label htmlFor="duration">Duration (hours)</Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger id="duration" className="w-full">
@@ -960,7 +962,7 @@ export function TutoringBooking() {
                           <SelectItem value="3">3 hours</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Learning Objectives */}
