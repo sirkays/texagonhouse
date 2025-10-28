@@ -70,6 +70,9 @@ interface Product {
   jobGuarantee?: boolean;
 }
 
+// interface ProductCatalogProps {
+//   onAddToCart: (product: Product) => void;
+// }
 interface ProductCatalogProps {
   onAddToCart: (product: Product) => void;
 }
@@ -135,21 +138,19 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
     return Math.round(((original - current) / original) * 100);
   };
 
-  const handleAddToCart = async (product: Product) => {
-    try {
-      const res = await fetch("/api/store/cart/add", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({product_id: product.id, quantity: 1}),
-      });
-      if (!res.ok) throw new Error("Failed to add to cart");
-      toast.success(`${product.name} added to cart!`);
-    } catch (error) {
-      toast.error("Failed to add to cart");
-    }
+  const handleAddToCart = (product: Product) => {
+    onAddToCart(product); // This comes from CartProvider
+    toast.success(`${product.name} added to cart!`);
   };
 
-  const ProductCard = ({product}: {product: Product}) => {
+  // const ProductCard = ({product}: {product: Product}) => {
+  const ProductCard = ({
+    product,
+    onAddToCart,
+  }: {
+    product: Product;
+    onAddToCart: (p: Product) => void;
+  }) => {
     const fullStars = Math.floor(product.rating || 0);
     const halfStar = (product.rating || 0) - fullStars >= 0.5;
     const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
@@ -165,12 +166,22 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
               alt={product.name}
               className="w-full max-h-48 h-auto object-cover"
             />
-            <button
+            {/* <button
               type="button"
               className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
               onClick={(e) => {
                 e.stopPropagation();
                 handleAddToCart(product);
+              }}>
+              <ShoppingCartIcon className="h-5 w-5 text-black" />
+            </button> */}
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCart(product); // Use prop directly
+                toast.success(`${product.name} added to cart!`);
               }}>
               <ShoppingCartIcon className="h-5 w-5 text-black" />
             </button>
@@ -261,7 +272,13 @@ export function ProductCatalog({onAddToCart}: ProductCatalogProps) {
       {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {sortedProducts.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          // <ProductCard key={product.id} product={product} />
+
+          <ProductCard
+            key={product.id}
+            product={product}
+            onAddToCart={onAddToCart}
+          />
         ))}
       </div>
 

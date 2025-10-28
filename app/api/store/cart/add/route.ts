@@ -7,9 +7,9 @@ const BASE_URL = "https://texagonbackend.epichouse.online/store/api";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+  "X-API-KEY": API_KEY, // Changed from Authorization: `Api-Key ...` to match docs
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && {"X-SESSION-TOKEN": sessionToken}), // Matched case to docs (headers are case-insensitive, but consistent)
 });
 
 interface CartItem {
@@ -53,7 +53,10 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
+    console.log("[StoreCartAddAPI] Backend response status:", response.status); // Added for debugging
+
     const rawResponse = await response.text();
+    console.log("[StoreCartAddAPI] Backend raw response:", rawResponse); // Added for debugging
 
     if (!response.ok) {
       if (response.status === 401)
@@ -75,6 +78,7 @@ export async function POST(req: Request) {
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
+      console.error("[StoreCartAddAPI] Parse error:", parseError);
       return NextResponse.json(
         {error: "Invalid response format"},
         {status: 500}
@@ -100,6 +104,7 @@ export async function POST(req: Request) {
       headers: {"Cache-Control": "no-store"},
     });
   } catch (error) {
+    console.error("[StoreCartAddAPI] Fetch error:", error);
     return NextResponse.json({error: "Failed to add to cart"}, {status: 500});
   }
 }
