@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -19,8 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
-import {Clock, TrendingUp, Target, CheckCircle, RefreshCw} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Clock,
+  TrendingUp,
+  Target,
+  CheckCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Spinner } from "../ui/spinner";
 
 // Types based on API docs and logs
 interface Subject {
@@ -123,7 +130,7 @@ export default function ChildrenProgress() {
   const fetchChildrenList = async () => {
     try {
       const res = await fetchWithRetry("/api/parent/children-list", {
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();
       if (!res.ok)
@@ -138,7 +145,7 @@ export default function ChildrenProgress() {
   const fetchTimePeriods = async () => {
     try {
       const res = await fetchWithRetry("/api/parent/time-periods", {
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();
       if (!res.ok)
@@ -161,7 +168,7 @@ export default function ChildrenProgress() {
       const res = await fetchWithRetry(
         `/api/parent/children-progress?${params}`,
         {
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
         }
       );
       const data = await res.json();
@@ -236,14 +243,21 @@ export default function ChildrenProgress() {
       }, 0) / Math.max(childrenData.length, 1)
     );
 
-    return {totalHours, totalTests, avgScore, avgStreak};
+    return { totalHours, totalTests, avgScore, avgStreak };
   };
 
   const overallStats = getOverallStats();
   const selectedData = getSelectedChildData();
 
   if (isInitialLoading) {
-    return <div className="text-center py-8">Loading dashboard...</div>;
+    return (
+      <div className="inset-0 flex justify-center items-center bg-white z-50 h-[100vh]">
+        <Spinner
+          className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center"
+          size="sm"
+        />
+      </div>
+    );
   }
 
   return (
@@ -322,7 +336,8 @@ export default function ChildrenProgress() {
                 </label>
                 <Select
                   value={selectedPeriod}
-                  onValueChange={setSelectedPeriod}>
+                  onValueChange={setSelectedPeriod}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose period" />
                   </SelectTrigger>
@@ -415,19 +430,22 @@ export default function ChildrenProgress() {
         <TabsList className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="subjects">
+            value="subjects"
+          >
             Courses Performance
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="timeline">
+            value="timeline"
+          >
             Progress Timeline
           </TabsTrigger>
         </TabsList>
 
         <TabsContent
           value="subjects"
-          className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          className="grid gap-4 grid-cols-1 md:grid-cols-2"
+        >
           {!isProgressLoading &&
             !error &&
             progressData.length > 0 &&
@@ -460,7 +478,8 @@ export default function ChildrenProgress() {
                       child.subjects!.map((subject, index) => (
                         <div
                           key={index}
-                          className="flex flex-col gap-3 p-3 border rounded-lg">
+                          className="flex flex-col gap-3 p-3 border rounded-lg"
+                        >
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <h4 className="font-medium text-sm sm:text-base">
                               {subject.name}
@@ -490,7 +509,8 @@ export default function ChildrenProgress() {
                               <div
                                 className={`text-sm sm:text-base font-bold ${getGradeColor(
                                   subject.grade
-                                )}`}>
+                                )}`}
+                              >
                                 {subject.lastScore}%
                               </div>
                             </div>

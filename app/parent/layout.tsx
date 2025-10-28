@@ -32,7 +32,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,14 +41,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
-import {usePathname} from "next/navigation";
-import {useMediaQuery} from "react-responsive";
-import {useSession} from "next-auth/react";
+import { usePathname } from "next/navigation";
+import { useMediaQuery } from "react-responsive";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
 
 const menuItems = [
-  {title: "Dashboard", icon: Home, id: "dashboard", path: "/parent"},
+  { title: "Dashboard", icon: Home, id: "dashboard", path: "/parent" },
   {
     title: "Children Progress",
     icon: BarChart3,
@@ -84,8 +85,8 @@ const menuItems = [
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
-  const isMobile = useMediaQuery({maxWidth: 639});
+  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
+  const isMobile = useMediaQuery({ maxWidth: 639 });
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -113,11 +114,13 @@ function SidebarMenuContent() {
                 data-[active=true]:text-slate-600
                 transition-colors
                 rounded-md
-              `}>
+              `}
+                >
                   <Link
                     href={item.path}
                     onClick={handleLinkClick}
-                    className="flex items-center gap-2">
+                    className="flex items-center gap-2"
+                  >
                     <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
                     <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                       {item.title}
@@ -133,14 +136,22 @@ function SidebarMenuContent() {
   );
 }
 
-export default function ParentLayout({children}: {children: React.ReactNode}) {
-  const {data: session, status} = useSession();
+export default function ParentLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { data: session, status } = useSession();
 
   console.log("[ParentLayout] Session status:", status);
   console.log("[ParentLayout] Session data:", session);
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+        <Spinner size="md" />
+      </div>
+    );
   }
 
   if (status !== "authenticated" || session?.user?.role !== "parent") {
@@ -157,7 +168,7 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
 
       console.log(
@@ -217,10 +228,12 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
-                    className="w-[--radix-popper-anchor-width]">
+                    className="w-[--radix-popper-anchor-width]"
+                  >
                     <DropdownMenuItem
                       className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
-                      onClick={handleLogout}>
+                      onClick={handleLogout}
+                    >
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
                     </DropdownMenuItem>
@@ -259,7 +272,8 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent"
+              >
                 <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
               </Button>
             </div>

@@ -50,23 +50,22 @@ export function TransactionHistory({
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  // Default to Subscription; no "All Types"
+  // DEFAULT: subscription; types restricted to "order" | "subscription"
   const [paymentType, setPaymentType] = useState<"order" | "subscription">("subscription");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Fetch transactions (runs when committed query or filters change)
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        setError(null);
-
         const params = new URLSearchParams();
         if (searchQuery) params.append("search", searchQuery);
         if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
 
-        // map UI paymentType to API type ("order" => "store")
+        // Always append selected payment type (map "order" -> "store")
         const apiType = paymentType === "order" ? "store" : "subscription";
         params.append("type", apiType);
 
@@ -88,7 +87,9 @@ export function TransactionHistory({
     fetchTransactions();
   }, [searchQuery, statusFilter, paymentType, dateRange]);
 
-  const handleSearch = () => setSearchQuery(searchTerm.trim());
+  const handleSearch = () => {
+    setSearchQuery(searchTerm.trim());
+  };
 
   const filteredAndSortedTransactions = useMemo(() => {
     const term = searchQuery.toLowerCase();
@@ -103,6 +104,7 @@ export function TransactionHistory({
 
       const matchesStatus = statusFilter === "all" || tx.status === statusFilter;
 
+      // Restrict by chosen payment type only
       const matchesType =
         paymentType === "order" ? tx.type === "store" : tx.type === "subscription";
 
@@ -127,12 +129,36 @@ export function TransactionHistory({
   }, [transactions, searchQuery, statusFilter, paymentType, dateRange, sortBy, sortOrder]);
 
   const toggleSort = (field: "date" | "amount") => {
-    if (sortBy === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    else {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
       setSortBy(field);
       setSortOrder("desc");
     }
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Spinner size="md" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-destructive mb-4">Error: {error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-fit">
@@ -140,7 +166,7 @@ export function TransactionHistory({
         <CardTitle className="text-lg">Transaction History</CardTitle>
 
         <div className="space-y-4">
-          {/* Search input + button (always visible) */}
+          {/* Search input + button */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -176,7 +202,7 @@ export function TransactionHistory({
               </SelectContent>
             </Select>
 
-            {/* Payment type (default = Subscription) */}
+            {/* Payment type (no "All Types"; default = Subscription) */}
             <Select value={paymentType} onValueChange={(v) => setPaymentType(v as any)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue />
@@ -202,76 +228,60 @@ export function TransactionHistory({
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="relative">
-          {/* Loader ONLY in data area */}
-          {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
-              <Spinner size="md" />
+        <div className="max-h-[600px] overflow-y-auto">
+          {filteredAndSortedTransactions.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
+              No transactions found matching your criteria.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {filteredAndSortedTransactions.map((tx) => {
+                const displayId = tx.type === "subscription" ? tx.invoice_number : tx.order_id;
+                const statusMap: Record<string, "paid" | "pending" | "overdue" | "failed"> = {
+                  success: "paid",
+                  failed: "failed",
+                  pending: "pending",
+                };
+
+                return (
+                  <div
+                    key={tx.id}
+                    onClick={() => onSelectTransaction(tx.id.toString())}
+                    className={`p-4 border-b cursor-pointer transition-colors hover:bg-muted/50 ${
+                      selectedTransaction === tx.id.toString()
+                        ? "bg-accent/50 border-l-4 border-l-primary"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{tx.customer}</span>
+                        {displayId && (
+                          <Badge variant="outline" className="text-xs">
+                            {displayId}
+                          </Badge>
+                        )}
+                      </div>
+                      <PaymentStatusBadge status={statusMap[tx.status] || "pending"} />
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {format(new Date(tx.date), "MMM dd, yyyy")}
+                      </span>
+                      <span className="font-semibold">
+                        {tx.currency} {Number(tx.amount).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="mt-1">
+                      <span className="text-xs text-muted-foreground">Ref: {tx.reference}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-
-          <div className={`max-h-[600px] overflow-y-auto ${loading ? "pointer-events-none opacity-50" : ""}`}>
-            {error ? (
-              <div className="p-6 text-center">
-                <p className="text-destructive mb-4">Error: {error}</p>
-                <Button variant="outline" onClick={() => window.location.reload()}>
-                  Retry
-                </Button>
-              </div>
-            ) : filteredAndSortedTransactions.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                No transactions found matching your criteria.
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {filteredAndSortedTransactions.map((tx) => {
-                  const displayId = tx.type === "subscription" ? tx.invoice_number : tx.order_id;
-                  const statusMap: Record<string, "paid" | "pending" | "overdue" | "failed"> = {
-                    success: "paid",
-                    failed: "failed",
-                    pending: "pending",
-                  };
-
-                  return (
-                    <div
-                      key={tx.id}
-                      onClick={() => onSelectTransaction(tx.id.toString())}
-                      className={`p-4 border-b cursor-pointer transition-colors hover:bg-muted/50 ${
-                        selectedTransaction === tx.id.toString()
-                          ? "bg-accent/50 border-l-4 border-l-primary"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{tx.customer}</span>
-                          {displayId && (
-                            <Badge variant="outline" className="text-xs">
-                              {displayId}
-                            </Badge>
-                          )}
-                        </div>
-                        <PaymentStatusBadge status={statusMap[tx.status] || "pending"} />
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {format(new Date(tx.date), "MMM dd, yyyy")}
-                        </span>
-                        <span className="font-semibold">
-                          {tx.currency} {Number(tx.amount).toLocaleString()}
-                        </span>
-                      </div>
-
-                      <div className="mt-1">
-                        <span className="text-xs text-muted-foreground">Ref: {tx.reference}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
         </div>
       </CardContent>
     </Card>
