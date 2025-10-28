@@ -2736,9 +2736,9 @@ function getFileName(input?: string | File | null): string {
                                 <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 {module.enrollments} enrolled
                               </div>
-                              <div>
+                              {/*<div>
                                 Completion: {module.completion.toFixed(1)}%
-                              </div>
+                              </div>*/}
                             </div>
                           </div>
                         </div>
