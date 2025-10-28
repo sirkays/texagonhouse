@@ -248,21 +248,17 @@ useEffect(() => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
 
   const handleSubmitComplaint = async () => {
-  if (
-    !newComplaint.title.trim() ||
-    !newComplaint.description.trim() ||
-    !newComplaint.transaction_reference.trim()
-  ) return;
-
-  if (submittingComplaint) return;
+  if (!newComplaint.title || !newComplaint.description) return;
+  if (submittingComplaint) return; // hard guard against double-clicks
 
   const formData = new FormData();
   formData.append("title", newComplaint.title);
   formData.append("description", newComplaint.description);
   formData.append("priority", newComplaint.priority);
   formData.append("category", newComplaint.category);
-  formData.append("transaction_reference", newComplaint.transaction_reference); // always present
-
+  if (newComplaint.transaction_reference) {
+    formData.append("transaction_reference", newComplaint.transaction_reference);
+  }
   selectedFiles.forEach((file) => formData.append("attachments", file));
 
   setSubmittingComplaint(true);
@@ -478,7 +474,7 @@ useEffect(() => {
             {/* Transaction Reference (filtered by category) */}
             <div className="space-y-1">
               <Label htmlFor="transaction_reference" className="text-xs md:text-sm">
-                Transaction Reference <span className="text-destructive">*</span>
+                Transaction Reference (Optional)
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -486,8 +482,6 @@ useEffect(() => {
                     variant="outline"
                     role="combobox"
                     className="w-full justify-between text-sm h-9"
-                    aria-required="true"
-                    aria-invalid={!newComplaint.transaction_reference ? "true" : "false"}
                     disabled={filteredTransactions.length === 0}
                   >
                     {newComplaint.transaction_reference
@@ -497,8 +491,8 @@ useEffect(() => {
                           ? "No store transactions"
                           : "No subscription transactions")
                       : (newComplaint.category === "Order"
-                          ? "Select order transaction (required)…"
-                          : "Select subscription transaction (required)…")}
+                          ? "Select order transaction..."
+                          : "Select subscription transaction...")}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -515,7 +509,8 @@ useEffect(() => {
                             onSelect={(currentValue) => {
                               setNewComplaint((prev) => ({
                                 ...prev,
-                                transaction_reference: currentValue,
+                                transaction_reference:
+                                  currentValue === prev.transaction_reference ? "" : currentValue,
                               }));
                             }}
                           >
@@ -532,11 +527,7 @@ useEffect(() => {
                   </Command>
                 </PopoverContent>
               </Popover>
-              {!newComplaint.transaction_reference && filteredTransactions.length > 0 && (
-                <p className="text-[11px] text-destructive/90">Transaction reference is required.</p>
-              )}
             </div>
-
           </div>
 
           <div className="space-y-1">
@@ -566,18 +557,16 @@ useEffect(() => {
           </div>
 
           <div className="flex justify-center">
-          <Button
-            className="bg-[#f79771] hover:bg-gray-300 shadow-md py-1.5 text-md"
-            onClick={handleSubmitComplaint}
-            disabled={
-              submittingComplaint ||
-              !newComplaint.title.trim() ||
-              !newComplaint.description.trim() ||
-              !newComplaint.transaction_reference.trim()   // <-- added
-            }
-            aria-busy={submittingComplaint}
-          >
-
+            <Button
+              className="bg-[#f79771] hover:bg-gray-300 shadow-md py-1.5 text-md"
+              onClick={handleSubmitComplaint}
+              disabled={
+                submittingComplaint ||
+                !newComplaint.title.trim() ||
+                !newComplaint.description.trim()
+              }
+              aria-busy={submittingComplaint}
+            >
               {submittingComplaint ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
