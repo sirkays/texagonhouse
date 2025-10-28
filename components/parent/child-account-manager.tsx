@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {Label} from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
 import {
   Key,
   BookOpen,
@@ -32,6 +32,7 @@ import {
   Link,
   RefreshCw,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ChildAccountManager() {
   const [children, setChildren] = useState<any[]>([]);
@@ -150,7 +151,7 @@ export default function ChildAccountManager() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({childId: resetChildId, newPassword}),
+          body: JSON.stringify({ childId: resetChildId, newPassword }),
         }
       );
 
@@ -180,7 +181,11 @@ export default function ChildAccountManager() {
         </div>
       </div>
 
-      {isLoading && <p className="text-center">Loading children data...</p>}
+      {isLoading && (
+        <div className="inset-0 flex justify-center items-center bg-white z-50 h-[100vh]">
+          <Spinner className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center" size="sm" />
+        </div>
+      )}
       {error && (
         <div className="text-center">
           <p className="text-red-600">{error}</p>
@@ -235,7 +240,8 @@ export default function ChildAccountManager() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => openResetDialog(child.id)}>
+                  onClick={() => openResetDialog(child.id)}
+                >
                   <Key className="h-4 w-4 mr-2" />
                   Reset Password
                 </Button>
@@ -308,7 +314,8 @@ export default function ChildAccountManager() {
                       variant="outline"
                       size="sm"
                       onClick={() => copyEmail(child.email || "")}
-                      disabled={!child.email}>
+                      disabled={!child.email}
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -324,7 +331,8 @@ export default function ChildAccountManager() {
 
       <Dialog
         open={resetChildId !== null}
-        onOpenChange={(open) => (!open ? closeResetDialog() : null)}>
+        onOpenChange={(open) => (!open ? closeResetDialog() : null)}
+      >
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Reset Child Password</DialogTitle>
@@ -347,7 +355,8 @@ export default function ChildAccountManager() {
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => setShowNew((s) => !s)}>
+                  onClick={() => setShowNew((s) => !s)}
+                >
                   {showNew ? (
                     <EyeOff className="h-4 w-4" />
                   ) : (
@@ -370,7 +379,8 @@ export default function ChildAccountManager() {
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => setShowConfirm((s) => !s)}>
+                  onClick={() => setShowConfirm((s) => !s)}
+                >
                   {showConfirm ? (
                     <EyeOff className="h-4 w-4" />
                   ) : (

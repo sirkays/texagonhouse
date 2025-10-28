@@ -205,7 +205,7 @@ export function TransactionHistory({
         <div className="relative">
           {/* Loader ONLY in data area */}
           {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
               <Spinner size="md" />
             </div>
           )}
