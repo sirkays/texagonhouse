@@ -19,10 +19,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const queryString = searchParams.toString();
   const fullUrl = `${BASE_URL}${endpoint}${queryString ? `?${queryString}` : ""}`;
+  
   console.log("[TutoringTutorsAPI] GET tutors:", fullUrl);
 
   const session = await getServerSession(authOptions);
+  console.log("[TutoringTutorsAPI] Session token:", session?.user?.sessionToken ? "present" : "missing");
+
   if (!session?.user?.sessionToken) {
+    console.log("[TutoringTutorsAPI] Unauthorized: No session token");
     return NextResponse.json(
       { error: "Not authenticated", redirect: "/login" },
       { status: 401, headers: { "Cache-Control": "no-store" } }
@@ -30,15 +34,28 @@ export async function GET(req: Request) {
   }
 
   try {
+    const requestHeaders = headers(session.user.sessionToken);
+    console.log("[TutoringTutorsAPI] Request headers:", {
+      "Authorization": requestHeaders["Authorization"],
+      "X-Session-Token": requestHeaders["X-Session-Token"] || "not sent",
+      "Content-Type": requestHeaders["Content-Type"]
+    });
+
     const response = await fetch(fullUrl, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
+      headers: requestHeaders,
     });
+
+    console.log("[TutoringTutorsAPI] Response status:", response.status);
+    console.log("[TutoringTutorsAPI] Response headers:", Object.fromEntries(response.headers.entries()));
 
     const contentType = response.headers.get("content-type") || "";
     const raw = await response.text();
+    console.log("[TutoringTutorsAPI] Raw response body:", raw.substring(0, 500) + (raw.length > 500 ? "..." : ""));
 
     if (!response.ok) {
+      console.log("[TutoringTutorsAPI] API error response:", { status: response.status, body: raw });
+      
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired", redirect: "/login" },
@@ -58,6 +75,7 @@ export async function GET(req: Request) {
     }
 
     if (!contentType.includes("application/json")) {
+      console.log("[TutoringTutorsAPI] Invalid content-type:", contentType);
       return NextResponse.json(
         { error: "Invalid response format" },
         { status: 500, headers: { "Cache-Control": "no-store" } }
@@ -65,11 +83,15 @@ export async function GET(req: Request) {
     }
 
     const data = JSON.parse(raw);
+    console.log("[TutoringTutorsAPI] Parsed JSON data:", JSON.stringify(data, null, 2));
+    console.log("[TutoringTutorsAPI] Number of tutors returned:", Array.isArray(data) ? data.length : "not an array");
+
     return NextResponse.json(data, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
+    console.error("[TutoringTutorsAPI] Exception:", error);
     return NextResponse.json(
       { error: "Server error", details: (error as Error).message },
       { status: 500, headers: { "Cache-Control": "no-store" } }

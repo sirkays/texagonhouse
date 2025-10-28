@@ -182,8 +182,8 @@ export default function ChildAccountManager() {
       </div>
 
       {isLoading && (
-        <div className="inset-0 flex justify-center items-center bg-white z-50 h-[100vh]">
-          <Spinner className="w-10 h-10 xs:w-12 xs:h-12 text-[#EF7B55] self-center" size="sm" />
+        <div className="fixed inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm z-50">
+          <Spinner className="h-10 w-10 text-[#EF7B55]" />
         </div>
       )}
       {error && (
@@ -209,38 +209,38 @@ export default function ChildAccountManager() {
         {children.map((child) => (
           <Card key={child.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-16 w-16">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <Avatar className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0">
                     <AvatarImage src={child.avatar || "/placeholder.svg"} />
-                    <AvatarFallback className="text-lg">
+                    <AvatarFallback className="text-base sm:text-lg">
                       {child.name
                         ?.split(" ")
                         .map((n: string) => n[0])
                         .join("") || "N/A"}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <CardTitle className="text-xl">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-lg sm:text-xl truncate">
                       {child.name || "Unknown"}
                     </CardTitle>
-                    <CardDescription className="space-y-1">
-                      <div>
+                    <CardDescription className="text-xs sm:text-sm space-y-1 mt-1">
+                      <div className="truncate">
                         Age {child.age || "N/A"} • {child.grade || "N/A"} •{" "}
                         {child.school || "N/A"}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                         {getStatusBadge(child.status)}
                         {getSubscriptionBadge(child.subscription)}
                       </div>
                     </CardDescription>
                   </div>
                 </div>
-
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => openResetDialog(child.id)}
+                  className="w-full sm:w-auto"
                 >
                   <Key className="h-4 w-4 mr-2" />
                   Reset Password
@@ -249,7 +249,7 @@ export default function ChildAccountManager() {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-6 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
                     <BookOpen className="h-4 w-4" />
@@ -304,17 +304,18 @@ export default function ChildAccountManager() {
                     <Link className="h-4 w-4" />
                     Account Email
                   </h4>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       value={child.email || "N/A"}
                       readOnly
-                      className="font-mono"
+                      className="font-mono text-xs sm:text-sm flex-1"
                     />
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => copyEmail(child.email || "")}
                       disabled={!child.email}
+                      className="w-full sm:w-auto"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
