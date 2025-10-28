@@ -92,6 +92,7 @@ export function CartProvider({children}: {children: ReactNode}) {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({product_id: product.productId, quantity: 1}),
       });
+      console.log(res, " json resp....")
       if (!res.ok) throw new Error("Failed to add to cart");
 
       const data = await res.json();

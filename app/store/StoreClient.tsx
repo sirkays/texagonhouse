@@ -3,7 +3,7 @@
 import {useEffect, useState, Suspense} from "react";
 import {useSearchParams} from "next/navigation";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
-import {ProductCatalog} from "@/components/store/product-catalog";
+import ProductCatalog from "@/components/store/product-catalog";
 import {ShoppingCart} from "@/components/store/shopping-cart";
 import {OrderManagement} from "@/components/store/order-management";
 import {useCart} from "@/providers/CartProvider";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -54,7 +54,7 @@ interface ProductCatalogProps {
   onAddToCart: (product: Product) => void;
 }
 
-export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
+export default function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -62,8 +62,13 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Per-product in-flight lock to prevent double POSTs
+  const inFlightRef = useRef<Set<string>>(new Set());
+  const [adding, setAdding] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     const controller = new AbortController();
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
@@ -84,10 +89,12 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
           )}${categoryParam}&sort=${sortParam}&page_size=100`,
           { signal: controller.signal }
         );
+
         if (!res.ok) {
           setProducts([]);
           return;
         }
+
         const data = await res.json();
         const mappedProducts = (data?.results?.results ?? []).map((p: any) => ({
           id: p.id,
@@ -102,6 +109,7 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
           image: p.image,
           bnplAvailable: p.bnpl_enabled,
         })) as Product[];
+
         setProducts(mappedProducts);
       } catch (err) {
         if ((err as any)?.name !== "AbortError") {
@@ -112,6 +120,7 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
         setLoading(false);
       }
     };
+
     fetchProducts();
     return () => controller.abort();
   }, [searchQuery, selectedCategory, sortBy]);
@@ -130,12 +139,28 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
   const sortedProducts = filteredProducts; // already sorted by API
 
   const addToCart = async (product: Product, quantity = 1) => {
+    const key = product.id;
+
+    // prevent duplicate in-flight requests for the same product
+    if (inFlightRef.current.has(key)) return null;
+
+    inFlightRef.current.add(key);
+    setAdding((s) => ({ ...s, [key]: true }));
+
+    // Create an idempotency key for this specific attempt
+    const idemKey =
+      (typeof crypto !== "undefined" && "randomUUID" in crypto && crypto.randomUUID()) ||
+      `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
     try {
       const res = await fetch("/api/store/cart/add", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-idempotency-key": idemKey,
+        },
         body: JSON.stringify({
-          product_id: product.id, // <-- important
+          product_id: product.id,
           quantity,
         }),
       });
@@ -147,7 +172,6 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
         );
       }
 
-      // Update local cart/UI only after success
       onAddToCart(product);
       toast.success(`${product.name} added to cart!`);
       return data;
@@ -155,14 +179,13 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
       console.error("[addToCart] error:", e);
       toast.error(e?.message || "Could not add to cart");
       return null;
+    } finally {
+      inFlightRef.current.delete(key);
+      setAdding((s) => ({ ...s, [key]: false }));
     }
   };
 
-  const ProductCard = ({
-    product,
-  }: {
-    product: Product;
-  }) => {
+  const ProductCard = ({ product }: { product: Product }) => {
     return (
       <div
         onClick={() => router.push(`/store/products/${product.slug}`)}
@@ -178,11 +201,13 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
             />
             <button
               type="button"
-              className="absolute bottom-1 right-1 bg-white rounded-full p-1.5 shadow-md hover:bg-gray-100 cursor-pointer border-none"
+              className="absolute bottom-1 right-1 bg-white rounded-full p-1.5 shadow-md hover:bg-gray-100 cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                addToCart(product, 1);
+                if (!adding[product.id]) addToCart(product, 1);
               }}
+              disabled={!!adding[product.id]}
               aria-label={`Add ${product.name} to cart`}
             >
               <ShoppingCartIcon className="h-4 w-4 text-black" />
@@ -325,5 +350,3 @@ export function ProductCatalog({ onAddToCart }: ProductCatalogProps) {
     </div>
   );
 }
-
-export default ProductCatalog;
