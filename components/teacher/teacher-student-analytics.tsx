@@ -1069,7 +1069,7 @@ export function TeacherStudentAnalytics() {
                 </Card>
               </div>
 
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle className="text-sm xs:text-base sm:text-lg">
                     Weekly Activity Pattern
@@ -1098,7 +1098,7 @@ export function TeacherStudentAnalytics() {
                     ))}
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
                 <Card>

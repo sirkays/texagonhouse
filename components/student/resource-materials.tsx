@@ -588,13 +588,13 @@ export function ResourceMaterials() {
                   </CardHeader>
                   <CardContent className="flex flex-wrap flex-1">
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>Pages: {pdf.pages || "—"}</div>
-                      <div>Size: {pdf.size || "—"}</div>
+                      {/* <div>Pages: {pdf.pages || "—"}</div>
+                      <div>Size: {pdf.size || "—"}</div> */}
                       {/* <div className="flex items-center gap-1">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         {pdf.rating}
                       </div> */}
-                      <div>{pdf.downloads || 0} downloads</div>
+                      {/* <div>{pdf.downloads || 0} downloads</div> */}
                     </div>
                     <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
                       <Button
