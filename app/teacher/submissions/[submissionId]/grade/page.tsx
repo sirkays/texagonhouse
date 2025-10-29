@@ -510,8 +510,11 @@ import { useParams, useRouter } from "next/navigation";
 import { SubmissionContext } from "../../layout";
 import dynamic from "next/dynamic";
 import { useCodeRunner, Lang } from "../CodeRunner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -550,11 +553,13 @@ export default function GradePage() {
     run,
     ready,
     renderWeb,
+    download,
   } = useCodeRunner(initialFiles);
 
   const [activeTab, setActiveTab] = useState<Tab>((submission?.language as Lang) ?? "html");
-  const [score, setScore] = useState<string>(submission?.score?.toString() ?? "");
+  const [score, setScore] = useState<number>(submission?.score ?? 0);
   const [feedback, setFeedback] = useState<string>(submission?.feedback ?? "");
+  const [errors, setErrors] = useState<{ score?: string }>({});
 
   useEffect(() => {
     if (!isRunning && output) setActiveTab("output");
@@ -568,13 +573,20 @@ export default function GradePage() {
   const isLangDisabled = (lang: Lang) =>
     !files[lang] && lang !== "html" && lang !== "css" && lang !== "javascript";
 
+  const validate = () => {
+    const err: typeof errors = {};
+    if (score < 0 || score > 100) err.score = "Score must be 0–100";
+    setErrors(err);
+    return Object.keys(err).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!submission) return;
+    if (!validate() || !submission) return;
 
     const updated = {
       ...submission,
-      score: parseFloat(score) || 0,
+      score,
       feedback,
       correction_code: files[submission.language as Lang] ?? "",
       status: "graded" as const,
@@ -594,42 +606,60 @@ export default function GradePage() {
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-3 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs sm:text-sm h-8"
+          className="mb-4 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs h-9"
         >
-          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
           Back
         </Button>
 
-        <h1 className="text-lg sm:text-xl font-bold text-slate-800 mb-3">Grade Submission</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mb-5">Grade Submission</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Score & Feedback */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Score</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Score */}
+          <div className="space-y-3">
+            <Label htmlFor="score" className="text-sm font-semibold">
+              Score <span className="text-[#EF7B55] font-bold">{score}</span>/100
+            </Label>
+            <div className="flex items-center gap-3">
+              <Slider
+                id="score"
+                min={0}
+                max={100}
+                step={1}
+                value={[score]}
+                onValueChange={(v) => setScore(v[0])}
+                className="flex-1"
+              />
               <input
                 type="number"
                 value={score}
-                onChange={(e) => setScore(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-[#EF7B55]/30 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
-                required
+                onChange={(e) => setScore(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 ${
+                  errors.score ? "border-red-500" : "border-[#EF7B55]/30"
+                }`}
                 min="0"
                 max="100"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Feedback</label>
-              <textarea
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-[#EF7B55]/30 rounded-md h-20 resize-none focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
-                placeholder="Provide feedback..."
-              />
-            </div>
+            {errors.score && <p className="text-red-500 text-xs mt-1">{errors.score}</p>}
+          </div>
+
+          {/* Feedback */}
+          <div className="space-y-2">
+            <Label htmlFor="feedback" className="text-sm font-semibold">
+              Feedback
+            </Label>
+            <Textarea
+              id="feedback"
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Great logic, but add error handling..."
+              className="min-h-32 resize-none text-sm focus:ring-2 focus:ring-[#EF7B55]/50"
+            />
           </div>
 
           {/* Tabs */}
-          <div className="flex flex-wrap gap-1 mb-2 border-b border-[#EF7B55]/20 text-xs">
+          <div className="flex flex-wrap gap-1 mb-3 border-b border-[#EF7B55]/20 text-xs sm:text-sm">
             {Object.entries(LANG_LABEL).map(([k, l]) => {
               const lang = k as Lang;
               const disabled = isLangDisabled(lang);
@@ -639,7 +669,7 @@ export default function GradePage() {
                   type="button"
                   disabled={disabled}
                   onClick={() => setActiveTab(lang)}
-                  className={`px-2 py-1 rounded-t-md text-xs transition ${
+                  className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${
                     activeTab === lang
                       ? "bg-[#EF7B55] text-white"
                       : disabled
@@ -654,7 +684,7 @@ export default function GradePage() {
             <button
               type="button"
               onClick={() => setActiveTab("output")}
-              className={`px-2 py-1 rounded-t-md text-xs transition ml-1 ${
+              className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ml-1 ${
                 activeTab === "output"
                   ? "bg-[#EF7B55] text-white"
                   : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
@@ -666,7 +696,7 @@ export default function GradePage() {
 
           {/* Mobile Select */}
           <select
-            className="mb-3 w-full p-2 text-xs border border-[#EF7B55]/30 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50 md:hidden"
+            className="mb-4 w-full p-2.5 text-sm border border-[#EF7B55]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 md:hidden"
             value={activeTab}
             onChange={(e) => setActiveTab(e.target.value as Tab)}
           >
@@ -680,7 +710,7 @@ export default function GradePage() {
 
           {/* Editor / Output */}
           {activeTab !== "output" ? (
-            <div className="border border-[#EF7B55]/20 rounded-lg overflow-hidden shadow-sm">
+            <div className="border border-[#EF7B55]/20 rounded-xl overflow-hidden shadow-sm">
               <Editor
                 height="50dvh"
                 language={activeTab}
@@ -691,8 +721,8 @@ export default function GradePage() {
                   theme: "vs-dark",
                   minimap: { enabled: false },
                   wordWrap: "on",
-                  fontSize: 12,
-                  padding: { top: 8, bottom: 8 },
+                  fontSize: 13,
+                  padding: { top: 12, bottom: 12 },
                   lineNumbers: "on",
                   scrollBeyondLastLine: false,
                   folding: false,
@@ -703,41 +733,50 @@ export default function GradePage() {
               />
             </div>
           ) : (
-            <div className="mt-2 border border-[#EF7B55]/20 rounded-lg overflow-hidden shadow-sm">
+            <div className="mt-3 border border-[#EF7B55]/20 rounded-xl overflow-hidden shadow-sm">
               {["html", "css", "javascript"].includes(activeLang) ? (
                 <iframe
                   srcDoc={output || renderWeb()}
                   sandbox="allow-scripts"
-                  className="w-full h-64 sm:h-80"
+                  className="w-full h-64 sm:h-80 md:h-96"
                   title="Web Preview"
                 />
               ) : (
-                <pre className="bg-slate-900 text-green-400 p-2.5 rounded-lg overflow-auto h-64 sm:h-80 font-mono text-xs">
-                  {output || "No output yet. Click Run to see results."}
+                <pre className="bg-slate-900 text-green-400 p-3 sm:p-4 rounded-lg overflow-auto h-64 sm:h-80 md:h-96 font-mono text-xs sm:text-sm">
+                  {output || "Click Run to see output"}
                 </pre>
               )}
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col gap-2 mt-3 sm:flex-row">
+          <div className="flex flex-col gap-3 mt-6 sm:flex-row">
             {activeTab !== "output" && (
               <Button
                 type="button"
                 onClick={run}
-                disabled={
-                  isRunning ||
-                  (activeTab === "python" && !ready.pyodide) ||
-                  (activeTab === "java" && !ready.cheerpj) ||
-                  (activeTab === "cpp" && !ready.emception)
-                }
-                className="w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white text-xs h-9 px-4"
+                disabled={isRunning || !ready[activeTab === "python" ? "pyodide" : activeTab === "java" ? "cheerpj" : "emception"]}
+                className="order-1 w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5"
               >
                 {isRunning ? "Running…" : "Run Correction"}
               </Button>
             )}
 
-            <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white text-xs h-9 px-4">
+            <Button
+              type="button"
+              onClick={download}
+              variant="outline"
+              className="w-full sm:w-auto text-sm h-11 px-5"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+
+            <Button
+              type="submit"
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium text-sm h-11 px-5"
+            >
+              <Send className="w-4 h-4 mr-2" />
               Submit Grade
             </Button>
 
@@ -745,8 +784,9 @@ export default function GradePage() {
               type="button"
               variant="outline"
               onClick={() => router.push("/teacher/submissions")}
-              className="w-full sm:w-auto border-red-500/30 text-red-600 hover:bg-red-50 text-xs h-9 px-4"
+              className="w-full sm:w-auto border-red-500/30 text-red-600 hover:bg-red-50 font-medium text-sm h-11 px-5"
             >
+              <X className="w-4 h-4 mr-2" />
               Cancel
             </Button>
           </div>

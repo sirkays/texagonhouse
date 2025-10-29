@@ -5,15 +5,15 @@ import React, { useContext, useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SubmissionContext } from "../../layout";
 import dynamic from "next/dynamic";
-import { useCodeRunner, Lang } from "../CodeRunner";
-import { ArrowLeft } from "lucide-react";
+import { useCodeRunner } from "../CodeRunner"; // correct import
+import { ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
-type Tab = Lang | "output";
+type Tab = "python" | "javascript" | "html" | "css" | "java" | "cpp" | "output";
 
-const LANG_LABEL: Record<Lang, string> = {
+const LANG_LABEL: Record<Exclude<Tab, "output">, string> = {
   python: "Python",
   javascript: "JavaScript",
   html: "HTML",
@@ -32,7 +32,7 @@ export default function CodePage() {
   const initialFiles = useMemo(() => {
     const empty = { python: "", javascript: "", html: "", css: "", java: "", cpp: "" };
     if (!submission) return empty;
-    const key = submission.language as Lang;
+    const key = submission.language as keyof typeof empty;
     return { ...empty, [key]: submission.code_text };
   }, [submission]);
 
@@ -42,17 +42,18 @@ export default function CodePage() {
     output,
     isRunning,
     run,
-    ready,
     renderWeb,
+    download,
   } = useCodeRunner(initialFiles);
 
-  const [activeTab, setActiveTab] = useState<Tab>((submission?.language as Lang) ?? "html");
+  const [activeTab, setActiveTab] = useState<Tab>((submission?.language as Tab) ?? "html");
 
+  // auto-switch to output when execution finishes
   useEffect(() => {
     if (!isRunning && output) setActiveTab("output");
   }, [isRunning, output]);
 
-  const isLangDisabled = (lang: Lang) =>
+  const isLangDisabled = (lang: Exclude<Tab, "output">) =>
     !files[lang] && lang !== "html" && lang !== "css" && lang !== "javascript";
 
   if (!submission)
@@ -65,19 +66,18 @@ export default function CodePage() {
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-3 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs sm:text-sm h-8"
+          className="mb-3 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs h-8"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
           Back
         </Button>
 
-        {/* Title */}
         <h1 className="text-lg sm:text-xl font-bold text-slate-800 mb-3">View Code</h1>
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-1 mb-2 border-b border-[#EF7B55]/20 text-xs">
           {Object.entries(LANG_LABEL).map(([k, l]) => {
-            const lang = k as Lang;
+            const lang = k as Exclude<Tab, "output">;
             const disabled = isLangDisabled(lang);
             return (
               <button
@@ -110,14 +110,14 @@ export default function CodePage() {
           </button>
         </div>
 
-        {/* Mobile Select */}
+        {/* Mobile select */}
         <select
           className="mb-3 w-full p-2 text-xs border border-[#EF7B55]/30 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50 md:hidden"
           value={activeTab}
           onChange={(e) => setActiveTab(e.target.value as Tab)}
         >
           {Object.entries(LANG_LABEL).map(([k, l]) => (
-            <option key={k} value={k} disabled={isLangDisabled(k as Lang)}>
+            <option key={k} value={k} disabled={isLangDisabled(k as any)}>
               {l}
             </option>
           ))}
@@ -132,6 +132,7 @@ export default function CodePage() {
               language={activeTab}
               value={files[activeTab] ?? ""}
               options={{
+                // **READ-ONLY** – this is a *view* page
                 readOnly: true,
                 theme: "vs-dark",
                 minimap: { enabled: false },
@@ -158,29 +159,32 @@ export default function CodePage() {
               />
             ) : (
               <pre className="bg-slate-900 text-green-400 p-2.5 rounded-lg overflow-auto h-64 sm:h-80 font-mono text-xs">
-                {output || "No output yet."}
+                {output || "Click Run to see output"}
               </pre>
             )}
           </div>
         )}
 
-        {/* Run Button */}
-        {activeTab !== "output" && (
-          <div className="mt-3">
+        {/* Run & Download */}
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          {activeTab !== "output" && (
             <Button
               onClick={run}
-              disabled={
-                isRunning ||
-                (activeTab === "python" && !ready.pyodide) ||
-                (activeTab === "java" && !ready.cheerpj) ||
-                (activeTab === "cpp" && !ready.emception)
-              }
+              disabled={isRunning}
               className="w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white text-xs h-9 px-4"
             >
-              {isRunning ? "Running..." : "Run Code"}
+              {isRunning ? "Running…" : "Run Code"}
             </Button>
-          </div>
-        )}
+          )}
+          <Button
+            onClick={download}
+            variant="outline"
+            className="w-full sm:w-auto text-xs h-9 px-4"
+          >
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Download
+          </Button>
+        </div>
       </div>
     </div>
   );
