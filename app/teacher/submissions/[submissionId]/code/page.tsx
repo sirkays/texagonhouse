@@ -131,7 +131,7 @@ export default function CodePage() {
       {activeTab !== "output" ? (
         <div className="mb-4">
           <Editor
-            height="60vh"
+            height="50vh"
             language={activeTab}
             value={files[activeTab] ?? ""}
             onChange={(v) => updateFile(activeTab as Lang, v ?? "")}
