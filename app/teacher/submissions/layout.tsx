@@ -3,21 +3,6 @@
 
 import React, {useState, createContext} from "react";
 
-// interface Submission {
-//   id: number;
-//   student: {id: number; user: {username: string}};
-//   lesson: {id: number; title: string};
-//   language: string;
-//   code_text: string;
-//   status: "submitted" | "graded" | "revised";
-//   score?: number;
-//   feedback?: string;
-//   correction_code?: string;
-//   graded_by?: {id: number};
-//   graded_at?: string;
-//   comments: Comment[];
-// }
-// types.ts
 export type SubmissionStatus = "submitted" | "graded" | "revised";
 
 export interface Submission {
