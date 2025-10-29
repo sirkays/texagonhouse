@@ -16,6 +16,7 @@ import {
   Video,
   Calendar,
   LogOut,
+  Laptop,
 } from "lucide-react";
 import {
   Sidebar,
@@ -99,12 +100,12 @@ const menuItems = [
     id: "analytics",
     path: "/teacher/student-analytics",
   },
-  // {
-  //   title: "Live Sessions",
-  //   icon: CameraIcon,
-  //   id: "live-session",
-  //   path: "/main/home",
-  // },
+  {
+    title: "Code Submission",
+    icon: Laptop,
+    id: "code-submission",
+    path: "/teacher/submissions",
+  },
 ];
 
 function SidebarMenuContent() {

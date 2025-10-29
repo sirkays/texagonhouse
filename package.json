@@ -70,6 +70,8 @@
     "next-themes": "latest",
     "node-cache": "^5.1.2",
     "node-fetch": "^3.3.2",
+    "prism-react-renderer": "^2.4.1",
+    "pyodide": "^0.29.0",
     "react": "^19",
     "react-datepicker": "^8.1.0",
     "react-day-picker": "latest",
