@@ -2,7 +2,7 @@
 
 import React, {useEffect, useState} from "react";
 import Link from "next/link";
-import {ProductDetail} from "@/components/store/product-detail"; // ensure this is a client component
+import {ProductDetail} from "@/components/store/product-detail";
 
 interface BackendProduct {
   id: string;
@@ -44,7 +44,6 @@ export default function ProductPage({params}: {params: {slug: string}}) {
         if (!res.ok) {
           throw new Error(`Failed to fetch product: ${res.statusText}`);
         }
-
         const data: BackendProduct = await res.json();
         setProduct(data);
       } catch (err) {
@@ -56,8 +55,7 @@ export default function ProductPage({params}: {params: {slug: string}}) {
     }
 
     fetchProduct();
-  }, []);
-  // }, [params.slug]);
+  }, [params.slug]); // Fixed: was commented out
 
   if (loading) {
     return <div className="text-center p-6">Loading...</div>;
@@ -78,7 +76,6 @@ export default function ProductPage({params}: {params: {slug: string}}) {
     );
   }
 
-  // 🧩 Map backend data to UI format
   const uiProduct: UiProduct = {
     id: product.id,
     name: product.title,
@@ -92,10 +89,9 @@ export default function ProductPage({params}: {params: {slug: string}}) {
     bnplAvailable: product.bnpl_enabled,
   };
 
-  // ✅ Return final product detail view
   return (
-    <div className="container mx-auto flex justify-center p-10">
-      <Link href="/store" className="text-blue-600 underline">
+    <div className="container mx-auto p-4">
+      <Link href="/store" className="text-blue-600 underline mb-4 inline-block">
         Back to Store
       </Link>
       <ProductDetail product={uiProduct} />
