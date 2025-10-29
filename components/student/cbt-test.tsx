@@ -1045,12 +1045,6 @@ export function CBTTest() {
                   >
                     Refresh
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => (window.location.href = "/")}
-                  >
-                    Go to Dashboard
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1234,7 +1228,6 @@ export function CBTTest() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {sortedAttempts.map((a) => {
                 const pct = percentFromAttempt(a);
-                console.log(sortedAttempts, " sorted");
                 const submittedDate = a.submitted_at
                   ? new Date(a.submitted_at).toLocaleDateString()
                   : a.started_at
