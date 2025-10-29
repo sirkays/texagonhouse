@@ -5,19 +5,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { PaymentStatusBadge } from "@/components/invoice/payment-status-badge";
 import { InvoiceDetailsModal } from "@/components/invoice/invoice-details-modal";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  MoreHorizontal,
-  Eye,
-  Download,
-  Calendar,
-  DollarSign,
-  Building2,
-  CreditCard,
-} from "lucide-react";
+import { MoreHorizontal, Eye, Download, CreditCard } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { generateInvoicePDF } from "@/lib/generate-pdf";
 
 interface Invoice {
   id: number;
@@ -46,35 +38,20 @@ interface Invoice {
 }
 
 export function InvoiceList() {
-  const { invoices, setInvoices, searchTerm } = useInvoiceFilters();
-
+  const { invoices, searchTerm, setInvoices } = useInvoiceFilters();  // <-- only read
   const searchParams = useSearchParams();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
-    null
-  );
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [invoiceId, setInvoiceId] = useState<string | "">("");
-
-  const fetchInvoices = async () => {
-    try {
-      const res = await fetch("/api/billing");
-      if (!res.ok) throw new Error("Failed to fetch invoices");
-      const data = await res.json();
-      setInvoices(data.results || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchInvoices();
-  }, [setInvoices]);
+    setLoading(false);
+  }, []);
+
 
   useEffect(() => {
     const status = searchParams.get("status");
@@ -86,7 +63,18 @@ export function InvoiceList() {
     }
   }, [searchParams]);
 
-  // const redirect_url = `${window.location.origin}/invoice/invoices`;
+  const refetchInvoices = async () => {
+  try {
+    const res = await fetch("/api/billing");
+    if (res.ok) {
+      const data = await res.json();
+    
+      setInvoices(data.results || []);
+    }
+  } catch {
+  
+  }
+};
 
   const confirmPayment = async (
     invoice_id: string,
@@ -101,286 +89,192 @@ export function InvoiceList() {
         body: JSON.stringify({ invoice_id, tx_ref, transaction_id }),
       });
       if (!res.ok) throw new Error("Failed to confirm payment");
-      await fetchInvoices();
+
+      await refetchInvoices();
       setIsSuccessModalOpen(true);
-    } catch (err) {
+
+
+      const url = new URL(window.location.href);
+    url.searchParams.delete("status");
+    url.searchParams.delete("tx_ref");
+    url.searchParams.delete("transaction_id");
+    url.searchParams.delete("invoice_number");
+    window.history.replaceState({}, "", url);
+    } catch {
       alert("Failed to confirm payment");
     } finally {
       setPaymentLoading(false);
     }
   };
 
-  console.log(
-    "Invoices:",
-    invoices.map((inv) => ({
-      id: inv.id,
-      number: inv.number,
-      status: inv.status,
-    })),
-    invoiceId
-  );
 
-  const handleViewInvoice = (id: number) => {
-    setSelectedInvoiceId(id);
+  const openDetails = (inv: Invoice) => {
+    setSelectedInvoice(inv);
     setIsModalOpen(true);
   };
-
-  const handleCloseModal = () => {
+  const closeDetails = () => {
     setIsModalOpen(false);
-    setSelectedInvoiceId(null);
+    setSelectedInvoice(null);
   };
 
-  const downloadPDF = async (id: number) => {
-    try {
-      const res = await fetch(`/api/billing/invoice/${id}/pdf`, {
-        method: "GET",
-        headers: {
-          Accept: "application/pdf",
-        },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("PDF API error:", res.status, text);
-        throw new Error(
-          `Failed to generate PDF: ${res.status} ${res.statusText}`
-        );
-      }
-
-      const blob = await res.blob();
-      if (blob.size === 0) throw new Error("Empty PDF response");
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("PDF download failed:", err);
-      alert("Could not download PDF. Please try again.");
-    }
+const downloadPDF = (invoice: Invoice) => {
+    generateInvoicePDF(invoice);
   };
 
+ 
   const handlePayInvoice = async (invoice_number: string) => {
     setPaymentLoading(true);
     try {
-      const redirect_url = `${window.location.origin}/invoice/invoices`;
-      const full_redirect_url = `${redirect_url}?invoice_number=${encodeURIComponent(
+      const redirect_url = `${window.location.origin}/invoice/invoices?invoice_number=${encodeURIComponent(
         invoice_number
       )}`;
       const res = await fetch("/api/billing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoice_id: invoice_number,
-          redirect_url: full_redirect_url,
-        }),
+        body: JSON.stringify({ invoice_id: invoice_number, redirect_url }),
       });
-      if (!res.ok) throw new Error("Failed to initiate payment");
-      const data = await res.json();
-      if (data.payment_link) {
-        window.location.href = data.payment_link;
-      } else {
-        alert("Payment initiated, but no URL provided");
-      }
-    } catch (err) {
+      if (!res.ok) throw new Error("Payment init failed");
+      const { payment_link } = await res.json();
+      window.location.href = payment_link;
+    } catch {
       alert("Failed to initiate payment");
     } finally {
       setPaymentLoading(false);
     }
   };
 
+
   if (loading || paymentLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" className="text-black" />
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner size="md" />
       </div>
     );
   }
+  if (error) return <p className="text-destructive">{error}</p>;
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <p className="text-destructive">Error: {error}</p>
-      </div>
-    );
-  }
+
+  const filtered = invoices.filter(
+    (i) =>
+      !searchTerm ||
+      i.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.meta.parent_profile_id.toString().includes(searchTerm)
+  );
 
   return (
     <>
       <div className="space-y-4">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight md:text-xl lg:text-2xl">
-              Recent Invoices
-            </h2>
-            <p className="text-muted-foreground text-sm md:text-base">
-              Manage and track your invoice status
+            <h2 className="text-xl font-semibold">Recent Invoices</h2>
+            <p className="text-sm text-muted-foreground">
+              {filtered.length} invoice{filtered.length !== 1 && "s"} shown
             </p>
           </div>
-          <Badge
-            variant="outline"
-            className="bg-primary/10 text-primary border-primary/20 w-fit"
-          >
-            {invoices.length} Total
-          </Badge>
         </div>
 
         <div className="grid gap-3">
-          {invoices
-            .filter((invoice) =>
-              searchTerm
-                ? invoice.number
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                  invoice.meta.parent_profile_id.toString().includes(searchTerm)
-                : true
-            )
-            .map((invoice, index) => (
-              <Card
-                key={invoice.id}
-                className="hover-lift border-0 shadow-sm bg-gradient-to-br from-card to-card/50 backdrop-blur animate-slide-up"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-base font-semibold md:text-lg">
-                          {invoice.number}
-                        </CardTitle>
-                        <PaymentStatusBadge status={invoice.status} size="sm" />
-                      </div>
-                      <p className="text-xs text-muted-foreground md:text-sm">
-                        Generated for parent profile
-                      </p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-9 w-9 p-0"
-                        >
-                          <MoreHorizontal className="h-5 w-5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => handleViewInvoice(invoice.id)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => downloadPDF(invoice.id)}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download PDF
-                        </DropdownMenuItem>
-                        {invoice.status === "open" && (
-                          <DropdownMenuItem
-                            onClick={() => handlePayInvoice(invoice.number)}
-                          >
-                            <CreditCard className="h-4 w-4 mr-2" />
-                            Pay Now
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                        <Building2 className="h-4 w-4" />
-                        <span>Profile</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm md:text-base">
-                          Parent ID: {invoice.meta.parent_profile_id}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                        <DollarSign className="h-4 w-4" />
-                        <span>Amount</span>
-                      </div>
-                      <p className="font-bold text-base md:text-lg">
-                        {invoice.currency}{" "}
-                        {Number(invoice.amount).toLocaleString()}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                        <Calendar className="h-4 w-4" />
-                        <span>Due Date</span>
-                      </div>
-                      <p className="font-medium text-sm md:text-base">
-                        {new Date(invoice.due_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                        <Calendar className="h-4 w-4" />
-                        <span>Issued</span>
-                      </div>
-                      <p className="font-medium text-sm md:text-base">
-                        {new Date(invoice.issued_at).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )}
-                      </p>
+          {filtered.map((invoice, idx) => (
+            <Card
+              key={invoice.id}
+              className="hover-lift shadow-sm"
+              style={{ animationDelay: `${idx * 0.1}s` }}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base">
+                        {invoice.number}
+                      </CardTitle>
+                      <PaymentStatusBadge status={invoice.status} size="sm" />
                     </div>
                   </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4 pt-3 border-t">
-                    <div className="text-xs text-muted-foreground">
-                      Status: <Badge variant="outline">{invoice.status}</Badge>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 mt-2 sm:mt-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="hover-lift bg-transparent w-full sm:w-auto py-2"
-                        onClick={() => handleViewInvoice(invoice.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                        <MoreHorizontal className="h-5 w-5" />
                       </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openDetails(invoice)}>
+                        <Eye className="h-4 w-4 mr-2" />View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => downloadPDF(invoice)}>
+                        <Download className="h-4 w-4 mr-2" />Download PDF
+                      </DropdownMenuItem>
                       {invoice.status === "open" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="hover-lift bg-transparent w-full sm:w-auto py-2"
-                          onClick={() => handlePayInvoice(invoice.number)}
-                        >
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Pay
-                        </Button>
+                        <DropdownMenuItem onClick={() => handlePayInvoice(invoice.number)}>
+                          <CreditCard className="h-4 w-4 mr-2" />Pay Now
+                        </DropdownMenuItem>
                       )}
-                    </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Profile</p>
+                    <p className="font-medium">
+                      ID: {invoice.meta.parent_profile_id}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <div>
+                    <p className="text-muted-foreground">Amount</p>
+                    <p className="font-bold">
+                      {invoice.currency} {Number(invoice.amount).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Due</p>
+                    <p className="font-medium">
+                      {new Date(invoice.due_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Issued</p>
+                    <p className="font-medium">
+                      {new Date(invoice.issued_at).toLocaleDateString(
+                        "en-US",
+                        { month: "short", day: "numeric", year: "numeric" }
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end gap-2 border-t pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openDetails(invoice)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                  {invoice.status === "open" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePayInvoice(invoice.number)}
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Pay
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
 
+      {/* Success dialog */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -395,10 +289,11 @@ export function InvoiceList() {
         </DialogContent>
       </Dialog>
 
+      {/* Details modal – receives **full invoice** */}
       <InvoiceDetailsModal
-        invoiceId={selectedInvoiceId}
+        invoice={selectedInvoice}
         isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        onClose={closeDetails}
       />
     </>
   );

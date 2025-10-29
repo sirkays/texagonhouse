@@ -29,21 +29,24 @@ export function useInvoiceFilters() {
   }, [searchTerm]);
 
   // Fetch invoices
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      const params = new URLSearchParams();
-      if (debouncedSearchTerm) {
-        params.append("search", debouncedSearchTerm);
-      }
+  const fetchInvoices = useCallback(async (query = "") => {
+    const params = new URLSearchParams();
+    if (query) params.append("search", query);
+    const res = await fetch(`/api/billing?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      setInvoices(data.results || []);
+    }
+  }, []);
 
-      const res = await fetch(`/api/billing?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setInvoices(data.results || []);
-      }
-    };
+  // Initial load
+  useEffect(() => {
     fetchInvoices();
-  }, [debouncedSearchTerm]);
+  }, [fetchInvoices]);
+
+  const triggerSearch = () => {
+    fetchInvoices(searchTerm);
+  };
 
   // Export CSV
   const exportCSV = useCallback(() => {
@@ -84,6 +87,7 @@ export function useInvoiceFilters() {
     setSearchTerm,
     invoices,
     setInvoices,
+    triggerSearch,
     exportCSV,
   };
 }
