@@ -384,7 +384,6 @@ export function TeacherCBTCreator() {
       return;
     }
     const data = await res.json();
-    console.log(data, " unncsjncdkncdjnckdj..............................")
     if (data.error === "Session expired") {
       router.push("/login");
       setLoadingTests(false);
@@ -755,7 +754,6 @@ export function TeacherCBTCreator() {
   };
 
   const handleEditTest = async (test: CBTTest) => {
-    console.log(test," Test side......")
     setIsSaving(true);
     const testData = await fetchTestById(test.id);
     if (testData) {
@@ -1053,7 +1051,6 @@ export function TeacherCBTCreator() {
   }, []);
 
   /* --------------------------------- UI --------------------------------- */
-  console.log(currentTest," ......curent test")
   return (
     <div className="space-y-6">
       <div>
