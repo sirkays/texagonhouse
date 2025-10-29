@@ -139,7 +139,7 @@ const headers = (sessionToken: string | null) => ({
 const durationToMinutes = (duration: string): number => {
   if (!duration) return 0;
   duration = String(duration);
-  console.log("dat ",duration)
+  console.log("dat ", duration);
   const parts = duration.match(/(\d+)h\s*(\d+)m/);
   if (!parts) return parseInt(duration) || 0;
   const hours = parseInt(parts[1]) || 0;
@@ -223,6 +223,7 @@ export function TeacherLearningModules() {
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(""); // NEW: Controlled input
 
   // Fetch session token
   useEffect(() => {
@@ -380,10 +381,9 @@ export function TeacherLearningModules() {
           query.set("page", currentPageAnalytics.toString());
           query.set("page_size", "10");
 
-          const res = await fetch(
-            `/api/teacher/module-analytics`,
-            { headers: headers(sessionToken) }
-          );
+          const res = await fetch(`/api/teacher/module-analytics`, {
+            headers: headers(sessionToken),
+          });
 
           if (!res.ok) {
             const err = await res.json();
@@ -392,7 +392,14 @@ export function TeacherLearningModules() {
 
           let data = await res.json();
           // Normalize module IDs
-          data.modules = data.modules.map((m: Module) => ({ ...m, id: String(m.id), course: { ...m.course, id: m.course?.id ? String(m.course.id) : undefined } }));
+          data.modules = data.modules.map((m: Module) => ({
+            ...m,
+            id: String(m.id),
+            course: {
+              ...m.course,
+              id: m.course?.id ? String(m.course.id) : undefined,
+            },
+          }));
           setAnalytics(data);
         } catch (err) {
           setAnalyticsError((err as Error).message);
@@ -678,7 +685,10 @@ export function TeacherLearningModules() {
     }
   };
 
-  const createLesson = async (moduleId: string, lesson: Lesson): Promise<Lesson | null> => {
+  const createLesson = async (
+    moduleId: string,
+    lesson: Lesson
+  ): Promise<Lesson | null> => {
     if (!lesson.title) {
       throw new Error("Lesson title is required.");
     }
@@ -989,7 +999,9 @@ export function TeacherLearningModules() {
         isPublished: data.module.isPublished,
         createdDate: formatDate(data.module.createdAt),
         course: {
-          id: data.module.course?.id ? String(data.module.course.id) : undefined,
+          id: data.module.course?.id
+            ? String(data.module.course.id)
+            : undefined,
           name: data.module.course?.name || "",
         },
         lessons: currentModule.lessons,
@@ -1173,7 +1185,10 @@ export function TeacherLearningModules() {
       try {
         parsed = responseText ? JSON.parse(responseText) : null;
       } catch (e) {
-        console.error("[saveLesson] Failed to parse JSON:", responseText.slice(0, 200));
+        console.error(
+          "[saveLesson] Failed to parse JSON:",
+          responseText.slice(0, 200)
+        );
         throw new Error("Invalid response format from server");
       }
 
@@ -1472,27 +1487,27 @@ export function TeacherLearningModules() {
     }
   };
 
-function getFileName(input?: string | File | null): string {
-  if (!input) return "";
+  function getFileName(input?: string | File | null): string {
+    if (!input) return "";
 
-  // If it's a File object, just return its name
-  if (typeof File !== "undefined" && input instanceof File) {
-    return input.name;
+    // If it's a File object, just return its name
+    if (typeof File !== "undefined" && input instanceof File) {
+      return input.name;
+    }
+
+    const str = String(input);
+
+    // Try URL first (strips query/hash)
+    try {
+      const u = new URL(str);
+      const name = u.pathname.split("/").filter(Boolean).pop() || "";
+      return decodeURIComponent(name);
+    } catch {
+      // Not a URL — treat as path
+      const name = str.split(/[\\/]/).filter(Boolean).pop() || "";
+      return decodeURIComponent(name);
+    }
   }
-
-  const str = String(input);
-
-  // Try URL first (strips query/hash)
-  try {
-    const u = new URL(str);
-    const name = u.pathname.split("/").filter(Boolean).pop() || "";
-    return decodeURIComponent(name);
-  } catch {
-    // Not a URL — treat as path
-    const name = str.split(/[\\/]/).filter(Boolean).pop() || "";
-    return decodeURIComponent(name);
-  }
-}
 
   return (
     <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
@@ -1772,7 +1787,11 @@ function getFileName(input?: string | File | null): string {
                     </div>
                   </div>
 
-                  {error && <p className="text-red-500 text-[0.85rem] xs:text-xs sm:text-sm">{error}</p>}
+                  {error && (
+                    <p className="text-red-500 text-[0.85rem] xs:text-xs sm:text-sm">
+                      {error}
+                    </p>
+                  )}
 
                   <div className="pt-2 xs:pt-3 space-y-2">
                     <Button
@@ -2115,7 +2134,9 @@ function getFileName(input?: string | File | null): string {
                           {editingLesson.file ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                value={getFileName(editingLesson.file || editingLesson.videoUrl)}
+                                value={getFileName(
+                                  editingLesson.file || editingLesson.videoUrl
+                                )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
                               />
@@ -2180,7 +2201,9 @@ function getFileName(input?: string | File | null): string {
                           {editingLesson.file ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                value={getFileName(editingLesson.file || editingLesson.videoUrl)}
+                                value={getFileName(
+                                  editingLesson.file || editingLesson.videoUrl
+                                )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
                               />
@@ -2245,7 +2268,9 @@ function getFileName(input?: string | File | null): string {
                           {editingLesson.file ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                value={getFileName(editingLesson.file || editingLesson.videoUrl)}
+                                value={getFileName(
+                                  editingLesson.file || editingLesson.videoUrl
+                                )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
                               />
@@ -2374,22 +2399,36 @@ function getFileName(input?: string | File | null): string {
                 View and manage all your learning modules
               </p>
             </div>
-            <div className="flex gap-2 xs:gap-3 flex-col sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search modules..."
-                  className="pl-8 text-xs xs:text-sm sm:text-base"
-                />
+            <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 items-start sm:items-center">
+              {/* Search Input + Button */}
+              <div className="flex gap-2 xs:gap-3 flex-1">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search modules..."
+                    className="pl-8 text-xs xs:text-sm sm:text-base"
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && setSearch(searchQuery)
+                    }
+                  />
+                </div>
+                <Button
+                  onClick={() => setSearch(searchQuery)}
+                  className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md whitespace-nowrap"
+                >
+                  <Search className="h-3 w-3 xs:h-4 xs:w-4" />
+                </Button>
               </div>
+
+              {/* Difficulty Filter */}
               <Select
                 value={difficultyFilter}
                 onValueChange={setDifficultyFilter}
               >
                 <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
-                  <SelectValue placeholder="Filter by difficulty" />
+                  <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
@@ -2412,6 +2451,8 @@ function getFileName(input?: string | File | null): string {
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Create New Module Button */}
               <Button
                 onClick={() => {
                   setCurrentModule(initialModule);
@@ -2420,7 +2461,7 @@ function getFileName(input?: string | File | null): string {
                 className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
               >
                 <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                Create New Module
+                Create New
               </Button>
             </div>
           </div>
@@ -2452,134 +2493,152 @@ function getFileName(input?: string | File | null): string {
                 ).paginatedModules.map((module) => {
                   const Icon = getTypeIcon(module.type);
                   return (
-                        <Card
-                          key={module.id}
-                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                        >
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1 flex-1">
-                                <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                                  {module.title}
-                                </CardTitle>
-                                <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
-                                  {module.description}
-                                </CardDescription>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={async () => {
-                                      const moduleData = await getModuleDetails(module.id);
-                                      if (moduleData) {
-                                        setCurrentModule(moduleData);
-                                        setActiveTab("create");
-                                      }
-                                    }}
-                                  >
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    <span>Edit</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={async () => {
-                                      const moduleData = await getModuleDetails(module.id);
-                                      if (moduleData) {
-                                        setPreviewModule(moduleData);
-                                        setIsPreviewOpen(true);
-                                      }
-                                    }}
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    <span>Preview</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => deleteModule(module.id)}
-                                    className="text-red-600"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Delete</span>
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="flex flex-col flex-1 justify-between space-y-3 xs:space-y-4">
-                            <div>
-                              <div className="flex items-center flex-wrap gap-2">
-                                <Badge
-                                  variant={module.isPublished ? "default" : "secondary"}
-                                  className={
-                                    module.isPublished
-                                      ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
-                                      : "bg-gray-500 text-white hover:bg-gray-600"
-                                  }
-                                >
-                                  {module.isPublished ? "Published" : "Draft"}
-                                </Badge>
-                                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
-                                  {module.difficulty}
-                                </Badge>
-                                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
-                                  {module.category || "Uncategorized"}
-                                </Badge>
-                                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
-                                  {module.course.name}
-                                </Badge>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                  {minutesToDuration(module.duration)}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                  {module.enrollments}
-                                </div>
-                                <div>{module.createdDate}</div>
-                              </div>
-                            </div>
-
-                            {/* 👇 Buttons pushed to bottom */}
-                            <div className="flex gap-2 flex-col lg:flex-row mt-auto">
-                              <Button
-                                className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                    <Card
+                      key={module.id}
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1 flex-1">
+                            <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                              {module.title}
+                            </CardTitle>
+                            <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
+                              {module.description}
+                            </CardDescription>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
                                 onClick={async () => {
-                                  const moduleData = await getModuleDetails(module.id);
+                                  const moduleData = await getModuleDetails(
+                                    module.id
+                                  );
                                   if (moduleData) {
                                     setCurrentModule(moduleData);
                                     setActiveTab("create");
                                   }
                                 }}
                               >
-                                <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                                <Edit className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={async () => {
-                                  const moduleData = await getModuleDetails(module.id);
+                                  const moduleData = await getModuleDetails(
+                                    module.id
+                                  );
                                   if (moduleData) {
                                     setPreviewModule(moduleData);
                                     setIsPreviewOpen(true);
                                   }
                                 }}
                               >
-                                <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                Preview
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                                <Eye className="mr-2 h-4 w-4" />
+                                <span>Preview</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => deleteModule(module.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardHeader>
 
+                      <CardContent className="flex flex-col flex-1 justify-between space-y-3 xs:space-y-4">
+                        <div>
+                          <div className="flex items-center flex-wrap gap-2">
+                            <Badge
+                              variant={
+                                module.isPublished ? "default" : "secondary"
+                              }
+                              className={
+                                module.isPublished
+                                  ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
+                                  : "bg-gray-500 text-white hover:bg-gray-600"
+                              }
+                            >
+                              {module.isPublished ? "Published" : "Draft"}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[0.85rem] xs:text-xs sm:text-sm"
+                            >
+                              {module.difficulty}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[0.85rem] xs:text-xs sm:text-sm"
+                            >
+                              {module.category || "Uncategorized"}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[0.85rem] xs:text-xs sm:text-sm"
+                            >
+                              {module.course.name}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {minutesToDuration(module.duration)}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {module.enrollments}
+                            </div>
+                            <div>{module.createdDate}</div>
+                          </div>
+                        </div>
+
+                        {/* 👇 Buttons pushed to bottom */}
+                        <div className="flex gap-2 flex-col lg:flex-row mt-auto">
+                          <Button
+                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                            onClick={async () => {
+                              const moduleData = await getModuleDetails(
+                                module.id
+                              );
+                              if (moduleData) {
+                                setCurrentModule(moduleData);
+                                setActiveTab("create");
+                              }
+                            }}
+                          >
+                            <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                            onClick={async () => {
+                              const moduleData = await getModuleDetails(
+                                module.id
+                              );
+                              if (moduleData) {
+                                setPreviewModule(moduleData);
+                                setIsPreviewOpen(true);
+                              }
+                            }}
+                          >
+                            <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            Preview
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
