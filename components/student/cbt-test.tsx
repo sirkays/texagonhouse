@@ -111,6 +111,7 @@ type AttemptsPayload = {
 /* ---------- CBTTest component ---------- */
 
 export function CBTTest() {
+  const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(null);
   const { data: session, status } = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -160,6 +161,28 @@ export function CBTTest() {
   );
 
   /* ---------- Fetch tests list + server attempts ---------- */
+useEffect(() => {
+  if (!testCompleted) return;
+  setAutoReloadSeconds(120); // 2 minutes
+
+  const interval = setInterval(() => {
+    setAutoReloadSeconds((s) => {
+      if (s == null) return s;
+      if (s <= 1) {
+        clearInterval(interval);
+        if (typeof window !== "undefined") {
+          window.location.reload(); // hard reload to fetch fresh tests & attempts
+        }
+        return 0;
+      }
+      return s - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [testCompleted]);
+
+
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated" || !sessionToken) {
@@ -573,13 +596,17 @@ export function CBTTest() {
             )}
 
             <div className="flex gap-4 justify-center">
-              <Button
-                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={handleResetToList}
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Take Next Test
-              </Button>
+                <Button
+                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                  onClick={() => {
+                    // hard reload ensures we return to the Available Tests tab and refetch everything
+                    if (typeof window !== "undefined") window.location.reload();
+                  }}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Go back to Test
+                </Button>
+
 
               {result && (
                 <Button

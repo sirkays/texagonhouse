@@ -965,7 +965,7 @@ export function TeacherTutoringBooking() {
       </div>
     );
   }
-
+  console.log(upcomingSessions, " upcomingSessions.... ");
   return (
     <div className="space-y-6">
       {error && (

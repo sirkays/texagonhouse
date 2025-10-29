@@ -282,6 +282,7 @@ export function TeacherCBTCreator() {
   const [currentTest, setCurrentTest] = useState<CBTTest>({
     id: "",
     title: "",
+    course_id:"",
     description: "",
     instructions: "",
     duration: 30,
@@ -425,6 +426,7 @@ export function TeacherCBTCreator() {
 
     return {
       id: data.test.id || "",
+      course_id: data.test.course_id || "",
       title: data.test.title || "",
       description: data.test.description || "",
       instructions: data.test.instructions || "",
