@@ -7,7 +7,7 @@ interface TeacherBiodataData {
   firstName: string;
   lastName: string;
   phone: string;
-  address: string;
+  // address: string;
   qualifications: string;
   subjects: string;
   experienceYears: number;
@@ -18,7 +18,7 @@ export default function TeacherBiodataForm() {
     firstName: "",
     lastName: "",
     phone: "",
-    address: "",
+    // address: "",
     qualifications: "",
     subjects: "",
     experienceYears: 0,
@@ -95,7 +95,7 @@ export default function TeacherBiodataForm() {
             onChange={handleChange}
           />
         </div>
-        <div>
+        {/* <div>
           <label
             htmlFor="address"
             className="block text-sm font-medium text-gray-700">
@@ -109,7 +109,7 @@ export default function TeacherBiodataForm() {
             value={formData.address}
             onChange={handleChange}
           />
-        </div>
+        </div> */}
         <div>
           <label
             htmlFor="qualifications"
@@ -160,7 +160,7 @@ export default function TeacherBiodataForm() {
         </div>
         <button
           type="submit"
-          className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+          className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#f79771] hover:bg-[#f79771]">
           Submit Biodata
         </button>
       </form>

@@ -42,7 +42,7 @@ const navigationItems = [
     url: "/invoice/invoices",
     icon: Receipt,
     description: "Create and manage invoices",
-    badge: "New",
+    badge: null,
   },
   {
     title: "Transactions",
@@ -66,7 +66,7 @@ const supportItems = [
     url: "/invoice/complaints",
     icon: MessageSquare,
     description: "Payment complaints and support",
-    badge: "5",
+    badge: null,
   },
   // {
   //   title: "Settings",
@@ -119,7 +119,7 @@ function SidebarMenuContent() {
           <Badge
             variant={
               "Navigation".toLowerCase().includes(item.title.toLowerCase())
-                ? item.badge === "New"
+                ? item.badge === ""
                   ? "default"
                   : "secondary"
                 : "destructive"

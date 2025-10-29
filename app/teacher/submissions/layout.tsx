@@ -3,27 +3,12 @@
 
 import React, {useState, createContext} from "react";
 
-// interface Submission {
-//   id: number;
-//   student: {id: number; user: {username: string}};
-//   lesson: {id: number; title: string};
-//   language: string;
-//   code_text: string;
-//   status: "submitted" | "graded" | "revised";
-//   score?: number;
-//   feedback?: string;
-//   correction_code?: string;
-//   graded_by?: {id: number};
-//   graded_at?: string;
-//   comments: Comment[];
-// }
-// types.ts
 export type SubmissionStatus = "submitted" | "graded" | "revised";
 
 export interface Submission {
   id: number;
   student: {id: number; user: {username: string}};
-  lesson: {id: number; title: string};
+  lesson: {id: number; title: string; class_name?: string};
   language: string;
   code_text: string;
   correction_code?: string;
@@ -71,7 +56,7 @@ const mockSubmissions: Submission[] = [
   {
     id: 2,
     student: {id: 102, user: {username: "student2"}},
-    lesson: {id: 202, title: "JavaScript Basics"},
+    lesson: {id: 202, title: "JavaScript Basics", class_name: "Web Development"},
     language: "javascript",
     code_text: 'console.log("Hello, World!");',
     status: "graded",
@@ -83,7 +68,7 @@ const mockSubmissions: Submission[] = [
   {
     id: 3,
     student: {id: 103, user: {username: "student3"}},
-    lesson: {id: 203, title: "Java Fundamentals"},
+    lesson: {id: 203, title: "Java Fundamentals", class_name: "Programming 101"},
     language: "java",
     code_text: 'System.out.println("Hello, World!");',
     status: "submitted",
@@ -101,7 +86,16 @@ const mockSubmissions: Submission[] = [
   {
     id: 5,
     student: {id: 105, user: {username: "student5"}},
-    lesson: {id: 205, title: "SQL Queries"},
+    lesson: {id: 205, title: "SQL Queries", class_name: "Database Basics"},
+    language: "sql",
+    code_text: "SELECT * FROM users;",
+    status: "submitted",
+    comments: [],
+  },
+  {
+    id: 5,
+    student: {id: 105, user: {username: "student5"}},
+    lesson: {id: 205, title: "SQL Queries", class_name: "Database Basics"},
     language: "sql",
     code_text: "SELECT * FROM users;",
     status: "submitted",

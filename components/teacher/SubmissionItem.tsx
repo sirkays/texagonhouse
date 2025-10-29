@@ -3,33 +3,39 @@
 
 import React from "react";
 import Link from "next/link";
+import { Button } from "../ui/button";
 
 interface SubmissionItemProps {
-  submission: any; // Use Submission type
+  submission: any;
 }
 
-const SubmissionItem: React.FC<SubmissionItemProps> = ({submission}) => {
+const SubmissionItem: React.FC<SubmissionItemProps> = ({ submission }) => {
   return (
-    <div className="border p-4 mb-4 rounded">
-      <h2 className="text-xl font-semibold">
-        Submission by {submission.student.user.username} for Lesson:{" "}
-        {submission.lesson.title}
+    <div className="border border-[#EF7B55]/20 bg-white p-5 mb-5 rounded-xl shadow-sm hover:shadow transition-shadow">
+      <h2 className="text-lg font-semibold text-slate-800">
+        {submission.student.user.username} — {submission.lesson.title}
       </h2>
-      <p>Status: {submission.status}</p>
-      <p>Language: {submission.language}</p>
-      {submission.score && <p>Score: {submission.score}</p>}
-      {submission.feedback && <p>Feedback: {submission.feedback}</p>}
 
-      <Link href={`/teacher/submissions/${submission.id}/code`}>
-        <button className="bg-blue-500 text-white px-4 py-2 mr-2">
-          View Submitted Code
-        </button>
-      </Link>
-      <Link href={`/teacher/submissions/${submission.id}/grade`}>
-        <button className="bg-green-500 text-white px-4 py-2 mr-2">
-          Grade Submission
-        </button>
-      </Link>
+      <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+        <p>Status: <span className="font-medium text-slate-700">{submission.status}</span></p>
+        <p>Language: <span className="font-medium text-slate-700">{submission.language}</span></p>
+        {submission.score && <p>Score: <span className="font-medium text-[#EF7B55]">{submission.score}</span></p>}
+        {submission.feedback && <p>Feedback: <span className="font-medium text-slate-700">{submission.feedback}</span></p>}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 mt-5">
+        <Link href={`/teacher/submissions/${submission.id}/code`} className="flex-1">
+          <Button className="w-full bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm py-2.5">
+            View Code
+          </Button>
+        </Link>
+
+        <Link href={`/teacher/submissions/${submission.id}/grade`} className="flex-1">
+          <Button variant="outline" className="w-full border-[#EF7B55]/30 text-[#EF7B55] hover:bg-[#EF7B55]/10 font-medium text-sm py-2.5">
+            Grade
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 };

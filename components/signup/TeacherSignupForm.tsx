@@ -133,7 +133,7 @@ export default function TeacherSignupForm({
           name="firstName"
           type="text"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
           placeholder="Enter your first name"
           value={formData.firstName}
           onChange={handleChange}
@@ -150,7 +150,7 @@ export default function TeacherSignupForm({
           name="lastName"
           type="text"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
           placeholder="Enter your last name"
           value={formData.lastName}
           onChange={handleChange}
@@ -167,7 +167,7 @@ export default function TeacherSignupForm({
           name="email"
           type="email"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
           placeholder="Enter your email"
           value={formData.email}
           onChange={handleChange}
@@ -177,7 +177,7 @@ export default function TeacherSignupForm({
             type="button"
             onClick={() => sendOtp(formData.email)}
             disabled={!formData.email || emailVerified}
-            className="text-xs bg-indigo-600 text-white py-1 px-3 rounded disabled:opacity-50">
+            className="text-xs bg-[#f79771] text-white py-1 px-3 rounded disabled:opacity-50">
             {emailVerified ? "Verified" : "Send OTP"}
           </button>
           {tempOtp && !emailVerified && (
@@ -213,7 +213,7 @@ export default function TeacherSignupForm({
           name="password"
           type="password"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
           placeholder="Enter password"
           value={formData.password}
           onChange={handleChange}
@@ -282,7 +282,7 @@ export default function TeacherSignupForm({
           name="confirmPassword"
           type="password"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
           placeholder="Confirm password"
           value={formData.confirmPassword}
           onChange={handleChange}
@@ -293,7 +293,7 @@ export default function TeacherSignupForm({
         <button
           type="submit"
           disabled={!emailVerified}
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
+          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#f79771] hover:bg-[#f79771] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f79771] disabled:opacity-50">
           Sign up as Teacher
         </button>
       </div>
