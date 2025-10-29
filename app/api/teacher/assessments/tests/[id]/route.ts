@@ -48,13 +48,11 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[TestDetailAPI] Response status:", response.status);
-    console.log("[TestDetailAPI] Response headers:", Object.fromEntries(response.headers));
-    console.log("[TestDetailAPI] Response content-type:", response.headers.get("content-type"));
+
 
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[TestDetailAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log("Response:", rawResponse);
 
     if (!response.ok) {
       console.error("[TestDetailAPI] Request failed:", response.status, rawResponse.slice(0, 100));
@@ -124,11 +122,12 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         }
       );
     }
-
     // Validate and transform response to match test specification
     const processedData = {
       test: {
         id: data.test?.id || "",
+        course_id: data.test?.course_id || "",
+        courseId: data.test?.course_id || "",
         title: data.test?.title || "",
         instructions: data.test?.instructions || "",
         duration: data.test?.duration || 0,

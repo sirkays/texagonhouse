@@ -43,7 +43,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    console.log("[TeacherTestsAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
+    console.log("[TeacherTestsAPI] Fetchi...............ng from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
 
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[TeacherTestsAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log("[TeacherTestsAPI] Raw response.......:", rawResponse);
 
     if (!response.ok) {
       console.error("[TeacherTestsAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));

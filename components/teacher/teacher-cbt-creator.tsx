@@ -755,7 +755,7 @@ export function TeacherCBTCreator() {
   };
 
   const handleEditTest = async (test: CBTTest) => {
-    console.log(test," mckdmckdmcdkcm")
+    console.log(test," Test side......")
     setIsSaving(true);
     const testData = await fetchTestById(test.id);
     if (testData) {
@@ -1040,6 +1040,7 @@ export function TeacherCBTCreator() {
       courseId: "",
       isPublished: false,
       questionsCount: 0,
+      course_id:"",
       createdAt: "",
       updatedAt: "",
       start_at: "",
@@ -1052,7 +1053,7 @@ export function TeacherCBTCreator() {
   }, []);
 
   /* --------------------------------- UI --------------------------------- */
-  console.log(currentTest," ", tests)
+  console.log(currentTest," ......curent test")
   return (
     <div className="space-y-6">
       <div>
