@@ -1857,7 +1857,17 @@ function SubmissionTab({
   const [viewing, setViewing] = useState<Submission | null>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const filteredSubmissions = submissions.filter((s) =>
+    `${s.id} ${s.status} ${s.language}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const paginatedSubmissions = filteredSubmissions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
   const viewDetail = async (s: Submission) => {
     setLoading(true);
     try {
@@ -1869,7 +1879,6 @@ function SubmissionTab({
       setLoading(false);
     }
   };
-
   const sendComment = async () => {
     if (!viewing || !comment.trim()) return;
     try {
@@ -1881,7 +1890,6 @@ function SubmissionTab({
       alert("Comment failed");
     }
   };
-
   return (
     <Card className="flex flex-col w-full submission-tab">
       <CardHeader>
@@ -1905,31 +1913,58 @@ function SubmissionTab({
         <Button onClick={onSubmit} disabled={!selectedLesson}>
           Submit Code
         </Button>
-
         {submissions.length > 0 && (
-          <div className="border rounded-md p-3 space-y-2">
-            <p className="text-sm font-medium">
-              {role === "teacher" ? "All submissions" : "My submissions"}
-            </p>
-            {submissions.slice(0, 10).map((s) => (
-              <div
-                key={s.id}
-                className="submission-item flex items-center justify-between border-b pb-2 cursor-pointer hover:bg-accent/20 rounded px-2"
-                onClick={() => viewDetail(s)}
+          <div className="space-y-4">
+            <Input
+              placeholder="Search submissions..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+            <div className="border rounded-md p-3 space-y-2">
+              <p className="text-sm font-medium">
+                {role === "teacher" ? "All submissions" : "My submissions"}
+              </p>
+              {paginatedSubmissions.map((s) => (
+                <div
+                  key={s.id}
+                  className="submission-item flex items-center justify-between border-b pb-2 cursor-pointer hover:bg-accent/20 rounded px-2"
+                  onClick={() => viewDetail(s)}
+                >
+                  <span>
+                    #{s.id} – {s.status} ({s.language})
+                  </span>
+                  <span>{s.score ?? "-"} pts</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-4 flex-wrap gap-2">
+              <Button
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
               >
-                <span>
-                  #{s.id} – {s.status}
-                </span>
-                <span>{s.score ?? "-"} pts</span>
-              </div>
-            ))}
+                Previous
+              </Button>
+              <span className="text-sm">
+                Page {currentPage} of {totalPages} ({filteredSubmissions.length} total)
+              </span>
+              <Button
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
-
         {viewing && (
-          <div className="border rounded-md p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Submission #{viewing.id}</p>
+          <Card className="border rounded-md p-3 space-y-3">
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Submission #{viewing.id}</CardTitle>
               <Button
                 size="sm"
                 variant="ghost"
@@ -1937,78 +1972,116 @@ function SubmissionTab({
               >
                 Close
               </Button>
-            </div>
-
-            <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">
-              {viewing.code_text}
-            </pre>
-
-            {role === "teacher" && viewing.status !== "graded" && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    await onGrade(viewing.id, {
-                      score: "90",
-                      feedback: "Great job",
-                      status: "graded",
-                    });
-                    alert("Graded 90");
-                  }}
-                >
-                  Grade 90
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    await onGrade(viewing.id, {
-                      score: "75",
-                      feedback: "Needs improvement",
-                      status: "revised",
-                    });
-                    alert("Sent for revision");
-                  }}
-                >
-                  Request revision
-                </Button>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                Comments
-              </p>
-              {viewing.comments.map((c) => (
-                <div key={c.id} className="text-xs bg-muted p-2 rounded">
-                  <span className="font-semibold">{c.author_name}</span> –{" "}
-                  {c.message}
-                  <div className="text-muted-foreground">
-                    {new Date(c.created_at).toLocaleString()}
-                  </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="font-medium">Status:</span> {viewing.status}
                 </div>
-              ))}
-              <div className="flex gap-2 flex-col sm:flex-row">
-                <Input
-                  placeholder="Write a comment…"
-                  className="min-h-[60px] text-xs"
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                />
-                <Button
-                  size="sm"
-                  onClick={sendComment}
-                  disabled={!comment.trim()}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+                <div>
+                  <span className="font-medium">Feedback:</span> {viewing.feedback ? viewing.feedback : "N/A"}
+                </div>
+                <div>
+                  <span className="font-medium">Language:</span> {viewing.language}
+                </div>
+                <div>
+                  <span className="font-medium">Score:</span> {viewing.score ?? "Not graded"}
+                </div>
+                <div>
+                  <span className="font-medium">Graded By:</span> {viewing.graded_by ? `User ${viewing.graded_by}` : "N/A"}
+                </div>
+                <div>
+                  <span className="font-medium">Graded At:</span> {viewing.graded_at ? new Date(viewing.graded_at).toLocaleString() : "N/A"}
+                </div>
+                <div>
+                  <span className="font-medium">Created:</span> {new Date(viewing.created_at).toLocaleString()}
+                </div>
               </div>
-            </div>
-          </div>
+              <div>
+                <span className="font-medium block mb-1">Code:</span>
+                <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">
+                  {viewing.code_text}
+                </pre>
+              </div>
+              {viewing.feedback && (
+                <div>
+                  <span className="font-medium block mb-1">Feedback:</span>
+                  <p className="text-xs bg-muted p-2 rounded">{viewing.feedback}</p>
+                </div>
+              )}
+              {viewing.correction_code && (
+                <div>
+                  <span className="font-medium block mb-1">Correction:</span>
+                  <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">
+                    {viewing.correction_code}
+                  </pre>
+                </div>
+              )}
+              {role === "teacher" && viewing.status !== "graded" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      await onGrade(viewing.id, {
+                        score: "90",
+                        feedback: "Great job",
+                        status: "graded",
+                      });
+                      alert("Graded 90");
+                    }}
+                  >
+                    Grade 90
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      await onGrade(viewing.id, {
+                        score: "75",
+                        feedback: "Needs improvement",
+                        status: "revised",
+                      });
+                      alert("Sent for revision");
+                    }}
+                  >
+                    Request revision
+                  </Button>
+                </div>
+              )}
+              <div className="space-y-2">
+                <p className="text-xs font-medium flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  Comments
+                </p>
+                {viewing.comments.map((c) => (
+                  <div key={c.id} className="text-xs bg-muted p-2 rounded">
+                    <span className="font-semibold">{c.author_name}</span> ({c.author_role}) –{" "}
+                    {c.message}
+                    <div className="text-muted-foreground">
+                      {new Date(c.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex gap-2 flex-col sm:flex-row">
+                  <Input
+                    placeholder="Write a comment…"
+                    className="min-h-[60px] text-xs"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={sendComment}
+                    disabled={!comment.trim()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
-
         {loading && <Spinner size="sm" />}
       </CardContent>
     </Card>
