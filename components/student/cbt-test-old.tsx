@@ -926,6 +926,9 @@ export function CBTTest() {
     Math.ceil((availableTests?.length || 0) / testsPerPage)
   );
 
+  const hasTests =
+    Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
+
   return (
     <div className="space-y-6">
       {/* ---------- Start dialog (unchanged behavior) ---------- */}
@@ -1008,140 +1011,181 @@ export function CBTTest() {
 
         {/* ---------- Available Tests ---------- */}
         <TabsContent value="available" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {currentTests.map((test) => {
-              const res = testResults[test.pk?.toString()] ?? null;
-              return (
-                <Card
-                  key={test.pk}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                >
-                  <CardHeader>
-                    <div className="sm:flex items-center justify-between">
-                      <CardTitle className="text-lg">{test.title}</CardTitle>
-                      <div className="flex gap-2">
-                        <Badge
-                          variant={
-                            test.difficulty === "Beginner"
-                              ? "default"
-                              : test.difficulty === "Intermediate"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {test.difficulty}
-                        </Badge>
-                        {test.type === "exam" && (
-                          <Badge
-                            variant="outline"
-                            className="text-red-600 border-red-200"
-                          >
-                            <Shield className="h-3 w-3 mr-1" />
-                            Secure Exam
-                          </Badge>
+          {/* Loading state for tests fetch */}
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3">
+                <Spinner size="md" className="text-orange-500" />
+                <p className="text-sm text-muted-foreground">
+                  Loading tests…
+                </p>
+              </div>
+            </div>
+          ) : !hasTests ? (
+            // ---------- EMPTY STATE WHEN NO TESTS ----------
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4">
+                  <AlertTriangle className="h-12 w-12 text-amber-500" />
+                </div>
+                <CardTitle className="text-2xl">No tests available</CardTitle>
+                <CardDescription>
+                  We couldn’t find any assessments for you right now.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  If you think this is a mistake, try refreshing. You can also
+                  check back later or contact your instructor.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {currentTests.map((test) => {
+                  const res = testResults[test.pk?.toString()] ?? null;
+                  return (
+                    <Card
+                      key={test.pk}
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                    >
+                      <CardHeader>
+                        <div className="sm:flex items-center justify-between">
+                          <CardTitle className="text-lg">{test.title}</CardTitle>
+                          <div className="flex gap-2">
+                            <Badge
+                              variant={
+                                test.difficulty === "Beginner"
+                                  ? "default"
+                                  : test.difficulty === "Intermediate"
+                                  ? "secondary"
+                                  : "destructive"
+                              }
+                            >
+                              {test.difficulty}
+                            </Badge>
+                            {test.type === "exam" && (
+                              <Badge
+                                variant="outline"
+                                className="text-red-600 border-red-200"
+                              >
+                                <Shield className="h-3 w-3 mr-1" />
+                                Secure Exam
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <CardDescription>{test.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 flex flex-col gap-4">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>
+                            {test.questions ||
+                              (Array.isArray(test.items)
+                                ? test.items.length
+                                : "-")}{" "}
+                            questions
+                          </span>
+                          <span>{test.duration}</span>
+                        </div>
+
+                        {res && (
+                          <p className="text-sm text-green-600">
+                            Previous Score: {res.score} / {res.total_points}
+                          </p>
                         )}
-                      </div>
-                    </div>
-                    <CardDescription>{test.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 flex flex-col gap-4">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>
-                        {test.questions ||
-                          (Array.isArray(test.items)
-                            ? test.items.length
-                            : "-")}{" "}
-                        questions
-                      </span>
-                      <span>{test.duration}</span>
-                    </div>
 
-                    {res && (
-                      <p className="text-sm text-green-600">
-                        Previous Score: {res.score} / {res.total_points}
-                      </p>
-                    )}
+                        {test.requiresSubscription && !isSubscriber && (
+                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-sm text-yellow-800">
+                              <Shield className="h-4 w-4 inline mr-1" />
+                              Requires active subscription
+                            </p>
+                          </div>
+                        )}
 
-                    {test.requiresSubscription && !isSubscriber && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          <Shield className="h-4 w-4 inline mr-1" />
-                          Requires active subscription
-                        </p>
-                      </div>
-                    )}
+                        <div className="mt-auto">
+                          <Button
+                            onClick={() => startTest(test.pk)}
+                            className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                            disabled={
+                              (test.type === "exam" &&
+                                examAttempts >= maxAttempts) ||
+                              (test.requiresSubscription && !isSubscriber)
+                            }
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            {test.type === "exam"
+                              ? "Start Secure Exam"
+                              : "Start Quiz"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
 
-                    <div className="mt-auto">
-                      <Button
-                        onClick={() => startTest(test.pk)}
-                        className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        disabled={
-                          (test.type === "exam" &&
-                            examAttempts >= maxAttempts) ||
-                          (test.requiresSubscription && !isSubscriber)
-                        }
-                      >
-                        <Play className="mr-2 h-4 w-4" />
-                        {test.type === "exam"
-                          ? "Start Secure Exam"
-                          : "Start Quiz"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 1) setCurrentPage(currentPage - 1);
-                  }}
-                  className={
-                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
-                  }
-                />
-              </PaginationItem>
-              {[...Array(totalPages)].map((_, index) => {
-                const page = index + 1;
-                return (
-                  <PaginationItem key={page}>
-                    <PaginationLink
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
                       href="#"
-                      isActive={currentPage === page}
                       onClick={(e) => {
                         e.preventDefault();
-                        setCurrentPage(page);
+                        if (currentPage > 1) setCurrentPage(currentPage - 1);
                       }}
-                    >
-                      {page}
-                    </PaginationLink>
+                      className={
+                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                      }
+                    />
                   </PaginationItem>
-                );
-              })}
-              {totalPages > 5 && <PaginationEllipsis />}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage < totalPages)
-                      setCurrentPage(currentPage + 1);
-                  }}
-                  className={
-                    currentPage === totalPages
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+                  {[...Array(totalPages)].map((_, index) => {
+                    const page = index + 1;
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={currentPage === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  {totalPages > 5 && <PaginationEllipsis />}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages)
+                          setCurrentPage(currentPage + 1);
+                      }}
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </>
+          )}
         </TabsContent>
 
         {/* ---------- Past Attempts (server-backed) ---------- */}
@@ -1184,7 +1228,6 @@ export function CBTTest() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {sortedAttempts.map((a) => {
                 const pct = percentFromAttempt(a);
-                console.log(sortedAttempts, " sorted")
                 const submittedDate = a.submitted_at
                   ? new Date(a.submitted_at).toLocaleDateString()
                   : a.started_at
@@ -1277,7 +1320,6 @@ export function CBTTest() {
               </PaginationContent>
             </Pagination>
           )}
-
         </TabsContent>
       </Tabs>
     </div>

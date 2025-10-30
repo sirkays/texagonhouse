@@ -1,13 +1,12 @@
 // app/teacher/submissions/[submissionId]/code/page.tsx
 "use client";
-
-import React, { useContext, useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { SubmissionContext } from "../../layout";
 import dynamic from "next/dynamic";
-import { useCodeRunner } from "../CodeRunner"; // correct import
+import { useCodeRunner } from "../CodeRunner";
 import { ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -22,33 +21,75 @@ const LANG_LABEL: Record<Exclude<Tab, "output">, string> = {
   cpp: "C++",
 };
 
+interface SubmissionDetail {
+  id: number;
+  language: string;
+  code_text: string;
+  status: string;
+  student_name: string;
+  lesson: { title: string };
+  course: { name: string };
+  classroom: { name: string };
+  score?: string | null;
+  feedback?: string;
+  correction_code?: string;
+}
+
 export default function CodePage() {
   const { submissionId } = useParams();
   const router = useRouter();
   const id = parseInt(submissionId as string, 10);
-  const { submissions } = useContext(SubmissionContext);
-  const submission = submissions.find((s) => s.id === id);
 
-  const initialFiles = useMemo(() => {
-    const empty = { python: "", javascript: "", html: "", css: "", java: "", cpp: "" };
-    if (!submission) return empty;
-    const key = submission.language as keyof typeof empty;
-    return { ...empty, [key]: submission.code_text };
+  const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSubmission = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/teacher/code/submissions/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch submission");
+        const data = await res.json();
+        setSubmission(data);
+      } catch (err) {
+        setError("Submission not found");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) fetchSubmission();
+  }, [id]);
+
+  const [files, setFiles] = useState<{ [key: string]: string }>({
+    python: "",
+    javascript: "",
+    html: "",
+    css: "",
+    java: "",
+    cpp: "",
+  });
+
+  useEffect(() => {
+    if (submission) {
+      const key = submission.language as keyof typeof files;
+      setFiles((prev) => ({ ...prev, [key]: submission.code_text }));
+    }
   }, [submission]);
 
-  const {
-    files,
-    activeLang,
-    output,
-    isRunning,
-    run,
-    renderWeb,
-    download,
-  } = useCodeRunner(initialFiles);
+  const { activeLang, output, isRunning, run, renderWeb, download } =
+    useCodeRunner(files);
 
-  const [activeTab, setActiveTab] = useState<Tab>((submission?.language as Tab) ?? "html");
+  const [activeTab, setActiveTab] = useState<Tab>("html");
 
-  // auto-switch to output when execution finishes
+  useEffect(() => {
+    if (submission) {
+      setActiveTab(submission.language as Tab);
+    }
+  }, [submission]);
+
   useEffect(() => {
     if (!isRunning && output) setActiveTab("output");
   }, [isRunning, output]);
@@ -56,8 +97,18 @@ export default function CodePage() {
   const isLangDisabled = (lang: Exclude<Tab, "output">) =>
     !files[lang] && lang !== "html" && lang !== "css" && lang !== "javascript";
 
-  if (!submission)
-    return <p className="text-red-500 text-center text-sm p-4">Submission not found</p>;
+  if (loading)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-transparent">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
+  if (error || !submission)
+    return (
+      <p className="text-red-500 text-center text-sm p-4">
+        {error || "Submission not found"}
+      </p>
+    );
 
   return (
     <div className="min-h-screen bg-white">
@@ -71,9 +122,21 @@ export default function CodePage() {
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
           Back
         </Button>
-
-        <h1 className="text-lg sm:text-xl font-bold text-slate-800 mb-3">View Code</h1>
-
+        <h1 className="text-lg sm:text-xl font-bold text-slate-800 mb-3">
+          View Code
+        </h1>
+        {/* Submission Info */}
+        <div className="bg-gray-50 p-3 rounded-lg mb-4">
+          <p className="text-sm text-slate-700">
+            Student: {submission.student_name} | Lesson:{" "}
+            {submission.lesson.title} | Course: {submission.course.name} |
+            Class: {submission.classroom.name}
+          </p>
+          <p className="text-sm text-slate-600 mt-1">
+            Status: {submission.status}{" "}
+            {submission.score ? `| Score: ${submission.score}` : ""}
+          </p>
+        </div>
         {/* Tabs */}
         <div className="flex flex-wrap gap-1 mb-2 border-b border-[#EF7B55]/20 text-xs">
           {Object.entries(LANG_LABEL).map(([k, l]) => {
@@ -109,7 +172,6 @@ export default function CodePage() {
             Output
           </button>
         </div>
-
         {/* Mobile select */}
         <select
           className="mb-3 w-full p-2 text-xs border border-[#EF7B55]/30 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50 md:hidden"
@@ -123,7 +185,6 @@ export default function CodePage() {
           ))}
           <option value="output">Output</option>
         </select>
-
         {/* Editor / Output */}
         {activeTab !== "output" ? (
           <div className="border border-[#EF7B55]/20 rounded-lg overflow-hidden shadow-sm">
@@ -132,7 +193,6 @@ export default function CodePage() {
               language={activeTab}
               value={files[activeTab] ?? ""}
               options={{
-                // **READ-ONLY** – this is a *view* page
                 readOnly: true,
                 theme: "vs-dark",
                 minimap: { enabled: false },
@@ -164,7 +224,6 @@ export default function CodePage() {
             )}
           </div>
         )}
-
         {/* Run & Download */}
         <div className="flex flex-col sm:flex-row gap-2 mt-3">
           {activeTab !== "output" && (

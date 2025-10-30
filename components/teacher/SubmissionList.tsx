@@ -1,63 +1,140 @@
 // components/SubmissionList.tsx
 "use client";
-
-import React, { useState, useContext, useMemo } from "react";
-import { SubmissionContext } from "@/app/teacher/submissions/layout";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Spinner } from "../ui/spinner";
 
 interface Submission {
-  id: string | number;
-  status: "graded" | "submitted" | "revised" | string;
-  student: {
-    user: {
-      username: string;
-    };
-  };
-  lesson: {
-    title?: string | null;
-    class_name?: string | null;
-    course_title?: string | null;
-  };
+  id: number;
+  status: "graded" | "submitted" | "revised";
+  student_name: string;
+  lesson_title: string;
+  course_name: string;
+  class_name: string | null;
 }
 
-interface Filters {
-  class?: string;
-  course?: string;
+interface FilterOption {
+  id: number;
+  name: string;
 }
 
 const SubmissionList: React.FC = () => {
-  const { submissions } = useContext(SubmissionContext);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [courses, setCourses] = useState<FilterOption[]>([]);
+  const [classes, setClasses] = useState<FilterOption[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<{
+    course_id?: number;
+    classroom_id?: number;
+  }>({});
   const pageSize = 5;
 
-  const { classes, courses, filtered } = useMemo(() => {
-    // Extract class and course from lesson or fallback to empty
-    const classes = [...new Set(submissions.map(s => s.lesson.class_name ?? "").filter(Boolean))].sort();
-    const courses = [...new Set(submissions.map(s => s.lesson.title ?? "").filter(Boolean))].sort();
-
-    const filtered = submissions.filter(s => {
-      if (filters.class && (s.lesson.class_name ?? "") !== filters.class) return false;
-      if (filters.course && (s.lesson.title ?? "") !== filters.course) return false;
-      return true;
-    });
-
-    return { classes, courses, filtered };
-  }, [submissions, filters]);
-
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginated = filtered.slice(startIndex, startIndex + pageSize);
-
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  // Fetch detail to get ID for a given submission ID
+  const fetchDetailForId = async (id: number): Promise<{ course?: { id: number; name: string }; classroom?: { id: number; name: string } } | null> => {
+    try {
+      const res = await fetch(`/api/teacher/code/submissions/${id}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
   };
 
-  const resetPage = () => setCurrentPage(1);
+  // Extract filter options by fetching details for unique names
+  const extractFilters = async (results: Submission[]) => {
+    const uniqueCourses = [...new Set(results.map(s => s.course_name).filter(Boolean))];
+    const uniqueClasses = [...new Set(results.map(s => s.class_name).filter(Boolean))];
 
-  const getStatusColor = (status: Submission["status"]) => {
+    const coursePromises = uniqueCourses.map(async (name) => {
+      const sampleSub = results.find(s => s.course_name === name);
+      if (!sampleSub) return null;
+      const detail = await fetchDetailForId(sampleSub.id);
+      if (detail?.course) {
+        return { id: detail.course.id, name };
+      }
+      return null;
+    });
+
+    const classPromises = uniqueClasses.map(async (name) => {
+      const sampleSub = results.find(s => s.class_name === name);
+      if (!sampleSub) return null;
+      const detail = await fetchDetailForId(sampleSub.id);
+      if (detail?.classroom) {
+        return { id: detail.classroom.id, name };
+      }
+      return null;
+    });
+
+    const courseResults = (await Promise.all(coursePromises)).filter(Boolean);
+    const classResults = (await Promise.all(classPromises)).filter(Boolean);
+
+    setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
+    setClasses(classResults.sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  // Fetch initial data + extract filter options
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/teacher/code/submissions?page_size=100`);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+        const results: Submission[] = data.results || [];
+
+        await extractFilters(results);
+
+        // Set first page
+        setSubmissions(results.slice(0, pageSize));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Refetch when filters or page change
+  useEffect(() => {
+    if (courses.length === 0 && classes.length === 0) return;
+
+    const fetchPage = async () => {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filters.course_id) params.append("course_id", filters.course_id.toString());
+      if (filters.classroom_id) params.append("classroom_id", filters.classroom_id.toString());
+      params.append("page", currentPage.toString());
+      params.append("page_size", pageSize.toString());
+
+      try {
+        const res = await fetch(`/api/teacher/code/submissions?${params}`);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+        setSubmissions(data.results || []);
+      } catch (err) {
+        console.error(err);
+        setSubmissions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPage();
+  }, [currentPage, filters, courses.length, classes.length]);
+
+  const hasNext = submissions.length === pageSize;
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "graded":
         return "bg-green-100 text-green-800";
@@ -70,15 +147,24 @@ const SubmissionList: React.FC = () => {
     }
   };
 
+  if (loading && submissions.length === 0) {
+    return <div className="flex min-h-screen items-center justify-center bg-transparent">
+            <Spinner size="md" className="text-orange-500" />
+          </div>
+  }
+
   return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <Select
-          value={filters.class ?? ""}
+          value={filters.classroom_id?.toString() ?? ""}
           onValueChange={(v) => {
-            setFilters(prev => ({ ...prev, class: v || undefined }));
-            resetPage();
+            setFilters((prev) => ({
+              ...prev,
+              classroom_id: v ? Number(v) : undefined,
+            }));
+            setCurrentPage(1);
           }}
         >
           <SelectTrigger className="w-full sm:w-48">
@@ -86,21 +172,21 @@ const SubmissionList: React.FC = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All Classes">All Classes</SelectItem>
-            {classes.length > 0 ? (
-              classes.map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))
-            ) : (
-              <SelectItem value="none" disabled>No classes available</SelectItem>
-            )}
+            {classes.map((c) => (
+              <SelectItem key={c.id} value={c.id.toString()}>
+                {c.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-
         <Select
-          value={filters.course ?? ""}
+          value={filters.course_id?.toString() ?? ""}
           onValueChange={(v) => {
-            setFilters(prev => ({ ...prev, course: v || undefined }));
-            resetPage();
+            setFilters((prev) => ({
+              ...prev,
+              course_id: v ? Number(v) : undefined,
+            }));
+            setCurrentPage(1);
           }}
         >
           <SelectTrigger className="w-full sm:w-48">
@@ -108,48 +194,61 @@ const SubmissionList: React.FC = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All Courses">All Courses</SelectItem>
-            {courses.length > 0 ? (
-              courses.map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))
-            ) : (
-              <SelectItem value="none" disabled>No courses available</SelectItem>
-            )}
+            {courses.map((c) => (
+              <SelectItem key={c.id} value={c.id.toString()}>
+                {c.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
-
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
         <table className="w-full min-w-[640px] table-auto">
           <thead className="bg-[#EF7B55]/5">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">Student</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">Lesson</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">Class</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">Course</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">Actions</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Student
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Lesson
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Class
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Course
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#EF7B55]/10">
-            {paginated.map((submission) => (
-              <tr key={submission.id} className="hover:bg-[#EF7B55]/5 transition-colors">
+            {submissions.map((s) => (
+              <tr key={s.id} className="hover:bg-[#EF7B55]/5 transition-colors">
                 <td className="px-4 py-3 text-sm text-slate-800">
-                  {submission.student.user.username}
+                  {s.student_name}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-800">
-                  {submission.lesson.title}
+                  {s.lesson_title}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-600">
-                  {submission.lesson.class_name ?? "-"}
+                  {s.class_name ?? "-"}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-600">
-                  {submission.lesson.title ?? "-"}
+                  {s.course_name}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(submission.status)}`}>
-                    {submission.status}
+                  <span
+                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                      s.status
+                    )}`}
+                  >
+                    {s.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm">
@@ -160,15 +259,15 @@ const SubmissionList: React.FC = () => {
                       className="text-[#EF7B55] hover:bg-[#EF7B55]/10"
                       asChild
                     >
-                      <a href={`/teacher/submissions/${submission.id}/code`}>View</a>
+                      <a href={`/teacher/submissions/${s.id}/code`}>View</a>
                     </Button>
-                    {submission.status !== "graded" && (
+                    {s.status !== "graded" && (
                       <Button
                         size="sm"
                         className="bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white"
                         asChild
                       >
-                        <a href={`/teacher/submissions/${submission.id}/grade`}>Grade</a>
+                        <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
                       </Button>
                     )}
                   </div>
@@ -177,49 +276,31 @@ const SubmissionList: React.FC = () => {
             ))}
           </tbody>
         </table>
-
-        {paginated.length === 0 && (
+        {submissions.length === 0 && !loading && (
           <div className="text-center py-8 text-muted-foreground">
-            No submissions match your filters.
+            No submissions found.
           </div>
         )}
       </div>
-
       {/* Pagination */}
-      {totalPages > 1 && (
+      {submissions.length > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {startIndex + 1}–{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length}
-          </p>
-
+          <p className="text-sm text-muted-foreground">Page {currentPage}</p>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="icon"
-              onClick={() => handlePageChange(currentPage - 1)}
+              onClick={() => setCurrentPage((p) => p - 1)}
               disabled={currentPage === 1}
               className="h-8 w-8"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => handlePageChange(page)}
-              >
-                {page}
-              </Button>
-            ))}
-
             <Button
               variant="outline"
               size="icon"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={!hasNext}
               className="h-8 w-8"
             >
               <ChevronRight className="h-4 w-4" />
