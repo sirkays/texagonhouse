@@ -30,6 +30,10 @@ interface OrdersResponse {
   results: Order[];
 }
 
+interface CreateOrderResponse {
+  id: string;
+}
+
 export async function GET(req: Request) {
   noStore();
   const session = await getServerSession(authOptions);
@@ -100,5 +104,69 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     return NextResponse.json({error: "Failed to fetch orders"}, {status: 500});
+  }
+}
+
+export async function POST(req: Request) {
+  noStore();
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.sessionToken) {
+    return NextResponse.json(
+      {error: "Not authenticated", redirect: "/login"},
+      {status: 401}
+    );
+  }
+
+  const sessionToken = session.user.sessionToken;
+
+  const body = await req.json();
+
+  const fullUrl = `${BASE_URL}/orders`;
+  console.log("[StoreOrdersAPI] Initiating POST to:", fullUrl);
+
+  try {
+    const response = await fetch(fullUrl, {
+      method: "POST",
+      headers: headers(sessionToken),
+      body: JSON.stringify(body),
+    });
+
+    const rawResponse = await response.text();
+
+    if (!response.ok) {
+      if (response.status === 401)
+        return NextResponse.json(
+          {error: "Session expired", redirect: "/login"},
+          {status: 401}
+        );
+      if (response.status === 403)
+        return NextResponse.json({error: "Forbidden"}, {status: 403});
+      return NextResponse.json(
+        {error: "Failed to create order"},
+        {status: response.status}
+      );
+    }
+
+    let data: CreateOrderResponse;
+    try {
+      data = JSON.parse(rawResponse);
+    } catch (parseError) {
+      return NextResponse.json(
+        {error: "Invalid response format"},
+        {status: 500}
+      );
+    }
+
+    const normalizedData: CreateOrderResponse = {
+      id: data.id || "",
+    };
+
+    return NextResponse.json(normalizedData, {
+      status: 200,
+      headers: {"Cache-Control": "no-store"},
+    });
+  } catch (error) {
+    return NextResponse.json({error: "Failed to create order"}, {status: 500});
   }
 }

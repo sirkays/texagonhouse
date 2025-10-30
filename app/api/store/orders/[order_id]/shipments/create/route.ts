@@ -12,7 +12,53 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-// Use the same Shipment interface as above
+interface ShipmentItem {
+  order_item_id: string;
+  title: string;
+  quantity: number;
+}
+
+interface ShipmentEvent {
+  id: string;
+  code: string;
+  desc: string;
+  occurred_at: string;
+  city: string;
+  state: string;
+  country: string;
+  postal_code: string;
+  carrier_status: string;
+}
+
+interface ShipmentTo {
+  name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  phone: string;
+  email: string;
+}
+
+interface Shipment {
+  id: string;
+  order_id: string;
+  status: string;
+  carrier: string | null;
+  method: string | null;
+  tracking_number: string;
+  tracking_url: string | null;
+  label_url: string | null;
+  label_cost: string;
+  currency: string;
+  to: ShipmentTo;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  items: ShipmentItem[];
+  events: ShipmentEvent[];
+}
 
 export async function POST(
   req: Request,

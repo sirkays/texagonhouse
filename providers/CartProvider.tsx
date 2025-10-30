@@ -8,12 +8,12 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { toast } from "sonner";
+import {toast} from "sonner";
 
 interface CartItem {
-  id: string;              // Cart item ID (UUID)
-  productId: string;       // product_id from backend
-  name: string;            // title
+  id: string; // Cart item ID (UUID)
+  productId: string; // product_id from backend
+  name: string; // title
   price: number;
   quantity: number;
   image?: string;
@@ -38,7 +38,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({children}: {children: ReactNode}) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [buyNowProduct, setBuyNowProduct] = useState<CartItem | null>(null);
 
@@ -80,16 +80,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existing) {
         return prev.map((i) =>
           i.productId === product.productId
-            ? { ...i, quantity: i.quantity + 1 }
+            ? {...i, quantity: i.quantity + 1}
             : i
         );
       }
-      return [...prev, { ...product, id: "temp-" + Date.now(), quantity: 1 }];
+      return [...prev, {...product, id: "temp-" + Date.now(), quantity: 1}];
     });
 
     // idempotency key so double network deliveries are safe
     const idemKey =
-      (typeof crypto !== "undefined" && "randomUUID" in crypto && crypto.randomUUID()) ||
+      (typeof crypto !== "undefined" &&
+        "randomUUID" in crypto &&
+        crypto.randomUUID()) ||
       `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     try {
@@ -99,7 +101,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           "Content-Type": "application/json",
           "x-idempotency-key": `add:${product.productId}:${idemKey}`,
         },
-        body: JSON.stringify({ product_id: product.productId, quantity: 1 }),
+        body: JSON.stringify({product_id: product.productId, quantity: 1}),
       });
 
       if (!res.ok) throw new Error("Failed to add to cart");
@@ -116,7 +118,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (existing && existing.quantity > 1) {
           return prev.map((i) =>
             i.productId === product.productId
-              ? { ...i, quantity: i.quantity - 1 }
+              ? {...i, quantity: i.quantity - 1}
               : i
           );
         }
@@ -158,14 +160,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     // Optimistic update
     setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+      prev.map((item) => (item.id === id ? {...item, quantity} : item))
     );
 
     try {
       const res = await fetch(`/api/store/cart/items/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity }),
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({quantity}),
       });
       if (!res.ok) throw new Error("Failed to update quantity");
 
@@ -177,7 +179,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Rollback
       setCartItems((prev) =>
         prev.map((item) =>
-          item.id === id ? { ...item, quantity: prevQuantity } : item
+          item.id === id ? {...item, quantity: prevQuantity} : item
         )
       );
       toast.error("Failed to update quantity");
@@ -198,8 +200,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCartItems,
         buyNowProduct,
         setBuyNowProduct,
-      }}
-    >
+      }}>
       {children}
     </CartContext.Provider>
   );

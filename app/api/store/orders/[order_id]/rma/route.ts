@@ -22,6 +22,10 @@ export async function POST(
   {params}: {params: {order_id: string}}
 ) {
   noStore();
+
+  // Destructure params before any await
+  const {order_id} = params;
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
@@ -35,7 +39,7 @@ export async function POST(
 
   const body = await req.json();
 
-  const fullUrl = `${BASE_URL}/orders/${params.order_id}/rma`;
+  const fullUrl = `${BASE_URL}/orders/${order_id}/rma`;
   console.log("[StoreRmaAPI] Initiating POST to:", fullUrl);
 
   try {
