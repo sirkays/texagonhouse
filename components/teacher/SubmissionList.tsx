@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from "../ui/spinner";
-
 interface Submission {
   id: number;
   status: "graded" | "submitted" | "revised";
@@ -20,12 +19,10 @@ interface Submission {
   course_name: string;
   class_name: string | null;
 }
-
 interface FilterOption {
   id: number;
   name: string;
 }
-
 const SubmissionList: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [courses, setCourses] = useState<FilterOption[]>([]);
@@ -35,11 +32,17 @@ const SubmissionList: React.FC = () => {
   const [filters, setFilters] = useState<{
     course_id?: number;
     classroom_id?: number;
+    startDate?: string;
+    endDate?: string;
   }>({});
   const pageSize = 5;
-
   // Fetch detail to get ID for a given submission ID
-  const fetchDetailForId = async (id: number): Promise<{ course?: { id: number; name: string }; classroom?: { id: number; name: string } } | null> => {
+  const fetchDetailForId = async (
+    id: number
+  ): Promise<{
+    course?: { id: number; name: string };
+    classroom?: { id: number; name: string };
+  } | null> => {
     try {
       const res = await fetch(`/api/teacher/code/submissions/${id}`);
       if (!res.ok) return null;
@@ -48,14 +51,16 @@ const SubmissionList: React.FC = () => {
       return null;
     }
   };
-
   // Extract filter options by fetching details for unique names
   const extractFilters = async (results: Submission[]) => {
-    const uniqueCourses = [...new Set(results.map(s => s.course_name).filter(Boolean))];
-    const uniqueClasses = [...new Set(results.map(s => s.class_name).filter(Boolean))];
-
+    const uniqueCourses = [
+      ...new Set(results.map((s) => s.course_name).filter(Boolean)),
+    ];
+    const uniqueClasses = [
+      ...new Set(results.map((s) => s.class_name).filter(Boolean)),
+    ];
     const coursePromises = uniqueCourses.map(async (name) => {
-      const sampleSub = results.find(s => s.course_name === name);
+      const sampleSub = results.find((s) => s.course_name === name);
       if (!sampleSub) return null;
       const detail = await fetchDetailForId(sampleSub.id);
       if (detail?.course) {
@@ -63,9 +68,8 @@ const SubmissionList: React.FC = () => {
       }
       return null;
     });
-
     const classPromises = uniqueClasses.map(async (name) => {
-      const sampleSub = results.find(s => s.class_name === name);
+      const sampleSub = results.find((s) => s.class_name === name);
       if (!sampleSub) return null;
       const detail = await fetchDetailForId(sampleSub.id);
       if (detail?.classroom) {
@@ -73,14 +77,11 @@ const SubmissionList: React.FC = () => {
       }
       return null;
     });
-
     const courseResults = (await Promise.all(coursePromises)).filter(Boolean);
     const classResults = (await Promise.all(classPromises)).filter(Boolean);
-
     setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
     setClasses(classResults.sort((a, b) => a.name.localeCompare(b.name)));
   };
-
   // Fetch initial data + extract filter options
   useEffect(() => {
     const load = async () => {
@@ -90,9 +91,7 @@ const SubmissionList: React.FC = () => {
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
         const results: Submission[] = data.results || [];
-
         await extractFilters(results);
-
         // Set first page
         setSubmissions(results.slice(0, pageSize));
       } catch (err) {
@@ -103,19 +102,21 @@ const SubmissionList: React.FC = () => {
     };
     load();
   }, []);
-
   // Refetch when filters or page change
   useEffect(() => {
     if (courses.length === 0 && classes.length === 0) return;
-
     const fetchPage = async () => {
       setLoading(true);
       const params = new URLSearchParams();
-      if (filters.course_id) params.append("course_id", filters.course_id.toString());
-      if (filters.classroom_id) params.append("classroom_id", filters.classroom_id.toString());
+      if (filters.course_id)
+        params.append("course_id", filters.course_id.toString());
+      if (filters.classroom_id)
+        params.append("classroom_id", filters.classroom_id.toString());
+      if (filters.startDate)
+        params.append("created_at__gte", filters.startDate);
+      if (filters.endDate) params.append("created_at__lte", filters.endDate);
       params.append("page", currentPage.toString());
       params.append("page_size", pageSize.toString());
-
       try {
         const res = await fetch(`/api/teacher/code/submissions?${params}`);
         if (!res.ok) throw new Error("Failed");
@@ -128,12 +129,9 @@ const SubmissionList: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchPage();
   }, [currentPage, filters, courses.length, classes.length]);
-
   const hasNext = submissions.length === pageSize;
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "graded":
@@ -146,13 +144,17 @@ const SubmissionList: React.FC = () => {
         return "bg-gray-100 text-gray-800";
     }
   };
-
+  const handleDateChange = (key: "startDate" | "endDate", value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value || undefined }));
+    setCurrentPage(1);
+  };
   if (loading && submissions.length === 0) {
-    return <div className="flex min-h-screen items-center justify-center bg-transparent">
-            <Spinner size="md" className="text-orange-500" />
-          </div>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-transparent">
+        <Spinner size="md" className="text-orange-500" />
+      </div>
+    );
   }
-
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -201,6 +203,27 @@ const SubmissionList: React.FC = () => {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex gap-3 items-center justify-center self-start">
+          <p className="">Start Date</p>
+          <input
+            type="date"
+            value={filters.startDate || ""}
+            onChange={(e) => handleDateChange("startDate", e.target.value)}
+            className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
+            placeholder="Start Date"
+          />
+        </div>
+
+        <div className="flex gap-3 items-center justify-center self-start">
+          <p className="">End Date</p>
+          <input
+            type="date"
+            value={filters.endDate || ""}
+            onChange={(e) => handleDateChange("endDate", e.target.value)}
+            className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
+            placeholder="End Date"
+          />
+        </div>
       </div>
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
@@ -311,5 +334,4 @@ const SubmissionList: React.FC = () => {
     </div>
   );
 };
-
 export default SubmissionList;

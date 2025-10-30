@@ -49,6 +49,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ButtonProps, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 // Pagination Components
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
@@ -973,16 +974,17 @@ export function TutoringBooking() {
 
                     <div className="space-y-2">
                       <Label htmlFor="duration">Duration (hours)</Label>
-                      <Select value={duration} onValueChange={setDuration}>
-                        <SelectTrigger id="duration" className="w-full">
-                          <SelectValue placeholder="Choose duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 hour</SelectItem>
-                          <SelectItem value="2">2 hours</SelectItem>
-                          <SelectItem value="3">3 hours</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        id="duration"
+                        type="number"
+                        min="1"
+                        max="3"
+                        step="1"
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        placeholder="e.g., 1"
+                        className="w-full"
+                      />
                     </div>
                   </div>
 
