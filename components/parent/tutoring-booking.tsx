@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -157,7 +158,7 @@ export function TutoringBooking() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [isCardBookingOpen, setIsCardBookingOpen] = useState(false);
   const [bookingTutorId, setBookingTutorId] = useState<number | null>(null);
-
+  const router = useRouter();
   // Booking form state
   const [child, setChild] = useState<string>("");
   const [preferredTime, setPreferredTime] = useState<string>("");
@@ -199,7 +200,9 @@ export function TutoringBooking() {
 
   // Fetch functions
   const fetchUpcoming = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`);
+    const res = await fetch(
+      `/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`
+    );
     if (res.ok) {
       const data = await res.json();
       setUpcomingSessions(data.results);
@@ -207,10 +210,11 @@ export function TutoringBooking() {
     }
   };
 
-
-  console.log(upcomingSessions, 'upcoming sessions')
+  console.log(upcomingSessions, "upcoming sessions");
   const fetchPast = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`);
+    const res = await fetch(
+      `/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`
+    );
     if (res.ok) {
       const data = await res.json();
       setPastSessions(data.results);
@@ -219,7 +223,9 @@ export function TutoringBooking() {
   };
 
   const fetchTutors = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`);
+    const res = await fetch(
+      `/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`
+    );
     if (res.ok) {
       const data = await res.json();
       setAvailableTutors(data.results);
@@ -342,15 +348,7 @@ export function TutoringBooking() {
   };
 
   // Days for preferred_days
-  const dayOptions = [
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-    "Sun",
-  ];
+  const dayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const toggleDay = (day: string, checked: boolean | string) => {
     setPreferredDays((prev) => {
@@ -366,7 +364,9 @@ export function TutoringBooking() {
       student_id: parseInt(child),
       private_tutoring_id: bookingTutorId,
       duration_hours: parseInt(duration),
-      notes: `Learning objectives: ${learningObjectives}\nPreferred days: ${preferredDays.join(', ')}\nPreferred time: ${preferredTime}\n${notes}`,
+      notes: `Learning objectives: ${learningObjectives}\nPreferred days: ${preferredDays.join(
+        ", "
+      )}\nPreferred time: ${preferredTime}\n${notes}`,
     };
     const res = await fetch("/api/tutor/tutoring/book", {
       method: "POST",
@@ -376,6 +376,7 @@ export function TutoringBooking() {
     if (res.ok) {
       setIsCardBookingOpen(false);
       resetBookingForm();
+      setActiveTab("upcoming");
     }
   };
 
@@ -482,6 +483,17 @@ export function TutoringBooking() {
                             {session.cost}
                           </div>
                           {getStatusBadge(session.status)}
+
+                          {session.status === "Pending" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push("/invoice/invoices")}
+                              className="mt-2 w-full sm:w-auto"
+                            >
+                              Pay Now
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -648,8 +660,7 @@ export function TutoringBooking() {
                         );
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
-                        (page === pastPage + 2 &&
-                          pastPage < pastTotalPages - 2)
+                        (page === pastPage + 2 && pastPage < pastTotalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -740,7 +751,11 @@ export function TutoringBooking() {
                           <span className="font-medium">Modules:</span>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {tutor.modules.map((mod: string, index: number) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="text-xs"
+                              >
                                 {mod}
                               </Badge>
                             ))}
@@ -956,7 +971,7 @@ export function TutoringBooking() {
                       </Select>
                     </div> */}
 
-                    {/* <div className="space-y-2">
+                    <div className="space-y-2">
                       <Label htmlFor="duration">Duration (hours)</Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger id="duration" className="w-full">
@@ -968,7 +983,7 @@ export function TutoringBooking() {
                           <SelectItem value="3">3 hours</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div> */}
+                    </div>
                   </div>
 
                   {/* Learning Objectives */}
@@ -1034,9 +1049,7 @@ export function TutoringBooking() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.total_tutoring}
-            </div>
+            <div className="text-2xl font-bold">{stats.total_tutoring}</div>
             <p className="text-xs text-muted-foreground">
               {stats.upcoming_count} upcoming tutoring
             </p>
@@ -1050,9 +1063,7 @@ export function TutoringBooking() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.hours_completed}h
-            </div>
+            <div className="text-2xl font-bold">{stats.hours_completed}h</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -1067,9 +1078,7 @@ export function TutoringBooking() {
             <div className="text-2xl font-bold">
               {stats.average_rating.toFixed(1)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              From past tutoring
-            </p>
+            <p className="text-xs text-muted-foreground">From past tutoring</p>
           </CardContent>
         </Card>
         <Card>
