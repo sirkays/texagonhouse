@@ -1,4 +1,6 @@
 /* cbt-test.tsx — online-only version WITH server-backed Past Attempts */
+/* Modified for offline support: cache data, queue submissions, sync when online */
+
 import { useState, useEffect, useMemo } from "react";
 import {
   Card,
@@ -155,34 +157,134 @@ export function CBTTest() {
   });
   const [attemptsPage, setAttemptsPage] = useState(1);
 
+  // NEW: offline support
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
 
-  /* ---------- Fetch tests list + server attempts ---------- */
+  /* ---------- Offline/online listeners and sync ---------- */
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncPendingSubmissions();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+
+  // Auto-start if the URL has ?start=<testPk>
 useEffect(() => {
-  if (!testCompleted) return;
-  setAutoReloadSeconds(120); // 2 minutes
+  if (loading) return;                // wait until fetchData() completes
+  if (!Array.isArray(availableTests) || availableTests.length === 0) return;
 
-  const interval = setInterval(() => {
-    setAutoReloadSeconds((s) => {
-      if (s == null) return s;
-      if (s <= 1) {
-        clearInterval(interval);
-        if (typeof window !== "undefined") {
-          window.location.reload(); // hard reload to fetch fresh tests & attempts
+  const params = new URLSearchParams(window.location.search);
+  const startPk = params.get("start");
+  if (!startPk) return;
+
+  // If subscription/attempt limits apply, reuse the existing gate dialog logic:
+  const test = availableTests.find((t) => t.pk?.toString() === startPk);
+  if (!test) return;
+
+  if ((test.requiresSubscription && !isSubscriber) || (test.type === "exam" && examAttempts >= maxAttempts)) {
+    setPendingTestId(startPk);
+    setShowStartDialog(true);
+  } else {
+    // go straight into the test
+    handleStartTestProceed(startPk);
+  }
+
+  // Remove the param so reloads don't re-start
+  const url = new URL(window.location.href);
+  url.searchParams.delete("start");
+  window.history.replaceState({}, "", url.toString());
+}, [loading, availableTests, isSubscriber, examAttempts, maxAttempts]);
+
+
+  useEffect(() => {
+    if (isOnline) {
+      syncPendingSubmissions();
+    }
+  }, [isOnline, sessionToken]);
+
+  const syncPendingSubmissions = async () => {
+    if (!isOnline || !sessionToken) return;
+
+    let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+    if (!pending.length) return;
+
+    setIsSyncing(true);
+
+    let newPending = [];
+    let anySuccess = false;
+
+    for (let sub of pending) {
+      try {
+        const res = await fetchWithTimeout("/api/student/cbt", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+          },
+          body: JSON.stringify(sub),
+        }, 15000);
+
+        if (res.ok) {
+          const data = await res.json();
+          // Update testResults if currentTest matches, but since may be delayed, just refresh data
+          anySuccess = true;
+        } else {
+          newPending.push(sub); // keep if failed
         }
-        return 0;
+      } catch (err) {
+        console.error("[CBTTest] Sync failed for submission:", err);
+        newPending.push(sub); // keep on error
       }
-      return s - 1;
-    });
-  }, 1000);
+    }
 
-  return () => clearInterval(interval);
-}, [testCompleted]);
+    localStorage.setItem("pendingCBTSubmissions", JSON.stringify(newPending));
 
+    if (anySuccess) {
+      fetchData(); // refresh attempts and tests
+    }
 
+    setIsSyncing(false);
+  };
+
+  /* ---------- Auto-reload after completion ---------- */
+  useEffect(() => {
+    if (!testCompleted) return;
+    setAutoReloadSeconds(120); // 2 minutes
+
+    const interval = setInterval(() => {
+      setAutoReloadSeconds((s) => {
+        if (s == null) return s;
+        if (s <= 1) {
+          clearInterval(interval);
+          if (typeof window !== "undefined") {
+            window.location.reload(); // hard reload to fetch fresh tests & attempts
+          }
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [testCompleted]);
+
+  /* ---------- Fetch tests list + server attempts (with offline cache) ---------- */
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated" || !sessionToken) {
@@ -191,61 +293,97 @@ useEffect(() => {
       return;
     }
 
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const qs = new URLSearchParams();
-        qs.set("page", String(attemptsPage));
-        qs.set("page_size", "20");
-
-        const res = await fetchWithTimeout(
-          `/api/student/cbt?${qs.toString()}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-Token": sessionToken,
-            },
-          },
-          10000
-        );
-
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            setError("Session expired");
-            setLoading(false);
-            return;
-          }
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const d = await res.json();
-        const tests = Array.isArray(d.tests) ? d.tests : [];
-        setAvailableTests(tests);
-        setTestResults(d.results || {});
-
-        if (d.attempts?.results) {
-          setAttempts({
-            count: Number(d.attempts.count ?? d.attempts.results.length ?? 0),
-            page: Number(d.attempts.page ?? 1),
-            page_size: Number(d.attempts.page_size ?? 20),
-            results: Array.isArray(d.attempts.results)
-              ? d.attempts.results
-              : [],
-          });
-        } else {
-          setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
-        }
-
-        setError(null);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, [sessionToken, status, attemptsPage]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    if (!isOnline) {
+      loadCachedData();
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const qs = new URLSearchParams();
+      qs.set("page", String(attemptsPage));
+      qs.set("page_size", "20");
+
+      const res = await fetchWithTimeout(
+        `/api/student/cbt?${qs.toString()}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+          },
+        },
+        10000
+      );
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setError("Session expired");
+          setLoading(false);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const d = await res.json();
+      const tests = Array.isArray(d.tests) ? d.tests : [];
+      setAvailableTests(tests);
+      setTestResults(d.results || {});
+
+      if (d.attempts?.results) {
+        setAttempts({
+          count: Number(d.attempts.count ?? d.attempts.results.length ?? 0),
+          page: Number(d.attempts.page ?? 1),
+          page_size: Number(d.attempts.page_size ?? 20),
+          results: Array.isArray(d.attempts.results)
+            ? d.attempts.results
+            : [],
+        });
+      } else {
+        setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
+      }
+
+      // Cache the data
+      localStorage.setItem(
+        "cachedCBTData",
+        JSON.stringify({
+          tests,
+          results: d.results || {},
+          attempts: d.attempts || { count: 0, page: 1, page_size: 20, results: [] },
+        })
+      );
+
+      setError(null);
+    } catch (err: any) {
+      if (!isOnline) {
+        loadCachedData();
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCachedData = () => {
+    const cached = localStorage.getItem("cachedCBTData");
+    if (cached) {
+      const data = JSON.parse(cached);
+      setAvailableTests(data.tests || []);
+      setTestResults(data.results || {});
+      setAttempts(data.attempts || { count: 0, page: 1, page_size: 20, results: [] });
+      setError("Offline: Showing cached data");
+    } else {
+      setError("Offline and no cached data available");
+      setAvailableTests([]);
+      setTestResults({});
+      setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
+    }
+  };
 
   /* ---------- start logic ---------- */
   const startTest = async (testPk: string | number) => {
@@ -367,7 +505,7 @@ useEffect(() => {
     }
   }, [suspiciousActivity]);
 
-  /* ---------- submitTest ---------- */
+  /* ---------- submitTest (with offline support) ---------- */
   const submitTest = async () => {
     if (!currentTest) return;
 
@@ -402,7 +540,7 @@ useEffect(() => {
       started_at: startTime,
       duration_seconds: initialTime - timeLeft,
       suspicious_activity: suspiciousActivity || 0,
-      currentTest: currentTest,
+      currentTest: currentTest, // Note: backend expects 'test' or 'testPk', but code uses 'currentTest'
     };
 
     console.log("[CBTTest] Submitting test payload:", cleanedBody);
@@ -411,37 +549,52 @@ useEffect(() => {
     setIsSecureMode(false);
     setSuspiciousActivity(0);
 
-    try {
-      const res = await fetchWithTimeout(
-        "/api/student/cbt",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
+    if (isOnline) {
+      try {
+        const res = await fetchWithTimeout(
+          "/api/student/cbt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+            },
+            body: JSON.stringify(cleanedBody),
           },
-          body: JSON.stringify(cleanedBody),
-        },
-        15000
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        const test = availableTests.find(
-          (t) => t.pk.toString() === currentTest
+          15000
         );
-        setTestResults((prev) => ({
-          ...prev,
-          [currentTest!]: { ...data, title: test?.title },
-        }));
-        // refresh attempts list (resets to first page)
-        setAttemptsPage(1);
-      } else {
-        console.error(`HTTP ${res.status}: ${await res.text()}`);
+
+        if (res.ok) {
+          const data = await res.json();
+          const test = availableTests.find(
+            (t) => t.pk.toString() === currentTest
+          );
+          setTestResults((prev) => ({
+            ...prev,
+            [currentTest!]: { ...data, title: test?.title },
+          }));
+          // refresh attempts list (resets to first page)
+          setAttemptsPage(1);
+          fetchData(); // refresh
+        } else {
+          console.error(`HTTP ${res.status}: ${await res.text()}`);
+          // If failed online, queue as pending?
+          queueAsPending(cleanedBody);
+        }
+      } catch (err: any) {
+        console.error("[CBTTest] Submit failed:", err);
+        queueAsPending(cleanedBody);
       }
-    } catch (err: any) {
-      console.error("[CBTTest] Submit failed:", err);
+    } else {
+      queueAsPending(cleanedBody);
     }
+  };
+
+  const queueAsPending = (cleanedBody: any) => {
+    let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+    pending.push({ ...cleanedBody, queuedAt: new Date().toISOString() });
+    localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
+    console.log("[CBTTest] Queued submission offline");
   };
 
   const handleResetToList = () => {
@@ -538,7 +691,7 @@ useEffect(() => {
     );
   }
 
-  /* ---------- Completed view ---------- */
+  /* ---------- Completed view (with offline message) ---------- */
   if (testCompleted) {
     const Icon = CheckCircle;
     const iconColor = "text-green-500";
@@ -549,7 +702,7 @@ useEffect(() => {
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {result ? `Your result: ${result.result}` : ""}
+            {result ? `Your result: ${result.result}` : isOnline ? "" : " (Offline - results pending sync)"}
           </p>
         </div>
 
@@ -560,7 +713,11 @@ useEffect(() => {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {result ? "Thank you for completing the test." : ""}
+              {result 
+                ? "Thank you for completing the test." 
+                : isOnline 
+                  ? "Processing results..." 
+                  : "Test submitted offline. Results will be available once synced online."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -606,7 +763,6 @@ useEffect(() => {
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Go back to Test
                 </Button>
-
 
               {result && (
                 <Button
@@ -956,6 +1112,8 @@ useEffect(() => {
   const hasTests =
     Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
 
+  const pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+
   return (
     <div className="space-y-6">
       {/* ---------- Start dialog (unchanged behavior) ---------- */}
@@ -1013,12 +1171,31 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
-      <div>
-        <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
-        <p className="text-muted-foreground">
-          Quizzes and secure semester exams with comprehensive feedback
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
+          <p className="text-muted-foreground">
+            Quizzes and secure semester exams with comprehensive feedback
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {isSyncing && (
+            <div className="flex items-center gap-1 text-blue-500">
+              <Spinner size="sm" />
+              Syncing...
+            </div>
+          )}
+          <Badge variant={isOnline ? "default" : "destructive"}>
+            {isOnline ? "Online" : "Offline"}
+          </Badge>
+        </div>
       </div>
+
+      {error && error.startsWith("Offline") && (
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center text-sm text-yellow-800">
+          {error}
+        </div>
+      )}
 
       <Tabs defaultValue="available" className="space-y-4">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
@@ -1080,6 +1257,8 @@ useEffect(() => {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {currentTests.map((test) => {
                   const res = testResults[test.pk?.toString()] ?? null;
+                  const isPending = pending.some((p: any) => p.currentTest === test.pk.toString());
+                  const disableButton = !isOnline && isPending;
                   return (
                     <Card
                       key={test.pk}
@@ -1107,6 +1286,11 @@ useEffect(() => {
                               >
                                 <Shield className="h-3 w-3 mr-1" />
                                 Secure Exam
+                              </Badge>
+                            )}
+                            {!isOnline && isPending && (
+                              <Badge variant="secondary">
+                                Pending Sync
                               </Badge>
                             )}
                           </div>
@@ -1140,21 +1324,30 @@ useEffect(() => {
                           </div>
                         )}
 
+                        {!isOnline && isPending && (
+                          <p className="text-sm text-red-600">
+                            Cannot start this test offline until synced.
+                          </p>
+                        )}
+
                         <div className="mt-auto">
-                          <Button
-                            onClick={() => startTest(test.pk)}
+                            <Button
+                            onClick={() => {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set("start", String(test.pk));
+                                window.open(url.toString(), "_blank", "noopener,noreferrer");
+                            }}
                             className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                             disabled={
-                              (test.type === "exam" &&
-                                examAttempts >= maxAttempts) ||
-                              (test.requiresSubscription && !isSubscriber)
+                                (!isOnline && pending.some((p: any) => p.currentTest === test.pk.toString())) ||
+                                (test.type === "exam" && examAttempts >= maxAttempts) ||
+                                (test.requiresSubscription && !isSubscriber)
                             }
-                          >
+                            >
                             <Play className="mr-2 h-4 w-4" />
-                            {test.type === "exam"
-                              ? "Start Secure Exam"
-                              : "Start Quiz"}
-                          </Button>
+                            {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
+                            </Button>
+
                         </div>
                       </CardContent>
                     </Card>
@@ -1274,18 +1467,19 @@ useEffect(() => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col gap-3">
-                      <p className="text-sm">
-                        <span className="font-medium">Status: </span>
-                        <Badge variant="outline">{a.status || "—"}</Badge>
-                      </p>
-                      <p className="text-sm">
-                        <span className="font-medium">Score: </span>
-                        {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
-                        {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Submitted: {submittedDate || "—"}
-                      </p>
+                      <div className="text-sm flex items-center gap-2">
+                          <span className="font-medium">Status:</span>
+                          <Badge variant="outline">{a.status || "—"}</Badge>
+                      </div>
+
+                      <div className="text-sm">
+                          <span className="font-medium">Score: </span>
+                          {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
+                          {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
+                      </div>
+                    <p className="text-sm text-muted-foreground">
+                      Submitted: {submittedDate || "—"}
+                    </p>
                     </CardContent>
                   </Card>
                 );

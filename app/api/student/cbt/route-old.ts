@@ -2,32 +2,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { cookies } from "next/headers";
 
-const BASE_URL = "http://127.0.0.1:9098";
-// const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.epichouse.online";
+//const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
-
-const COOKIE_NAME = "device_id";
-const ONE_YEAR = 60 * 60 * 24 * 365;
-
-async function ensureDeviceId(request: Request) {
-  // 1) Prefer a client-provided header (e.g., from your SPA)
-  const hdr = request.headers.get("x-device-id")?.trim();
-
-  // 2) Use first-party cookie if it exists
-  const cookieStore = await cookies(); // ✅ await it
-  const c = cookieStore.get("device_id")?.value?.trim();
-
-  // 3) Else, generate a new one
-  const deviceId =
-    hdr ||
-    c ||
-    (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
-
-  const needSetCookie = !c; // only set cookie if missing
-  return { deviceId, needSetCookie };
-}
 
 async function fetchWithTimeout(url: string, options: any) {
   const controller = new AbortController();
@@ -42,36 +20,17 @@ async function fetchWithTimeout(url: string, options: any) {
   }
 }
 
-function withDeviceCookie(res: NextResponse, deviceId: string, setCookie: boolean) {
-  if (!setCookie) return res;
-  res.cookies.set({
-    name: COOKIE_NAME,
-    value: deviceId,
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",                 // first-party; Lax is fine for normal navigations/fetch
-    secure: process.env.NODE_ENV === "production",
-    maxAge: ONE_YEAR,
-  });
-  return res;
-}
-
 export async function GET(request: Request) {
-  console.log("[Route] Received GET /api/student/cbt");
-
+  console.log("[Route] Received GET request to /api/student/cbt");
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.sessionToken) {
     console.error("[Route] No session token found, session:", session);
-    const res = NextResponse.json({ error: "No session token" }, { status: 401 });
-    return res;
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
-  // --- Bulletproof device id ---
-  const { deviceId, needSetCookie } =  await ensureDeviceId(request);
-  console.log("[Route] Using deviceId:", deviceId);
-
   try {
-    // Passthrough query params for attempts (your tests URL doesn't use them)
+    // Pass through query params (e.g., page, page_size, status, etc.)
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const qp = queryString ? `?${queryString}` : "";
@@ -84,25 +43,21 @@ export async function GET(request: Request) {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
-        "X-Device-ID": deviceId, // <<< forward to Django
       },
-      // credentials here affect this server's fetch to backend, not browser
-      credentials: "include",
       timeout: 8000,
     });
-
     if (!testsRes.ok) {
       const errorText = await testsRes.text();
-      console.error("[Route] External API error (tests):", errorText);
-      const res = NextResponse.json(
+      console.error("[Route] External API error response (tests):", errorText);
+      return NextResponse.json(
         { error: `Failed to fetch tests: ${errorText}` },
         { status: testsRes.status }
       );
-      return withDeviceCookie(res, deviceId, needSetCookie);
     }
     const testsData = await testsRes.json();
 
-    // Student attempts (paginated)
+    // Student test attempts (paginated)
+    // NOTE: The docs say /assessments + /api/student/test-attempts
     const attemptsUrl = `${BASE_URL}/assessments/api/student/test-attempts/${qp}`;
     console.log("[Route] Fetching attempts from:", attemptsUrl);
     const attemptsRes = await fetchWithTimeout(attemptsUrl, {
@@ -110,56 +65,44 @@ export async function GET(request: Request) {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
-        "X-Device-ID": deviceId, // <<< forward to Django
       },
-      credentials: "include",
       timeout: 8000,
     });
-
     if (!attemptsRes.ok) {
       const errorText = await attemptsRes.text();
-      console.error("[Route] External API error (attempts):", errorText);
-      const res = NextResponse.json(
+      console.error("[Route] External API error response (attempts):", errorText);
+      return NextResponse.json(
         { error: `Failed to fetch attempts: ${errorText}` },
         { status: attemptsRes.status }
       );
-      return withDeviceCookie(res, deviceId, needSetCookie);
     }
     const attemptsData = await attemptsRes.json();
 
-    // Combined payload
+    // Return a single combined payload
     const payload = {
       ...(Array.isArray(testsData?.tests) ? { tests: testsData.tests } : {}),
       ...(testsData?.results ? { results: testsData.results } : {}),
-      attempts: attemptsData,
+      attempts: attemptsData, // full paginated object
     };
     console.log("[Route] Combined GET payload keys:", Object.keys(payload));
-
-    const res = NextResponse.json(payload, { status: 200 });
-    return withDeviceCookie(res, deviceId, needSetCookie);
+    return NextResponse.json(payload, { status: 200 });
   } catch (error: any) {
     console.error("[Route] Error fetching data:", error);
-    const res = NextResponse.json(
+    return NextResponse.json(
       { error: "Internal server error", details: error.message },
       { status: 500 }
     );
-    return withDeviceCookie(res, deviceId, needSetCookie);
   }
 }
 
 export async function POST(request: Request) {
-  console.log("[Route] Received POST /api/student/cbt");
-
+  console.log("[Route] Received POST request to /api/student/cbt");
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.sessionToken) {
     console.error("[Route] No session token found");
-    const res = NextResponse.json({ error: "No session token" }, { status: 401 });
-    return res;
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
-
-  // --- Bulletproof device id (same logic as GET) ---
-  const { deviceId, needSetCookie } = await ensureDeviceId(request);
-  console.log("[Route] Using deviceId:", deviceId);
 
   const maxRetries = 3;
   let attempt = 0;
@@ -170,21 +113,19 @@ export async function POST(request: Request) {
     console.log("[Route] Raw POST body:", body);
   } catch (err: any) {
     console.error("[Route] Error parsing request body:", err);
-    const res = NextResponse.json(
+    return NextResponse.json(
       { error: "Invalid request body", details: err.message },
       { status: 400 }
     );
-    return withDeviceCookie(res, deviceId, needSetCookie);
   }
 
   const testId = body.test || body.testPk || body.currentTest;
   if (!testId) {
     console.error("[Route] Missing test ID in request body");
-    const res = NextResponse.json(
+    return NextResponse.json(
       { error: "Missing test ID (test/testPk/currentTest)" },
       { status: 400 }
     );
-    return withDeviceCookie(res, deviceId, needSetCookie);
   }
 
   const answers = (body.answers || [])
@@ -217,11 +158,10 @@ export async function POST(request: Request) {
     .filter(Boolean);
 
   if (!answers.length) {
-    const res = NextResponse.json(
+    return NextResponse.json(
       { error: "answers must be a non-empty list." },
       { status: 400 }
     );
-    return withDeviceCookie(res, deviceId, needSetCookie);
   }
 
   const payload = {
@@ -238,46 +178,40 @@ export async function POST(request: Request) {
       const submitUrl = `${BASE_URL}/assessments/api/tests/${testId}/submit/`;
       console.log("[Route] Submitting to:", submitUrl);
 
-      const resUp = await fetchWithTimeout(submitUrl, {
+      const res = await fetchWithTimeout(submitUrl, {
         method: "POST",
         headers: {
           Authorization: `Api-Key ${API_KEY}`,
           "Content-Type": "application/json",
           "X-Session-Token": session.user.sessionToken,
-          "X-Device-ID": deviceId, // <<< forward to Django
         },
         body: JSON.stringify(payload),
-        credentials: "include",
         timeout: 20000,
       });
 
-      console.log("[Route] External API response status:", resUp.status);
+      console.log("[Route] External API response status:", res.status);
 
-      if (!resUp.ok) {
-        const errorText = await resUp.text();
+      if (!res.ok) {
+        const errorText = await res.text();
         console.error("[Route] External API error response:", errorText);
-        const res = NextResponse.json(
+        return NextResponse.json(
           { error: `Failed to submit test: ${errorText}` },
-          { status: resUp.status }
+          { status: res.status }
         );
-        return withDeviceCookie(res, deviceId, needSetCookie);
       }
 
-      const data = await resUp.json();
+      const data = await res.json();
       console.log("[Route] External API response data:", data);
-      const res = NextResponse.json(data, { status: 200 });
-      return withDeviceCookie(res, deviceId, needSetCookie);
+      return NextResponse.json(data, { status: 200 });
     } catch (err: any) {
       console.error(`[Route] Attempt ${attempt + 1} failed:`, err.message);
       attempt++;
       if (attempt === maxRetries) {
-        const res = NextResponse.json(
+        return NextResponse.json(
           { error: "Failed after retries", details: err.message },
           { status: 500 }
         );
-        return withDeviceCookie(res, deviceId, needSetCookie);
       }
-      // backoff
       await new Promise((resolve) =>
         setTimeout(resolve, 1000 * Math.pow(2, attempt))
       );

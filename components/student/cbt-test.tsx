@@ -236,6 +236,7 @@ useEffect(() => {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
+            "X-Device-ID": getDeviceId(),
           },
           body: JSON.stringify(sub),
         }, 15000);
@@ -315,6 +316,7 @@ useEffect(() => {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
+            "X-Device-ID": getDeviceId(),
           },
         },
         10000
@@ -405,6 +407,17 @@ useEffect(() => {
 
     await handleStartTestProceed(testPk);
   };
+// Anywhere in your frontend before calling /api/student/cbt
+function getDeviceId() {
+  const key = "device_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 
   const handleStartTestProceed = async (testPk: string | number) => {
     const test = (availableTests || []).find(
@@ -558,6 +571,7 @@ useEffect(() => {
             headers: {
               "Content-Type": "application/json",
               "X-Session-Token": sessionToken,
+              "X-Device-ID": getDeviceId(),
             },
             body: JSON.stringify(cleanedBody),
           },
@@ -1331,22 +1345,21 @@ useEffect(() => {
                         )}
 
                         <div className="mt-auto">
-                            <Button
-                            onClick={() => {
-                                const url = new URL(window.location.href);
-                                url.searchParams.set("start", String(test.pk));
-                                window.open(url.toString(), "_blank", "noopener,noreferrer");
-                            }}
+                          <Button
+                            onClick={() => startTest(test.pk)}
                             className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                             disabled={
-                                (!isOnline && pending.some((p: any) => p.currentTest === test.pk.toString())) ||
-                                (test.type === "exam" && examAttempts >= maxAttempts) ||
-                                (test.requiresSubscription && !isSubscriber)
+                              disableButton ||
+                              (test.type === "exam" &&
+                                examAttempts >= maxAttempts) ||
+                              (test.requiresSubscription && !isSubscriber)
                             }
-                            >
+                          >
                             <Play className="mr-2 h-4 w-4" />
-                            {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
-                            </Button>
+                            {test.type === "exam"
+                              ? "Start Secure Exam"
+                              : "Start Quiz"}
+                          </Button>
 
                         </div>
                       </CardContent>
