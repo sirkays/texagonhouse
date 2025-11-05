@@ -1,0 +1,100 @@
+// app/api/tutor/tutoring/tutors/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { unstable_noStore as noStore } from "next/cache";
+//const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://texagonbackend.epichouse.online";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+
+const headers = (sessionToken: string | undefined) => ({
+  "Authorization": `Api-Key ${API_KEY}`,
+  "Content-Type": "application/json",
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
+});
+
+export async function GET(req: Request) {
+  noStore();
+  const endpoint = "/api/tutor/tutoring/tutors/";
+  const { searchParams } = new URL(req.url);
+  const queryString = searchParams.toString();
+  const fullUrl = `${BASE_URL}${endpoint}${queryString ? `?${queryString}` : ""}`;
+  
+  console.log("[TutoringTutorsAPI] GET tutors:", fullUrl);
+
+  const session = await getServerSession(authOptions);
+  console.log("[TutoringTutorsAPI] Session token:", session?.user?.sessionToken ? "present" : "missing");
+
+  if (!session?.user?.sessionToken) {
+    console.log("[TutoringTutorsAPI] Unauthorized: No session token");
+    return NextResponse.json(
+      { error: "Not authenticated", redirect: "/login" },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  try {
+    const requestHeaders = headers(session.user.sessionToken);
+    console.log("[TutoringTutorsAPI] Request headers:", {
+      "Authorization": requestHeaders["Authorization"],
+      "X-Session-Token": requestHeaders["X-Session-Token"] || "not sent",
+      "Content-Type": requestHeaders["Content-Type"]
+    });
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: requestHeaders,
+    });
+
+    console.log("[TutoringTutorsAPI] Response status:", response.status);
+    console.log("[TutoringTutorsAPI] Response headers:", Object.fromEntries(response.headers.entries()));
+
+    const contentType = response.headers.get("content-type") || "";
+    const raw = await response.text();
+    console.log("[TutoringTutorsAPI] Raw response body:", raw.substring(0, 500) + (raw.length > 500 ? "..." : ""));
+
+    if (!response.ok) {
+      console.log("[TutoringTutorsAPI] API error response:", { status: response.status, body: raw });
+      
+      if (response.status === 401) {
+        return NextResponse.json(
+          { error: "Session expired", redirect: "/login" },
+          { status: 401, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      if (response.status === 403) {
+        return NextResponse.json(
+          { error: "Access denied. Parent profile required." },
+          { status: 403, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      return NextResponse.json(
+        { error: "Failed to fetch tutors" },
+        { status: response.status, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (!contentType.includes("application/json")) {
+      console.log("[TutoringTutorsAPI] Invalid content-type:", contentType);
+      return NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const data = JSON.parse(raw);
+    console.log("[TutoringTutorsAPI] Parsed JSON data:", JSON.stringify(data, null, 2));
+    console.log("[TutoringTutorsAPI] Number of tutors returned:", Array.isArray(data) ? data.length : "not an array");
+
+    return NextResponse.json(data, {
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (error) {
+    console.error("[TutoringTutorsAPI] Exception:", error);
+    return NextResponse.json(
+      { error: "Server error", details: (error as Error).message },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+}

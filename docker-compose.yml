@@ -1,0 +1,67 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+
+      # ACME (Let's Encrypt) via HTTP-01 on port 80
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+
+      # (Optional) dashboard/logging while debugging
+      - --log.level=INFO
+      - --accesslog=true
+
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt/acme.json:/letsencrypt/acme.json
+    labels:
+      # Global HTTP -> HTTPS (low priority so ACME wins)
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.priority=1"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https@docker"
+
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+    networks: [web]
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: nextapp
+    env_file: .env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+
+      # One router per hostname (each can get its own cert)
+      - "traefik.http.routers.next-epichouse.rule=Host(`texagon.epichouse.online`)"
+      - "traefik.http.routers.next-epichouse.entrypoints=websecure"
+      - "traefik.http.routers.next-epichouse.tls=true"
+      - "traefik.http.routers.next-epichouse.tls.certresolver=le"
+
+      - "traefik.http.routers.next-esm.rule=Host(`texagonui.esm.name.ng`)"
+      - "traefik.http.routers.next-esm.entrypoints=websecure"
+      - "traefik.http.routers.next-esm.tls=true"
+      - "traefik.http.routers.next-esm.tls.certresolver=le"
+
+      # App service port
+      - "traefik.http.services.next.loadbalancer.server.port=3000"
+    networks: [web]
+    depends_on: [traefik]
+    restart: unless-stopped
+
+networks:
+  web:
+    name: web
+    external: false

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .color-box {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .color-box:hover {
+            transform: scale(1.05);
+        }
+
+        .copied {
+            animation: fadeOut 1s forwards;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-6">Color Palette</h1>
+
+        <!-- Primary Colors -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Primary Colors</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="color-box bg-[#DD2701] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#DD2701')">
+                    <span>#DD2701</span>
+                </div>
+                <div class="color-box bg-[#E3431D] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#E3431D')">
+                    <span>#E3431D</span>
+                </div>
+                <div class="color-box bg-[#E95F39] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#E95F39')">
+                    <span>#E95F39</span>
+                </div>
+                <div class="color-box bg-[#EF7B55] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#EF7B55')">
+                    <span>#EF7B55</span>
+                </div>
+                <div class="color-box bg-[#F79771] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#F79771')">
+                    <span>#F79771</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Colors -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Secondary Colors</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="color-box bg-[#DD2701] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#F19212')">
+                    <span>#F19212</span>
+                </div>
+                <div class="color-box bg-[#F3A22E] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#F3A22E')">
+                    <span>#F3A22E</span>
+                </div>
+                <div class="color-box bg-[#F5B24A] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#F5B24A')">
+                    <span>#F5B24A</span>
+                </div>
+                <div class="color-box bg-[#F7C266] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#F7C266')">
+                    <span>#F7C266</span>
+                </div>
+                <div class="color-box bg-[#F9D282] h-32 flex items-center justify-center text-white rounded-lg"
+                    onclick="copyColor('#F9D282')">
+                    <span>#F9D282</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Copy Feedback -->
+        <div id="copyFeedback" class="hidden fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50">
+        </div>
+    </div>
+
+    <script>
+        function copyColor(color) {
+            navigator.clipboard.writeText(color).then(() => {
+                const feedback = document.getElementById('copyFeedback');
+                feedback.textContent = `${color} copied!`;
+                feedback.classList.remove('hidden', 'copied');
+                void feedback.offsetWidth; // Trigger reflow
+                feedback.classList.add('copied');
+                setTimeout(() => feedback.classList.add('hidden'), 1000);
+            });
+        }
+    </script>
+</body>
+
+</html>
