@@ -183,6 +183,35 @@ export function CBTTest() {
     };
   }, []);
 
+
+  // Auto-start if the URL has ?start=<testPk>
+useEffect(() => {
+  if (loading) return;                // wait until fetchData() completes
+  if (!Array.isArray(availableTests) || availableTests.length === 0) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const startPk = params.get("start");
+  if (!startPk) return;
+
+  // If subscription/attempt limits apply, reuse the existing gate dialog logic:
+  const test = availableTests.find((t) => t.pk?.toString() === startPk);
+  if (!test) return;
+
+  if ((test.requiresSubscription && !isSubscriber) || (test.type === "exam" && examAttempts >= maxAttempts)) {
+    setPendingTestId(startPk);
+    setShowStartDialog(true);
+  } else {
+    // go straight into the test
+    handleStartTestProceed(startPk);
+  }
+
+  // Remove the param so reloads don't re-start
+  const url = new URL(window.location.href);
+  url.searchParams.delete("start");
+  window.history.replaceState({}, "", url.toString());
+}, [loading, availableTests, isSubscriber, examAttempts, maxAttempts]);
+
+
   useEffect(() => {
     if (isOnline) {
       syncPendingSubmissions();
@@ -1302,21 +1331,23 @@ export function CBTTest() {
                         )}
 
                         <div className="mt-auto">
-                          <Button
-                            onClick={() => startTest(test.pk)}
+                            <Button
+                            onClick={() => {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set("start", String(test.pk));
+                                window.open(url.toString(), "_blank", "noopener,noreferrer");
+                            }}
                             className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                             disabled={
-                              disableButton ||
-                              (test.type === "exam" &&
-                                examAttempts >= maxAttempts) ||
-                              (test.requiresSubscription && !isSubscriber)
+                                (!isOnline && pending.some((p: any) => p.currentTest === test.pk.toString())) ||
+                                (test.type === "exam" && examAttempts >= maxAttempts) ||
+                                (test.requiresSubscription && !isSubscriber)
                             }
-                          >
+                            >
                             <Play className="mr-2 h-4 w-4" />
-                            {test.type === "exam"
-                              ? "Start Secure Exam"
-                              : "Start Quiz"}
-                          </Button>
+                            {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
+                            </Button>
+
                         </div>
                       </CardContent>
                     </Card>
