@@ -1,7 +1,10 @@
-/* cbt-test.tsx — online-only version WITH server-backed Past Attempts */
-/* Modified for offline support: cache data, queue submissions, sync when online */
+/* cbt-test.tsx — online-only version WITH server-backed Past Attempts
+   Modified for offline support + robust sync + cache cleanup
+   + Local "in_progress" guard per test with online flush to /api/student/cbt/quit/
+*/
 
 import { useState, useEffect, useMemo } from "react";
+
 import {
   Card,
   CardContent,
@@ -54,7 +57,6 @@ import {
 } from "@/components/ui/select";
 
 /* ---------- utility helpers ---------- */
-
 async function fetchWithTimeout(
   url: string,
   options: any = {},
@@ -111,10 +113,10 @@ type AttemptsPayload = {
 };
 
 /* ---------- CBTTest component ---------- */
-
 export function CBTTest() {
   const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(null);
   const { data: session, status } = useSession();
+
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, any>>({});
@@ -137,12 +139,13 @@ export function CBTTest() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   // Split the two modals to avoid type clashes:
   const [showSubmittedAnswersModal, setShowSubmittedAnswersModal] =
     useState(false); // for "Test Completed" view
   const [pastAttemptModalId, setPastAttemptModalId] = useState<string | null>(
     null
-  ); // for "Past Attempts" details
+  ); // for "Past Attempts" details (kept for parity, unused in this snippet)
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">(
     "date"
@@ -158,13 +161,183 @@ export function CBTTest() {
   const [attemptsPage, setAttemptsPage] = useState(1);
 
   // NEW: offline support
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [isSyncing, setIsSyncing] = useState(false);
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
+
+  /* ---------- NEW HELPERS (fixes) ---------- */
+  async function syncInProgressToServer(sessionToken: string) {
+  const map = readInProgress();
+  const ids = Object.keys(map);
+  if (!ids.length) return false; // nothing to do
+
+  let changed = false;
+
+  for (const id of ids) {
+    try {
+      const res = await fetchWithTimeout(
+        "/api/student/cbt/quit/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+            "X-Device-ID": getDeviceId(),
+          },
+          body: JSON.stringify({ test_id: Number(id) }),
+        },
+        10000
+      );
+      if (res.ok) {
+        clearInProgress(id);
+        changed = true;
+      }
+    } catch {
+      // keep local flag; we'll retry next time we’re online
+    }
+  }
+
+  refreshInProgressIds();
+  return changed; // tells caller if anything changed
+}
+
+  // Keep device id by default while clearing pending queue and cached data
+  async function clearOfflineCache({ keepDeviceId = true } = {}) {
+    try {
+      const deviceId = keepDeviceId ? localStorage.getItem("device_id") : null;
+      localStorage.removeItem("pendingCBTSubmissions");
+      // localStorage.removeItem("cachedCBTData");
+      if (!keepDeviceId) {
+        localStorage.removeItem("device_id");
+      } else if (deviceId) {
+        localStorage.setItem("device_id", deviceId);
+      }
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (e) {
+      console.error("[CBTTest] clearOfflineCache error:", e);
+    }
+  }
+
+  // Normalize queued submissions so backend gets the right test identifier
+  function normalizeSubmission(sub: any) {
+    const testId =
+      sub.test ??
+      sub.testPk ??
+      sub.currentTest ??
+      sub.test_id ??
+      null;
+    return {
+      ...sub,
+      test: testId,
+      testPk: testId,
+    };
+  }
+
+  // Treat OK + common idempotent statuses as success for pruning
+  function isHandledOk(status: number) {
+    return (status >= 200 && status < 300) || [409, 422, 208].includes(status);
+  }
+
+  // Prevent multi-tab resurrection with a very light lock
+  async function withLocalLock(name: string, fn: () => Promise<void>) {
+    const key = `lock:${name}`;
+    const now = Date.now();
+    const ttl = 15000;
+    const existing = Number(localStorage.getItem(key) || 0);
+    if (existing && now - existing < ttl) return;
+    try {
+      localStorage.setItem(key, String(now));
+      await fn();
+    } finally {
+      const cur = Number(localStorage.getItem(key) || 0);
+      if (cur === now) localStorage.removeItem(key);
+    }
+  }
+
+  // Remove leftover items that clearly exist on server already
+  function pruneByServerState(
+    pending: any[],
+    attemptsPayload: AttemptsPayload,
+    resultsMap: Record<string, any>
+  ) {
+    const rows = Array.isArray(attemptsPayload?.results)
+      ? attemptsPayload.results
+      : [];
+    return pending.filter((p) => {
+      const testId = Number(p.test ?? p.testPk ?? p.currentTest);
+      const queuedAtTs = p.queuedAt ? Date.parse(p.queuedAt) : 0;
+      const hasAttempt = rows.some((a) => {
+        const aTestId = Number(a.test_id ?? a.test?.id);
+        const submittedTs = Date.parse(
+          a.submitted_at ?? a.updated_at ?? a.created_at ?? ""
+        );
+        return aTestId === testId && submittedTs >= queuedAtTs;
+      });
+      const hasResult =
+        resultsMap && resultsMap[testId?.toString?.()] != null;
+      return !(hasAttempt || hasResult);
+    });
+  }
+
+  function newId() {
+    return crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  }
+
+  // Anywhere in your frontend before calling /api/student/cbt
+  function getDeviceId() {
+    const key = "device_id";
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(key, id);
+    }
+    return id;
+  }
+
+  /* ---------- LOCAL in_progress storage ---------- */
+  const INPROGRESS_KEY = "cbtInProgress"; // { [testId: string]: isoTimestamp }
+
+  function readInProgress(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem(INPROGRESS_KEY) || "{}") || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function writeInProgress(map: Record<string, string>) {
+    localStorage.setItem(INPROGRESS_KEY, JSON.stringify(map));
+  }
+
+  function markInProgress(testId: string) {
+    const m = readInProgress();
+    m[testId] = new Date().toISOString();
+    writeInProgress(m);
+  }
+
+  function clearInProgress(testId: string) {
+    const m = readInProgress();
+    if (testId in m) {
+      delete m[testId];
+      writeInProgress(m);
+    }
+  }
+
+  const [inProgressIds, setInProgressIds] = useState<Set<string>>(new Set());
+
+  function refreshInProgressIds() {
+    const map = readInProgress();
+    setInProgressIds(new Set(Object.keys(map)));
+  }
 
   /* ---------- Offline/online listeners and sync ---------- */
   useEffect(() => {
@@ -173,115 +346,148 @@ export function CBTTest() {
       syncPendingSubmissions();
     };
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
+  // Initial in_progress load
+  useEffect(() => {
+    refreshInProgressIds();
+  }, []);
 
   // Auto-start if the URL has ?start=<testPk>
-useEffect(() => {
-  if (loading) return;                // wait until fetchData() completes
-  if (!Array.isArray(availableTests) || availableTests.length === 0) return;
-
-  const params = new URLSearchParams(window.location.search);
-  const startPk = params.get("start");
-  if (!startPk) return;
-
-  // If subscription/attempt limits apply, reuse the existing gate dialog logic:
-  const test = availableTests.find((t) => t.pk?.toString() === startPk);
-  if (!test) return;
-
-  if ((test.requiresSubscription && !isSubscriber) || (test.type === "exam" && examAttempts >= maxAttempts)) {
-    setPendingTestId(startPk);
-    setShowStartDialog(true);
-  } else {
-    // go straight into the test
-    handleStartTestProceed(startPk);
-  }
-
-  // Remove the param so reloads don't re-start
-  const url = new URL(window.location.href);
-  url.searchParams.delete("start");
-  window.history.replaceState({}, "", url.toString());
-}, [loading, availableTests, isSubscriber, examAttempts, maxAttempts]);
-
-
   useEffect(() => {
-    if (isOnline) {
-      syncPendingSubmissions();
+    if (loading) return;
+    if (!Array.isArray(availableTests) || availableTests.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const startPk = params.get("start");
+    if (!startPk) return;
+
+    const test = availableTests.find((t) => t.pk?.toString() === startPk);
+    if (!test) return;
+
+    if (
+      (test.requiresSubscription && !isSubscriber) ||
+      (test.type === "exam" && examAttempts >= maxAttempts)
+    ) {
+      setPendingTestId(startPk);
+      setShowStartDialog(true);
+    } else {
+      handleStartTestProceed(startPk);
     }
-  }, [isOnline, sessionToken]);
 
-  const syncPendingSubmissions = async () => {
-    if (!isOnline || !sessionToken) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("start");
+    window.history.replaceState({}, "", url.toString());
+  }, [loading, availableTests, isSubscriber, examAttempts, maxAttempts]);
 
-    let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+useEffect(() => {
+  if (!isOnline || !sessionToken) return;
+
+  (async () => {
+    // 1) First, push local "in progress" markers to server
+    const inProgressChanged = await syncInProgressToServer(sessionToken);
+
+    // 2) Then, sync any queued submissions
+    const pendingChanged = await syncPendingSubmissions();
+
+    // 3) If either changed, fetch a fresh set of tests/attempts/results
+    if (inProgressChanged || pendingChanged) {
+      await fetchData();
+    }
+  })();
+}, [isOnline, sessionToken]);
+
+const syncPendingSubmissions = async (): Promise<boolean> => {
+  if (!isOnline || !sessionToken) return false;
+
+  let anySuccess = false;
+
+  await withLocalLock("cbt-sync", async () => {
+    let pending =
+      JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]") || [];
     if (!pending.length) return;
 
     setIsSyncing(true);
-
-    let newPending = [];
-    let anySuccess = false;
+    let newPending: any[] = [];
 
     for (let sub of pending) {
       try {
-        const res = await fetchWithTimeout("/api/student/cbt", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-            "X-Device-ID": getDeviceId(),
+        const res = await fetchWithTimeout(
+          "/api/student/cbt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+              "X-Device-ID": getDeviceId(),
+            },
+            body: JSON.stringify(normalizeSubmission(sub)),
           },
-          body: JSON.stringify(sub),
-        }, 15000);
-
-        if (res.ok) {
-          const data = await res.json();
-          // Update testResults if currentTest matches, but since may be delayed, just refresh data
+          15000
+        );
+        if (isHandledOk(res.status)) {
           anySuccess = true;
         } else {
-          newPending.push(sub); // keep if failed
+          newPending.push(sub);
         }
       } catch (err) {
         console.error("[CBTTest] Sync failed for submission:", err);
-        newPending.push(sub); // keep on error
+        newPending.push(sub);
       }
     }
 
+    // Persist whatever is left
     localStorage.setItem("pendingCBTSubmissions", JSON.stringify(newPending));
 
     if (anySuccess) {
-      fetchData(); // refresh attempts and tests
+      await fetchData(); // refresh tries
+      // Prune any zombies
+      const refreshedPending =
+        JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]") || [];
+      const cached = JSON.parse(localStorage.getItem("cachedCBTData") || "null");
+      const latestAttempts: AttemptsPayload = cached?.attempts ?? attempts;
+      const latestResults: Record<string, any> = cached?.results ?? testResults;
+      const pruned = pruneByServerState(
+        refreshedPending,
+        latestAttempts,
+        latestResults
+      );
+      localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pruned));
+      if (pruned.length === 0) {
+        await clearOfflineCache({ keepDeviceId: true });
+      }
     }
 
     setIsSyncing(false);
-  };
+  });
+
+  return anySuccess;
+};
+
 
   /* ---------- Auto-reload after completion ---------- */
   useEffect(() => {
     if (!testCompleted) return;
     setAutoReloadSeconds(120); // 2 minutes
-
     const interval = setInterval(() => {
       setAutoReloadSeconds((s) => {
         if (s == null) return s;
         if (s <= 1) {
           clearInterval(interval);
           if (typeof window !== "undefined") {
-            window.location.reload(); // hard reload to fetch fresh tests & attempts
+            window.location.reload();
           }
           return 0;
         }
         return s - 1;
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, [testCompleted]);
 
@@ -293,7 +499,6 @@ useEffect(() => {
       setLoading(false);
       return;
     }
-
     fetchData();
   }, [sessionToken, status, attemptsPage]);
 
@@ -341,9 +546,7 @@ useEffect(() => {
           count: Number(d.attempts.count ?? d.attempts.results.length ?? 0),
           page: Number(d.attempts.page ?? 1),
           page_size: Number(d.attempts.page_size ?? 20),
-          results: Array.isArray(d.attempts.results)
-            ? d.attempts.results
-            : [],
+          results: Array.isArray(d.attempts.results) ? d.attempts.results : [],
         });
       } else {
         setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
@@ -355,11 +558,24 @@ useEffect(() => {
         JSON.stringify({
           tests,
           results: d.results || {},
-          attempts: d.attempts || { count: 0, page: 1, page_size: 20, results: [] },
+          attempts: d.attempts || {
+            count: 0,
+            page: 1,
+            page_size: 20,
+            results: [],
+          },
         })
       );
 
       setError(null);
+
+      // If no pending items remain, clear old caches (preserve device id)
+      const stillPending = JSON.parse(
+        localStorage.getItem("pendingCBTSubmissions") || "[]"
+      );
+      if (Array.isArray(stillPending) && stillPending.length === 0) {
+        await clearOfflineCache({ keepDeviceId: true });
+      }
     } catch (err: any) {
       if (!isOnline) {
         loadCachedData();
@@ -377,7 +593,9 @@ useEffect(() => {
       const data = JSON.parse(cached);
       setAvailableTests(data.tests || []);
       setTestResults(data.results || {});
-      setAttempts(data.attempts || { count: 0, page: 1, page_size: 20, results: [] });
+      setAttempts(
+        data.attempts || { count: 0, page: 1, page_size: 20, results: [] }
+      );
       setError("Offline: Showing cached data");
     } else {
       setError("Offline and no cached data available");
@@ -399,25 +617,45 @@ useEffect(() => {
       setPendingTestId(null);
       return;
     }
+
     if (test.type === "exam" && examAttempts >= maxAttempts) {
       setShowStartDialog(true);
       setPendingTestId(null);
       return;
     }
 
+    // 1) mark locally so returning to the page (especially offline) blocks re-start
+    const idStr = String(testPk);
+    markInProgress(idStr);
+    refreshInProgressIds();
+
+    // 2) if online: tell server and clear local flag (server becomes source of truth)
+    if (isOnline && sessionToken) {
+      try {
+        const res = await fetchWithTimeout(
+          "/api/student/cbt/quit/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+              "X-Device-ID": getDeviceId(),
+            },
+            body: JSON.stringify({ test_id: Number(testPk) }),
+          },
+          10000
+        );
+        if (res.ok) {
+          clearInProgress(idStr);
+          refreshInProgressIds();
+        }
+      } catch {
+        // ignore; keep local "in_progress" if call fails
+      }
+    }
+
     await handleStartTestProceed(testPk);
   };
-// Anywhere in your frontend before calling /api/student/cbt
-function getDeviceId() {
-  const key = "device_id";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
-
 
   const handleStartTestProceed = async (testPk: string | number) => {
     const test = (availableTests || []).find(
@@ -430,6 +668,7 @@ function getDeviceId() {
       : test.items
       ? Object.values(test.items)
       : [];
+
     const mappedQuestions = items.map((item: any) => ({
       id: item.id,
       type: item.type === "scq" ? "single-choice" : item.type,
@@ -484,12 +723,10 @@ function getDeviceId() {
         setShowSecurityWarning(true);
       }
     };
-
     const handleBlur = () => {
       setSuspiciousActivity((prev) => prev + 1);
       setShowSecurityWarning(true);
     };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         e.ctrlKey &&
@@ -518,7 +755,7 @@ function getDeviceId() {
     }
   }, [suspiciousActivity]);
 
-  /* ---------- submitTest (with offline support) ---------- */
+  /* ---------- submitTest (with offline support + fixes) ---------- */
   const submitTest = async () => {
     if (!currentTest) return;
 
@@ -526,11 +763,9 @@ function getDeviceId() {
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const ans = answers[i];
-
       if (ans === undefined) continue;
 
       const entry: any = { question: q.id };
-
       if (Array.isArray(ans)) {
         entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
       } else if (q.type === "essay" || q.type === "short-answer") {
@@ -548,14 +783,17 @@ function getDeviceId() {
       submitAnswers.push(entry);
     }
 
-    const cleanedBody = {
+    const cleanedBodyRaw = {
       answers: submitAnswers,
       started_at: startTime,
       duration_seconds: initialTime - timeLeft,
       suspicious_activity: suspiciousActivity || 0,
-      currentTest: currentTest, // Note: backend expects 'test' or 'testPk', but code uses 'currentTest'
+      currentTest: currentTest,
+      test: currentTest,   // mirror for backend
+      testPk: currentTest, // mirror for backend
     };
 
+    const cleanedBody = normalizeSubmission(cleanedBodyRaw);
     console.log("[CBTTest] Submitting test payload:", cleanedBody);
 
     setTestCompleted(true);
@@ -578,8 +816,8 @@ function getDeviceId() {
           15000
         );
 
-        if (res.ok) {
-          const data = await res.json();
+        if (isHandledOk(res.status)) {
+          const data = await res.json().catch(() => ({}));
           const test = availableTests.find(
             (t) => t.pk.toString() === currentTest
           );
@@ -587,12 +825,13 @@ function getDeviceId() {
             ...prev,
             [currentTest!]: { ...data, title: test?.title },
           }));
-          // refresh attempts list (resets to first page)
           setAttemptsPage(1);
-          fetchData(); // refresh
+          await fetchData();
+          localStorage.removeItem(PENDING_KEY);
+          // all good; clear any local caches now
+          await clearOfflineCache({ keepDeviceId: true });
         } else {
           console.error(`HTTP ${res.status}: ${await res.text()}`);
-          // If failed online, queue as pending?
           queueAsPending(cleanedBody);
         }
       } catch (err: any) {
@@ -604,11 +843,22 @@ function getDeviceId() {
     }
   };
 
+  const PENDING_KEY = "pendingCBTSubmissions";
   const queueAsPending = (cleanedBody: any) => {
-    let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
-    pending.push({ ...cleanedBody, queuedAt: new Date().toISOString() });
-    localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
-    console.log("[CBTTest] Queued submission offline");
+    // Only queue if the browser is offline
+    if (typeof navigator !== "undefined" && navigator.onLine) {
+      console.warn("[CBTTest] Online; not queuing pending submissions");
+      return;
+    }
+    const pending = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]");
+    pending.push({
+      ...cleanedBody,
+      queuedAt: new Date().toISOString(),
+    });
+    // Only write the key if we actually have items
+    if (pending.length > 0) {
+      localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    }
   };
 
   const handleResetToList = () => {
@@ -643,6 +893,7 @@ function getDeviceId() {
     setCurrentQuestion((prev) => Math.min(questions.length - 1, prev + 1));
   }
 
+  /* ---------- Early exits for auth/session ---------- */
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -705,7 +956,7 @@ function getDeviceId() {
     );
   }
 
-  /* ---------- Completed view (with offline message) ---------- */
+  /* ---------- Completed view ---------- */
   if (testCompleted) {
     const Icon = CheckCircle;
     const iconColor = "text-green-500";
@@ -716,7 +967,11 @@ function getDeviceId() {
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {result ? `Your result: ${result.result}` : isOnline ? "" : " (Offline - results pending sync)"}
+            {result
+              ? `Your result: ${result.result}`
+              : isOnline
+              ? ""
+              : " (Offline - results pending sync)"}
           </p>
         </div>
 
@@ -727,11 +982,11 @@ function getDeviceId() {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {result 
-                ? "Thank you for completing the test." 
-                : isOnline 
-                  ? "Processing results..." 
-                  : "Test submitted offline. Results will be available once synced online."}
+              {result
+                ? "Thank you for completing the test."
+                : isOnline
+                ? "Processing results..."
+                : "Test submitted offline. Results will be available once synced online."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -767,17 +1022,15 @@ function getDeviceId() {
             )}
 
             <div className="flex gap-4 justify-center">
-                <Button
-                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  onClick={() => {
-                    // hard reload ensures we return to the Available Tests tab and refetch everything
-                    if (typeof window !== "undefined") window.location.reload();
-                  }}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Go back to Test
-                </Button>
-
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={() => {
+                  if (typeof window !== "undefined") window.location.reload();
+                }}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Go back to Test
+              </Button>
               {result && (
                 <Button
                   variant="outline"
@@ -988,6 +1241,7 @@ function getDeviceId() {
                   >
                     Previous
                   </Button>
+
                   <div className="flex gap-2">
                     {currentQuestion === questions.length - 1 ? (
                       <Button
@@ -1082,6 +1336,7 @@ function getDeviceId() {
     const n = typeof v === "string" ? parseFloat(v) : Number(v);
     return isNaN(n) ? 0 : n;
   };
+
   const percentFromAttempt = (a: Attempt) => {
     const score = safeNum(a.score);
     const total = safeNum(a.test?.total_marks ?? 0);
@@ -1096,7 +1351,6 @@ function getDeviceId() {
     } else if (pastSortBy === "result") {
       return (b.status || "").localeCompare(a.status || "");
     } else {
-      // date: by submitted_at (fallback to started_at/created_at)
       const da =
         new Date(a.submitted_at || a.started_at || a.created_at || 0).getTime();
       const db =
@@ -1122,15 +1376,15 @@ function getDeviceId() {
     1,
     Math.ceil((availableTests?.length || 0) / testsPerPage)
   );
-
   const hasTests =
     Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
 
-  const pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+  const pending =
+    JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]") || [];
 
   return (
     <div className="space-y-6">
-      {/* ---------- Start dialog (unchanged behavior) ---------- */}
+      {/* ---------- Start dialog ---------- */}
       <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
         <DialogContent>
           <DialogHeader>
@@ -1188,9 +1442,6 @@ function getDeviceId() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
-          <p className="text-muted-foreground">
-            Quizzes and secure semester exams with comprehensive feedback
-          </p>
         </div>
         <div className="flex items-center gap-4">
           {isSyncing && (
@@ -1229,7 +1480,6 @@ function getDeviceId() {
 
         {/* ---------- Available Tests ---------- */}
         <TabsContent value="available" className="space-y-4">
-          {/* Loading state for tests fetch */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="flex flex-col items-center gap-3">
@@ -1240,7 +1490,6 @@ function getDeviceId() {
               </div>
             </div>
           ) : !hasTests ? (
-            // ---------- EMPTY STATE WHEN NO TESTS ----------
             <Card className="max-w-2xl mx-auto">
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4">
@@ -1271,8 +1520,22 @@ function getDeviceId() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {currentTests.map((test) => {
                   const res = testResults[test.pk?.toString()] ?? null;
-                  const isPending = pending.some((p: any) => p.currentTest === test.pk.toString());
-                  const disableButton = !isOnline && isPending;
+
+                  // pending submission queue indicator from earlier logic
+                  const isPending = pending.some(
+                    (p: any) => p.currentTest === test.pk.toString()
+                  );
+
+                  // NEW: local in_progress guard
+                  const isLocallyInProgress = inProgressIds.has(
+                    test.pk.toString()
+                  );
+
+                const disableButton =
+                  (!isOnline && (isLocallyInProgress || isPending)) ||      // <- key fix
+                  (test.type === "exam" && examAttempts >= maxAttempts) ||
+                  (test.requiresSubscription && !isSubscriber);
+
                   return (
                     <Card
                       key={test.pk}
@@ -1293,24 +1556,18 @@ function getDeviceId() {
                             >
                               {test.difficulty}
                             </Badge>
-                            {test.type === "exam" && (
-                              <Badge
-                                variant="outline"
-                                className="text-red-600 border-red-200"
-                              >
-                                <Shield className="h-3 w-3 mr-1" />
-                                Secure Exam
-                              </Badge>
-                            )}
-                            {!isOnline && isPending && (
-                              <Badge variant="secondary">
-                                Pending Sync
+
+                            {/* NEW: show in-progress when offline */}
+                            {!isOnline && isLocallyInProgress && (
+                              <Badge variant="destructive">
+                             pending
                               </Badge>
                             )}
                           </div>
                         </div>
                         <CardDescription>{test.description}</CardDescription>
                       </CardHeader>
+
                       <CardContent className="flex-1 flex flex-col gap-4">
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <span>
@@ -1338,6 +1595,13 @@ function getDeviceId() {
                           </div>
                         )}
 
+                        {!isOnline && isLocallyInProgress && (
+                          <p className="text-sm text-red-600">
+                            You started this quiz while offline. Come online to
+                            resume/sync.
+                          </p>
+                        )}
+
                         {!isOnline && isPending && (
                           <p className="text-sm text-red-600">
                             Cannot start this test offline until synced.
@@ -1346,19 +1610,15 @@ function getDeviceId() {
 
                         <div className="mt-auto">
                           <Button
-                            onClick={() => startTest(test.pk)}
-                            className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                            disabled={
-                              disableButton ||
-                              (test.type === "exam" &&
-                                examAttempts >= maxAttempts) ||
-                              (test.requiresSubscription && !isSubscriber)
-                            }
+                            onClick={() => {
+                              if (disableButton) return;           // extra safety
+                              startTest(test.pk);
+                            }}
+                            className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white disabled:opacity-50 disabled:pointer-events-none"
+                            disabled={disableButton}
                           >
                             <Play className="mr-2 h-4 w-4" />
-                            {test.type === "exam"
-                              ? "Start Secure Exam"
-                              : "Start Quiz"}
+                            {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
                           </Button>
 
                         </div>
@@ -1382,6 +1642,7 @@ function getDeviceId() {
                       }
                     />
                   </PaginationItem>
+
                   {[...Array(totalPages)].map((_, index) => {
                     const page = index + 1;
                     return (
@@ -1399,7 +1660,9 @@ function getDeviceId() {
                       </PaginationItem>
                     );
                   })}
+
                   {totalPages > 5 && <PaginationEllipsis />}
+
                   <PaginationItem>
                     <PaginationNext
                       href="#"
@@ -1481,18 +1744,19 @@ function getDeviceId() {
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col gap-3">
                       <div className="text-sm flex items-center gap-2">
-                          <span className="font-medium">Status:</span>
-                          <Badge variant="outline">{a.status || "—"}</Badge>
+                        <span className="font-medium">Status:</span>
+                        <Badge variant="outline">{a.status || "—"}</Badge>
                       </div>
-
                       <div className="text-sm">
-                          <span className="font-medium">Score: </span>
-                          {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
-                          {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
+                        <span className="font-medium">Score: </span>
+                        {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
+                        {a.score != null && a.test?.total_marks
+                          ? `(${pct}%)`
+                          : ""}
                       </div>
-                    <p className="text-sm text-muted-foreground">
-                      Submitted: {submittedDate || "—"}
-                    </p>
+                      <p className="text-sm text-muted-foreground">
+                        Submitted: {submittedDate || "—"}
+                      </p>
                     </CardContent>
                   </Card>
                 );
@@ -1518,6 +1782,7 @@ function getDeviceId() {
                     }
                   />
                 </PaginationItem>
+
                 {[...Array(pastTotalPages)].map((_, index) => {
                   const page = index + 1;
                   return (
@@ -1535,7 +1800,9 @@ function getDeviceId() {
                     </PaginationItem>
                   );
                 })}
+
                 {pastTotalPages > 5 && <PaginationEllipsis />}
+
                 <PaginationItem>
                   <PaginationNext
                     href="#"
