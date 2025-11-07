@@ -1,14 +1,14 @@
-import { Suspense } from 'react';
-import StoreClient from './StoreClient';
+// app/store/page.tsx
+"use client";
 
-// Avoid prerender/SSG on this route if you're using NextAuth or URL hooks:
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import {Suspense} from "react";
+import {StorePageIndex} from "@/components/store/store-index";
 
 export default function StorePage() {
   return (
-    <Suspense fallback={<div>Loading store…</div>}>
-      <StoreClient />
+    <Suspense
+      fallback={<div className="text-center py-10">Loading store...</div>}>
+      <StorePageIndex />
     </Suspense>
   );
 }

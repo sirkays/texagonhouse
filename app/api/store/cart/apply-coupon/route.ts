@@ -1,4 +1,4 @@
-// app/api/store/reviews/[productId]/route.ts
+// app/api/store/cart/apply-coupon/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -12,18 +12,25 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-interface ReviewResponse {
+interface CartItem {
   id: string;
-  detail: string;
+  product_id: string;
+  title: string;
+  price: string;
+  quantity: number;
+  line_total: string;
 }
 
-export async function POST(
-  req: Request,
-  {params}: {params: {productId: string}}
-) {
-  const {productId} = params;
+interface CartResponse {
+  id: string;
+  items: CartItem[];
+  coupon: string | null;
+  subtotal: string;
+}
+
+export async function POST(req: Request) {
   const body = await req.json();
-  const fullUrl = `${BASE_URL}/reviews/${productId}`;
+  const fullUrl = `${BASE_URL}/cart/apply-coupon`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
@@ -40,15 +47,15 @@ export async function POST(
           {status: 401}
         );
       if (response.status === 400)
-        return NextResponse.json({error: "Invalid product"}, {status: 400});
+        return NextResponse.json({error: "Invalid coupon"}, {status: 400});
       if (response.status === 403)
         return NextResponse.json({error: "Forbidden"}, {status: 403});
       return NextResponse.json(
-        {error: "Failed to create review"},
+        {error: "Failed to apply coupon"},
         {status: response.status}
       );
     }
-    let data: ReviewResponse;
+    let data: CartResponse;
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
@@ -57,14 +64,22 @@ export async function POST(
         {status: 500}
       );
     }
-    const normalizedData: ReviewResponse = {
+    const normalizedItems: CartItem[] = data.items.map((item) => ({
+      id: item.id || "",
+      product_id: item.product_id || "",
+      title: item.title || "",
+      price: item.price || "0",
+      quantity: item.quantity || 0,
+      line_total: item.line_total || "0",
+    }));
+    const normalizedData: CartResponse = {
       id: data.id || "",
-      detail: data.detail || "",
+      items: normalizedItems,
+      coupon: data.coupon || null,
+      subtotal: data.subtotal || "0",
     };
-    return NextResponse.json(normalizedData, {
-      status: response.status === 201 ? 201 : 200,
-    });
+    return NextResponse.json(normalizedData, {status: 200});
   } catch (error) {
-    return NextResponse.json({error: "Failed to create review"}, {status: 500});
+    return NextResponse.json({error: "Failed to apply coupon"}, {status: 500});
   }
 }

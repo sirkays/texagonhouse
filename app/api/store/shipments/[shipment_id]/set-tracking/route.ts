@@ -1,7 +1,7 @@
+// app/api/store/shipments/[shipment_id]/set-tracking/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.epichouse.online/store/api";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
@@ -12,44 +12,77 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-// Use the same Shipment interface as above
+interface ShipmentItem {
+  order_item_id: string;
+  title: string;
+  quantity: number;
+}
+
+interface ShipmentEvent {
+  id: string;
+  code: string;
+  desc: string;
+  occurred_at: string;
+  city: string;
+  state: string;
+  country: string;
+  postal_code: string;
+  carrier_status: string;
+}
+
+interface ShipmentAddress {
+  name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  phone: string;
+  email: string;
+}
+
+interface Shipment {
+  id: string;
+  order_id: string;
+  status: string;
+  carrier: string | null;
+  method: string | null;
+  tracking_number: string;
+  tracking_url: string | null;
+  label_url: string | null;
+  label_cost: string;
+  currency: string;
+  to: ShipmentAddress;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  items: ShipmentItem[];
+  events: ShipmentEvent[];
+}
 
 export async function POST(
   req: Request,
   {params}: {params: {shipment_id: string}}
 ) {
-  noStore();
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
-  }
-
-  const sessionToken = session.user.sessionToken;
-
   const body = await req.json();
-
   const fullUrl = `${BASE_URL}/shipments/${params.shipment_id}/set-tracking/`;
-  console.log("[StoreShipmentSetTrackingAPI] Initiating POST to:", fullUrl);
-
+  const session = await getServerSession(authOptions);
+  const sessionToken = session?.user?.sessionToken;
   try {
     const response = await fetch(fullUrl, {
       method: "POST",
-      headers: headers(sessionToken),
+      headers: headers(sessionToken ? sessionToken : undefined),
       body: JSON.stringify(body),
     });
-
     const rawResponse = await response.text();
-
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
           {error: "Session expired", redirect: "/login"},
           {status: 401}
         );
+      if (response.status === 400)
+        return NextResponse.json({error: "Invalid request"}, {status: 400});
       if (response.status === 403)
         return NextResponse.json({error: "Forbidden"}, {status: 403});
       if (response.status === 404)
@@ -59,7 +92,6 @@ export async function POST(
         {status: response.status}
       );
     }
-
     let data: Shipment;
     try {
       data = JSON.parse(rawResponse);
@@ -69,7 +101,6 @@ export async function POST(
         {status: 500}
       );
     }
-
     const normalizedData: Shipment = {
       id: data.id || "",
       order_id: data.order_id || "",
@@ -111,11 +142,7 @@ export async function POST(
         carrier_status: event.carrier_status || "",
       })),
     };
-
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {"Cache-Control": "no-store"},
-    });
+    return NextResponse.json(normalizedData, {status: 200});
   } catch (error) {
     return NextResponse.json({error: "Failed to set tracking"}, {status: 500});
   }

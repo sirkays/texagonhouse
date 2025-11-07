@@ -1,4 +1,4 @@
-// app/api/store/reviews/[productId]/route.ts
+// app/api/store/entitlements/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -12,25 +12,23 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-interface ReviewResponse {
-  id: string;
-  detail: string;
+interface Entitlement {
+  product_id: string;
+  title: string;
 }
 
-export async function POST(
-  req: Request,
-  {params}: {params: {productId: string}}
-) {
-  const {productId} = params;
-  const body = await req.json();
-  const fullUrl = `${BASE_URL}/reviews/${productId}`;
+interface EntitlementsResponse {
+  results: Entitlement[];
+}
+
+export async function GET() {
+  const fullUrl = `${BASE_URL}/me/entitlements`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
     const response = await fetch(fullUrl, {
-      method: "POST",
+      method: "GET",
       headers: headers(sessionToken ? sessionToken : undefined),
-      body: JSON.stringify(body),
     });
     const rawResponse = await response.text();
     if (!response.ok) {
@@ -39,16 +37,14 @@ export async function POST(
           {error: "Session expired", redirect: "/login"},
           {status: 401}
         );
-      if (response.status === 400)
-        return NextResponse.json({error: "Invalid product"}, {status: 400});
       if (response.status === 403)
         return NextResponse.json({error: "Forbidden"}, {status: 403});
       return NextResponse.json(
-        {error: "Failed to create review"},
+        {error: "Failed to fetch entitlements"},
         {status: response.status}
       );
     }
-    let data: ReviewResponse;
+    let data: EntitlementsResponse;
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
@@ -57,14 +53,15 @@ export async function POST(
         {status: 500}
       );
     }
-    const normalizedData: ReviewResponse = {
-      id: data.id || "",
-      detail: data.detail || "",
-    };
-    return NextResponse.json(normalizedData, {
-      status: response.status === 201 ? 201 : 200,
-    });
+    const normalizedEntitlements: Entitlement[] = data.results.map((item) => ({
+      product_id: item.product_id || "",
+      title: item.title || "",
+    }));
+    return NextResponse.json({results: normalizedEntitlements}, {status: 200});
   } catch (error) {
-    return NextResponse.json({error: "Failed to create review"}, {status: 500});
+    return NextResponse.json(
+      {error: "Failed to fetch entitlements"},
+      {status: 500}
+    );
   }
 }

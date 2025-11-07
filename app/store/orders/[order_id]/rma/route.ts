@@ -1,4 +1,4 @@
-// app/api/store/reviews/[productId]/route.ts
+// app/api/store/orders/[orderId]/rma/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -12,18 +12,18 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-interface ReviewResponse {
-  id: string;
-  detail: string;
+interface RMAResponse {
+  rma_id: string;
+  rma_number: string;
 }
 
 export async function POST(
   req: Request,
-  {params}: {params: {productId: string}}
+  {params}: {params: {orderId: string}}
 ) {
-  const {productId} = params;
+  const {orderId} = params;
   const body = await req.json();
-  const fullUrl = `${BASE_URL}/reviews/${productId}`;
+  const fullUrl = `${BASE_URL}/orders/${orderId}/rma`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
@@ -39,16 +39,16 @@ export async function POST(
           {error: "Session expired", redirect: "/login"},
           {status: 401}
         );
-      if (response.status === 400)
-        return NextResponse.json({error: "Invalid product"}, {status: 400});
+      if (response.status === 404)
+        return NextResponse.json({error: "Not found"}, {status: 404});
       if (response.status === 403)
         return NextResponse.json({error: "Forbidden"}, {status: 403});
       return NextResponse.json(
-        {error: "Failed to create review"},
+        {error: "Failed to create RMA"},
         {status: response.status}
       );
     }
-    let data: ReviewResponse;
+    let data: RMAResponse;
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
@@ -57,14 +57,12 @@ export async function POST(
         {status: 500}
       );
     }
-    const normalizedData: ReviewResponse = {
-      id: data.id || "",
-      detail: data.detail || "",
+    const normalizedData: RMAResponse = {
+      rma_id: data.rma_id || "",
+      rma_number: data.rma_number || "",
     };
-    return NextResponse.json(normalizedData, {
-      status: response.status === 201 ? 201 : 200,
-    });
+    return NextResponse.json(normalizedData, {status: 201});
   } catch (error) {
-    return NextResponse.json({error: "Failed to create review"}, {status: 500});
+    return NextResponse.json({error: "Failed to create RMA"}, {status: 500});
   }
 }

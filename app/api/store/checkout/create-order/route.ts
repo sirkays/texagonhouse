@@ -1,42 +1,47 @@
+// app/api/store/checkout/create-order/route.ts
 import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.epichouse.online/store/api";
 const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+  "X-API-KEY": API_KEY,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && {"X-SESSION-TOKEN": sessionToken}),
 });
+
+interface CreateOrderRequest {
+  billing_address_id?: string;
+  shipping_address_id?: string;
+}
 
 interface CreateOrderResponse {
   order_id: string;
   grand_total: string;
 }
 
-export async function POST(req: Request) {
-  noStore();
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
+const getSessionToken = (req: Request): string | undefined => {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.slice(7);
   }
+  return req.headers.get("x-session-token") || undefined;
+};
 
-  const sessionToken = session.user.sessionToken;
-
-  const body = await req.json();
-
-  const fullUrl = `${BASE_URL}/checkout/create-order`;
-  console.log("[StoreCreateOrderAPI] Initiating POST to:", fullUrl);
-
+export async function POST(req: Request) {
   try {
-    const response = await fetch(fullUrl, {
+    const sessionToken = getSessionToken(req);
+
+    if (!sessionToken) {
+      return NextResponse.json(
+        {error: "Authentication required"},
+        {status: 401}
+      );
+    }
+
+    const body: CreateOrderRequest = await req.json();
+
+    const response = await fetch(`${BASE_URL}/checkout/create-order`, {
       method: "POST",
       headers: headers(sessionToken),
       body: JSON.stringify(body),
@@ -45,15 +50,18 @@ export async function POST(req: Request) {
     const rawResponse = await response.text();
 
     if (!response.ok) {
-      if (response.status === 401)
+      if (response.status === 401) {
         return NextResponse.json(
           {error: "Session expired", redirect: "/login"},
           {status: 401}
         );
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json({error: "Not found"}, {status: 404});
+      }
+      if (response.status === 400) {
+        return NextResponse.json(
+          {error: "Cart is empty or invalid addresses"},
+          {status: 400}
+        );
+      }
       return NextResponse.json(
         {error: "Failed to create order"},
         {status: response.status}
@@ -75,11 +83,9 @@ export async function POST(req: Request) {
       grand_total: data.grand_total || "0",
     };
 
-    return NextResponse.json(normalizedData, {
-      status: 201,
-      headers: {"Cache-Control": "no-store"},
-    });
+    return NextResponse.json(normalizedData, {status: 201});
   } catch (error) {
+    console.error("Create order error:", error);
     return NextResponse.json({error: "Failed to create order"}, {status: 500});
   }
 }

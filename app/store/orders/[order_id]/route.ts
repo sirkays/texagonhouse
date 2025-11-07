@@ -1,4 +1,4 @@
-// app/api/store/reviews/[productId]/route.ts
+// app/api/store/orders/[orderId]/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -12,25 +12,51 @@ const headers = (sessionToken: string | undefined) => ({
   ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
-interface ReviewResponse {
-  id: string;
-  detail: string;
+interface OrderItem {
+  title: string;
+  qty: number;
+  price: string;
 }
 
-export async function POST(
-  req: Request,
-  {params}: {params: {productId: string}}
+interface ShipmentEvent {
+  code: string;
+  desc: string;
+  at: string;
+  city: string;
+  state: string;
+  country: string;
+}
+
+interface Shipment {
+  id: string;
+  status: string;
+  tracking_number: string;
+  tracking_url: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  events: ShipmentEvent[];
+}
+
+interface Order {
+  id: string;
+  status: string;
+  grand_total: string;
+  items: OrderItem[];
+  shipments: Shipment[];
+}
+
+export async function GET(
+  _req: Request,
+  {params}: {params: {orderId: string}}
 ) {
-  const {productId} = params;
-  const body = await req.json();
-  const fullUrl = `${BASE_URL}/reviews/${productId}`;
+  const {orderId} = params;
+  const fullUrl = `${BASE_URL}/orders/${orderId}`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
     const response = await fetch(fullUrl, {
-      method: "POST",
+      method: "GET",
       headers: headers(sessionToken ? sessionToken : undefined),
-      body: JSON.stringify(body),
     });
     const rawResponse = await response.text();
     if (!response.ok) {
@@ -39,16 +65,16 @@ export async function POST(
           {error: "Session expired", redirect: "/login"},
           {status: 401}
         );
-      if (response.status === 400)
-        return NextResponse.json({error: "Invalid product"}, {status: 400});
+      if (response.status === 404)
+        return NextResponse.json({error: "Not found"}, {status: 404});
       if (response.status === 403)
         return NextResponse.json({error: "Forbidden"}, {status: 403});
       return NextResponse.json(
-        {error: "Failed to create review"},
+        {error: "Failed to fetch order"},
         {status: response.status}
       );
     }
-    let data: ReviewResponse;
+    let data: Order;
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
@@ -57,14 +83,19 @@ export async function POST(
         {status: 500}
       );
     }
-    const normalizedData: ReviewResponse = {
+    const normalizedOrder: Order = {
       id: data.id || "",
-      detail: data.detail || "",
+      status: data.status || "",
+      grand_total: data.grand_total || "0",
+      items: data.items.map((i) => ({
+        title: i.title || "",
+        qty: i.qty || 0,
+        price: i.price || "0",
+      })),
+      shipments: data.shipments || [],
     };
-    return NextResponse.json(normalizedData, {
-      status: response.status === 201 ? 201 : 200,
-    });
+    return NextResponse.json(normalizedOrder, {status: 200});
   } catch (error) {
-    return NextResponse.json({error: "Failed to create review"}, {status: 500});
+    return NextResponse.json({error: "Failed to fetch order"}, {status: 500});
   }
 }

@@ -1,3 +1,8 @@
+// ########################################
+// ### Entitlements Module
+// ########################################
+
+// app/api/store/me/entitlements/route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
@@ -23,28 +28,15 @@ interface EntitlementsResponse {
 
 export async function GET(req: Request) {
   noStore();
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
-  }
-
-  const sessionToken = session.user.sessionToken;
-
   const fullUrl = `${BASE_URL}/me/entitlements`;
-  console.log("[StoreEntitlementsAPI] Initiating fetch for:", fullUrl);
-
+  const session = await getServerSession(authOptions);
+  const sessionToken = session?.user?.sessionToken;
   try {
     const response = await fetch(fullUrl, {
       method: "GET",
-      headers: headers(sessionToken),
+      headers: headers(sessionToken ? sessionToken : undefined),
     });
-
     const rawResponse = await response.text();
-
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
@@ -53,17 +45,11 @@ export async function GET(req: Request) {
         );
       if (response.status === 403)
         return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json(
-          {error: "Entitlements not found"},
-          {status: 404}
-        );
       return NextResponse.json(
         {error: "Failed to fetch entitlements"},
         {status: response.status}
       );
     }
-
     let data: EntitlementsResponse;
     try {
       data = JSON.parse(rawResponse);
@@ -73,18 +59,14 @@ export async function GET(req: Request) {
         {status: 500}
       );
     }
-
-    const normalizedData: EntitlementsResponse = {
-      results: data.results.map((item) => ({
-        product_id: item.product_id || "",
-        title: item.title || "",
-      })),
-    };
-
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {"Cache-Control": "no-store"},
-    });
+    const normalizedEntitlements: Entitlement[] = data.results.map((item) => ({
+      product_id: item.product_id || "",
+      title: item.title || "",
+    }));
+    return NextResponse.json(
+      {results: normalizedEntitlements},
+      {status: 200, headers: {"Cache-Control": "no-store"}}
+    );
   } catch (error) {
     return NextResponse.json(
       {error: "Failed to fetch entitlements"},
