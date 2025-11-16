@@ -4,6 +4,7 @@ export interface Student {
   name: string;
   email: string;
   avatar?: string;
+  school: string;
 }
 
 export interface Certificate {
@@ -28,6 +29,7 @@ export const mockStudents: StudentWithCertificates[] = [
     name: "Alex Johnson",
     email: "alex.johnson@example.com",
     avatar: "/placeholder.svg?height=40&width=40",
+    school: "Tech University",
     certificates: [
       {
         id: "cert-1",
@@ -56,6 +58,7 @@ export const mockStudents: StudentWithCertificates[] = [
     name: "Sarah Chen",
     email: "sarah.chen@example.com",
     avatar: "/placeholder.svg?height=40&width=40",
+    school: "Global Tech Institute",
     certificates: [
       {
         id: "cert-3",
@@ -84,6 +87,7 @@ export const mockStudents: StudentWithCertificates[] = [
     name: "Michael Rodriguez",
     email: "michael.r@example.com",
     avatar: "/placeholder.svg?height=40&width=40",
+    school: "Lagos Polytechnic",
     certificates: [
       {
         id: "cert-5",
