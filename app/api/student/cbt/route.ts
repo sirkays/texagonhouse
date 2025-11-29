@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
+//const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
@@ -43,7 +43,9 @@ export async function GET(request: Request) {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
+        cookie: request.headers.get("cookie") ?? "",
       },
+      credentials: "include", 
       timeout: 8000,
     });
     if (!testsRes.ok) {
@@ -65,7 +67,9 @@ export async function GET(request: Request) {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
+        cookie: request.headers.get("cookie") ?? "",
       },
+      credentials: "include", 
       timeout: 8000,
     });
     if (!attemptsRes.ok) {
@@ -184,8 +188,10 @@ export async function POST(request: Request) {
           Authorization: `Api-Key ${API_KEY}`,
           "Content-Type": "application/json",
           "X-Session-Token": session.user.sessionToken,
+          cookie: request.headers.get("cookie") ?? "",
         },
         body: JSON.stringify(payload),
+        credentials: "include", 
         timeout: 20000,
       });
 
