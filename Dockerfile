@@ -18,12 +18,18 @@ RUN npm run build
 FROM node:20-bookworm-slim
 WORKDIR /app
 
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./public/_next/static
+# Copy public assets
 COPY --from=builder /app/public ./public
+
+# Copy standalone server + all required Node files
+COPY --from=builder /app/.next/standalone ./
+
+# Copy static files where Next expects them
+COPY --from=builder /app/.next/static ./.next/static
 
 ENV NODE_ENV=production
 
+# Render injects PORT (e.g. 10000); server.js respects process.env.PORT
 EXPOSE 3000
 
 CMD ["node", "server.js"]
