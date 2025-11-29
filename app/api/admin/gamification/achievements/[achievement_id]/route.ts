@@ -4,10 +4,10 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {unstable_noStore as noStore} from "next/cache";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY =
   process.env.GAMIFICATION_API_KEY ||
-  "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+  "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchFromBackend(
   endpoint: string,

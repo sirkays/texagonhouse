@@ -37,7 +37,7 @@ import {
 import {DeleteConfirmationModal} from "@/components/admin/modals/delete-confirmation-modal";
 import {useToast} from "@/hooks/use-toast";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.onrender.com";
 
 interface Teacher {
   id: number;

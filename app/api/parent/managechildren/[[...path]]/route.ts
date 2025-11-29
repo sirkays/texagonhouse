@@ -4,10 +4,10 @@ import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 // lib/config.ts
 export const BASE_URL =
-  process.env.BASE_URL || "https://texagonbackend.epichouse.online";
+  process.env.BASE_URL || "https://texagonbackend.onrender.com";
 
 export const API_KEY =
-  process.env.API_KEY || "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz"; // fallback for dev
+  process.env.API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // fallback for dev
 
 // ✅ GET endpoint - fetch children
 export async function GET(request: Request) {

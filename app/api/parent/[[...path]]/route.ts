@@ -2,8 +2,8 @@
 // import {getServerSession} from "next-auth";
 // import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
-// const BASE_URL = "https://texagonbackend.epichouse.online";
-// const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz"; // Store in .env
+// const BASE_URL = "https://texagonbackend.onrender.com";
+// const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // Store in .env
 
 // export async function GET(
 //   request: Request,
@@ -75,9 +75,9 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY =
-  process.env.TEXAGON_API_KEY || "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz"; // Fallback for dev, should be in .env
+  process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // Fallback for dev, should be in .env
 
 export async function GET(request: Request) {
   console.log("[Route] Received GET request to /api/parent/children");
