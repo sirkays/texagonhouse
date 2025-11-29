@@ -1,9 +1,10 @@
 # ---- Build stage ------------------------------------------------------------
-FROM node:22-bookworm-slim AS builder
+FROM node:20-bookworm-slim AS builder   # use LTS, very stable with Next 15
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
+
 COPY . .
 
 ENV NODE_ENV=production \
@@ -14,16 +15,18 @@ ENV NODE_ENV=production \
 RUN npm run build
 
 # ---- Run stage --------------------------------------------------------------
-FROM node:22-bookworm-slim
+FROM node:20-bookworm-slim
 WORKDIR /app
 
-# Copy only what's needed at runtime
-COPY --from=builder ["/app/public", "./public"]
-COPY --from=builder ["/app/.next/static", "./.next/static"]
-COPY --from=builder ["/app/.next/standalone", "./"]
+# Copy the standalone build
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./public/_next/static
+COPY --from=builder /app/public ./public
 
+# Let Render inject PORT at runtime, don't hardcode it here
 ENV NODE_ENV=production
-ENV PORT=3000
+
+# Render will set PORT (e.g. 10000); Next's server.js uses process.env.PORT
 EXPOSE 3000
 
 CMD ["node", "server.js"]
