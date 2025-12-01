@@ -142,6 +142,8 @@ export function CBTTest() {
   const [pastAttemptModalId, setPastAttemptModalId] = useState<string | null>(null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">("date");
+  const [justSyncedTestId, setJustSyncedTestId] = useState<string | null>(null);
+
 
   // NEW: attempts state (from backend)
   const [attempts, setAttempts] = useState<AttemptsPayload>({
@@ -202,55 +204,84 @@ export function CBTTest() {
     setIsSyncing(true);
     let anySuccess = false;
 
-for (const testId of Object.keys(pending)) {
-  const sub = pending[testId];
+    for (const testId of Object.keys(pending)) {
+      const sub = pending[testId];
 
-  try {
-    const res = await fetchWithTimeout(
-      "/api/student/cbt",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
-        body: JSON.stringify(sub),
-      },
-      40000
-    );
+      try {
+        const res = await fetchWithTimeout(
+          "/api/student/cbt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+            },
+            body: JSON.stringify(sub),
+          },
+          40000
+        );
 
-    if (res.ok) {
-      delete pending[testId];
-      anySuccess = true;
-    } else {
-      const text = await res.text().catch(() => "");
-      // 🔹 If backend says "already submitted", treat as success/idempotent
-      if (
-        res.status === 400 &&
-        (text.includes("User already perform test") ||
-          text.includes("already submitted"))
-      ) {
-        console.warn(
-          "[CBTTest] Pending submission already submitted on server, clearing from queue",
-          { testId, text }
-        );
-        delete pending[testId];
-        anySuccess = true;
-      } else {
-        console.error(
-          "[CBTTest] Sync failed for test (will keep pending)",
-          testId,
-          res.status,
-          text
-        );
+        if (res.ok) {
+          // ✅ parse response so we can update testResults
+          const data = await res.json().catch(() => null);
+
+          // ✅ clear from pending map
+          delete pending[testId];
+          anySuccess = true;
+
+          // ✅ update testResults for this test (so Completed page can show score)
+          const test = (availableTests || []).find(
+            (t) => t.pk?.toString() === testId.toString()
+          );
+          if (data) {
+            setTestResults((prev) => ({
+              ...prev,
+              [testId]: {
+                ...data,
+                title: test?.title,
+              },
+            }));
+          }
+
+          // 🔹 if this is the test we're currently showing on "Test Completed"
+          // and it was pending before, mark as just synced
+          if (currentTest === testId && testCompleted) {
+            setJustSyncedTestId(testId);
+          }
+        } else {
+          const text = await res.text().catch(() => "");
+
+          // 🔹 treat “already submitted” as success (idempotent offline retry)
+          if (
+            res.status === 400 &&
+            (text.includes("User already perform test") ||
+              text.includes("already submitted"))
+          ) {
+            console.warn(
+              "[CBTTest] Pending submission already on server, clearing from queue",
+              { testId, text }
+            );
+
+            delete pending[testId];
+            anySuccess = true;
+
+            if (currentTest === testId && testCompleted) {
+              setJustSyncedTestId(testId);
+            }
+          } else {
+            console.error(
+              "[CBTTest] Sync failed for test (will keep pending)",
+              testId,
+              res.status,
+              text
+            );
+          }
+        }
+      } catch (err) {
+        console.error("[CBTTest] Sync failed for test", testId, err);
+        // keep in pending for next retry
       }
     }
-  } catch (err) {
-    console.error("[CBTTest] Sync failed for test", testId, err);
-    // keep in pending
-  }
-}
-
 
     // Save updated pending state
     if (Object.keys(pending).length > 0) {
@@ -260,11 +291,13 @@ for (const testId of Object.keys(pending)) {
     }
 
     if (anySuccess) {
-      fetchData(); // refresh tests & attempts
+      // still okay to refresh attempts / tests
+      fetchData();
     }
 
     setIsSyncing(false);
   };
+
 
   const queueAsPending = (cleanedBody: any) => {
     if (typeof window === "undefined") return;
@@ -734,21 +767,32 @@ for (const testId of Object.keys(pending)) {
     const result = testResults[currentTest ?? ""] ?? null;
 
     // Read pending fresh for accurate status
-    const pendingSubmissionsRaw = typeof window !== "undefined" ? localStorage.getItem("pendingCBTSubmissions") : null;
-    const hasPendingForThisTest = pendingSubmissionsRaw 
+    const pendingSubmissionsRaw =
+      typeof window !== "undefined"
+        ? localStorage.getItem("pendingCBTSubmissions")
+        : null;
+    const hasPendingForThisTest = pendingSubmissionsRaw
       ? !!JSON.parse(pendingSubmissionsRaw ?? "{}")[currentTest ?? ""]
       : false;
+
+    // ✅ new: detect “just synced”
+    const isJustSynced =
+      !!currentTest && justSyncedTestId === currentTest && !hasPendingForThisTest;
 
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {result 
-              ? `Your result: ${result.result || result.percentage + "%"}`
-              : hasPendingForThisTest 
-                ? "Results pending sync..."
-                : "Processing results..."}
+            {result
+              ? `Your result: ${
+                  result.result || result.percentage + "%"
+                }`
+              : hasPendingForThisTest
+              ? "Results pending sync..."
+              : isOnline
+              ? "Your results are being processed."
+              : "Your submission will be synced when you are back online."}
             {hasPendingForThisTest && " (Pending sync)"}
           </p>
         </div>
@@ -760,13 +804,26 @@ for (const testId of Object.keys(pending)) {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {result 
-                ? "Thank you for completing the test." 
+              {result
+                ? "Thank you for completing the test."
                 : hasPendingForThisTest
-                  ? "Your submission is queued and will be synced when online."
-                  : "Your results are being processed."}
+                ? "Your submission is queued and will be synced when online."
+                : isOnline
+                ? "Your results are being processed."
+                : "Your submission will be synced when you are back online."}
             </CardDescription>
+
+            {/* ✅ NEW: show explicit “Synced successfully” badge */}
+            {isJustSynced && (
+              <div className="mt-3 flex justify-center">
+                <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-green-700 bg-green-50 border-green-200">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Synced successfully
+                </span>
+              </div>
+            )}
           </CardHeader>
+
           <CardContent className="space-y-6">
             {result && (
               <div className="text-center space-y-2">
