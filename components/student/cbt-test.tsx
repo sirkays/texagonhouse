@@ -191,6 +191,8 @@ export function CBTTest() {
     const raw = localStorage.getItem("pendingCBTSubmissions");
     if (!raw) return;
 
+    const deviceId = getOrCreateDeviceId();
+
     let pending: Record<string, any> = {};
     try {
       pending = JSON.parse(raw);
@@ -360,6 +362,28 @@ export function CBTTest() {
     fetchData();
   }, [sessionToken, status, attemptsPage]);
 
+  function getOrCreateDeviceId(): string | null {
+    if (typeof window === "undefined") return null;
+
+    const KEY = "cbtDeviceId";
+    const existing = localStorage.getItem(KEY);
+    if (existing) {
+      return existing; // existing is `string` here
+    }
+
+    let newId: string;
+
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      newId = (crypto as any).randomUUID().replace(/-/g, "");
+    } else {
+      newId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    localStorage.setItem(KEY, newId); // ✅ `newId` is definitely a string
+    return newId;
+  }
+
+
   const fetchData = async () => {
     setLoading(true);
     if (!isOnline) {
@@ -373,16 +397,20 @@ export function CBTTest() {
       qs.set("page", String(attemptsPage));
       qs.set("page_size", "20");
 
+      const deviceId = getOrCreateDeviceId();
+
       const res = await fetchWithTimeout(
         `/api/student/cbt?${qs.toString()}`,
         {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
+            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
           },
         },
         40000
       );
+
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
@@ -628,20 +656,23 @@ export function CBTTest() {
     setIsSecureMode(false);
     setSuspiciousActivity(0);
 
-    if (isOnline) {
-      try {
-        const res = await fetchWithTimeout(
-          "/api/student/cbt",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-Token": sessionToken,
-            },
-            body: JSON.stringify(cleanedBody),
+  const deviceId = getOrCreateDeviceId();
+
+  if (isOnline) {
+    try {
+      const res = await fetchWithTimeout(
+        "/api/student/cbt",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
           },
-          40000
-        );
+          body: JSON.stringify(cleanedBody),
+        },
+        40000
+      );
         if (res.ok) {
           const data = await res.json();
           const test = availableTests.find(
