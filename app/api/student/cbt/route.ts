@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
+//const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         cookie: request.headers.get("cookie") ?? "",
       },
       credentials: "include", 
-      timeout: 8000,
+      timeout: 40000,
     });
     if (!testsRes.ok) {
       const errorText = await testsRes.text();
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
         cookie: request.headers.get("cookie") ?? "",
       },
       credentials: "include", 
-      timeout: 8000,
+      timeout: 40000,
     });
     if (!attemptsRes.ok) {
       const errorText = await attemptsRes.text();
@@ -81,15 +81,62 @@ export async function GET(request: Request) {
       );
     }
     const attemptsData = await attemptsRes.json();
+    console.log(attemptsData, " data....")
 
-    // Return a single combined payload
+
+    // 🔹 Normalize tests
+    let tests: any[] = [];
+    let results: any = {};
+
+    if (Array.isArray(testsData)) {
+      // backend returned raw array
+      tests = testsData;
+    } else if (Array.isArray(testsData?.tests)) {
+      tests = testsData.tests;
+    } else if (Array.isArray(testsData?.results)) {
+      // sometimes APIs put the array in "results"
+      tests = testsData.results;
+    }
+
+    if (!Array.isArray(testsData) && testsData?.results && !Array.isArray(testsData.results)) {
+      // results is a dict / stats object
+      results = testsData.results;
+    }
+
+    // 🔹 Normalize attempts into { count, page, page_size, results }
+    let attempts: any;
+
+    if (Array.isArray(attemptsData)) {
+      attempts = {
+        count: attemptsData.length,
+        page: Number(searchParams.get("page") || 1),
+        page_size: Number(searchParams.get("page_size") || attemptsData.length),
+        results: attemptsData,
+      };
+    } else if (Array.isArray(attemptsData?.results)) {
+      attempts = {
+        count: Number(attemptsData.count ?? attemptsData.results.length ?? 0),
+        page: Number(attemptsData.page ?? 1),
+        page_size: Number(attemptsData.page_size ?? attemptsData.results.length ?? 20),
+        results: attemptsData.results,
+      };
+    } else {
+      attempts = { count: 0, page: 1, page_size: 20, results: [] };
+    }
+
     const payload = {
-      ...(Array.isArray(testsData?.tests) ? { tests: testsData.tests } : {}),
-      ...(testsData?.results ? { results: testsData.results } : {}),
-      attempts: attemptsData, // full paginated object
+      tests,
+      results,
+      attempts,
     };
-    console.log("[Route] Combined GET payload keys:", Object.keys(payload));
+
+    console.log("[Route] Normalized payload:", {
+      tests_len: tests.length,
+      attempts_count: attempts.count,
+    });
+
     return NextResponse.json(payload, { status: 200 });
+
   } catch (error: any) {
     console.error("[Route] Error fetching data:", error);
     return NextResponse.json(

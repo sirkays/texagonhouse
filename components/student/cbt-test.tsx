@@ -184,6 +184,7 @@ export function CBTTest() {
   }, []);
 
   useEffect(() => {
+    console.log(isOnline, " online")
     if (isOnline) {
       syncPendingSubmissions();
     }
@@ -209,8 +210,7 @@ export function CBTTest() {
             "X-Session-Token": sessionToken,
           },
           body: JSON.stringify(sub),
-        }, 15000);
-
+        }, 40000);
         if (res.ok) {
           const data = await res.json();
           // Update testResults if currentTest matches, but since may be delayed, just refresh data
@@ -267,78 +267,103 @@ export function CBTTest() {
     fetchData();
   }, [sessionToken, status, attemptsPage]);
 
-  const fetchData = async () => {
-    setLoading(true);
+const fetchData = async () => {
+  setLoading(true);
+  if (!isOnline) {
+    loadCachedData();
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const qs = new URLSearchParams();
+    qs.set("page", String(attemptsPage));
+    qs.set("page_size", "20");
+
+    const res = await fetchWithTimeout(
+      `/api/student/cbt?${qs.toString()}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
+      },
+      40000
+    );
+
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        setError("Session expired");
+        setLoading(false);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const d = await res.json();
+    console.log("CBT /api response", d);
+
+    // ---- Tests: be defensive about where they live ----
+    const tests = Array.isArray(d.tests)
+      ? d.tests
+      : Array.isArray((d as any).available_tests)
+      ? (d as any).available_tests
+      : [];
+
+    setAvailableTests(tests);
+
+    // per-test result summaries if you have them
+    setTestResults((d as any).results || {});
+
+    // ---- Attempts: support both { attempts: {...} } and top-level { count, results } ----
+    const rawAttempts =
+      (d as any).attempts && typeof (d as any).attempts === "object"
+        ? (d as any).attempts
+        : typeof (d as any).count === "number" &&
+          Array.isArray((d as any).results)
+        ? {
+            count: (d as any).count,
+            page: (d as any).page ?? attemptsPage,
+            page_size: (d as any).page_size ?? 20,
+            results: (d as any).results,
+          }
+        : { count: 0, page: 1, page_size: 20, results: [] };
+
+    setAttempts({
+      count: Number(
+        rawAttempts.count ?? rawAttempts.results?.length ?? 0
+      ),
+      page: Number(rawAttempts.page ?? 1),
+      page_size: Number(rawAttempts.page_size ?? 20),
+      results: Array.isArray(rawAttempts.results)
+        ? rawAttempts.results
+        : [],
+    });
+
+    // cache for offline
+    localStorage.setItem(
+      "cachedCBTData",
+      JSON.stringify({
+        tests,
+        results: (d as any).results || {},
+        attempts: rawAttempts,
+      })
+    );
+
+    setError(null);
+  } catch (err: any) {
     if (!isOnline) {
       loadCachedData();
-      setLoading(false);
-      return;
+    } else {
+      console.error("[CBTTest] fetchData error:", err);
+      setError(err.message || "Failed to load assessments");
+      // optional: fall back to cached
+      // loadCachedData();
     }
-
-    try {
-      const qs = new URLSearchParams();
-      qs.set("page", String(attemptsPage));
-      qs.set("page_size", "20");
-
-      const res = await fetchWithTimeout(
-        `/api/student/cbt?${qs.toString()}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-          },
-        },
-        10000
-      );
-
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          setError("Session expired");
-          setLoading(false);
-          return;
-        }
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const d = await res.json();
-      const tests = Array.isArray(d.tests) ? d.tests : [];
-      setAvailableTests(tests);
-      setTestResults(d.results || {});
-
-      if (d.attempts?.results) {
-        setAttempts({
-          count: Number(d.attempts.count ?? d.attempts.results.length ?? 0),
-          page: Number(d.attempts.page ?? 1),
-          page_size: Number(d.attempts.page_size ?? 20),
-          results: Array.isArray(d.attempts.results)
-            ? d.attempts.results
-            : [],
-        });
-      } else {
-        setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
-      }
-
-      // Cache the data
-      localStorage.setItem(
-        "cachedCBTData",
-        JSON.stringify({
-          tests,
-          results: d.results || {},
-          attempts: d.attempts || { count: 0, page: 1, page_size: 20, results: [] },
-        })
-      );
-
-      setError(null);
-    } catch (err: any) {
-      if (!isOnline) {
-        loadCachedData();
-      } else {
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const loadCachedData = () => {
     const cached = localStorage.getItem("cachedCBTData");
@@ -532,9 +557,8 @@ export function CBTTest() {
             },
             body: JSON.stringify(cleanedBody),
           },
-          15000
+          40000
         );
-
         if (res.ok) {
           const data = await res.json();
           const test = availableTests.find(
@@ -702,11 +726,6 @@ export function CBTTest() {
                 {result.pending_manual > 0 && (
                   <p>{result.pending_manual} questions pending manual review</p>
                 )}
-                <p>
-                  {result.result === "PASS"
-                    ? "Congratulations! You have passed the test."
-                    : "Unfortunately, you did not pass. Better luck next time!"}
-                </p>
               </div>
             )}
 
@@ -735,14 +754,6 @@ export function CBTTest() {
                   Go back to Test
                 </Button>
 
-              {result && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowSubmittedAnswersModal(true)}
-                >
-                  View Submitted Answers
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -1083,7 +1094,11 @@ export function CBTTest() {
   const hasTests =
     Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
 
-  const pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+  const pending: any[] =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]")
+      : [];
+
 
   return (
     <div className="space-y-6">
