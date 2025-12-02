@@ -1395,9 +1395,6 @@ export function CBTTest() {
           {sortedAttempts.length === 0 ? (
             <div className="text-center text-muted-foreground">
               <p>No past attempts yet.</p>
-              <Button variant="link" onClick={() => document.querySelector('button[data-state="available"]')?.click()}>
-                Start a test now
-              </Button>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
