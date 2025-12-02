@@ -1,6 +1,6 @@
+
 /* cbt-test.tsx — online-only version WITH server-backed Past Attempts */
 /* Modified for offline support: cache data, queue submissions, sync when online */
-
 import { useState, useEffect, useMemo } from "react";
 import {
   Card,
@@ -52,9 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 /* ---------- utility helpers ---------- */
-
 async function fetchWithTimeout(
   url: string,
   options: any = {},
@@ -74,7 +72,6 @@ async function fetchWithTimeout(
     throw err;
   }
 }
-
 /* ---------- lightweight types for attempts ---------- */
 type Attempt = {
   id: number;
@@ -102,16 +99,13 @@ type Attempt = {
   created_at?: string;
   updated_at?: string;
 };
-
 type AttemptsPayload = {
   count: number;
   page: number;
   page_size: number;
   results: Attempt[];
 };
-
 /* ---------- CBTTest component ---------- */
-
 export function CBTTest() {
   const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(null);
   const { data: session, status } = useSession();
@@ -147,7 +141,6 @@ export function CBTTest() {
   const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">(
     "date"
   );
-
   // NEW: attempts state (from backend)
   const [attempts, setAttempts] = useState<AttemptsPayload>({
     count: 0,
@@ -156,14 +149,48 @@ export function CBTTest() {
     results: [],
   });
   const [attemptsPage, setAttemptsPage] = useState(1);
-
   // NEW: offline support
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-
+  const [isSyncing, setIsSyncing] = useState(false);
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
   );
+
+  
+    // Put near the other helpers
+  async function clearOfflineCache({ keepDeviceId = true } = {}) {
+    try {
+      // preserve device_id unless you explicitly want to remove it
+      const deviceId = keepDeviceId ? localStorage.getItem("device_id") : null;
+
+      localStorage.removeItem("pendingCBTSubmissions");
+      localStorage.removeItem("cachedCBTData");
+
+      if (!keepDeviceId) {
+        localStorage.removeItem("device_id");
+      } else if (deviceId) {
+        localStorage.setItem("device_id", deviceId);
+      }
+
+      // Clear Cache Storage (if any) – works over HTTPS / localhost with SW
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        // delete all caches, or filter by your naming convention if you have one
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      // (Optional) Clear any app-specific IndexedDB if you added one later
+      // await new Promise<void>((resolve, reject) => {
+      //   const req = indexedDB.deleteDatabase("your-db-name");
+      //   req.onsuccess = () => resolve();
+      //   req.onerror = () => reject(req.error);
+      //   req.onblocked = () => resolve(); // best effort
+      // });
+    } catch (e) {
+      console.error("[CBTTest] clearOfflineCache error:", e);
+    }
+  }
+
 
   /* ---------- Offline/online listeners and sync ---------- */
   useEffect(() => {
@@ -172,15 +199,35 @@ export function CBTTest() {
       syncPendingSubmissions();
     };
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+    // Auto-start if the URL has ?start=<testPk>
+  useEffect(() => {
+    if (loading) return; // wait until fetchData() completes
+    if (!Array.isArray(availableTests) || availableTests.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const startPk = params.get("start");
+    if (!startPk) return;
+    // If subscription/attempt limits apply, reuse the existing gate dialog logic:
+    const test = availableTests.find((t) => t.pk?.toString() === startPk);
+    if (!test) return;
+    if ((test.requiresSubscription && !isSubscriber) || (test.type === "exam" && examAttempts >= maxAttempts)) {
+      setPendingTestId(startPk);
+      setShowStartDialog(true);
+    } else {
+      // go straight into the test
+      handleStartTestProceed(startPk);
+    }
+    // Remove the param so reloads don't re-start
+    const url = new URL(window.location.href);
+    url.searchParams.delete("start");
+    window.history.replaceState({}, "", url.toString());
+  }, [loading, availableTests, isSubscriber, examAttempts, maxAttempts]);
 
   useEffect(() => {
     if (isOnline) {
@@ -194,7 +241,8 @@ export function CBTTest() {
     let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
     if (!pending.length) return;
 
-    let newPending = [];
+    setIsSyncing(true);
+    let newPending: any[] = [];
     let anySuccess = false;
 
     for (let sub of pending) {
@@ -204,35 +252,42 @@ export function CBTTest() {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
+            "X-Device-ID": getDeviceId(),
           },
           body: JSON.stringify(sub),
         }, 15000);
 
         if (res.ok) {
-          const data = await res.json();
-          // Update testResults if currentTest matches, but since may be delayed, just refresh data
           anySuccess = true;
         } else {
-          newPending.push(sub); // keep if failed
+          newPending.push(sub);
         }
       } catch (err) {
         console.error("[CBTTest] Sync failed for submission:", err);
-        newPending.push(sub); // keep on error
+        newPending.push(sub);
       }
     }
 
+    // Persist whatever is left
     localStorage.setItem("pendingCBTSubmissions", JSON.stringify(newPending));
 
     if (anySuccess) {
-      fetchData(); // refresh attempts and tests
+      // Refresh server data first so UI is up-to-date
+      await fetchData();
+
+      // If everything is synced (no leftovers), nuke local cache
+      if (newPending.length === 0) {
+        await clearOfflineCache({ keepDeviceId: true });
+      }
     }
+
+    setIsSyncing(false);
   };
 
   /* ---------- Auto-reload after completion ---------- */
   useEffect(() => {
     if (!testCompleted) return;
     setAutoReloadSeconds(120); // 2 minutes
-
     const interval = setInterval(() => {
       setAutoReloadSeconds((s) => {
         if (s == null) return s;
@@ -246,10 +301,8 @@ export function CBTTest() {
         return s - 1;
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, [testCompleted]);
-
   /* ---------- Fetch tests list + server attempts (with offline cache) ---------- */
   useEffect(() => {
     if (status === "loading") return;
@@ -258,10 +311,8 @@ export function CBTTest() {
       setLoading(false);
       return;
     }
-
     fetchData();
   }, [sessionToken, status, attemptsPage]);
-
   const fetchData = async () => {
     setLoading(true);
     if (!isOnline) {
@@ -269,23 +320,21 @@ export function CBTTest() {
       setLoading(false);
       return;
     }
-
     try {
       const qs = new URLSearchParams();
       qs.set("page", String(attemptsPage));
       qs.set("page_size", "20");
-
       const res = await fetchWithTimeout(
         `/api/student/cbt?${qs.toString()}`,
         {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
+            "X-Device-ID": getDeviceId(),
           },
         },
         10000
       );
-
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           setError("Session expired");
@@ -294,12 +343,10 @@ export function CBTTest() {
         }
         throw new Error(`HTTP ${res.status}`);
       }
-
       const d = await res.json();
       const tests = Array.isArray(d.tests) ? d.tests : [];
       setAvailableTests(tests);
       setTestResults(d.results || {});
-
       if (d.attempts?.results) {
         setAttempts({
           count: Number(d.attempts.count ?? d.attempts.results.length ?? 0),
@@ -312,7 +359,6 @@ export function CBTTest() {
       } else {
         setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
       }
-
       // Cache the data
       localStorage.setItem(
         "cachedCBTData",
@@ -322,7 +368,6 @@ export function CBTTest() {
           attempts: d.attempts || { count: 0, page: 1, page_size: 20, results: [] },
         })
       );
-
       setError(null);
     } catch (err: any) {
       if (!isOnline) {
@@ -334,7 +379,6 @@ export function CBTTest() {
       setLoading(false);
     }
   };
-
   const loadCachedData = () => {
     const cached = localStorage.getItem("cachedCBTData");
     if (cached) {
@@ -350,14 +394,12 @@ export function CBTTest() {
       setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
     }
   };
-
   /* ---------- start logic ---------- */
   const startTest = async (testPk: string | number) => {
     const test = (availableTests || []).find(
       (t) => t.pk?.toString() === testPk?.toString()
     );
     if (!test) return;
-
     if (test.requiresSubscription && !isSubscriber) {
       setShowStartDialog(true);
       setPendingTestId(null);
@@ -368,16 +410,23 @@ export function CBTTest() {
       setPendingTestId(null);
       return;
     }
-
     await handleStartTestProceed(testPk);
   };
-
+// Anywhere in your frontend before calling /api/student/cbt
+function getDeviceId() {
+  const key = "device_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
   const handleStartTestProceed = async (testPk: string | number) => {
     const test = (availableTests || []).find(
       (t) => t.pk?.toString() === testPk?.toString()
     );
     if (!test) return;
-
     const items = Array.isArray(test.items)
       ? test.items
       : test.items
@@ -398,7 +447,6 @@ export function CBTTest() {
           : [],
       points: item.points,
     }));
-
     setQuestions(mappedQuestions);
     setCurrentTest(testPk?.toString());
     setCurrentQuestion(0);
@@ -411,7 +459,6 @@ export function CBTTest() {
     setIsSecureMode(true);
     if (test.type === "exam") setExamAttempts((p) => p + 1);
   };
-
   /* ---------- timer ---------- */
   useEffect(() => {
     if (!currentTest || timeLeft <= 0) return;
@@ -426,18 +473,15 @@ export function CBTTest() {
     }, 1000);
     return () => clearInterval(timer);
   }, [currentTest, timeLeft]);
-
   /* ---------- suspicious activity detection ---------- */
   useEffect(() => {
     if (!isSecureMode) return;
-
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setSuspiciousActivity((prev) => prev + 1);
         setShowSecurityWarning(true);
       }
     };
-
     const handleBlur = () => {
       setSuspiciousActivity((prev) => prev + 1);
       setShowSecurityWarning(true);
@@ -453,37 +497,29 @@ export function CBTTest() {
         setShowSecurityWarning(true);
       }
     };
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
     document.addEventListener("keydown", handleKeyDown);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isSecureMode]);
-
   useEffect(() => {
     if (suspiciousActivity >= 3) {
       submitTest();
     }
   }, [suspiciousActivity]);
-
   /* ---------- submitTest (with offline support) ---------- */
   const submitTest = async () => {
     if (!currentTest) return;
-
     const submitAnswers: any[] = [];
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const ans = answers[i];
-
       if (ans === undefined) continue;
-
       const entry: any = { question: q.id };
-
       if (Array.isArray(ans)) {
         entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
       } else if (q.type === "essay" || q.type === "short-answer") {
@@ -497,10 +533,8 @@ export function CBTTest() {
         const numeric = Number(ans);
         entry.choice = isNaN(numeric) ? ans : numeric;
       }
-
       submitAnswers.push(entry);
     }
-
     const cleanedBody = {
       answers: submitAnswers,
       started_at: startTime,
@@ -508,13 +542,10 @@ export function CBTTest() {
       suspicious_activity: suspiciousActivity || 0,
       currentTest: currentTest, // Note: backend expects 'test' or 'testPk', but code uses 'currentTest'
     };
-
     console.log("[CBTTest] Submitting test payload:", cleanedBody);
-
     setTestCompleted(true);
     setIsSecureMode(false);
     setSuspiciousActivity(0);
-
     if (isOnline) {
       try {
         const res = await fetchWithTimeout(
@@ -524,29 +555,32 @@ export function CBTTest() {
             headers: {
               "Content-Type": "application/json",
               "X-Session-Token": sessionToken,
+              "X-Device-ID": getDeviceId(),
             },
             body: JSON.stringify(cleanedBody),
           },
           15000
         );
 
-        if (res.ok) {
-          const data = await res.json();
-          const test = availableTests.find(
-            (t) => t.pk.toString() === currentTest
-          );
-          setTestResults((prev) => ({
-            ...prev,
-            [currentTest!]: { ...data, title: test?.title },
-          }));
-          // refresh attempts list (resets to first page)
-          setAttemptsPage(1);
-          fetchData(); // refresh
-        } else {
-          console.error(`HTTP ${res.status}: ${await res.text()}`);
-          // If failed online, queue as pending?
-          queueAsPending(cleanedBody);
-        }
+if (res.ok) {
+  const data = await res.json();
+  const test = availableTests.find((t) => t.pk.toString() === currentTest);
+  setTestResults((prev) => ({
+    ...prev,
+    [currentTest!]: { ...data, title: test?.title },
+  }));
+  setAttemptsPage(1);
+  await fetchData();
+
+  // No pending queue in this path, so clear cached data right away
+  await clearOfflineCache({ keepDeviceId: true });
+} else {
+  // fall back to queue as you already do
+  console.error(`HTTP ${res.status}: ${await res.text()}`);
+  queueAsPending(cleanedBody);
+}
+
+
       } catch (err: any) {
         console.error("[CBTTest] Submit failed:", err);
         queueAsPending(cleanedBody);
@@ -555,14 +589,12 @@ export function CBTTest() {
       queueAsPending(cleanedBody);
     }
   };
-
   const queueAsPending = (cleanedBody: any) => {
     let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
     pending.push({ ...cleanedBody, queuedAt: new Date().toISOString() });
     localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
     console.log("[CBTTest] Queued submission offline");
   };
-
   const handleResetToList = () => {
     setCurrentTest(null);
     setTestCompleted(false);
@@ -575,26 +607,21 @@ export function CBTTest() {
     setSuspiciousActivity(0);
     setIsSecureMode(false);
   };
-
   /* ---------- UI helpers ---------- */
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-
   function handleAnswerChangeLocal(value: any) {
     setAnswers((prev) => ({ ...prev, [currentQuestion]: value }));
   }
-
   function previousQuestion() {
     setCurrentQuestion((prev) => Math.max(0, prev - 1));
   }
-
   function nextQuestion() {
     setCurrentQuestion((prev) => Math.min(questions.length - 1, prev + 1));
   }
-
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -602,7 +629,6 @@ export function CBTTest() {
       </div>
     );
   }
-
   if (status === "unauthenticated" || error === "Not authenticated") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
@@ -630,7 +656,6 @@ export function CBTTest() {
       </div>
     );
   }
-
   if (error === "Session expired") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
@@ -656,13 +681,11 @@ export function CBTTest() {
       </div>
     );
   }
-
   /* ---------- Completed view (with offline message) ---------- */
   if (testCompleted) {
     const Icon = CheckCircle;
     const iconColor = "text-green-500";
     const result = testResults[currentTest ?? ""] ?? null;
-
     return (
       <div className="space-y-6">
         <div>
@@ -671,7 +694,6 @@ export function CBTTest() {
             {result ? `Your result: ${result.result}` : isOnline ? "" : " (Offline - results pending sync)"}
           </p>
         </div>
-
         <Card className="max-w-2xl mx-auto">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
@@ -679,10 +701,10 @@ export function CBTTest() {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {result 
-                ? "Thank you for completing the test." 
-                : isOnline 
-                  ? "Processing results..." 
+              {result
+                ? "Thank you for completing the test."
+                : isOnline
+                  ? "Processing results..."
                   : "Test submitted offline. Results will be available once synced online."}
             </CardDescription>
           </CardHeader>
@@ -704,7 +726,6 @@ export function CBTTest() {
                 </p>
               </div>
             )}
-
             {suspiciousActivity > 0 && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-center gap-2 text-yellow-800">
@@ -717,7 +738,6 @@ export function CBTTest() {
                 </p>
               </div>
             )}
-
             <div className="flex gap-4 justify-center">
                 <Button
                   className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
@@ -729,7 +749,6 @@ export function CBTTest() {
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Go back to Test
                 </Button>
-
               {result && (
                 <Button
                   variant="outline"
@@ -741,7 +760,6 @@ export function CBTTest() {
             </div>
           </CardContent>
         </Card>
-
         <Dialog
           open={showSubmittedAnswersModal}
           onOpenChange={setShowSubmittedAnswersModal}
@@ -768,7 +786,6 @@ export function CBTTest() {
       </div>
     );
   }
-
   /* ---------- active test UI ---------- */
   if (currentTest) {
     const progress = questions.length
@@ -778,7 +795,6 @@ export function CBTTest() {
     const test = (availableTests || []).find(
       (t) => t.pk?.toString() === currentTest?.toString()
     );
-
     return (
       <div className="space-y-6">
         <Dialog
@@ -808,7 +824,6 @@ export function CBTTest() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
         <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
           <DialogContent>
             <DialogHeader>
@@ -836,7 +851,6 @@ export function CBTTest() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
         <div className="flex items-center sm:flex-row flex-col gap-4 justify-between">
           <div className=" flex sm:self-auto self-start items-start sm:items-center flex-col sm:flex-row gap-2">
             <h1 className="text-3xl font-bold">{test?.title}</h1>
@@ -862,9 +876,7 @@ export function CBTTest() {
             <Badge variant="outline">{Math.round(progress)}% Complete</Badge>
           </div>
         </div>
-
         <Progress value={progress} className="h-2" />
-
         <div className="grid gap-6 lg:grid-cols-4">
           <div className="lg:col-span-3">
             <Card>
@@ -876,7 +888,6 @@ export function CBTTest() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
-
                 {currentQ?.type === "single-choice" ||
                 currentQ?.type === "true-false" ? (
                   <RadioGroup
@@ -930,7 +941,6 @@ export function CBTTest() {
                     />
                   </div>
                 ) : null}
-
                 <div className="flex justify-between">
                   <Button
                     className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
@@ -970,7 +980,6 @@ export function CBTTest() {
               </CardContent>
             </Card>
           </div>
-
           <div className="space-y-4">
             <Card>
               <CardHeader>
@@ -997,7 +1006,6 @@ export function CBTTest() {
                 </div>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle>Test Info</CardTitle>
@@ -1028,7 +1036,6 @@ export function CBTTest() {
       </div>
     );
   }
-
   /* ---------- helpers for past attempts ---------- */
   const safeNum = (v: any) => {
     const n = typeof v === "string" ? parseFloat(v) : Number(v);
@@ -1040,7 +1047,6 @@ export function CBTTest() {
     if (total <= 0) return 0;
     return Math.round((score / total) * 100);
   };
-
   // Sort attempts by selected sort
   const sortedAttempts = [...(attempts.results || [])].sort((a, b) => {
     if (pastSortBy === "score") {
@@ -1056,14 +1062,12 @@ export function CBTTest() {
       return db - da;
     }
   });
-
   // Attempts pagination (server-backed)
   const pastTotalPages = Math.max(
     1,
     Math.ceil((attempts.count || 0) / (attempts.page_size || 20))
   );
   const pastCurrentPage = attempts.page || 1;
-
   /* ---------- default tests list ---------- */
   const indexOfLastTest = currentPage * testsPerPage;
   const indexOfFirstTest = indexOfLastTest - testsPerPage;
@@ -1074,10 +1078,9 @@ export function CBTTest() {
     1,
     Math.ceil((availableTests?.length || 0) / testsPerPage)
   );
-
   const hasTests =
     Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
-
+  const pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
   return (
     <div className="space-y-6">
       {/* ---------- Start dialog (unchanged behavior) ---------- */}
@@ -1134,14 +1137,30 @@ export function CBTTest() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div>
-        <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
-        <p className="text-muted-foreground">
-          Quizzes and secure semester exams with comprehensive feedback
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">TECHXAGON Assessments</h1>
+          <p className="text-muted-foreground">
+            Quizzes and secure semester exams with comprehensive feedback
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {isSyncing && (
+            <div className="flex items-center gap-1 text-blue-500">
+              <Spinner size="sm" />
+              Syncing...
+            </div>
+          )}
+          <Badge variant={isOnline ? "default" : "destructive"}>
+            {isOnline ? "Online" : "Offline"}
+          </Badge>
+        </div>
       </div>
-
+      {error && error.startsWith("Offline") && (
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center text-sm text-yellow-800">
+          {error}
+        </div>
+      )}
       <Tabs defaultValue="available" className="space-y-4">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
@@ -1157,7 +1176,6 @@ export function CBTTest() {
             Past Attempts
           </TabsTrigger>
         </TabsList>
-
         {/* ---------- Available Tests ---------- */}
         <TabsContent value="available" className="space-y-4">
           {/* Loading state for tests fetch */}
@@ -1202,6 +1220,8 @@ export function CBTTest() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {currentTests.map((test) => {
                   const res = testResults[test.pk?.toString()] ?? null;
+                  const isPending = pending.some((p: any) => p.currentTest === test.pk.toString());
+                  const disableButton = !isOnline && isPending;
                   return (
                     <Card
                       key={test.pk}
@@ -1231,6 +1251,11 @@ export function CBTTest() {
                                 Secure Exam
                               </Badge>
                             )}
+                            {!isOnline && isPending && (
+                              <Badge variant="secondary">
+                                Pending Sync
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <CardDescription>{test.description}</CardDescription>
@@ -1246,13 +1271,11 @@ export function CBTTest() {
                           </span>
                           <span>{test.duration}</span>
                         </div>
-
                         {res && (
                           <p className="text-sm text-green-600">
                             Previous Score: {res.score} / {res.total_points}
                           </p>
                         )}
-
                         {test.requiresSubscription && !isSubscriber && (
                           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p className="text-sm text-yellow-800">
@@ -1261,12 +1284,17 @@ export function CBTTest() {
                             </p>
                           </div>
                         )}
-
+                        {!isOnline && isPending && (
+                          <p className="text-sm text-red-600">
+                            Cannot start this test offline until synced.
+                          </p>
+                        )}
                         <div className="mt-auto">
                           <Button
                             onClick={() => startTest(test.pk)}
                             className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                             disabled={
+                              disableButton ||
                               (test.type === "exam" &&
                                 examAttempts >= maxAttempts) ||
                               (test.requiresSubscription && !isSubscriber)
@@ -1283,7 +1311,6 @@ export function CBTTest() {
                   );
                 })}
               </div>
-
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
@@ -1336,7 +1363,6 @@ export function CBTTest() {
             </>
           )}
         </TabsContent>
-
         {/* ---------- Past Attempts (server-backed) ---------- */}
         <TabsContent value="past" className="space-y-4">
           <div className="flex justify-between items-center">
@@ -1357,7 +1383,6 @@ export function CBTTest() {
               </SelectContent>
             </Select>
           </div>
-
           {sortedAttempts.length === 0 ? (
             <div className="text-center text-muted-foreground">
               <p>No past attempts yet.</p>
@@ -1396,26 +1421,24 @@ export function CBTTest() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col gap-3">
-                        <div className="text-sm flex items-center gap-2">
-                            <span className="font-medium">Status:</span>
-                            <Badge variant="outline">{a.status || "—"}</Badge>
-                        </div>
-
-                        <div className="text-sm">
-                            <span className="font-medium">Score: </span>
-                            {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
-                            {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
-                        </div>
-                      <p className="text-sm text-muted-foreground">
-                        Submitted: {submittedDate || "—"}
-                      </p>
+                      <div className="text-sm flex items-center gap-2">
+                          <span className="font-medium">Status:</span>
+                          <Badge variant="outline">{a.status || "—"}</Badge>
+                      </div>
+                      <div className="text-sm">
+                          <span className="font-medium">Score: </span>
+                          {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
+                          {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
+                      </div>
+                    <p className="text-sm text-muted-foreground">
+                      Submitted: {submittedDate || "—"}
+                    </p>
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
           )}
-
           {attempts.count > attempts.page_size && (
             <Pagination>
               <PaginationContent>

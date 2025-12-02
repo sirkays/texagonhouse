@@ -378,7 +378,7 @@
 // import {ViewDetailsModal} from "@/components/admin/modals/view-details-modal";
 // import {useToast} from "@/hooks/use-toast";
 
-// const BASE_URL = "https://texagonbackend.onrender.com/orgs";
+// const BASE_URL = "https://texagonbackend.epichouse.online/orgs";
 
 // export default function CoursesPage() {
 //   const {toast} = useToast();

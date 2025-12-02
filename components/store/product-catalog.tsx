@@ -1,275 +1,151 @@
+// // components/store/product-catalog.tsx
 // "use client";
 
-// import {useEffect, useRef, useState} from "react";
+// import {useEffect, useState} from "react";
 // import {useRouter} from "next/navigation";
 // import {Button} from "@/components/ui/button";
-// import {toast} from "sonner";
+// import {Badge} from "@/components/ui/badge";
+// import {Input} from "@/components/ui/input";
 // import {
-//   Search,
-//   Filter,
-//   Star,
-//   ShoppingCart as ShoppingCartIcon,
-//   Video,
-//   BookOpen,
-//   Headphones,
-//   Package,
-//   Laptop,
-//   Grid3X3,
-// } from "lucide-react";
-// import {Skeleton} from "@/components/ui/skeleton";
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@/components/ui/select";
+// import {toast} from "sonner";
+// import {Search, Star, ShoppingCart as ShoppingCartIcon} from "lucide-react";
+// import {useCart} from "@/providers/CartProvider";
 
-// interface Product {
-//   id: string;
-//   slug: string;
-//   name: string;
-//   description?: string;
-//   price: number;
-//   originalPrice?: number;
-//   category?: string;
-//   type?: string;
-//   rating?: number;
-//   reviews?: number;
-//   image?: string;
-//   instructor?: string;
-//   duration?: string;
-//   students?: number;
-//   bestseller?: boolean;
-//   bnplAvailable?: boolean;
-//   author?: string;
-//   brand?: string;
-//   pages?: number;
-//   publisher?: string;
-//   specs?: string;
-//   warranty?: string;
-//   inStock?: boolean;
-//   narrator?: string;
-//   episodes?: number;
-//   includes?: string;
-//   value?: string;
-//   format?: string;
-//   jobGuarantee?: boolean;
-// }
-
-// type CatalogAddPayload = {
-//   productId: string;
-//   name: string;
-//   price: number;
-//   image?: string;
-//   type?: string;
-//   originalPrice?: number;
-//   bnplAvailable?: boolean;
-//   instructor?: string;
-//   author?: string;
-//   brand?: string;
-// };
-
-// interface ProductCatalogProps {
-//   // IMPORTANT: Provider will do the API call. This component won't.
-//   onAddToCart: (product: CatalogAddPayload) => Promise<void>;
-// }
-
-// export default function ProductCatalog({onAddToCart}: ProductCatalogProps) {
+// export function ProductCatalog() {
 //   const router = useRouter();
+//   const {addToCart} = useCart();
 //   const [searchQuery, setSearchQuery] = useState("");
 //   const [selectedCategory, setSelectedCategory] = useState("all");
 //   const [sortBy, setSortBy] = useState("popular");
-//   const [products, setProducts] = useState<Product[]>([]);
-//   const [loading, setLoading] = useState(true);
-
-//   // Local per-product disable to prevent spam clicks on the UI
-//   const inFlightRef = useRef<Set<string>>(new Set());
-//   const [adding, setAdding] = useState<Record<string, boolean>>({});
+//   const [products, setProducts] = useState<any[]>([]);
+//   const [categories, setCategories] = useState<any[]>([]);
+//   const [page, setPage] = useState(1);
+//   const [hasMore, setHasMore] = useState(true);
 
 //   useEffect(() => {
-//     const controller = new AbortController();
-//     const fetchProducts = async () => {
-//       try {
-//         setLoading(true);
-
-//         let sortParam = sortBy;
-//         if (sortBy === "price-low") sortParam = "price_asc";
-//         if (sortBy === "price-high") sortParam = "price_desc";
-//         if (sortBy === "rating") sortParam = "rating";
-//         if (sortBy === "newest") sortParam = "newest";
-//         if (sortBy === "popular") sortParam = "popular";
-
-//         const categoryParam =
-//           selectedCategory !== "all" ? `&category=${selectedCategory}` : "";
-
-//         const res = await fetch(
-//           `/api/store/products?q=${encodeURIComponent(
-//             searchQuery
-//           )}${categoryParam}&sort=${sortParam}&page_size=100`,
-//           {signal: controller.signal}
-//         );
-
-//         if (!res.ok) {
-//           setProducts([]);
-//           return;
-//         }
-
+//     const fetchCategories = async () => {
+//       const res = await fetch("/api/store/categories");
+//       if (res.ok) {
 //         const data = await res.json();
-//         const mappedProducts = (data?.results?.results ?? []).map((p: any) => ({
-//           id: p.id,
-//           slug: p.slug || p.id,
-//           name: p.title,
-//           description: p.description,
-//           price: parseFloat(p.price),
-//           category: p.category,
-//           type: p.type,
-//           rating: p.rating,
-//           reviews: p.rating_count,
-//           image: p.image,
-//           bnplAvailable: p.bnpl_enabled,
-//         })) as Product[];
-
-//         setProducts(mappedProducts);
-//       } catch (err) {
-//         if ((err as any)?.name !== "AbortError") {
-//           console.error(err);
-//           setProducts([]);
-//         }
-//       } finally {
-//         setLoading(false);
+//         setCategories([
+//           {id: "all", name: "All Products"},
+//           ...data.results.map((c: any) => ({id: c.slug, name: c.name})),
+//         ]);
+//       } else if (res.status === 401) {
+//         router.push("/login");
 //       }
 //     };
-//     fetchProducts();
-//     return () => controller.abort();
+//     fetchCategories();
+//   }, [router]);
+
+//   useEffect(() => {
+//     setProducts([]);
+//     setPage(1);
+//     setHasMore(true);
 //   }, [searchQuery, selectedCategory, sortBy]);
 
-//   const categories = [
-//     {id: "all", name: "All Products", icon: Grid3X3},
-//     {id: "courses", name: "Online Courses", icon: Video},
-//     {id: "books", name: "Books & eBooks", icon: BookOpen},
-//     {id: "audio", name: "Audio Courses", icon: Headphones},
-//     {id: "hardware", name: "Hardware", icon: Laptop},
-//     {id: "bundles", name: "Bundles", icon: Package},
-//     {id: "bootcamps", name: "Bootcamps", icon: Grid3X3},
-//   ];
+//   useEffect(() => {
+//     const fetchProducts = async () => {
+//       const params = new URLSearchParams();
+//       if (searchQuery) params.append("q", searchQuery);
+//       if (selectedCategory !== "all")
+//         params.append("category", selectedCategory);
+//       let sort = sortBy;
+//       if (sortBy === "price-low") sort = "price_asc";
+//       if (sortBy === "price-high") sort = "price_desc";
+//       if (sortBy === "rating") sort = "rating";
+//       if (sortBy === "newest") sort = "newest";
+//       params.append("sort", sort);
+//       params.append("page", page.toString());
+//       params.append("page_size", "20");
+//       const res = await fetch(`/api/store/products?${params.toString()}`);
+//       if (res.ok) {
+//         const data = await res.json();
+//         setProducts((prev) => [...prev, ...data.results.results]);
+//         setHasMore(!!data.next);
+//       } else if (res.status === 401) {
+//         router.push("/login");
+//       }
+//     };
+//     if (hasMore) fetchProducts();
+//   }, [page, searchQuery, selectedCategory, sortBy, hasMore, router]);
 
-//   const filteredProducts = products;
-//   const sortedProducts = filteredProducts;
+//   const ProductCard = ({product}: {product: any}) => {
+//     const fullStars = Math.floor(product.rating || 0);
 
-//   const handleAddClick = async (p: Product) => {
-//     const key = p.id;
-//     if (inFlightRef.current.has(key)) return;
-
-//     inFlightRef.current.add(key);
-//     setAdding((s) => ({...s, [key]: true}));
-
-//     try {
-//       // Delegate to provider (the ONLY place that hits the API)
-//       await onAddToCart({
-//         productId: p.id,
-//         name: p.name,
-//         price: Number(p.price),
-//         image: p.image,
-//         type: p.type,
-//         originalPrice: p.originalPrice,
-//         bnplAvailable: p.bnplAvailable,
-//         instructor: p.instructor,
-//         author: p.author,
-//         brand: p.brand,
-//       });
-//       // toast is handled in provider too; it's OK to keep a local one if you prefer
-//       // toast.success(`${p.name} added to cart!`);
-//     } catch (e: any) {
-//       console.error("[ProductCatalog] addToCart error:", e);
-//       toast.error(e?.message || "Could not add to cart");
-//     } finally {
-//       inFlightRef.current.delete(key);
-//       setAdding((s) => ({...s, [key]: false}));
-//     }
-//   };
-
-//   const ProductCard = ({product}: {product: Product}) => {
 //     return (
 //       <div
-//         onClick={() => router.push(`/store/products/${product.slug}`)}
+//         onClick={() => router.push(`/store/${product.slug}`)}
 //         className="block cursor-pointer">
-//         <div className="flex items-center gap-4 p-3 border border-transparent hover:border-gray-300 hover:shadow-md transition-shadow rounded-md min-h-36 sm:minh-40">
-//           {/* Image */}
-//           <div className="relative w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 flex-shrink-0">
+//         <div className="relative flex flex-col gap-2 p-2 border border-transparent hover:border-gray-300 transition-shadow hover:shadow-md">
+//           <div className="relative">
 //             <img
 //               src={product.image || "/placeholder.svg"}
 //               alt={product.name}
-//               className="w-full h-full object-cover rounded-md"
+//               className="w-full max-h-48 h-auto object-cover"
 //             />
 //             <button
 //               type="button"
-//               className="absolute bottom-1 right-1 bg-white rounded-full p-1.5 shadow-md hover:bg-gray-100 cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed"
+//               className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
 //               onClick={(e) => {
-//                 e.preventDefault();
 //                 e.stopPropagation();
-//                 if (!adding[product.id]) handleAddClick(product);
-//               }}
-//               disabled={!!adding[product.id]}
-//               aria-label={`Add ${product.name} to cart`}>
-//               <ShoppingCartIcon className="h-4 w-4 text-black" />
+//                 addToCart(product);
+//                 toast.success(`${product.name} has been added to your cart.`);
+//               }}>
+//               <ShoppingCartIcon className="h-5 w-5 text-black" />
 //             </button>
 //           </div>
-
-//           {/* Details */}
-//           <div className="flex flex-col justify-between flex-1 min-w-0">
-//             <div className="font-medium text-sm truncate">{product.name}</div>
-
+//           <div className="truncate text-sm font-medium">{product.name}</div>
+//           <div className="flex flex-col gap-1">
 //             <div className="flex items-center gap-2">
-//               <div className="flex">
-//                 {Array.from({length: 5}).map((_, i) => (
-//                   <Star
-//                     key={i}
-//                     className={`h-4 w-4 ${
-//                       i < Math.floor(product.rating ?? 0)
-//                         ? "fill-yellow-400 text-yellow-400"
-//                         : "text-gray-300"
-//                     }`}
-//                   />
-//                 ))}
-//               </div>
-//               <span className="text-xs text-gray-600">
-//                 ({product.reviews ?? 0})
-//               </span>
+//               {Array.from({length: 5}).map((_, i) => (
+//                 <Star
+//                   key={i}
+//                   className={`h-4 w-4 ${
+//                     i < fullStars
+//                       ? "fill-yellow-400 text-yellow-400"
+//                       : "text-gray-300"
+//                   }`}
+//                 />
+//               ))}
 //             </div>
+//             <div className="flex gap-2 text-sm">
+//               <span className="font-medium">{product.rating}</span>
+//               <span className="text-muted-foreground">({product.reviews})</span>
+//             </div>
+//           </div>
 
-//             <div className="font-bold text-base">
-//               ₦{Number(product.price).toLocaleString()}
-//             </div>
+//           {/* <div className="font-bold text-lg">${product.price.toFixed(2)}</div>
+//           <div className="text-xs text-gray-600">
+//             or 4 payments of ${(product.price / 4).toFixed(2)}
+//           </div> */}
+
+//           <div className="font-bold text-lg">
+//             ${parseFloat(product.price).toFixed(2)}
+//           </div>
+//           <div className="text-xs text-gray-600">
+//             or 4 payments of ${(parseFloat(product.price) / 4).toFixed(2)}
 //           </div>
 //         </div>
 //       </div>
 //     );
 //   };
 
-//   const ProductSkeletonCard = () => (
-//     <div className="block">
-//       <div className="flex items-center gap-4 p-3 border border-transparent rounded-md min-h-36 sm:min-h-40">
-//         <Skeleton className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-md" />
-//         <div className="flex-1 min-w-0 space-y-2">
-//           <Skeleton className="h-4 w-3/4" />
-//           <div className="flex items-center gap-2">
-//             {[...Array(5)].map((_, i) => (
-//               <Skeleton key={i} className="h-4 w-4 rounded" />
-//             ))}
-//             <Skeleton className="h-3 w-12" />
-//           </div>
-//           <Skeleton className="h-6 w-24" />
-//         </div>
-//       </div>
-//     </div>
-//   );
-
-//   const skeletonCount = 10;
-
 //   return (
 //     <div className="space-y-6 mt-8 mx-auto" style={{width: "90%"}}>
 //       <div>
-//         <h1 className="text-3xl font-bold">Store</h1>
+//         <h1 className="text-3xl font-bold">Educational Store</h1>
 //         <p className="text-muted-foreground">
 //           Discover courses, books, and tools to accelerate your learning
 //         </p>
 //       </div>
 
-//       {/* Search + Filters */}
 //       <div className="flex flex-col md:flex-row gap-4 mt-4 mb-6 w-full">
 //         <div className="relative flex-1">
 //           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -303,421 +179,257 @@
 //         </select>
 //       </div>
 
-//       {/* Results Count + Filters */}
 //       <div className="flex items-center justify-between">
 //         <p className="text-muted-foreground">
-//           {loading
-//             ? "Loading products…"
-//             : `Showing ${sortedProducts.length} of ${products.length} products`}
+//           Showing {products.length} products
 //         </p>
-//         <Button variant="outline" size="sm" disabled={loading}>
-//           <Filter className="mr-2 h-4 w-4" />
-//           More Filters
-//         </Button>
 //       </div>
 
-//       {/* Grid */}
-//       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
-//         {loading
-//           ? Array.from({length: skeletonCount}).map((_, i) => (
-//               <ProductSkeletonCard key={`skeleton-${i}`} />
-//             ))
-//           : sortedProducts.map((product) => (
-//               <ProductCard key={product.id} product={product} />
-//             ))}
+//       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+//         {/* {products.map((product) => (
+//           <ProductCard key={product.id} product={product} />
+//         ))} */}
+
+//         {products.map((product, index) => (
+//           <ProductCard key={`${product.id}-${index}`} product={product} />
+//         ))}
 //       </div>
 
-//       {/* Empty */}
-//       {!loading && sortedProducts.length === 0 && (
-//         <div className="text-center text-muted-foreground py-10">
-//           No products found. Try adjusting your search or filters.
+//       {hasMore && (
+//         <div className="text-center">
+//           <Button
+//             className="bg-orange-500 text-white hover:bg-orange-600"
+//             size="lg"
+//             onClick={() => setPage(page + 1)}>
+//             Load More Products
+//           </Button>
 //         </div>
 //       )}
-
-//       {/* Load More */}
-//       <div className="text-center">
-//         <Button variant="outline" size="lg" disabled={loading}>
-//           {loading ? "Loading…" : "Load More Products"}
-//         </Button>
-//       </div>
 //     </div>
 //   );
 // }
-
 "use client";
 
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {Button} from "@/components/ui/button";
 import {toast} from "sonner";
-import {
-  Search,
-  Filter,
-  Star,
-  ShoppingCart as ShoppingCartIcon,
-  Video,
-  BookOpen,
-  Headphones,
-  Package,
-  Laptop,
-  Grid3X3,
-} from "lucide-react";
-import {Skeleton} from "@/components/ui/skeleton";
+import {Search, Star, ShoppingCart as ShoppingCartIcon} from "lucide-react";
+import {useCart} from "@/providers/CartProvider";
 
-interface Product {
-  id: string;
-  slug: string;
-  name: string;
-  description?: string;
-  price: number;
-  originalPrice?: number;
-  category?: string;
-  type?: string;
-  rating?: number;
-  reviews?: number;
-  image?: string;
-  instructor?: string;
-  duration?: string;
-  students?: number;
-  bestseller?: boolean;
-  bnplAvailable?: boolean;
-  author?: string;
-  brand?: string;
-  pages?: number;
-  publisher?: string;
-  specs?: string;
-  warranty?: string;
-  inStock?: boolean;
-  narrator?: string;
-  episodes?: number;
-  includes?: string;
-  value?: string;
-  format?: string;
-  jobGuarantee?: boolean;
-}
-
-type CatalogAddPayload = {
-  productId: string;
-  name: string;
-  price: number;
-  image?: string;
-  type?: string;
-  originalPrice?: number;
-  bnplAvailable?: boolean;
-  instructor?: string;
-  author?: string;
-  brand?: string;
-};
-
-interface ProductCatalogProps {
-  onAddToCart: (product: CatalogAddPayload) => Promise<void>;
-}
-
-export default function ProductCatalog({onAddToCart}: ProductCatalogProps) {
+export function ProductCatalog() {
   const router = useRouter();
+  const {addToCart} = useCart();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const inFlightRef = useRef<Set<string>>(new Set());
-  const [adding, setAdding] = useState<Record<string, boolean>>({});
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
+  // Fetch categories once
   useEffect(() => {
-    const controller = new AbortController();
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-
-        let sortParam = sortBy;
-        if (sortBy === "price-low") sortParam = "price_asc";
-        if (sortBy === "price-high") sortParam = "price_desc";
-        if (sortBy === "rating") sortParam = "rating";
-        if (sortBy === "newest") sortParam = "newest";
-        if (sortBy === "popular") sortParam = "popular";
-
-        const categoryParam =
-          selectedCategory !== "all" ? `&category=${selectedCategory}` : "";
-
-        const res = await fetch(
-          `/api/store/products?q=${encodeURIComponent(
-            searchQuery
-          )}${categoryParam}&sort=${sortParam}&page_size=100`,
-          {signal: controller.signal}
-        );
-
-        if (!res.ok) {
-          setProducts([]);
-          return;
-        }
-
+    const fetchCategories = async () => {
+      const res = await fetch("/api/store/categories");
+      if (res.ok) {
         const data = await res.json();
-        const mappedProducts = (data?.results?.results ?? []).map((p: any) => ({
-          id: p.id,
-          slug: p.slug || p.id,
-          name: p.title,
-          description: p.description,
-          price: parseFloat(p.price),
-          category: p.category,
-          type: p.type,
-          rating: p.rating,
-          reviews: p.rating_count,
-          image: p.image,
-          bnplAvailable: p.bnpl_enabled,
-        })) as Product[];
-
-        setProducts(mappedProducts);
-      } catch (err) {
-        if ((err as any)?.name !== "AbortError") {
-          console.error(err);
-          setProducts([]);
-        }
-      } finally {
-        setLoading(false);
+        setCategories([
+          {id: "all", name: "All Products"},
+          ...data.results.map((c: any) => ({id: c.slug, name: c.name})),
+        ]);
+      } else if (res.status === 401) {
+        router.push("/login");
       }
     };
-    fetchProducts();
-    return () => controller.abort();
+    fetchCategories();
+  }, [router]);
+
+  // Reset product list when filters/search/sort change
+  useEffect(() => {
+    setProducts([]);
+    setPage(1);
+    setHasMore(true);
   }, [searchQuery, selectedCategory, sortBy]);
 
-  const categories = [
-    {id: "all", name: "All Products", icon: Grid3X3},
-    {id: "courses", name: "Online Courses", icon: Video},
-    {id: "books", name: "Books & eBooks", icon: BookOpen},
-    {id: "audio", name: "Audio Courses", icon: Headphones},
-    {id: "hardware", name: "Hardware", icon: Laptop},
-    {id: "bundles", name: "Bundles", icon: Package},
-    {id: "bootcamps", name: "Bootcamps", icon: Grid3X3},
-  ];
+  // Fetch products (with deduplication)
+  useEffect(() => {
+    let isCancelled = false;
 
-  const filteredProducts = products;
-  const sortedProducts = filteredProducts;
+    const fetchProducts = async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("q", searchQuery);
+      if (selectedCategory !== "all")
+        params.append("category", selectedCategory);
 
-  const handleAddClick = async (p: Product) => {
-    const key = p.id;
-    if (inFlightRef.current.has(key)) return;
+      let sort = sortBy;
+      if (sortBy === "price-low") sort = "price_asc";
+      if (sortBy === "price-high") sort = "price_desc";
+      if (sortBy === "rating") sort = "rating";
+      if (sortBy === "newest") sort = "newest";
 
-    inFlightRef.current.add(key);
-    setAdding((s) => ({...s, [key]: true}));
+      params.append("sort", sort);
+      params.append("page", page.toString());
+      params.append("page_size", "20");
 
-    try {
-      await onAddToCart({
-        productId: p.id,
-        name: p.name,
-        price: Number(p.price),
-        image: p.image,
-        type: p.type,
-        originalPrice: p.originalPrice,
-        bnplAvailable: p.bnplAvailable,
-        instructor: p.instructor,
-        author: p.author,
-        brand: p.brand,
+      const res = await fetch(`/api/store/products?${params.toString()}`);
+      if (!res.ok) {
+        if (res.status === 401) router.push("/login");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (isCancelled) return;
+
+      setProducts((prev) => {
+        const combined = [...prev, ...data.results.results];
+        // ✅ Remove duplicates by product ID
+        const unique = Array.from(
+          new Map(combined.map((p) => [p.id, p])).values()
+        );
+        return unique;
       });
-    } catch (e: any) {
-      console.error("[ProductCatalog] addToCart error:", e);
-      toast.error(e?.message || "Could not add to cart");
-    } finally {
-      inFlightRef.current.delete(key);
-      setAdding((s) => ({...s, [key]: false}));
-    }
-  };
 
-  /** Responsive Product Card **/
-  const ProductCard = ({product}: {product: Product}) => (
-    <div
-      onClick={() => router.push(`/store/products/${product.slug}`)}
-      className="block cursor-pointer rounded-md border border-transparent hover:border-gray-300 hover:shadow-md transition-all">
-      {/* Mobile: vertical layout */}
-      <div className="flex flex-col md:hidden">
-        <div className="relative w-full h-40 sm:h-48 rounded-t-md overflow-hidden">
-          <img
-            src={product.image || "/placeholder.svg"}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
-          <button
-            type="button"
-            className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 border-none disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!adding[product.id]) handleAddClick(product);
-            }}
-            disabled={!!adding[product.id]}
-            aria-label={`Add ${product.name} to cart`}>
-            <ShoppingCartIcon className="h-4 w-4 text-black" />
-          </button>
-        </div>
-        <div className="p-3 space-y-1">
-          <div className="font-medium text-sm truncate">{product.name}</div>
-          <div className="flex items-center gap-1">
-            {Array.from({length: 5}).map((_, i) => (
-              <Star
-                key={i}
-                className={`h-4 w-4 ${
-                  i < Math.floor(product.rating ?? 0)
-                    ? "fill-yellow-400 text-yellow-400"
-                    : "text-gray-300"
-                }`}
-              />
-            ))}
-            <span className="text-xs text-gray-600">
-              ({product.reviews ?? 0})
-            </span>
+      setHasMore(Boolean(data.next));
+    };
+
+    fetchProducts();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [page, searchQuery, selectedCategory, sortBy, router]);
+
+  // Component for each product card
+  const ProductCard = ({product}: {product: any}) => {
+    const fullStars = Math.floor(product.rating || 0);
+
+    return (
+      <div
+        onClick={() => router.push(`/store/${product.slug}`)}
+        className="block cursor-pointer">
+        <div className="relative flex flex-col gap-2 p-2 border border-transparent hover:border-gray-300 transition-shadow hover:shadow-md">
+          <div className="relative">
+            <img
+              src={product.image || "/placeholder.svg"}
+              alt={product.name}
+              className="w-full max-h-48 h-auto object-cover"
+            />
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                addToCart(product);
+                toast.success(`${product.title} has been added to your cart.`);
+              }}>
+              <ShoppingCartIcon className="h-5 w-5 text-black" />
+            </button>
           </div>
-          <div className="font-bold text-base">
-            ₦{Number(product.price).toLocaleString()}
-          </div>
-        </div>
-      </div>
 
-      {/* Desktop: horizontal layout */}
-      <div className="hidden md:flex items-center gap-4 p-3 min-h-36 md:min-h-40">
-        <div className="relative w-32 h-32 md:w-40 md:h-40 flex-shrink-0 rounded-md overflow-hidden">
-          <img
-            src={product.image || "/placeholder.svg"}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
-          <button
-            type="button"
-            className="absolute bottom-1 right-1 bg-white rounded-full p-1.5 shadow-md hover:bg-gray-100 border-none disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!adding[product.id]) handleAddClick(product);
-            }}
-            disabled={!!adding[product.id]}
-            aria-label={`Add ${product.name} to cart`}>
-            <ShoppingCartIcon className="h-4 w-4 text-black" />
-          </button>
-        </div>
+          <div className="truncate text-sm font-medium">{product.name}</div>
 
-        <div className="flex flex-col justify-between flex-1 min-w-0">
-          <div className="font-medium text-base truncate">{product.name}</div>
-          <div className="flex items-center gap-2">
-            <div className="flex">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
               {Array.from({length: 5}).map((_, i) => (
                 <Star
                   key={i}
                   className={`h-4 w-4 ${
-                    i < Math.floor(product.rating ?? 0)
+                    i < fullStars
                       ? "fill-yellow-400 text-yellow-400"
                       : "text-gray-300"
                   }`}
                 />
               ))}
             </div>
-            <span className="text-xs text-gray-600">
-              ({product.reviews ?? 0})
-            </span>
+            <div className="flex gap-2 text-sm">
+              <span className="font-medium">{product.rating}</span>
+              <span className="text-muted-foreground">({product.reviews})</span>
+            </div>
           </div>
+
           <div className="font-bold text-lg">
-            ₦{Number(product.price).toLocaleString()}
+            ${parseFloat(product.price).toFixed(2)}
+          </div>
+          <div className="text-xs text-gray-600">
+            or 4 payments of ${(parseFloat(product.price) / 4).toFixed(2)}
           </div>
         </div>
       </div>
-    </div>
-  );
-
-  /** Loading Skeleton **/
-  const ProductSkeletonCard = () => (
-    <div className="border border-gray-100 rounded-md p-3">
-      <Skeleton className="w-full h-40 sm:h-48 rounded-md" />
-      <div className="mt-3 space-y-2">
-        <Skeleton className="h-4 w-3/4" />
-        <div className="flex items-center gap-2">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-4 w-4 rounded" />
-          ))}
-        </div>
-        <Skeleton className="h-6 w-24" />
-      </div>
-    </div>
-  );
-
-  const skeletonCount = 10;
+    );
+  };
 
   return (
-    <div className="mt-6 mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl space-y-6">
+    <div className="space-y-6 mt-8 mx-auto" style={{width: "90%"}}>
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Store</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
+        <h1 className="text-3xl font-bold">Educational Store</h1>
+        <p className="text-muted-foreground">
           Discover courses, books, and tools to accelerate your learning
         </p>
       </div>
 
-      {/* Search + Filters */}
-      <div className="flex flex-col md:flex-row gap-3 sticky top-0 bg-white py-3 z-10 border-b border-gray-100">
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row gap-4 mt-4 mb-6 w-full">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto md:overflow-visible no-scrollbar">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="min-w-[140px] rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-blue-500 focus:outline-none">
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="min-w-[140px] rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-blue-500 focus:outline-none">
-            <option value="popular">Most Popular</option>
-            <option value="rating">Highest Rated</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="newest">Newest</option>
-          </select>
-        </div>
+
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="w-full md:w-48 rounded-md border border-gray-300 bg-white py-2 px-3 focus:border-blue-500 focus:outline-none">
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="w-full md:w-48 rounded-md border border-gray-300 bg-white py-2 px-3 focus:border-blue-500 focus:outline-none">
+          <option value="popular">Most Popular</option>
+          <option value="rating">Highest Rated</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+          <option value="newest">Newest</option>
+        </select>
       </div>
 
-      {/* Results */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <p>
-          {loading
-            ? "Loading products…"
-            : `Showing ${sortedProducts.length} of ${products.length} products`}
+      <div className="flex items-center justify-between">
+        <p className="text-muted-foreground">
+          Showing {products.length} products
         </p>
-        <Button variant="outline" size="sm" disabled={loading}>
-          <Filter className="mr-2 h-4 w-4" />
-          Filters
-        </Button>
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        {loading
-          ? Array.from({length: skeletonCount}).map((_, i) => (
-              <ProductSkeletonCard key={`skeleton-${i}`} />
-            ))
-          : sortedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
       </div>
 
-      {!loading && sortedProducts.length === 0 && (
-        <div className="text-center text-gray-500 py-10 text-sm sm:text-base">
-          No products found. Try adjusting your search or filters.
+      {/* Pagination Button */}
+      {hasMore && (
+        <div className="text-center">
+          <Button
+            className="bg-orange-500 text-white hover:bg-orange-600"
+            size="lg"
+            onClick={() => setPage((prev) => prev + 1)}>
+            Load More Products
+          </Button>
         </div>
       )}
-
-      <div className="text-center">
-        <Button variant="outline" size="lg" disabled={loading}>
-          {loading ? "Loading…" : "Load More Products"}
-        </Button>
-      </div>
     </div>
   );
 }

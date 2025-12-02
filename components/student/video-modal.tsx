@@ -41,7 +41,7 @@ export function VideoModal({
   // Test if thumbnail URL is valid
   const validateThumbnail = async (thumbUrl: string) => {
     try {
-      const response = await fetch(thumbUrl, { method: 'HEAD' });
+      const response = await fetch(thumbUrl, {method: "HEAD"});
       return response.ok;
     } catch {
       return false;
@@ -51,22 +51,30 @@ export function VideoModal({
   // Determine poster URL with validation
   const getPosterUrl = async () => {
     if (!thumbnail || posterError) return undefined;
-    
+
     try {
       // If thumbnail is already a full URL
-      if (thumbnail.startsWith('http')) {
+      if (thumbnail.startsWith("http")) {
         const isValid = await validateThumbnail(thumbnail);
-        console.log('[VideoModal] Full URL thumbnail valid:', isValid, thumbnail);
+        console.log(
+          "[VideoModal] Full URL thumbnail valid:",
+          isValid,
+          thumbnail
+        );
         return isValid ? thumbnail : undefined;
       }
-      
+
       // Handle relative path
-      const fullUrl = `https://texagonbackend.onrender.com${thumbnail}`;
+      const fullUrl = `https://texagonbackend.epichouse.online${thumbnail}`;
       const isValid = await validateThumbnail(fullUrl);
-      console.log('[VideoModal] Relative URL thumbnail valid:', isValid, fullUrl);
+      console.log(
+        "[VideoModal] Relative URL thumbnail valid:",
+        isValid,
+        fullUrl
+      );
       return isValid ? fullUrl : undefined;
     } catch (error) {
-      console.error('[VideoModal] Poster URL validation error:', error);
+      console.error("[VideoModal] Poster URL validation error:", error);
       setPosterError(true);
       return undefined;
     }
@@ -75,7 +83,7 @@ export function VideoModal({
   // Preload and validate poster
   useEffect(() => {
     let isValid = false;
-    
+
     const validateAndSetPoster = async () => {
       if (!thumbnail) {
         setPosterError(true);
@@ -83,15 +91,15 @@ export function VideoModal({
       }
 
       setPosterError(false);
-      
-      const posterUrl = thumbnail.startsWith('http') 
-        ? thumbnail 
-        : `https://texagonbackend.onrender.com${thumbnail}`;
-      
+
+      const posterUrl = thumbnail.startsWith("http")
+        ? thumbnail
+        : `https://texagonbackend.epichouse.online${thumbnail}`;
+
       // Create image to test loading
       const img = new Image();
       img.onload = () => {
-        console.log('[VideoModal] Poster loaded successfully:', posterUrl);
+        console.log("[VideoModal] Poster loaded successfully:", posterUrl);
         isValid = true;
         // Update video poster if video element exists
         if (videoRef.current && !isPlaying) {
@@ -99,7 +107,7 @@ export function VideoModal({
         }
       };
       img.onerror = () => {
-        console.error('[VideoModal] Poster failed to load:', posterUrl);
+        console.error("[VideoModal] Poster failed to load:", posterUrl);
         setPosterError(true);
         isValid = false;
       };
@@ -353,27 +361,26 @@ export function VideoModal({
   // Fallback poster component when video poster fails
   const FallbackPoster = () => {
     if (!thumbnail || isPlaying || posterError) return null;
-    
-    const posterUrl = thumbnail.startsWith('http') 
-      ? thumbnail 
-      : `https://texagonbackend.onrender.com${thumbnail}`;
+
+    const posterUrl = thumbnail.startsWith("http")
+      ? thumbnail
+      : `https://texagonbackend.epichouse.online${thumbnail}`;
 
     return (
-      <div 
+      <div
         className="absolute inset-0 flex items-center justify-center bg-gray-200"
-        onClick={togglePlay}
-      >
+        onClick={togglePlay}>
         <img
           ref={posterImgRef}
           src={posterUrl}
           alt="Video thumbnail"
           className="w-full h-full object-cover"
           onLoad={() => {
-            console.log('[VideoModal] Fallback poster loaded:', posterUrl);
+            console.log("[VideoModal] Fallback poster loaded:", posterUrl);
             setPosterError(false);
           }}
           onError={() => {
-            console.error('[VideoModal] Fallback poster failed:', posterUrl);
+            console.error("[VideoModal] Fallback poster failed:", posterUrl);
             setPosterError(true);
           }}
           onClick={(e) => {
@@ -412,8 +419,7 @@ export function VideoModal({
                 onTouchStart={handleVideoTap}
                 poster={thumbnail ? undefined : "/banner-1.jpg"} // Only use default if no thumbnail
                 controls={false}
-                preload="metadata"
-              >
+                preload="metadata">
                 <source src={videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>

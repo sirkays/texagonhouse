@@ -1,8 +1,8 @@
 // test-teacher-overview.js
 // Usage: node test-teacher-overview.js
 
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-const BASE_URL = "https://texagonbackend.onrender.com/accounts/api/teacher/overview/";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+const BASE_URL = "https://texagonbackend.epichouse.online/accounts/api/teacher/overview/";
 
 // Replace with your actual session token
 const SESSION_TOKEN = "QH8hbNjHoS_LN_w5V4FKenvAAYXRvHWgPabmeYTSaFfm8_UxlPkuSL0I7YaWZant";

@@ -1,12 +1,12 @@
-// done
-
+// app/api/store/products/route.ts
+// (Sample provided in query, copied here for completeness with minor adjustments for consistency)
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {unstable_noStore as noStore} from "next/cache";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const BASE_URL = "https://texagonbackend.epichouse.online/store/api";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,
@@ -54,22 +54,16 @@ export async function GET(req: Request) {
     params.append("min_price", searchParams.get("min_price")!);
   if (searchParams.get("max_price"))
     params.append("max_price", searchParams.get("max_price")!);
-
   const queryString = params.toString();
   const fullUrl = `${BASE_URL}/products${queryString ? `?${queryString}` : ""}`;
-  console.log("[StoreProductsAPI] Initiating fetch for:", fullUrl);
-
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
-
   try {
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(sessionToken ? sessionToken : undefined),
     });
-
     const rawResponse = await response.text();
-
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
@@ -85,17 +79,20 @@ export async function GET(req: Request) {
         {status: response.status}
       );
     }
-
     let data: ProductsResponse;
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
+      // return NextResponse.json(
+      //   {error: "Invalid response format"},
+      //   {status: 500}
+      // );
+      console.error("Fetch error for products:", parseError);
       return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+        {error: "Backend service unavailable"},
+        {status: 503}
       );
     }
-
     const normalizedProducts: Product[] = data.results.results.map((item) => ({
       id: item.id || "",
       title: item.title || "",
@@ -109,14 +106,12 @@ export async function GET(req: Request) {
       bnpl_enabled: item.bnpl_enabled || false,
       description: item.description || "",
     }));
-
     const normalizedData = {
       count: data.count || 0,
       next: data.next || null,
       previous: data.previous || null,
       results: {results: normalizedProducts},
     };
-
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {"Cache-Control": "no-store"},

@@ -1,8 +1,8 @@
 // File: app/api/forgot-password/route.ts
 import {NextResponse} from "next/server";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const BASE_URL = "https://texagonbackend.epichouse.online";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 interface Headers {
   [key: string]: string;

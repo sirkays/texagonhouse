@@ -1,64 +1,67 @@
+// app/api/store/payments/[paymentId]/mark-captured/route.ts
 import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const BASE_URL = "https://texagonbackend.epichouse.online/store/api";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+  "X-API-KEY": API_KEY,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && {"X-SESSION-TOKEN": sessionToken}),
 });
+
+interface MarkCapturedRequest {
+  provider_ref?: string;
+}
 
 interface MarkCapturedResponse {
   detail: string;
   order_status: string;
 }
 
+const getSessionToken = (req: Request): string | undefined => {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.slice(7);
+  }
+  return req.headers.get("x-session-token") || undefined;
+};
+
 export async function POST(
   req: Request,
-  {params}: {params: {payment_id: string}}
+  {params}: {params: {paymentId: string}}
 ) {
-  noStore();
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
-  }
-
-  const sessionToken = session.user.sessionToken;
-
-  const body = await req.json();
-
-  const fullUrl = `${BASE_URL}/payments/${params.payment_id}/mark-captured`;
-  console.log("[StoreMarkCapturedAPI] Initiating POST to:", fullUrl);
+  const {paymentId} = params;
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(sessionToken),
-      body: JSON.stringify(body),
-    });
+    const sessionToken = getSessionToken(req);
+
+    if (!sessionToken) {
+      return NextResponse.json(
+        {error: "Authentication required"},
+        {status: 401}
+      );
+    }
+
+    const body: MarkCapturedRequest = await req.json();
+
+    const response = await fetch(
+      `${BASE_URL}/payments/${paymentId}/mark-captured`,
+      {
+        method: "POST",
+        headers: headers(sessionToken),
+        body: JSON.stringify(body),
+      }
+    );
 
     const rawResponse = await response.text();
 
     if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
-        );
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
+      if (response.status === 404) {
         return NextResponse.json({error: "Payment not found"}, {status: 404});
+      }
       return NextResponse.json(
-        {error: "Failed to mark payment captured"},
+        {error: "Failed to capture payment"},
         {status: response.status}
       );
     }
@@ -73,18 +76,11 @@ export async function POST(
       );
     }
 
-    const normalizedData: MarkCapturedResponse = {
-      detail: data.detail || "",
-      order_status: data.order_status || "",
-    };
-
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {"Cache-Control": "no-store"},
-    });
+    return NextResponse.json(data, {status: 200});
   } catch (error) {
+    console.error("Mark captured error:", error);
     return NextResponse.json(
-      {error: "Failed to mark payment captured"},
+      {error: "Failed to mark payment as captured"},
       {status: 500}
     );
   }

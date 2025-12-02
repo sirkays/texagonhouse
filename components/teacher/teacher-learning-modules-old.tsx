@@ -127,7 +127,7 @@ interface APIError {
 }
 
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,
@@ -161,7 +161,7 @@ const formatDate = (dateString: string | undefined): string => {
 // Add this utility function at the top with other utilities
 // function normalizeMedia(media: string | undefined): string | undefined {
 //   if (!media) return undefined;
-//   const BASE_URL = "https://texagonbackend.onrender.com";
+//   const BASE_URL = "https://texagonbackend.epichouse.online";
 //   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
 //   if (cleaned.startsWith("http")) return cleaned;
 //   return `${BASE_URL}/media/covers/${cleaned}`;
@@ -414,7 +414,7 @@ export function TeacherLearningModules() {
   // Add this utility function at the top of your file with other utilities
   function normalizeMedia(media: string | undefined): string | undefined {
     if (!media) return undefined;
-    const BASE_URL = "https://texagonbackend.onrender.com";
+    const BASE_URL = "https://texagonbackend.epichouse.online";
     if (media.startsWith("http")) return media;
     let cleaned = media.replace(/^\/+/, "");
     if (cleaned.startsWith("media/")) return `${BASE_URL}/${cleaned}`;

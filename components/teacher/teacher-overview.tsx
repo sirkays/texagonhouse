@@ -53,7 +53,7 @@ export function TeacherOverview() {
         console.log("[TeacherOverview] Fetching from /api/teacher/overview with token:", sessionToken);
         const res = await fetch("/api/teacher/overview", {
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
           },

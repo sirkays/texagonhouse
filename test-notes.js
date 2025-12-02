@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 
-const BASE_URL = 'https://texagonbackend.onrender.com/api/notes/';
-const API_KEY = 'nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c';
+const BASE_URL = 'https://texagonbackend.epichouse.online/api/notes/';
+const API_KEY = '1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz';
 const SESSION_TOKEN = 'CKeB40eCmc0ayvP71aik6OuIcuOBgsLGZjP-BJYcOSEkLRE6HzkOIQmR05eBrcEh';
 
 const headers = {

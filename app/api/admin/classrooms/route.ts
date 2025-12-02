@@ -4,8 +4,8 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 // ✅ Base configuration
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const BASE_URL = "https://texagonbackend.epichouse.online/orgs";
+const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
 
 // ✅ GET /api/admin/classrooms - List all classrooms
 export async function GET(request: Request) {

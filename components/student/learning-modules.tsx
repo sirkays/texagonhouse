@@ -718,15 +718,17 @@ export function LearningModules() {
                         <>
                           <img
                             src={
-                              video.cover_image.startsWith('http')
+                              video.cover_image.startsWith("http")
                                 ? video.cover_image
-                                : `https://texagonbackend.onrender.com${video.cover_image}`
+                                : `https://texagonbackend.epichouse.online${video.cover_image}`
                             }
                             alt={video.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                              e.currentTarget.style.display = "none";
+                              e.currentTarget.parentElement
+                                ?.querySelector(".fallback-icon")
+                                ?.classList.remove("hidden");
                             }}
                           />
                           <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">

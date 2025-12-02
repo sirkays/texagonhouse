@@ -269,7 +269,7 @@ export function TeacherTutoringBooking() {
       const response = await fetch("/api/teacher/courses", {
         method: "GET",
         headers: {
-          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
           "Content-Type": "application/json",
           "X-Session-Token": session.user.sessionToken,
         },
@@ -348,7 +348,7 @@ export function TeacherTutoringBooking() {
         {
           method: "GET",
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
@@ -600,7 +600,7 @@ export function TeacherTutoringBooking() {
         {
           method: "PATCH",
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
@@ -686,7 +686,7 @@ export function TeacherTutoringBooking() {
       const response = await fetch(`/api/teacher/tutoring-bookings/post`, {
         method: "POST",
         headers: {
-          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+          Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
           "Content-Type": "application/json",
           "X-Session-Token": session.user.sessionToken,
         },
@@ -770,7 +770,7 @@ export function TeacherTutoringBooking() {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "X-Session-Token": session.user.sessionToken,
           },
         }
@@ -851,7 +851,7 @@ export function TeacherTutoringBooking() {
         {
           method: "PATCH",
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },

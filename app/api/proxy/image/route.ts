@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "https://texagonbackend.epichouse.online";
 
 export async function GET(
   request: Request,
@@ -17,7 +17,7 @@ export async function GET(
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; Next.js Image Proxy)",
         // Add API key if required by backend
-        "Authorization": `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+        "Authorization": `Api-Key 1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz`,
       },
       cache: "force-cache", // Cache images
     });
