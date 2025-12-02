@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.epichouse.online/code-ide/api/ide";
-const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
+const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
   const controller = new AbortController();

@@ -3,9 +3,9 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "../auth/[...nextauth]/route";
 
-const ALLOWED_HOST = "texagonbackend.epichouse.online";
+const ALLOWED_HOST = "texagonbackend.onrender.com";
 const ALLOWED_ORIGIN = "http://localhost:3000"; // Adjust for production
-const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 export async function OPTIONS() {
   return new NextResponse(null, {

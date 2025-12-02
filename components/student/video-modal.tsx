@@ -65,7 +65,7 @@ export function VideoModal({
       }
 
       // Handle relative path
-      const fullUrl = `https://texagonbackend.epichouse.online${thumbnail}`;
+      const fullUrl = `https://texagonbackend.onrender.com${thumbnail}`;
       const isValid = await validateThumbnail(fullUrl);
       console.log(
         "[VideoModal] Relative URL thumbnail valid:",
@@ -94,7 +94,7 @@ export function VideoModal({
 
       const posterUrl = thumbnail.startsWith("http")
         ? thumbnail
-        : `https://texagonbackend.epichouse.online${thumbnail}`;
+        : `https://texagonbackend.onrender.com${thumbnail}`;
 
       // Create image to test loading
       const img = new Image();
@@ -364,7 +364,7 @@ export function VideoModal({
 
     const posterUrl = thumbnail.startsWith("http")
       ? thumbnail
-      : `https://texagonbackend.epichouse.online${thumbnail}`;
+      : `https://texagonbackend.onrender.com${thumbnail}`;
 
     return (
       <div

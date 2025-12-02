@@ -5,8 +5,8 @@
 // app/api/store/webhooks/tracking/route.ts
 import {NextResponse} from "next/server";
 
-const BASE_URL = "https://texagonbackend.epichouse.online/store/api";
-const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz";
+const BASE_URL = "https://texagonbackend.onrender.com/store/api";
+const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = () => ({
   Authorization: `Api-Key ${API_KEY}`,

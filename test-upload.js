@@ -12,11 +12,11 @@ import fs from "fs";
 import FormData from "form-data";
 
 // 🧩 CONFIG — edit these
-const BASE_URL = "https://texagonbackend.epichouse.online";
+const BASE_URL = "https://texagonbackend.onrender.com";
 const moduleId = 21; // your module ID
 const lessonId = 14; // your lesson ID
 const SESSION_TOKEN = "IPcjB_NPTn_o0trv6gyQtoG9I1EnjZLN5jWW1xD4TjqrcWywehQ9PVR8A2Cj0yKD"; // replace
-const API_KEY = "1eHxj2VU.cvTFX2nWYGyTs5HHA0CZpNJqJCjUslbz"; // replace with real if needed
+const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // replace with real if needed
 const COVER_PATH =`C:/Texagon/texagon/public/banner_splash.png`; // path to local test image
 
 async function testUpload() {
