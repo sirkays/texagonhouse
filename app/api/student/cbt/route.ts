@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
+//const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  console.log("[Route] Received POST request to /api/student/cbt");
+  console.log("[Route] Received POST request to..... /api/student/cbt");
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
@@ -211,12 +211,7 @@ export async function POST(request: Request) {
     })
     .filter(Boolean);
 
-  if (!answers.length) {
-    return NextResponse.json(
-      { error: "answers must be a non-empty list." },
-      { status: 400 }
-    );
-  }
+
 
   const payload = {
     answers,

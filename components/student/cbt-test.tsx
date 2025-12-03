@@ -654,7 +654,8 @@ export function CBTTest() {
 
     setTestCompleted(true);
     setIsSecureMode(false);
-    setSuspiciousActivity(0);
+    // leave suspiciousActivity as-is so we can show it in the completed screen
+
 
   const deviceId = getOrCreateDeviceId();
 
@@ -885,11 +886,12 @@ export function CBTTest() {
             <div className="flex gap-4 justify-center">
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => window.location.reload()}
+                onClick={handleResetToList}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Back to Tests
               </Button>
+
             </div>
           </CardContent>
         </Card>
@@ -914,12 +916,78 @@ export function CBTTest() {
       <div className="space-y-6">
         {/* Security & Leave dialogs unchanged */}
         <Dialog open={showSecurityWarning} onOpenChange={setShowSecurityWarning}>
-          {/* ... */}
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-red-600" />
+                Suspicious Activity Detected
+              </DialogTitle>
+              <DialogDescription>
+                We detected that you switched tabs, minimized the window, or tried a restricted key
+                combination (like Ctrl+C / Ctrl+V). Repeated violations may cause this test to be
+                automatically submitted.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-2 text-sm text-muted-foreground">
+              <p>
+                Security alerts so far: <span className="font-semibold">{suspiciousActivity}</span>
+              </p>
+              <p className="mt-1">
+                Please keep your focus on this test window and avoid copying or sharing questions.
+              </p>
+            </div>
+
+            <DialogFooter className="mt-4 flex justify-end">
+              <Button
+                className="h-9 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={() => setShowSecurityWarning(false)}
+              >
+                I Understand
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
 
         <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-          {/* ... */}
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Leave Test?</DialogTitle>
+              <DialogDescription>
+                If you leave now without submitting, your current answers will be lost and
+                this attempt may not be recorded. Are you sure you want to quit this test?
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-2 text-sm text-muted-foreground">
+              <p>
+                We recommend submitting your test instead of leaving if you are close to
+                finishing.
+              </p>
+            </div>
+
+            <DialogFooter className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowLeaveDialog(false)}
+              >
+                Continue Test
+              </Button>
+
+              <Button
+                variant="destructive"
+                className="bg-transparent border border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
+                onClick={() => {
+                  setShowLeaveDialog(false);
+                  handleResetToList();   // 🔥 this is where it's finally called
+                }}
+              >
+                Leave Without Submitting
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
+
 
         <div className="flex items-center sm:flex-row flex-col gap-4 justify-between">
           <div className=" flex sm:self-auto self-start items-start sm:items-center flex-col sm:flex-row gap-2">
