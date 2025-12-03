@@ -47,6 +47,7 @@ import {AudioPlayer} from "@/components/student/audio-player";
 import {useSession} from "next-auth/react";
 import {Spinner} from "@/components/ui/spinner";
 import toast from "react-hot-toast";
+import AntiInspect from "@/components/AntiInspect";
 
 interface Module {
   id: number;
@@ -203,7 +204,9 @@ export function LearningModules() {
         id: 6,
         title: "Sample Tutorial",
         type: "Live Session",
+        content_type: "tutorial",
         duration: "60m",
+        url: null,
         scheduledAt: "2025-09-02T14:27:12+00:00",
         course: "Python for Data Science",
         subject: "Python for Data Science",
@@ -647,68 +650,72 @@ export function LearningModules() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Learning Modules</h1>
-        <p className="text-muted-foreground">
-          Structured learning paths with videos, audio, PDFs, and tutorials
-        </p>
-      </div>
+    <>
+      <AntiInspect />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Learning Modules</h1>
+          <p className="text-muted-foreground">
+            Structured learning paths with videos, audio, PDFs, and tutorials
+          </p>
+        </div>
 
-      <div className="flex items-center gap-4">
-        <label htmlFor="module-name-filter" className="text-sm font-medium">
-          Filter by Module:
-        </label>
-        <Select
-          value={selectedModuleName}
-          onValueChange={(value) => {
-            setSelectedModuleName(value);
-            setCurrentPage({videos: 1, audio: 1, pdfs: 1, tutorials: 1});
-          }}>
-          <SelectTrigger id="module-name-filter" className="w-[180px]">
-            <SelectValue placeholder="Select module" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Modules</SelectItem>
-            {moduleNameOptions.map((module) => (
-              <SelectItem key={module.id} value={module.name}>
-                {module.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        <div className="flex items-center gap-4">
+          <label htmlFor="module-name-filter" className="text-sm font-medium">
+            Filter by Module:
+          </label>
+          <Select
+            value={selectedModuleName}
+            onValueChange={(value) => {
+              setSelectedModuleName(value);
+              setCurrentPage({videos: 1, audio: 1, pdfs: 1, tutorials: 1});
+            }}>
+            <SelectTrigger id="module-name-filter" className="w-[180px]">
+              <SelectValue placeholder="Select module" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Modules</SelectItem>
+              {moduleNameOptions.map((module) => (
+                <SelectItem key={module.id} value={module.name}>
+                  {module.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <Tabs defaultValue="videos" className="w-full">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
-          <TabsTrigger
-            value="videos"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
-            <Video className="h-4 w-4" />
-            Video
-          </TabsTrigger>
-          <TabsTrigger
-            value="audio"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
-            <Headphones className="h-4 w-4" />
-            Audio
-          </TabsTrigger>
-          <TabsTrigger
-            value="pdfs"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
-            <FileText className="h-4 w-4" />
-            PDFs
-          </TabsTrigger>
-          {/* <TabsTrigger value="tutorials" className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+        <Tabs defaultValue="videos" className="w-full">
+          <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+            <TabsTrigger
+              value="videos"
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              <Video className="h-4 w-4" />
+              Video
+            </TabsTrigger>
+            <TabsTrigger
+              value="audio"
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              <Headphones className="h-4 w-4" />
+              Audio
+            </TabsTrigger>
+            <TabsTrigger
+              value="pdfs"
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              <FileText className="h-4 w-4" />
+              PDFs
+            </TabsTrigger>
+            {/* <TabsTrigger value="tutorials" className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             <BookOpen className="h-4 w-4" />
             Live Session
           </TabsTrigger> */}
-        </TabsList>
+          </TabsList>
 
-        <TabsContent value="videos" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {getPaginatedItems(filteredModules.videos, currentPage.videos).map(
-              (video) => (
+          <TabsContent value="videos" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {getPaginatedItems(
+                filteredModules.videos,
+                currentPage.videos
+              ).map((video) => (
                 <Card
                   key={video.id}
                   className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -720,7 +727,7 @@ export function LearningModules() {
                             src={
                               video.cover_image.startsWith("http")
                                 ? video.cover_image
-                                : `https://texagonbackend.onrender.com${video.cover_image}`
+                                : `https://texagonbackend.epichouse.online${video.cover_image}`
                             }
                             alt={video.title}
                             className="w-full h-full object-cover"
@@ -828,237 +835,242 @@ export function LearningModules() {
                     </div>
                   </CardContent>
                 </Card>
-              )
-            )}
-          </div>
-          {renderPagination("videos")}
-        </TabsContent>
+              ))}
+            </div>
+            {renderPagination("videos")}
+          </TabsContent>
 
-        <TabsContent value="audio" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {getPaginatedItems(filteredModules.audio, currentPage.audio).map(
-              (audio) => (
-                <Card
-                  key={audio.id}
-                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-[#f797712f] rounded-lg flex items-center justify-center">
-                        <Headphones className="h-8 w-8 text-[#EF7B55]" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <CardTitle className="text-lg">{audio.title}</CardTitle>
-                        <CardDescription>{audio.course}</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>{audio.duration}</div>
-                      <div>{audio.popularity} listeners</div>
-                      {audio.instructor && (
-                        <div className="col-span-2">
-                          Instructor: {audio.instructor}
+          <TabsContent value="audio" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {getPaginatedItems(filteredModules.audio, currentPage.audio).map(
+                (audio) => (
+                  <Card
+                    key={audio.id}
+                    className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-[#f797712f] rounded-lg flex items-center justify-center">
+                          <Headphones className="h-8 w-8 text-[#EF7B55]" />
                         </div>
-                      )}
-                      <div>Module: {audio.module_order}</div>
-                      <div>Lesson: {audio.lesson_order}</div>
-                      <div className="col-span-2">
-                        Updated:{" "}
-                        {new Date(audio.updated_at).toLocaleDateString()}
+                        <div className="flex-1 space-y-1">
+                          <CardTitle className="text-lg">
+                            {audio.title}
+                          </CardTitle>
+                          <CardDescription>{audio.course}</CardDescription>
+                        </div>
                       </div>
-                      {/* {audio.popularity > 0 && (
+                    </CardHeader>
+                    <CardContent className="flex flex-col justify-between flex-1 space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                        <div>{audio.duration}</div>
+                        <div>{audio.popularity} listeners</div>
+                        {audio.instructor && (
+                          <div className="col-span-2">
+                            Instructor: {audio.instructor}
+                          </div>
+                        )}
+                        <div>Module: {audio.module_order}</div>
+                        <div>Lesson: {audio.lesson_order}</div>
+                        <div className="col-span-2">
+                          Updated:{" "}
+                          {new Date(audio.updated_at).toLocaleDateString()}
+                        </div>
+                        {/* {audio.popularity > 0 && (
                         <div className="col-span-2">
                           <StarRating popularity={audio.popularity} />
                         </div>
                       )} */}
-                    </div>
-                    <div className="space-y-2">
-                      {/* <div className="flex justify-between text-sm">
+                      </div>
+                      <div className="space-y-2">
+                        {/* <div className="flex justify-between text-sm">
                       <span>Progress</span>
                       <span>{audio.progress}%</span>
                     </div> */}
-                      {/* <Progress value={audio.progress} className="h-2" /> */}
-                    </div>
-                    <div className="mt-auto flex flex-wrap gap-2">
-                      <Button
-                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                        onClick={() => handlePlayAudio(audio)}
-                        disabled={!audio.url}>
-                        <Headphones className="mr-2 h-4 w-4" />
-                        {audio.progress > 0
-                          ? "Continue Listening"
-                          : "Start Listening"}
-                      </Button>
-                      <Button
-                        variant={
-                          savedLessons.has(audio.id) ? "default" : "outline"
-                        }
-                        className="flex-1 w-full h-10 bg-transparent shadow-md"
-                        onClick={() => handleSaveLesson(audio)}
-                        disabled={
-                          !session?.user?.sessionToken ||
-                          savedLessons.has(audio.id)
-                        }>
-                        <Bookmark
-                          className={`mr-2 h-4 w-4 ${
-                            savedLessons.has(audio.id) ? "fill-current" : ""
-                          }`}
-                        />
-                        {savedLessons.has(audio.id) ? "Saved" : "Save"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-          {renderPagination("audio")}
-        </TabsContent>
+                        {/* <Progress value={audio.progress} className="h-2" /> */}
+                      </div>
+                      <div className="mt-auto flex flex-wrap gap-2">
+                        <Button
+                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                          onClick={() => handlePlayAudio(audio)}
+                          disabled={!audio.url}>
+                          <Headphones className="mr-2 h-4 w-4" />
+                          {audio.progress > 0
+                            ? "Continue Listening"
+                            : "Start Listening"}
+                        </Button>
+                        <Button
+                          variant={
+                            savedLessons.has(audio.id) ? "default" : "outline"
+                          }
+                          className="flex-1 w-full h-10 bg-transparent shadow-md"
+                          onClick={() => handleSaveLesson(audio)}
+                          disabled={
+                            !session?.user?.sessionToken ||
+                            savedLessons.has(audio.id)
+                          }>
+                          <Bookmark
+                            className={`mr-2 h-4 w-4 ${
+                              savedLessons.has(audio.id) ? "fill-current" : ""
+                            }`}
+                          />
+                          {savedLessons.has(audio.id) ? "Saved" : "Save"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              )}
+            </div>
+            {renderPagination("audio")}
+          </TabsContent>
 
-        <TabsContent value="pdfs" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map(
-              (pdf) => (
-                <Card
-                  key={pdf.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg">{pdf.title}</CardTitle>
-                        <CardDescription>{pdf.course}</CardDescription>
-                      </div>
-                      <FileText className="h-8 w-8 text-[#EF7B55]" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col flex-1">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>Course: {pdf.course}</div>
-                      <div>
-                        Updated: {new Date(pdf.updated_at).toLocaleDateString()}
-                      </div>
-                      {pdf.instructor && (
-                        <div className="col-span-2">
-                          Instructor: {pdf.instructor}
+          <TabsContent value="pdfs" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map(
+                (pdf) => (
+                  <Card
+                    key={pdf.id}
+                    className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                          <CardDescription>{pdf.course}</CardDescription>
                         </div>
-                      )}
-                      <div>Module: {pdf.module_order}</div>
-                      <div>Lesson: {pdf.lesson_order}</div>
-                      {/* {pdf.popularity > 0 && (
+                        <FileText className="h-8 w-8 text-[#EF7B55]" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                        <div>Course: {pdf.course}</div>
+                        <div>
+                          Updated:{" "}
+                          {new Date(pdf.updated_at).toLocaleDateString()}
+                        </div>
+                        {pdf.instructor && (
+                          <div className="col-span-2">
+                            Instructor: {pdf.instructor}
+                          </div>
+                        )}
+                        <div>Module: {pdf.module_order}</div>
+                        <div>Lesson: {pdf.lesson_order}</div>
+                        {/* {pdf.popularity > 0 && (
                         <div className="col-span-2">
                           <StarRating popularity={pdf.popularity} />
                         </div>
                       )} */}
-                    </div>
-                    <div className="mt-auto pt-4 flex flex-wrap gap-2">
-                      <Button
-                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                        onClick={() => handlePreviewPdf(pdf)}
-                        disabled={!pdf.url}>
-                        <Eye className="mr-2 h-3 w-3" />
-                        Preview
-                      </Button>
-                      {/* <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
+                      </div>
+                      <div className="mt-auto pt-4 flex flex-wrap gap-2">
+                        <Button
+                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                          onClick={() => handlePreviewPdf(pdf)}
+                          disabled={!pdf.url}>
+                          <Eye className="mr-2 h-3 w-3" />
+                          Preview
+                        </Button>
+                        {/* <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
                       <Download className="mr-2 h-3 w-3" />
                       Download
                     </Button> */}
-                      <Button
-                        variant={
-                          savedLessons.has(pdf.id) ? "default" : "outline"
-                        }
-                        className="flex-1 w-full h-10 bg-transparent shadow-md"
-                        onClick={() => handleSaveLesson(pdf)}
-                        disabled={
-                          !session?.user?.sessionToken ||
-                          savedLessons.has(pdf.id)
-                        }>
-                        <Bookmark
-                          className={`mr-2 h-3 w-3 ${
-                            savedLessons.has(pdf.id) ? "fill-current" : ""
-                          }`}
-                        />
-                        {savedLessons.has(pdf.id) ? "Saved" : "Save"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-          {renderPagination("pdfs")}
-        </TabsContent>
-
-        <TabsContent value="tutorials" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {getPaginatedItems(
-              filteredModules.tutorials,
-              currentPage.tutorials
-            ).map((tutorial) => (
-              <Card
-                key={tutorial.id}
-                className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">
-                        {tutorial.type || tutorial.content_type}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg">{tutorial.title}</CardTitle>
-                    <CardDescription>{tutorial.course}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div>{tutorial.duration}</div>
-                    <div>{tutorial.popularity || 0} participants</div>
-                    {tutorial.instructor && (
-                      <div className="col-span-2">
-                        Instructor: {tutorial.instructor}
+                        <Button
+                          variant={
+                            savedLessons.has(pdf.id) ? "default" : "outline"
+                          }
+                          className="flex-1 w-full h-10 bg-transparent shadow-md"
+                          onClick={() => handleSaveLesson(pdf)}
+                          disabled={
+                            !session?.user?.sessionToken ||
+                            savedLessons.has(pdf.id)
+                          }>
+                          <Bookmark
+                            className={`mr-2 h-3 w-3 ${
+                              savedLessons.has(pdf.id) ? "fill-current" : ""
+                            }`}
+                          />
+                          {savedLessons.has(pdf.id) ? "Saved" : "Save"}
+                        </Button>
                       </div>
-                    )}
-                    <div>Module: {tutorial.module_order}</div>
-                    <div>Lesson: {tutorial.lesson_order}</div>
-                    <div className="col-span-2">
-                      Scheduled:{" "}
-                      {tutorial.scheduledAt
-                        ? new Date(tutorial.scheduledAt).toLocaleString()
-                        : "TBD"}
+                    </CardContent>
+                  </Card>
+                )
+              )}
+            </div>
+            {renderPagination("pdfs")}
+          </TabsContent>
+
+          <TabsContent value="tutorials" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {getPaginatedItems(
+                filteredModules.tutorials,
+                currentPage.tutorials
+              ).map((tutorial) => (
+                <Card
+                  key={tutorial.id}
+                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline">
+                          {tutorial.type || tutorial.content_type}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-lg">
+                        {tutorial.title}
+                      </CardTitle>
+                      <CardDescription>{tutorial.course}</CardDescription>
                     </div>
-                    <div>Active: {tutorial.isActiveNow ? "Yes" : "No"}</div>
-                    {/* {tutorial.popularity > 0 && (
+                  </CardHeader>
+                  <CardContent className="flex flex-col justify-between flex-1 space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                      <div>{tutorial.duration}</div>
+                      <div>{tutorial.popularity || 0} participants</div>
+                      {tutorial.instructor && (
+                        <div className="col-span-2">
+                          Instructor: {tutorial.instructor}
+                        </div>
+                      )}
+                      <div>Module: {tutorial.module_order}</div>
+                      <div>Lesson: {tutorial.lesson_order}</div>
+                      <div className="col-span-2">
+                        Scheduled:{" "}
+                        {tutorial.scheduledAt
+                          ? new Date(tutorial.scheduledAt).toLocaleString()
+                          : "TBD"}
+                      </div>
+                      <div>Active: {tutorial.isActiveNow ? "Yes" : "No"}</div>
+                      {/* {tutorial.popularity > 0 && (
                       <div className="col-span-2">
                         <StarRating popularity={tutorial.popularity} />
                       </div>
                     )} */}
-                  </div>
-                  <Button
-                    className="w-full mt-auto"
-                    disabled={!tutorial.isActiveNow}>
-                    Join Session
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          {renderPagination("tutorials")}
-        </TabsContent>
-      </Tabs>
+                    </div>
+                    <Button
+                      className="w-full mt-auto"
+                      disabled={!tutorial.isActiveNow}>
+                      Join Session
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {renderPagination("tutorials")}
+          </TabsContent>
+        </Tabs>
 
-      <VideoModal
-        isOpen={videoModalOpen}
-        onClose={() => setVideoModalOpen(false)}
-        title={selectedVideo?.title || ""}
-        videoUrl={selectedVideo?.url}
-      />
-      <AudioPlayer
-        isOpen={audioPlayerOpen}
-        onClose={() => setAudioPlayerOpen(false)}
-        title={selectedAudio?.title || ""}
-        audioUrl={selectedAudio?.url}
-        duration={selectedAudio?.duration}
-      />
-    </div>
+        <VideoModal
+          isOpen={videoModalOpen}
+          onClose={() => setVideoModalOpen(false)}
+          title={selectedVideo?.title || ""}
+          videoUrl={selectedVideo?.url ?? undefined}
+        />
+        <AudioPlayer
+          isOpen={audioPlayerOpen}
+          onClose={() => setAudioPlayerOpen(false)}
+          title={selectedAudio?.title || ""}
+          audioUrl={selectedAudio?.url ?? undefined}
+          duration={selectedAudio?.duration}
+        />
+      </div>
+    </>
   );
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import {useState, useRef, useEffect} from "react";
 import {
   Dialog,
@@ -32,13 +34,12 @@ export function VideoModal({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showContinueTooltip, setShowContinueTooltip] = useState(false);
-  const [posterError, setPosterError] = useState(false); // Track poster loading errors
+  const [posterError, setPosterError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef<{time: number; x: number} | null>(null);
   const posterImgRef = useRef<HTMLImageElement>(null);
 
-  // Test if thumbnail URL is valid
   const validateThumbnail = async (thumbUrl: string) => {
     try {
       const response = await fetch(thumbUrl, {method: "HEAD"});
@@ -48,39 +49,24 @@ export function VideoModal({
     }
   };
 
-  // Determine poster URL with validation
   const getPosterUrl = async () => {
     if (!thumbnail || posterError) return undefined;
 
     try {
-      // If thumbnail is already a full URL
       if (thumbnail.startsWith("http")) {
         const isValid = await validateThumbnail(thumbnail);
-        console.log(
-          "[VideoModal] Full URL thumbnail valid:",
-          isValid,
-          thumbnail
-        );
         return isValid ? thumbnail : undefined;
       }
 
-      // Handle relative path
       const fullUrl = `https://texagonbackend.onrender.com${thumbnail}`;
       const isValid = await validateThumbnail(fullUrl);
-      console.log(
-        "[VideoModal] Relative URL thumbnail valid:",
-        isValid,
-        fullUrl
-      );
       return isValid ? fullUrl : undefined;
     } catch (error) {
-      console.error("[VideoModal] Poster URL validation error:", error);
       setPosterError(true);
       return undefined;
     }
   };
 
-  // Preload and validate poster
   useEffect(() => {
     let isValid = false;
 
@@ -96,18 +82,14 @@ export function VideoModal({
         ? thumbnail
         : `https://texagonbackend.onrender.com${thumbnail}`;
 
-      // Create image to test loading
       const img = new Image();
       img.onload = () => {
-        console.log("[VideoModal] Poster loaded successfully:", posterUrl);
         isValid = true;
-        // Update video poster if video element exists
         if (videoRef.current && !isPlaying) {
           videoRef.current.poster = posterUrl;
         }
       };
       img.onerror = () => {
-        console.error("[VideoModal] Poster failed to load:", posterUrl);
         setPosterError(true);
         isValid = false;
       };
@@ -126,7 +108,6 @@ export function VideoModal({
     };
   }, [thumbnail, isOpen, videoUrl, isPlaying]);
 
-  // Save video progress to localStorage
   const saveVideoProgress = () => {
     if (videoRef.current && videoUrl) {
       try {
@@ -134,13 +115,10 @@ export function VideoModal({
           `video-progress-${videoUrl}`,
           videoRef.current.currentTime.toString()
         );
-      } catch (e) {
-        console.warn("[VideoModal] localStorage save error:", e);
-      }
+      } catch (e) {}
     }
   };
 
-  // Restore video progress from localStorage
   const restoreVideoProgress = () => {
     if (videoRef.current && videoUrl) {
       try {
@@ -151,13 +129,10 @@ export function VideoModal({
           setShowContinueTooltip(true);
           setTimeout(() => setShowContinueTooltip(false), 2000);
         }
-      } catch (e) {
-        console.warn("[VideoModal] localStorage restore error:", e);
-      }
+      } catch (e) {}
     }
   };
 
-  // Handle control visibility timeout
   useEffect(() => {
     if (isPlaying && showControls) {
       controlsTimeoutRef.current = setTimeout(() => {
@@ -171,7 +146,6 @@ export function VideoModal({
     };
   }, [isPlaying, showControls]);
 
-  // Save progress when pausing or closing
   useEffect(() => {
     if (!isPlaying) {
       saveVideoProgress();
@@ -194,9 +168,7 @@ export function VideoModal({
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current
-          .play()
-          .catch((e) => console.error("[VideoModal] Play error:", e));
+        videoRef.current.play().catch(() => {});
       }
       setIsPlaying(!isPlaying);
       setShowControls(true);
@@ -227,18 +199,10 @@ export function VideoModal({
         webkitEnterFullscreen &&
         /iPhone|iPad|iPod/i.test(navigator.userAgent)
       ) {
-        webkitEnterFullscreen
-          .call(videoRef.current)
-          .catch((e: Error) =>
-            console.error("[VideoModal] webkitEnterFullscreen error:", e)
-          );
+        webkitEnterFullscreen.call(videoRef.current).catch(() => {});
         setIsFullscreen(true);
       } else if (requestFullscreen) {
-        requestFullscreen
-          .call(videoRef.current)
-          .catch((e: Error) =>
-            console.error("[VideoModal] Fullscreen error:", e)
-          );
+        requestFullscreen.call(videoRef.current).catch(() => {});
         setIsFullscreen(true);
       }
     } else {
@@ -249,11 +213,7 @@ export function VideoModal({
         (document as any).msExitFullscreen ||
         (document as any).webkitCancelFullScreen;
       if (exitFullscreen) {
-        exitFullscreen
-          .call(document)
-          .catch((e: Error) =>
-            console.error("[VideoModal] Exit fullscreen error:", e)
-          );
+        exitFullscreen.call(document).catch(() => {});
         setIsFullscreen(false);
       }
     }
@@ -358,7 +318,6 @@ export function VideoModal({
     }
   };
 
-  // Fallback poster component when video poster fails
   const FallbackPoster = () => {
     if (!thumbnail || isPlaying || posterError) return null;
 
@@ -376,11 +335,9 @@ export function VideoModal({
           alt="Video thumbnail"
           className="w-full h-full object-cover"
           onLoad={() => {
-            console.log("[VideoModal] Fallback poster loaded:", posterUrl);
             setPosterError(false);
           }}
           onError={() => {
-            console.error("[VideoModal] Fallback poster failed:", posterUrl);
             setPosterError(true);
           }}
           onClick={(e) => {
@@ -417,14 +374,16 @@ export function VideoModal({
                 onEnded={() => setIsPlaying(false)}
                 onClick={handleVideoTap}
                 onTouchStart={handleVideoTap}
-                poster={thumbnail ? undefined : "/banner-1.jpg"} // Only use default if no thumbnail
+                poster={thumbnail ? undefined : "/banner-1.jpg"}
                 controls={false}
-                preload="metadata">
+                preload="metadata"
+                controlsList="nodownload nofullscreen noremoteplayback"
+                disablePictureInPicture
+                onContextMenu={(e) => e.preventDefault()}>
                 <source src={videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
 
-              {/* Fallback poster overlay */}
               {!isPlaying && <FallbackPoster />}
 
               <div
@@ -466,17 +425,7 @@ export function VideoModal({
                         setShowControls(true);
                         setShowContinueTooltip(false);
                       }}
-                      className="w-full h-1 xs:h-1.5 bg-gray-600 rounded-full appearance-none cursor-pointer 
-                        [&::-webkit-slider-thumb]:appearance-none 
-                        [&::-webkit-slider-thumb]:w-3 
-                        [&::-webkit-slider-thumb]:h-3 
-                        [&::-webkit-slider-thumb]:bg-white 
-                        [&::-webkit-slider-thumb]:rounded-full
-                        [&::-moz-range-thumb]:w-3 
-                        [&::-moz-range-thumb]:h-3 
-                        [&::-moz-range-thumb]:bg-white 
-                        [&::-moz-range-thumb]:rounded-full
-                        touch-none"
+                      className={`w-full h-1 xs:h-1.5 bg-gray-600 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:rounded-full touch-none`}
                     />
                   </div>
 
@@ -503,17 +452,7 @@ export function VideoModal({
                       step="0.1"
                       value={volume}
                       onChange={handleVolumeChange}
-                      className="w-10 xs:w-12 sm:w-16 h-1 xs:h-1.5 bg-gray-600 rounded-full appearance-none cursor-pointer
-                        [&::-webkit-slider-thumb]:appearance-none 
-                        [&::-webkit-slider-thumb]:w-2.5 
-                        [&::-webkit-slider-thumb]:h-2.5 
-                        [&::-webkit-slider-thumb]:bg-white 
-                        [&::-webkit-slider-thumb]:rounded-full
-                        [&::-moz-range-thumb]:w-2.5 
-                        [&::-moz-range-thumb]:h-2.5 
-                        [&::-moz-range-thumb]:bg-white 
-                        [&::-moz-range-thumb]:rounded-full
-                        touch-none"
+                      className={`w-10 xs:w-12 sm:w-16 h-1 xs:h-1.5 bg-gray-600 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:rounded-full touch-none`}
                     />
                   </div>
 
@@ -534,6 +473,16 @@ export function VideoModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* CSS FIX TO COMPLETELY HIDE BROWSER DOWNLOAD BUTTON */}
+      <style jsx global>{`
+        video::-internal-media-controls-download-button {
+          display: none !important;
+        }
+        video::-webkit-media-controls-enclosure {
+          overflow: hidden !important;
+        }
+      `}</style>
     </Dialog>
   );
 }
