@@ -1790,7 +1790,7 @@ export function TeacherCBTCreator() {
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Student Results</CardTitle>
+              <CardTitle>Student Results..</CardTitle>
               <CardDescription>Detailed performance for each student</CardDescription>
             </CardHeader>
             <CardContent>

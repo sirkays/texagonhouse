@@ -453,7 +453,7 @@ export default function StudentPerformancePage() {
         <div id="studentPerformanceDetails" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Student Information</CardTitle>
+              <CardTitle>Student Information.....</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -484,7 +484,7 @@ export default function StudentPerformancePage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Test Summary</CardTitle>
+              <CardTitle>Test Summary..</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
