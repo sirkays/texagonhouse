@@ -543,24 +543,25 @@ export function TeacherCBTCreator() {
     }
   }, [isAnalyticsDetailOpen, selectedTestForAnalytics, fetchSummary]);
 
-  const addQuestion = () => {
-    const newQuestion: Question = {
-      id: Date.now().toString(),
-      type: "single-choice",
-      question: "",
-      options: ["", "", "", ""],
-      correctAnswer: 0,
-      points: 5,
-      difficulty: "Medium",
-    };
-    setCurrentTest((prev) => ({
-      ...prev,
-      questions: [...prev.questions, newQuestion],
-      totalPoints: prev.totalPoints + 5,
-      questionsCount: prev.questionsCount + 1,
-    }));
-    setEditingQuestion(newQuestion);
+const addQuestion = () => {
+  const newQuestion: Question = {
+    id: Date.now().toString(),
+    type: "single-choice",
+    question: "",
+    options: ["", "", "", ""],
+    correctAnswer: 0,
+    points: 1,              // 🔁 was 5
+    difficulty: "Medium",
   };
+  setCurrentTest((prev) => ({
+    ...prev,
+    questions: [...prev.questions, newQuestion],
+    totalPoints: prev.totalPoints + 1,   // 🔁 was + 5
+    questionsCount: prev.questionsCount + 1,
+  }));
+  setEditingQuestion(newQuestion);
+};
+
 
   const updateQuestion = (questionId: string, updates: Partial<Question>) => {
     setCurrentTest((prev) => ({
@@ -889,6 +890,25 @@ export function TeacherCBTCreator() {
   };
 
   const deleteQuestion = async (testId: string, questionId: string) => {
+    // 🧠 New logic: if test not yet saved OR question is "new" (added via +), 
+    // just update local state, no API call.
+    const isUnsavedTest = !testId;              // "", nullish => unsaved test
+    const isUnsavedQuestion = questionId.length > 10; // same heuristic as saveTest
+
+    if (isUnsavedTest || isUnsavedQuestion) {
+      setCurrentTest((prev) => {
+        const deletedQuestion = prev.questions.find((q) => q.id === questionId);
+        return {
+          ...prev,
+          questions: prev.questions.filter((q) => q.id !== questionId),
+          questionsCount: Math.max(prev.questionsCount - 1, 0),
+          totalPoints: prev.totalPoints - (deletedQuestion?.points || 0),
+        };
+      });
+      return;
+    }
+
+    // ✅ Persisted question for a saved test: call API as before
     try {
       const response = await fetch(
         `/api/teacher/assessments/tests/test/${testId}/questions/${questionId}/delete`,
@@ -905,6 +925,7 @@ export function TeacherCBTCreator() {
         }
         throw new Error(data.error || "Failed to delete question");
       }
+
       setCurrentTest((prev) => {
         const deletedQuestion = prev.questions.find((q) => q.id === questionId);
         return {
@@ -914,6 +935,7 @@ export function TeacherCBTCreator() {
           totalPoints: prev.totalPoints - (deletedQuestion?.points || 0),
         };
       });
+
       setTests((prev) =>
         prev.map((test) =>
           test.id === testId
@@ -922,12 +944,13 @@ export function TeacherCBTCreator() {
                 questionsCount: test.questionsCount - 1,
                 totalPoints:
                   test.totalPoints -
-                  (currentTest.questions.find((q) => q.id === questionId)
-                    ?.points || 0),
+                  (currentTest.questions.find((q) => q.id === questionId)?.points ||
+                    0),
               }
             : test
         )
       );
+
       alert(data.message);
     } catch (error: any) {
       console.error("Error deleting question:", error);
@@ -1190,7 +1213,7 @@ export function TeacherCBTCreator() {
                   disabled={isSaving}
                 />
 
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="total_marks">Total Marks</Label>
                   <Input
                     id="total_marks"
@@ -1206,7 +1229,7 @@ export function TeacherCBTCreator() {
                     placeholder="Enter total marks"
                     disabled={isSaving}
                   />
-                </div>
+                </div> */}
             <div className="space-y-2">
               <Label>Course</Label>
               <Select
@@ -2099,7 +2122,7 @@ export function TeacherCBTCreator() {
                     disabled={isSaving}
                   />
 
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="total_marks">Total Marks</Label>
                     <Input
                       id="total_marks"
@@ -2115,7 +2138,7 @@ export function TeacherCBTCreator() {
                       placeholder="Enter total marks"
                       disabled={isSaving}
                     />
-                  </div>
+                  </div> */}
                 </CardContent>
               </Card>
               <Card className="lg:col-span-2">
