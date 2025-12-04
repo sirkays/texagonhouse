@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -278,11 +278,20 @@ function DateTimePicker({
 
 export function TeacherCBTCreator() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("create");
+
+  // Read tab from URL query parameter (for navigation from student performance detail page)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "performance") {
+      setActiveTab("student-performance");
+    }
+  }, [searchParams]);
   const [currentTest, setCurrentTest] = useState<CBTTest>({
     id: "",
     title: "",
-    course_id:"",
+    course_id: "",
     description: "",
     instructions: "",
     duration: 30,
@@ -439,8 +448,8 @@ export function TeacherCBTCreator() {
             q.type === "single-choice"
               ? Number(q.correctAnswer) || 0
               : q.type === "true-false"
-              ? q.correctAnswer === "true" || q.correctAnswer === true
-              : q.correctAnswer?.toString() || "",
+                ? q.correctAnswer === "true" || q.correctAnswer === true
+                : q.correctAnswer?.toString() || "",
         })) || [],
       difficulty: data.test.difficulty || "Medium",
       category: data.test.category || "General",
@@ -543,24 +552,24 @@ export function TeacherCBTCreator() {
     }
   }, [isAnalyticsDetailOpen, selectedTestForAnalytics, fetchSummary]);
 
-const addQuestion = () => {
-  const newQuestion: Question = {
-    id: Date.now().toString(),
-    type: "single-choice",
-    question: "",
-    options: ["", "", "", ""],
-    correctAnswer: 0,
-    points: 1,              // 🔁 was 5
-    difficulty: "Medium",
+  const addQuestion = () => {
+    const newQuestion: Question = {
+      id: Date.now().toString(),
+      type: "single-choice",
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: 0,
+      points: 1,              // 🔁 was 5
+      difficulty: "Medium",
+    };
+    setCurrentTest((prev) => ({
+      ...prev,
+      questions: [...prev.questions, newQuestion],
+      totalPoints: prev.totalPoints + 1,   // 🔁 was + 5
+      questionsCount: prev.questionsCount + 1,
+    }));
+    setEditingQuestion(newQuestion);
   };
-  setCurrentTest((prev) => ({
-    ...prev,
-    questions: [...prev.questions, newQuestion],
-    totalPoints: prev.totalPoints + 1,   // 🔁 was + 5
-    questionsCount: prev.questionsCount + 1,
-  }));
-  setEditingQuestion(newQuestion);
-};
 
 
   const updateQuestion = (questionId: string, updates: Partial<Question>) => {
@@ -574,8 +583,8 @@ const addQuestion = () => {
             updates.type === "single-choice"
               ? 0
               : updates.type === "true-false"
-              ? false
-              : "";
+                ? false
+                : "";
         }
         return updatedQuestion;
       }),
@@ -589,8 +598,8 @@ const addQuestion = () => {
             updates.type === "single-choice"
               ? 0
               : updates.type === "true-false"
-              ? false
-              : "";
+                ? false
+                : "";
         }
         return updatedQuestion;
       });
@@ -682,9 +691,9 @@ const addQuestion = () => {
               question.type === "single-choice"
                 ? Number(question.correctAnswer) || 0
                 : question.type === "true-false"
-                ? question.correctAnswer === "true" ||
+                  ? question.correctAnswer === "true" ||
                   question.correctAnswer === true
-                : (question.correctAnswer as string)?.toString() || "",
+                  : (question.correctAnswer as string)?.toString() || "",
             points: question.points,
             explanation: question.explanation || "",
             difficulty: question.difficulty || "Medium",
@@ -693,8 +702,7 @@ const addQuestion = () => {
         if (!questionResponse.ok) {
           const questionData = await questionResponse.json();
           console.error(
-            `[saveTest] Failed to ${
-              questionMethod === "POST" ? "create" : "update"
+            `[saveTest] Failed to ${questionMethod === "POST" ? "create" : "update"
             } question ${question.id}:`,
             questionData.error
           );
@@ -747,8 +755,7 @@ const addQuestion = () => {
         error
       );
       alert(
-        `Failed to ${currentTest.id ? "update" : "create"} test: ${
-          error.message
+        `Failed to ${currentTest.id ? "update" : "create"} test: ${error.message
         }`
       );
     } finally {
@@ -804,7 +811,7 @@ const addQuestion = () => {
         }
         throw new Error(
           data.error ||
-            `Failed to ${isPublished ? "publish" : "unpublish"} test`
+          `Failed to ${isPublished ? "publish" : "unpublish"} test`
         );
       }
       const nextStartLocal = data.test.start_at
@@ -838,15 +845,15 @@ const addQuestion = () => {
         prev.map((test) =>
           test.id === testId
             ? {
-                ...test,
-                isPublished: data.test.isPublished,
-                instructions: data.test.instructions || test.instructions || "",
-                start_at: data.test.start_at || test.start_at || "",
-                end_at: data.test.end_at || test.end_at || "",
-                total_marks: Number(data.test.total_marks) || test.total_marks || 0,
-                _startLocal: nextStartLocal,
-                _endLocal: nextEndLocal,
-              }
+              ...test,
+              isPublished: data.test.isPublished,
+              instructions: data.test.instructions || test.instructions || "",
+              start_at: data.test.start_at || test.start_at || "",
+              end_at: data.test.end_at || test.end_at || "",
+              total_marks: Number(data.test.total_marks) || test.total_marks || 0,
+              _startLocal: nextStartLocal,
+              _endLocal: nextEndLocal,
+            }
             : test
         )
       );
@@ -857,8 +864,7 @@ const addQuestion = () => {
         error
       );
       alert(
-        `Failed to ${isPublished ? "publish" : "unpublish"} test: ${
-          error.message
+        `Failed to ${isPublished ? "publish" : "unpublish"} test: ${error.message
         }`
       );
     }
@@ -940,13 +946,13 @@ const addQuestion = () => {
         prev.map((test) =>
           test.id === testId
             ? {
-                ...test,
-                questionsCount: test.questionsCount - 1,
-                totalPoints:
-                  test.totalPoints -
-                  (currentTest.questions.find((q) => q.id === questionId)?.points ||
-                    0),
-              }
+              ...test,
+              questionsCount: test.questionsCount - 1,
+              totalPoints:
+                test.totalPoints -
+                (currentTest.questions.find((q) => q.id === questionId)?.points ||
+                  0),
+            }
             : test
         )
       );
@@ -1007,20 +1013,15 @@ const addQuestion = () => {
 
     let csvContent =
       "Student Name,Student ID,Email,Class,Test Title,Date,Duration,Total Questions,Passing Score,Total Score,Percentage,Status\n";
-    csvContent += `"${performance.studentName}","${performance.studentId}","${
-      performance.email
-    }","${performance.classGrade}","${test.title}","${
-      test.start_at ? new Date(test.start_at).toLocaleDateString() : "N/A"
-    }","${test.duration} minutes",${test.questionsCount},${
-      (test.total_marks || 0) * 0.7
-    },${performance.score},${performance.percentage},"${
-      performance.status
-    }"\n\n`;
+    csvContent += `"${performance.studentName}","${performance.studentId}","${performance.email
+      }","${performance.classGrade}","${test.title}","${test.start_at ? new Date(test.start_at).toLocaleDateString() : "N/A"
+      }","${test.duration} minutes",${test.questionsCount},${(test.total_marks || 0) * 0.7
+      },${performance.score},${performance.percentage},"${performance.status
+      }"\n\n`;
     csvContent += "Question,Selected Option,Correct Option,Status\n";
     (performance.answers || []).forEach((answer: any) => {
-      csvContent += `"${String(answer.question || "").replace(/"/g, '""')}","${
-        answer.selected ?? ""
-      }","${answer.correct ?? ""}","${answer.status ?? ""}"\n`;
+      csvContent += `"${String(answer.question || "").replace(/"/g, '""')}","${answer.selected ?? ""
+        }","${answer.correct ?? ""}","${answer.status ?? ""}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -1063,7 +1064,7 @@ const addQuestion = () => {
       courseId: "",
       isPublished: false,
       questionsCount: 0,
-      course_id:"",
+      course_id: "",
       createdAt: "",
       updatedAt: "",
       start_at: "",
@@ -1230,27 +1231,27 @@ const addQuestion = () => {
                     disabled={isSaving}
                   />
                 </div> */}
-            <div className="space-y-2">
-              <Label>Course</Label>
-              <Select
-                value={currentTest.courseId || ""}
-                onValueChange={(value) =>
-                  setCurrentTest((prev) => ({ ...prev, courseId: value }))
-                }
-                disabled={isSaving}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course.id} value={course.id.toString()}>
-                      {course.name} 
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label>Course</Label>
+                  <Select
+                    value={currentTest.courseId || ""}
+                    onValueChange={(value) =>
+                      setCurrentTest((prev) => ({ ...prev, courseId: value }))
+                    }
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id.toString()}>
+                          {course.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="pt-4 space-y-2">
                   <div className="flex justify-between text-sm">
@@ -1325,11 +1326,10 @@ const addQuestion = () => {
                   currentTest.questions.map((question, index) => (
                     <div
                       key={question.id}
-                      className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md ${
-                        editingQuestion?.id === question.id
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-muted/50"
-                      }`}
+                      className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md ${editingQuestion?.id === question.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50"
+                        }`}
                       onClick={() => setEditingQuestion(question)}
                     >
                       <div className="flex items-start justify-between">
@@ -2275,11 +2275,10 @@ const addQuestion = () => {
                             {question.type === "true-false" && (
                               <div className="space-y-2">
                                 <div
-                                  className={`p-2 border rounded ${
-                                    question.correctAnswer === true
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-gray-200"
-                                  }`}
+                                  className={`p-2 border rounded ${question.correctAnswer === true
+                                    ? "border-green-500 bg-green-50"
+                                    : "border-gray-200"
+                                    }`}
                                 >
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
@@ -2295,11 +2294,10 @@ const addQuestion = () => {
                                   </div>
                                 </div>
                                 <div
-                                  className={`p-2 border rounded ${
-                                    question.correctAnswer === false
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-gray-200"
-                                  }`}
+                                  className={`p-2 border rounded ${question.correctAnswer === false
+                                    ? "border-green-500 bg-green-50"
+                                    : "border-gray-200"
+                                    }`}
                                 >
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
@@ -2480,11 +2478,10 @@ const addQuestion = () => {
                             {question.options.map((option, optIndex) => (
                               <div
                                 key={optIndex}
-                                className={`p-2 border rounded ${
-                                  optIndex === question.correctAnswer
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-gray-200"
-                                }`}
+                                className={`p-2 border rounded ${optIndex === question.correctAnswer
+                                  ? "border-green-500 bg-green-50"
+                                  : "border-gray-200"
+                                  }`}
                               >
                                 <div className="flex items-center space-x-2">
                                   <div className="w-4 h-4 border border-gray-300 rounded-full" />
@@ -2502,11 +2499,10 @@ const addQuestion = () => {
                         {question.type === "true-false" && (
                           <div className="space-y-2">
                             <div
-                              className={`p-2 border rounded ${
-                                question.correctAnswer === true
-                                  ? "border-green-500 bg-green-50"
-                                  : "border-gray-200"
-                              }`}
+                              className={`p-2 border rounded ${question.correctAnswer === true
+                                ? "border-green-500 bg-green-50"
+                                : "border-gray-200"
+                                }`}
                             >
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
@@ -2519,11 +2515,10 @@ const addQuestion = () => {
                               </div>
                             </div>
                             <div
-                              className={`p-2 border rounded ${
-                                question.correctAnswer === false
-                                  ? "border-green-500 bg-green-50"
-                                  : "border-gray-200"
-                              }`}
+                              className={`p-2 border rounded ${question.correctAnswer === false
+                                ? "border-green-500 bg-green-50"
+                                : "border-gray-200"
+                                }`}
                             >
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
