@@ -191,7 +191,7 @@ export function CBTTest() {
     const raw = localStorage.getItem("pendingCBTSubmissions");
     if (!raw) return;
 
-    const deviceId = getOrCreateDeviceId();
+    const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
 
     let pending: Record<string, any> = {};
     try {
@@ -362,26 +362,30 @@ export function CBTTest() {
     fetchData();
   }, [sessionToken, status, attemptsPage]);
 
-  function getOrCreateDeviceId(): string | null {
-    if (typeof window === "undefined") return null;
+function getOrCreateDeviceId(userId?: string | number) {
+  if (typeof window === "undefined") return "";
 
-    const KEY = "cbtDeviceId";
-    const existing = localStorage.getItem(KEY);
-    if (existing) {
-      return existing; // existing is `string` here
-    }
+  const STORAGE_KEY = "cbtDeviceId";
 
-    let newId: string;
+  // ✅ If user is logged in, bind device ID to that user
+  if (userId) {
+    const userBoundId = `cbt-${userId}`;
 
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-      newId = (crypto as any).randomUUID().replace(/-/g, "");
-    } else {
-      newId = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    }
-
-    localStorage.setItem(KEY, newId); // ✅ `newId` is definitely a string
-    return newId;
+    localStorage.setItem(STORAGE_KEY, userBoundId);
+    return userBoundId;
   }
+
+  // ✅ Fallback: anonymous / pre-login device ID
+  let deviceId = localStorage.getItem(STORAGE_KEY);
+
+  if (!deviceId) {
+    deviceId = `cbt-${crypto.randomUUID()}`;
+    localStorage.setItem(STORAGE_KEY, deviceId);
+  }
+
+  return deviceId;
+}
+
 
 
   const fetchData = async () => {
@@ -397,7 +401,7 @@ export function CBTTest() {
       qs.set("page", String(attemptsPage));
       qs.set("page_size", "20");
 
-      const deviceId = getOrCreateDeviceId();
+      const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
 
       const res = await fetchWithTimeout(
         `/api/student/cbt?${qs.toString()}`,
@@ -657,7 +661,7 @@ export function CBTTest() {
     // leave suspiciousActivity as-is so we can show it in the completed screen
 
 
-  const deviceId = getOrCreateDeviceId();
+  const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
 
   if (isOnline) {
     try {
