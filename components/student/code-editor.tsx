@@ -549,6 +549,7 @@ export function CodeEditor() {
     window.location.href = "/login";
   };
 
+
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated" || !session?.user?.sessionToken) {
@@ -557,11 +558,17 @@ export function CodeEditor() {
     } else {
       setError(null);
       setLoading(false);
-      setCode(languages[selectedLanguage].template);
-      if (selectedLanguage === "html") setHtmlCode(languages.html.template);
-      if (selectedLanguage === "css") setCssCode(languages.css.template);
+      
+      // Only set the default template if the editor is completely empty (Initial Load)
+      // This prevents overwriting code when loadSnippet() or loadFile() is called
+      if (!code && !htmlCode.includes("Hello") && !cssCode.includes("color: red")) {
+         setCode(languages[selectedLanguage].template);
+         if (selectedLanguage === "html") setHtmlCode(languages.html.template);
+         if (selectedLanguage === "css") setCssCode(languages.css.template);
+      }
     }
-  }, [session, status, selectedLanguage]);
+    
+  }, [session, status]);
 
 useEffect(() => {
   if (status !== "authenticated") return;
@@ -579,6 +586,22 @@ useEffect(() => {
       .catch(() => setUploadedFiles([])),
   ]).catch(() => {});
 }, [status]);
+
+// Auto-save current work to localStorage
+useEffect(() => {
+  if (!session || isImagePreview) return;
+
+  const draft = {
+    language: selectedLanguage,
+    code: selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code,
+    htmlCode: selectedLanguage === "html" ? code : htmlCode,
+    cssCode: selectedLanguage === "css" ? code : cssCode,
+    lesson: selectedLesson,
+    timestamp: new Date().toISOString(),
+  };
+
+  localStorage.setItem("code-ide-draft", JSON.stringify(draft));
+}, [code, htmlCode, cssCode, selectedLanguage, selectedLesson, session, isImagePreview]);
 
   const copyCode = () => {
     const text =
@@ -722,38 +745,34 @@ useEffect(() => {
     }
   };
 
-  const loadSnippet = async (snippet: Snippet) => {
-    try {
-      const detailedSnippet = await fetchSnippetDetail(snippet.id);
-      if (detailedSnippet.language === "html") {
-        setHtmlCode(detailedSnippet.code_text);
-      } else if (detailedSnippet.language === "css") {
-        setCssCode(detailedSnippet.code_text);
-      } else {
-        setCode(detailedSnippet.code_text);
-      }
-      setSelectedLanguage(detailedSnippet.language);
-      if (detailedSnippet.lesson)
-        setSelectedLesson(String(detailedSnippet.lesson));
-      setActiveTab("editor");
-      setSyntaxError(null);
-      setIsImagePreview(false);
-      setImagePreviewUrl("");
-      setHtmlPreview(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>${cssCode}</style>
-          </head>
-          <body>
-            ${htmlCode}
-          </body>
-        </html>
-      `);
-    } catch {
-      alert("Failed to load snippet details");
+const loadSnippet = async (snippet: Snippet) => {
+  try {
+    const detailedSnippet = await fetchSnippetDetail(snippet.id);
+
+    // Reset everything first
+    setHtmlCode(languages.html.template);
+    setCssCode(languages.css.template);
+    setCode(languages.javascript.template);
+
+    // Then load the correct one
+    if (detailedSnippet.language === "html") {
+      setHtmlCode(detailedSnippet.code_text);
+    } else if (detailedSnippet.language === "css") {
+      setCssCode(detailedSnippet.code_text);
+    } else {
+      setCode(detailedSnippet.code_text);
     }
-  };
+
+    setSelectedLanguage(detailedSnippet.language);
+    if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
+
+    setActiveTab("editor");
+    setSyntaxError(null);
+    setIsImagePreview(false);
+  } catch (err) {
+    alert("Failed to load snippet");
+  }
+};
 
   const copySnippetUrl = (id: number) => {
     const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
