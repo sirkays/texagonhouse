@@ -91,13 +91,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const requiredFields = ["language", "code_text"];
-  for (const field of requiredFields) {
-    if (!body[field]) {
-      console.error("[Route] Missing required field:", field);
-      return NextResponse.json({ error: `Missing ${field}` }, { status: 400 });
-    }
-  }
+  // const requiredFields = ["language", "code_text"];
+  // for (const field of requiredFields) {
+  //   if (!body[field]) {
+  //     console.error("[Route] Missing required field:", field);
+  //     return NextResponse.json({ error: `Missing ${field}` }, { status: 400 });
+  //   }
+  // }
 
   try {
     const url = `${BASE_URL}/snippets/create/`;

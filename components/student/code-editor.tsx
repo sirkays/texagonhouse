@@ -158,6 +158,7 @@ export function CodeEditor() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [activeSnippetId, setActiveSnippetId] = useState<number | null>(null);
 
   // New File Modal states
   const [showNewFileModal, setShowNewFileModal] = useState(false);
@@ -219,13 +220,14 @@ export function CodeEditor() {
   }
 };
 
-  const saveAsFile = async () => {
+const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
       return;
 
     setIsSaving(true);
     try {
-      const body = {
+      // [UPDATED] Construct body with ID if we are editing an existing snippet
+      const body: any = {
         title: saveFileName.trim(),
         language: selectedLanguage,
         code_text:
@@ -236,6 +238,11 @@ export function CodeEditor() {
             : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
+
+      // If we have an active ID, add it to the body to trigger an UPDATE on the backend
+      if (activeSnippetId) {
+        body.id = activeSnippetId;
+      }
 
       const res = await fetch("/api/code-ide/snippets", {
         method: "POST",
@@ -251,11 +258,24 @@ export function CodeEditor() {
       }
 
       const savedSnippet: Snippet = await res.json();
-      setMySnippets((prev) => [savedSnippet, ...prev]);
+
+      // [UPDATED] Update the list based on whether it was a Create or Update
+      if (activeSnippetId) {
+        // We updated an existing one
+        setMySnippets((prev) =>
+          prev.map((s) => (s.id === savedSnippet.id ? savedSnippet : s))
+        );
+        alert("Snippet updated successfully!");
+      } else {
+        // We created a new one
+        setMySnippets((prev) => [savedSnippet, ...prev]);
+        setActiveSnippetId(savedSnippet.id); // Set as active so next save is an update
+        alert("Snippet saved successfully!");
+      }
+
       setShowSaveModal(false);
-      setSaveFileName("");
-      setPrepopulatedSaveData(null); // Clear prepopulated data
-      alert("Snippet saved successfully!");
+      // We do NOT clear saveFileName here anymore, so the user stays in "edit mode"
+      setPrepopulatedSaveData(null); 
     } catch (error) {
       alert(`Save failed: ${(error as Error).message}`);
     } finally {
@@ -653,6 +673,8 @@ useEffect(() => {
     setCode(languages[selectedLanguage].template);
     if (selectedLanguage === "html") setHtmlCode(languages.html.template);
     if (selectedLanguage === "css") setCssCode(languages.css.template);
+    setActiveSnippetId(null);
+    setSaveFileName("");
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
@@ -775,33 +797,37 @@ useEffect(() => {
   };
 
 const loadSnippet = async (snippet: Snippet) => {
-  try {
-    const detailedSnippet = await fetchSnippetDetail(snippet.id);
+    try {
+      const detailedSnippet = await fetchSnippetDetail(snippet.id);
 
-    // Reset everything first
-    setHtmlCode(languages.html.template);
-    setCssCode(languages.css.template);
-    setCode(languages.javascript.template);
+      // ... existing reset logic ...
+      setHtmlCode(languages.html.template);
+      setCssCode(languages.css.template);
+      setCode(languages.javascript.template);
+      
+      // ... existing loading logic ...
+      if (detailedSnippet.language === "html") {
+        setHtmlCode(detailedSnippet.code_text);
+      } else if (detailedSnippet.language === "css") {
+        setCssCode(detailedSnippet.code_text);
+      } else {
+        setCode(detailedSnippet.code_text);
+      }
 
-    // Then load the correct one
-    if (detailedSnippet.language === "html") {
-      setHtmlCode(detailedSnippet.code_text);
-    } else if (detailedSnippet.language === "css") {
-      setCssCode(detailedSnippet.code_text);
-    } else {
-      setCode(detailedSnippet.code_text);
+      // [ADD THIS] Store the ID and Title
+      setActiveSnippetId(detailedSnippet.id);
+      setSaveFileName(detailedSnippet.title); // Pre-fill the save name
+
+      setSelectedLanguage(detailedSnippet.language);
+      if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
+
+      setActiveTab("editor");
+      setSyntaxError(null);
+      setIsImagePreview(false);
+    } catch (err) {
+      alert("Failed to load snippet");
     }
-
-    setSelectedLanguage(detailedSnippet.language);
-    if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
-
-    setActiveTab("editor");
-    setSyntaxError(null);
-    setIsImagePreview(false);
-  } catch (err) {
-    alert("Failed to load snippet");
-  }
-};
+  };
 
   const copySnippetUrl = (id: number) => {
     const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
@@ -967,6 +993,8 @@ const loadSnippet = async (snippet: Snippet) => {
   // Handle New File Modal Create - Close modal, go to editor, then open save modal
   const handleNewFileCreate = () => {
     if (!newFileTitle.trim()) return alert("Title required");
+
+    setActiveSnippetId(null);
 
     // Close the new file modal immediately
     setShowNewFileModal(false);
