@@ -43,63 +43,69 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type ProfileType = "student" | "teacher" | "parent";
-
-interface VerifyResponse {
-    user_id: number;
-    email: string;
-    profile_type: ProfileType;
-    organization_id: number;
-    organization_name: string;
-}
+type ProfileType = "student" | "teacher" | "parent" | "user";
 
 interface Classroom {
     id: number;
     name: string;
 }
 
-// ========== MOCK MODE ==========
-// Set to true to test with mock data, false to use real API
-const MOCK_MODE = true;
+interface Language {
+    id: number;
+    language_name?: string;
+    name?: string;
+}
 
-// Mock data for testing
-const MOCK_USERS: Record<string, VerifyResponse & { profile?: any }> = {
-    "student@test.com": {
-        user_id: 101,
-        email: "student@test.com",
-        profile_type: "student",
-        organization_id: 1,
-        organization_name: "Texagon Academy",
-        profile: {
-            admission_no: "ADM-2024-001",
-            dob: "2010-05-15",
-            current_classroom_id: 2,
-        },
-    },
-    "teacher@test.com": {
-        user_id: 102,
-        email: "teacher@test.com",
-        profile_type: "teacher",
-        organization_id: 1,
-        organization_name: "Texagon Academy",
-        profile: {
-            bio: "Senior Software Development Instructor with 5 years of experience in teaching programming.",
-            experience: 5,
-            language_ids: [1, 3],
-            specialty_ids: [1, 2],
-        },
-    },
-    "parent@test.com": {
-        user_id: 103,
-        email: "parent@test.com",
-        profile_type: "parent",
-        organization_id: 1,
-        organization_name: "Texagon Academy",
-        profile: {
-            address: "123 Main Street, Lagos, Nigeria",
-        },
-    },
-};
+interface Subject {
+    id: number;
+    name: string;
+}
+
+interface TeacherProfile {
+    id: number;
+    organization_id: number;
+    bio: string | null;
+    experience: number | null;
+    languages: Language[];
+    specialties: Subject[];
+}
+
+interface StudentProfile {
+    id: number;
+    organization_id: number;
+    current_classroom_id: number | null;
+    admission_no: string | null;
+    dob: string | null;
+    parent_links: any[];
+}
+
+interface ParentProfile {
+    id: number;
+    organization_id: number;
+    address: string | null;
+    children_links: any[];
+}
+
+interface FetchUserResponse {
+    id: number;
+    email: string;
+    full_name: string;
+    first_name: string;
+    last_name: string;
+    phone: string | null;
+    avatar: string | null;
+    primary_org_id: number | null;
+    is_active: boolean;
+    is_staff: boolean;
+    profile_type: ProfileType;
+    teacher_profile?: TeacherProfile;
+    student_profile?: StudentProfile;
+    parent_profile?: ParentProfile;
+    organization_name?: string; // Legacy/Mock support
+}
+
+// ========== MOCK MODE ==========
+const MOCK_MODE = false;
 
 const MOCK_CLASSROOMS: Classroom[] = [
     { id: 1, name: "JSS 1A" },
@@ -108,16 +114,6 @@ const MOCK_CLASSROOMS: Classroom[] = [
     { id: 4, name: "SSS 1A" },
     { id: 5, name: "SSS 2B" },
 ];
-
-interface Language {
-    id: number;
-    name: string;
-}
-
-interface Subject {
-    id: number;
-    name: string;
-}
 
 const MOCK_LANGUAGES: Language[] = [
     { id: 1, name: "python" },
@@ -131,9 +127,7 @@ const MOCK_SUBJECTS: Subject[] = [
     { id: 1, name: "web" },
     { id: 2, name: "Mobile development" },
     { id: 3, name: "Seo" },
-
 ];
-// ================================
 
 export default function VerifyUserPage() {
     const { toast } = useToast();
@@ -142,7 +136,7 @@ export default function VerifyUserPage() {
     const [step, setStep] = useState<"search" | "verified" | "updating">("search");
     const [email, setEmail] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [verifiedUser, setVerifiedUser] = useState<VerifyResponse | null>(null);
+    const [verifiedUser, setVerifiedUser] = useState<FetchUserResponse | null>(null);
 
     // Student fields
     const [admissionNo, setAdmissionNo] = useState("");
@@ -196,7 +190,7 @@ export default function VerifyUserPage() {
             setLanguages(MOCK_LANGUAGES);
             return;
         }
-
+        // TODO: Replace with real API when available
         setLanguages(MOCK_LANGUAGES);
     };
 
@@ -231,8 +225,8 @@ export default function VerifyUserPage() {
         setAddress("");
     };
 
-    // Step 1: Verify user by email (no profile data)
-    const handleVerifyUser = async (e: React.FormEvent) => {
+    // Step 1: Fetch user by email
+    const handleFetchUser = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!email.trim()) {
@@ -248,47 +242,12 @@ export default function VerifyUserPage() {
 
         // MOCK MODE: Use fake data for testing
         if (MOCK_MODE) {
-            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-            const mockUser = MOCK_USERS[email.trim().toLowerCase()];
-
-            if (mockUser) {
-                setVerifiedUser(mockUser);
-                setStep("verified");
-
-                // Pre-populate form fields with existing profile data
-                if (mockUser.profile) {
-                    const p = mockUser.profile;
-                    // Student fields
-                    if (p.admission_no) setAdmissionNo(p.admission_no);
-                    if (p.dob) setDob(p.dob);
-                    if (p.current_classroom_id) setClassroomId(p.current_classroom_id.toString());
-                    // Teacher fields
-                    if (p.bio) setBio(p.bio);
-                    if (p.experience) setExperience(p.experience.toString());
-                    if (p.language_ids) setSelectedLanguages(p.language_ids);
-                    if (p.specialty_ids) setSelectedSubjects(p.specialty_ids);
-                    // Parent fields
-                    if (p.address) setAddress(p.address);
-                }
-
-                toast({
-                    title: "User Found (Mock)",
-                    description: `${mockUser.email} is a ${mockUser.profile_type}. You can now update their profile.`,
-                });
-            } else {
-                toast({
-                    title: "User Not Found",
-                    description: "Try: student@test.com, teacher@test.com, or parent@test.com",
-                    variant: "destructive",
-                });
-            }
-            setIsLoading(false);
-            return;
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Mock data simulation logic would go here if needed
         }
 
         try {
-            // First call: just verify the user exists and get their profile type
-            const res = await fetch("/api/admin/verify-user", {
+            const res = await fetch("/api/admin/fetch-user", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -305,6 +264,24 @@ export default function VerifyUserPage() {
 
             setVerifiedUser(data);
             setStep("verified");
+
+            // Pre-populate form fields based on profile type
+            if (data.profile_type === "student" && data.student_profile) {
+                const p = data.student_profile;
+                if (p.admission_no) setAdmissionNo(p.admission_no);
+                if (p.dob) setDob(p.dob);
+                if (p.current_classroom_id) setClassroomId(p.current_classroom_id.toString());
+            } else if (data.profile_type === "teacher" && data.teacher_profile) {
+                const p = data.teacher_profile;
+                if (p.bio) setBio(p.bio);
+                if (p.experience) setExperience(p.experience.toString());
+                if (p.languages) setSelectedLanguages(p.languages.map((l: any) => l.id));
+                if (p.specialties) setSelectedSubjects(p.specialties.map((s: any) => s.id));
+            } else if (data.profile_type === "parent" && data.parent_profile) {
+                const p = data.parent_profile;
+                if (p.address) setAddress(p.address);
+            }
+
             toast({
                 title: "User Found",
                 description: `${data.email} is a ${data.profile_type}. You can now update their profile.`,
@@ -312,7 +289,7 @@ export default function VerifyUserPage() {
         } catch (error: any) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to verify user",
+                description: error.message || "Failed to fetch user",
                 variant: "destructive",
             });
         } finally {
@@ -333,17 +310,6 @@ export default function VerifyUserPage() {
         setShowConfirmDialog(false);
         setIsLoading(true);
         setStep("updating");
-
-        // MOCK MODE: Simulate successful update
-        if (MOCK_MODE) {
-            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-            toast({
-                title: "✅ Update Successful",
-                description: `${verifiedUser.email}'s profile has been updated successfully.`,
-            });
-            setIsLoading(false);
-            return;
-        }
 
         try {
             const payload: any = { email: verifiedUser.email };
@@ -368,10 +334,21 @@ export default function VerifyUserPage() {
                 return;
             }
 
-            setVerifiedUser(data);
+            // Re-fetch user to get updated data
+            const fetchRes = await fetch("/api/admin/fetch-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: verifiedUser.email }),
+            });
+
+            if (fetchRes.ok) {
+                const updatedUser = await fetchRes.json();
+                setVerifiedUser(updatedUser);
+            }
+
             toast({
                 title: "✅ Update Successful",
-                description: `Profile updated and attached to ${data.organization_name}`,
+                description: `Profile updated successfully.`,
             });
         } catch (error: any) {
             toast({
@@ -420,37 +397,19 @@ export default function VerifyUserPage() {
         if (status === 404) {
             toast({
                 title: "User Not Found",
-                description: "User with this email does not exist.",
+                description: data.detail || "No user found with this email address. Please check and try again.",
                 variant: "destructive",
             });
         } else if (status === 403) {
             toast({
                 title: "Access Denied",
-                description: "You do not have AdminAccess.",
-                variant: "destructive",
-            });
-        } else if (data.detail?.includes("Classroom")) {
-            toast({
-                title: "Classroom Error",
-                description: "Classroom not found in your selected organization.",
-                variant: "destructive",
-            });
-        } else if (data.detail?.includes("profile")) {
-            toast({
-                title: "Profile Error",
-                description: data.detail,
-                variant: "destructive",
-            });
-        } else if (data.detail?.includes("selected_organization")) {
-            toast({
-                title: "No Organization",
-                description: "No selected_organization set on your AdminAccess.",
+                description: data.detail || "You do not have permission to perform this action.",
                 variant: "destructive",
             });
         } else {
             toast({
                 title: "Error",
-                description: data.detail || "An error occurred",
+                description: data.detail || "An error occurred while processing your request.",
                 variant: "destructive",
             });
         }
@@ -464,6 +423,8 @@ export default function VerifyUserPage() {
                 return <Users className="h-5 w-5" />;
             case "parent":
                 return <UserCircle className="h-5 w-5" />;
+            default:
+                return <User className="h-5 w-5" />;
         }
     };
 
@@ -482,9 +443,9 @@ export default function VerifyUserPage() {
                     <p className="text-muted-foreground mt-1">
                         {verifiedUser ? (
                             <>
-                                User attached to{" "}
+                                User found:{" "}
                                 <span className="font-semibold text-[#EF7B55]">
-                                    {verifiedUser.organization_name}
+                                    {verifiedUser.full_name}
                                 </span>
                             </>
                         ) : (
@@ -508,43 +469,36 @@ export default function VerifyUserPage() {
                         Step 1: Find User
                     </CardTitle>
                     <CardDescription>
-                        Enter the user's email to verify and detect their profile type.
+                        Enter the user's email address to fetch their profile details.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleVerifyUser} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email Address *</Label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="user@example.com"
-                                        className="pl-9"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        disabled={isLoading || step !== "search"}
-                                        required
-                                    />
-                                </div>
-                                <Button
-                                    type="submit"
-                                    disabled={isLoading || step !== "search"}
-                                    className="bg-[#EF7B55] hover:bg-[#d96a47]"
-                                >
-                                    {isLoading && step === "search" ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Verifying...
-                                        </>
-                                    ) : (
-                                        "Verify"
-                                    )}
-                                </Button>
-                            </div>
+                    <form onSubmit={handleFetchUser} className="flex gap-4">
+                        <div className="flex-1">
+                            <Label htmlFor="email" className="sr-only">
+                                Email
+                            </Label>
+                            <Input
+                                id="email"
+                                placeholder="user@example.com"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                disabled={isLoading || step !== "search"}
+                                className="w-full"
+                            />
                         </div>
+                        <Button
+                            type="submit"
+                            disabled={isLoading || step !== "search"}
+                            className="bg-[#EF7B55] hover:bg-[#d96a47]"
+                        >
+                            {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                "Fetch User Details"
+                            )}
+                        </Button>
                     </form>
                 </CardContent>
             </Card>
@@ -574,15 +528,15 @@ export default function VerifyUserPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
                             <div>
                                 <p className="text-sm text-muted-foreground">User ID</p>
-                                <p className="font-medium">{verifiedUser.user_id}</p>
+                                <p className="font-medium">{verifiedUser.id}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Email</p>
                                 <p className="font-medium">{verifiedUser.email}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Organization</p>
-                                <p className="font-medium text-[#EF7B55]">{verifiedUser.organization_name}</p>
+                                <p className="text-sm text-muted-foreground">Full Name</p>
+                                <p className="font-medium">{verifiedUser.full_name}</p>
                             </div>
                         </div>
 
@@ -603,7 +557,7 @@ export default function VerifyUserPage() {
                                             <Label htmlFor="admissionNo">Admission Number</Label>
                                             <Input
                                                 id="admissionNo"
-                                                placeholder="e.g., ADM-12345"
+                                                placeholder="e.g., ADM-2024-001"
                                                 value={admissionNo}
                                                 onChange={(e) => setAdmissionNo(e.target.value)}
                                                 disabled={isLoading}
@@ -621,7 +575,7 @@ export default function VerifyUserPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="classroom">Classroom</Label>
+                                        <Label htmlFor="classroom">Current Classroom</Label>
                                         <Select
                                             value={classroomId}
                                             onValueChange={setClassroomId}
@@ -632,15 +586,15 @@ export default function VerifyUserPage() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {classrooms.map((classroom) => (
-                                                    <SelectItem key={classroom.id} value={classroom.id.toString()}>
+                                                    <SelectItem
+                                                        key={classroom.id}
+                                                        value={classroom.id.toString()}
+                                                    >
                                                         {classroom.name}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        <p className="text-xs text-muted-foreground">
-                                            Only classrooms in your organization are shown.
-                                        </p>
                                     </div>
                                 </div>
                             )}
