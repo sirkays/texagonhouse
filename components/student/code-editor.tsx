@@ -113,6 +113,24 @@ type Comment = {
 };
 
 export function CodeEditor() {
+
+    const languages = {
+    javascript: {
+      name: "JavaScript",
+      judgeId: 63,
+      template: `console.log("Hello, World!");`,
+    },
+    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
+    java: {
+      name: "Java",
+      judgeId: 62,
+      template: `System.out.println("Hello");`,
+    },
+    cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
+    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
+    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
+  } as const;
+
   const { data: session, status } = useSession();
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [htmlCode, setHtmlCode] = useState("<h1>Hello</h1>");
@@ -128,6 +146,13 @@ export function CodeEditor() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileLoading, setFileLoading] = useState<number | null>(null);
   const [syntaxError, setSyntaxError] = useState<string | null>(null);
+  // [ADD THIS NEW STATE]
+  const [codeBuffers, setCodeBuffers] = useState<Record<string, string>>({
+    javascript: languages.javascript.template,
+    python: languages.python.template,
+    java: languages.java.template,
+    cpp: languages.cpp.template,
+  });
   const [isImagePreview, setIsImagePreview] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -525,22 +550,6 @@ export function CodeEditor() {
     return res.json() as Promise<Comment>;
   };
 
-  const languages = {
-    javascript: {
-      name: "JavaScript",
-      judgeId: 63,
-      template: `console.log("Hello, World!");`,
-    },
-    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
-    java: {
-      name: "Java",
-      judgeId: 62,
-      template: `System.out.println("Hello");`,
-    },
-    cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
-    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
-    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
-  } as const;
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
@@ -653,12 +662,32 @@ useEffect(() => {
     setActiveTab("editor");
   };
 
+ 
   const handleLanguageChange = (lang: string) => {
     const languageKey = lang as keyof typeof languages;
+
+    
+    if (selectedLanguage !== "html" && selectedLanguage !== "css") {
+      setCodeBuffers((prev) => ({
+        ...prev,
+        [selectedLanguage]: code,
+      }));
+    }
+
     setSelectedLanguage(languageKey);
-    setCode(languages[languageKey].template);
-    if (languageKey === "html") setHtmlCode(languages.html.template);
-    if (languageKey === "css") setCssCode(languages.css.template);
+
+    // 2. Load the code for the NEW language
+    if (languageKey === "html") {
+      // Do nothing: HTML has its own dedicated state (htmlCode) which persists automatically
+    } else if (languageKey === "css") {
+      // Do nothing: CSS has its own dedicated state (cssCode) which persists automatically
+    } else {
+      // For JS/Python/Java/CPP, load from the buffer
+      // If the buffer has code, use it. Otherwise, use the default template.
+      setCode(codeBuffers[languageKey] || languages[languageKey].template);
+    }
+
+    // 3. Reset UI states (Outputs, errors, etc)
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
