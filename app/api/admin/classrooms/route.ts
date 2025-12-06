@@ -25,7 +25,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    const endpoint = `${BASE_URL}/api/classrooms/`;
+    const { searchParams } = new URL(request.url);
+    const org_id = searchParams.get("org_id");
+    const page_size = searchParams.get("page_size");
+
+    const url = new URL(`${BASE_URL}/api/classrooms/`);
+    if (org_id) url.searchParams.append("org_id", org_id);
+    if (page_size) url.searchParams.append("page_size", page_size);
+
+    const endpoint = url.toString();
     console.log("[Admin Classrooms] Fetching from:", endpoint);
 
     const res = await fetchWithRetry(endpoint, {

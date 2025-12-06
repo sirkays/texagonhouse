@@ -161,23 +161,36 @@ export default function VerifyUserPage() {
     // Fetch data when user is verified
     useEffect(() => {
         if (verifiedUser?.profile_type === "student") {
-            fetchClassrooms();
+            // Pass the student's organization ID if available
+            fetchClassrooms(verifiedUser.primary_org_id?.toString());
         }
         if (verifiedUser?.profile_type === "teacher") {
-            // fetchLanguages(); // Skipped as per user request, using static list
+            fetchLanguages();
             fetchSubjects();
         }
     }, [verifiedUser]);
 
-    const fetchClassrooms = async () => {
+    const fetchClassrooms = async (orgId?: string) => {
         if (MOCK_MODE) {
             setClassrooms(MOCK_CLASSROOMS);
             return;
         }
         try {
-            const res = await fetch("/api/admin/classrooms");
+            let url = "/api/admin/classrooms?page_size=1000";
+            if (orgId) {
+                url += `&org_id=${orgId}`;
+            }
+            const res = await fetch(url);
             const data = await res.json();
-            if (data.classrooms) {
+            console.log("Classrooms API Response:", data);
+
+            // Handle both plain list and paginated response
+            const results = Array.isArray(data) ? data : (data.results || []);
+
+            if (results.length > 0) {
+                setClassrooms(results);
+            } else if (data.classrooms) {
+                // Handle legacy format if still present
                 setClassrooms(data.classrooms);
             }
         } catch (error) {
@@ -185,18 +198,55 @@ export default function VerifyUserPage() {
         }
     };
 
-    // const fetchLanguages = async () => { ... } // Removed
+    const fetchLanguages = async () => {
+        try {
+            console.log("Fetching languages from /api/admin/languages...");
+            const res = await fetch("/api/admin/languages?page_size=1000");
+            const data = await res.json();
+            console.log("Languages API Response:", data);
 
-    const fetchSubjects = async () => {
+            // Handle both plain list and paginated response
+            const results = Array.isArray(data) ? data : (data.results || []);
+
+            if (Array.isArray(results)) {
+                const apiLanguages = results.map((l: any) => ({
+                    id: l.id,
+                    name: l.language_name || l.name
+                }));
+
+                setLanguages(prev => {
+                    const newLangs = [...prev];
+                    apiLanguages.forEach((al: any) => {
+                        if (!newLangs.find(pl => pl.id === al.id)) {
+                            newLangs.push(al);
+                        }
+                    });
+                    return newLangs;
+                });
+            }
+        } catch (error) {
+            console.error("Failed to fetch languages:", error);
+        }
+    };
+
+    const fetchSubjects = async (orgId?: string) => {
         if (MOCK_MODE) {
-            setSubjects(MOCK_SUBJECTS);
             return;
         }
         try {
-            const res = await fetch("/api/admin/subjects");
+            let url = "/api/admin/subjects?page_size=1000";
+            if (orgId) {
+                url += `&org_id=${orgId}`;
+            }
+            const res = await fetch(url);
             const data = await res.json();
-            if (Array.isArray(data)) {
-                const apiSubjects = data.map((s: any) => ({ id: s.id, name: s.name }));
+            console.log("Subjects API Response:", data);
+
+            // Handle both plain list and paginated response
+            const results = Array.isArray(data) ? data : (data.results || []);
+
+            if (Array.isArray(results)) {
+                const apiSubjects = results.map((s: any) => ({ id: s.id, name: s.name }));
 
                 setSubjects(prev => {
                     const newSubjects = [...prev];
@@ -686,13 +736,19 @@ export default function VerifyUserPage() {
                                                     <SelectValue placeholder="Select languages..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {languages
-                                                        .filter(lang => !selectedLanguages.includes(lang.id))
-                                                        .map((lang) => (
-                                                            <SelectItem key={lang.id} value={lang.id.toString()}>
-                                                                {lang.name}
-                                                            </SelectItem>
-                                                        ))}
+                                                    {languages.length === 0 ? (
+                                                        <SelectItem value="none" disabled>
+                                                            No languages found
+                                                        </SelectItem>
+                                                    ) : (
+                                                        languages
+                                                            .filter(lang => !selectedLanguages.includes(lang.id))
+                                                            .map((lang) => (
+                                                                <SelectItem key={lang.id} value={lang.id.toString()}>
+                                                                    {lang.name}
+                                                                </SelectItem>
+                                                            ))
+                                                    )}
                                                 </SelectContent>
                                             </Select>
                                             {selectedLanguages.length > 0 && (
