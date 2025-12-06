@@ -1,4 +1,3 @@
-// components/ParentBiodataForm.tsx
 "use client";
 
 import {useState} from "react";
@@ -9,476 +8,409 @@ interface ChildData {
   email: string;
   password: string;
   isEmailVerified: boolean;
-  confirmPassword?: string;
 }
 
 interface ParentBiodataData {
   children: ChildData[];
 }
 
-export default function ParentBiodataForm() {
-  const [formData, setFormData] = useState<ParentBiodataData>({
-    children: [],
+// Step 1: Add Child Form (Details + Send OTP)
+function AddChildForm({
+  onNext,
+  currentChild,
+  setCurrentChild,
+}: {
+  onNext: (email: string) => void;
+  currentChild: any;
+  setCurrentChild: any;
+}) {
+  const [error, setError] = useState("");
+  const [passwordStrength, setPasswordStrength] = useState<
+    "weak" | "medium" | "strong"
+  >("weak");
+  const [requirements, setRequirements] = useState({
+    hasLowercase: false,
+    hasUppercase: false,
+    hasNumber: false,
+    hasSpecial: false,
   });
-  const [addingChild, setAddingChild] = useState(false);
-  const [currentChild, setCurrentChild] = useState<ChildData>({
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+
+  const checkPasswordStrength = (password: string) => {
+    const checks = {
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+    setRequirements(checks);
+    const met = Object.values(checks).filter(Boolean).length;
+    if (met >= 4) setPasswordStrength("strong");
+    else if (met >= 3) setPasswordStrength("medium");
+    else setPasswordStrength("weak");
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const {name, value} = e.target;
+    setCurrentChild((prev: any) => ({...prev, [name]: value}));
+    setError("");
+    if (name === "password") checkPasswordStrength(value);
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!currentChild.email.includes("@")) {
+      setError("Please enter a valid email");
+      return;
+    }
+    if (currentChild.password !== currentChild.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    if (passwordStrength !== "strong") {
+      setError("Password must be strong");
+      return;
+    }
+    if (!currentChild.firstName || !currentChild.lastName) {
+      setError("Please fill all required fields");
+      return;
+    }
+
+    setIsSendingOtp(true);
+    // Simulate real OTP send
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSendingOtp(false);
+
+    onNext(currentChild.email);
+  };
+
+  return (
+    <form onSubmit={handleSendOtp} className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Add New Child</h2>
+      <p className="text-gray-600">Fill in your child's details below</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            First Name
+          </label>
+          <input
+            name="firstName"
+            type="text"
+            required
+            value={currentChild.firstName}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+            placeholder="Aisha"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Last Name
+          </label>
+          <input
+            name="lastName"
+            type="text"
+            required
+            value={currentChild.lastName}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+            placeholder="Mohammed"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Email Address
+        </label>
+        <input
+          name="email"
+          type="email"
+          required
+          value={currentChild.email}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+          placeholder="child@example.com"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Password
+        </label>
+        <input
+          name="password"
+          type="password"
+          required
+          value={currentChild.password}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Confirm Password
+        </label>
+        <input
+          name="confirmPassword"
+          type="password"
+          required
+          value={currentChild.confirmPassword || ""}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+        />
+      </div>
+
+      {/* Password Strength */}
+      <div className="bg-gray-50 p-4 rounded-lg text-sm space-y-2">
+        <p className="font-medium">Password must contain:</p>
+        {Object.entries(requirements).map(([key, met]) => (
+          <div
+            key={key}
+            className={`flex items-center ${
+              met ? "text-green-600" : "text-gray-500"
+            }`}>
+            <span
+              className={`w-2 h-2 rounded-full mr-2 ${
+                met ? "bg-green-600" : "bg-gray-300"
+              }`}
+            />
+            {key === "hasLowercase" && "One lowercase letter"}
+            {key === "hasUppercase" && "One uppercase letter"}
+            {key === "hasNumber" && "One number"}
+            {key === "hasSpecial" && "One special character"}
+          </div>
+        ))}
+        <p
+          className={`font-semibold mt-2 ${
+            passwordStrength === "strong" ? "text-green-600" : "text-red-600"
+          }`}>
+          Strength: {passwordStrength.toUpperCase()}
+        </p>
+      </div>
+
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={isSendingOtp}
+        className="w-full py-3 rounded-md bg-[#f79771] text-white font-medium hover:bg-[#f58667] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition">
+        {isSendingOtp ? (
+          <>
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+                fill="none"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            Sending OTP...
+          </>
+        ) : (
+          "Send Verification Code"
+        )}
+      </button>
+    </form>
+  );
+}
+
+// Step 2: OTP Verification
+function OtpVerificationStep({
+  email,
+  onVerified,
+  onBack,
+}: {
+  email: string;
+  onVerified: () => void;
+  onBack: () => void;
+}) {
+  const [otp, setOtp] = useState("");
+  const [error, setError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+      setError("Enter a valid 6-digit code");
+      return;
+    }
+
+    setIsVerifying(true);
+    await new Promise((resolve) => setTimeout(resolve, 1200)); // Simulate API
+    setIsVerifying(false);
+
+    // Mock success
+    onVerified();
+  };
+
+  return (
+    <div className="max-w-md mx-auto text-center">
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        Verify Child's Email
+      </h2>
+      <p className="text-gray-600 mb-6">We sent a 6-digit code to</p>
+      <p className="text-lg font-semibold text-[#f79771] break-all mb-8">
+        {email}
+      </p>
+
+      <form onSubmit={handleVerify} className="space-y-6">
+        <input
+          type="text"
+          maxLength={6}
+          value={otp}
+          onChange={(e) =>
+            setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+          }
+          placeholder="000000"
+          className="w-full px-6 py-5 text-center text-3xl font-mono tracking-widest border-2 border-gray-300 rounded-lg focus:border-[#f79771] focus:ring-4 focus:ring-[#f79771]/20"
+          autoFocus
+        />
+
+        {error && <p className="text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={isVerifying || otp.length !== 6}
+          className="w-full py-3 rounded-md bg-[#f79771] text-white font-medium hover:bg-[#f58667] disabled:opacity-60 transition">
+          {isVerifying ? "Verifying..." : "Verify & Add Child"}
+        </button>
+      </form>
+
+      <button
+        onClick={onBack}
+        className="mt-6 text-sm text-gray-600 hover:text-gray-900 underline">
+        ← Back to edit details
+      </button>
+    </div>
+  );
+}
+
+// Main Component
+export default function ParentBiodataForm() {
+  const [children, setChildren] = useState<ChildData[]>([]);
+  const [step, setStep] = useState<"list" | "form" | "otp">("list");
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [currentChild, setCurrentChild] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    isEmailVerified: false,
   });
-  const [error, setError] = useState<string>("");
-  const [passwordStrength, setPasswordStrength] = useState<
-    "weak" | "medium" | "strong"
-  >("weak");
 
-  const requirementsState = {
-    hasLowercase: false,
-    hasUppercase: false,
-    hasNumber: false,
-    hasSpecial: false,
-  };
-  const [requirements, setRequirements] = useState(requirementsState);
-
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [otpSentMessage, setOtpSentMessage] = useState(false);
-  const [showOtpDialog, setShowOtpDialog] = useState(false);
-  const [otpInput, setOtpInput] = useState("");
-
-  // Password strength checker
-  const checkPasswordStrength = (password: string) => {
-    const hasLowercase = /[a-z]/.test(password);
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    setRequirements({hasLowercase, hasUppercase, hasNumber, hasSpecial});
-
-    const metCount = [hasLowercase, hasUppercase, hasNumber, hasSpecial].filter(
-      Boolean
-    ).length;
-    if (metCount >= 4) setPasswordStrength("strong");
-    else if (metCount >= 3) setPasswordStrength("medium");
-    else setPasswordStrength("weak");
+  const handleOtpSent = (email: string) => {
+    setCurrentEmail(email);
+    setStep("otp");
   };
 
-  const handleChildChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const {name, value} = e.target;
-    setCurrentChild((prev) => ({...prev, [name]: value}));
-    setError("");
-
-    if (name === "password") {
-      checkPasswordStrength(value);
-    }
-  };
-
-  // Handle Send OTP with loading → success → open modal
-  const requestOtp = async () => {
-    if (!currentChild.email.includes("@")) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    setError("");
-    setIsSendingOtp(true);
-    setOtpSentMessage(false);
-
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setIsSendingOtp(false);
-    setOtpSentMessage(true);
-
-    // Auto show OTP modal after "sent" message
-    setTimeout(() => {
-      setShowOtpDialog(true);
-      setOtpInput("");
-    }, 800);
-  };
-
-  // Verify OTP (mock)
-  const handleVerifyOtp = () => {
-    if (otpInput.trim().length === 6) {
-      setCurrentChild((prev) => ({...prev, isEmailVerified: true}));
-      setShowOtpDialog(false);
-      setOtpInput("");
-      setOtpSentMessage(false);
-      setError("");
-    } else {
-      setError("Please enter a valid 6-digit OTP");
-    }
-  };
-
-  const addChild = () => {
-    setError("");
-
-    if (!currentChild.isEmailVerified) {
-      setError("Please verify the email with OTP");
-      return;
-    }
-
-    if (currentChild.password !== currentChild.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (
-      !currentChild.firstName ||
-      !currentChild.lastName ||
-      !currentChild.email ||
-      !currentChild.password
-    ) {
-      setError("Please fill in all fields");
-      return;
-    }
-
-    if (passwordStrength !== "strong") {
-      setError("Password must meet all strength requirements");
-      return;
-    }
-
-    // Simulate adding child (no API call)
-    setFormData({
-      ...formData,
-      children: [
-        ...formData.children,
-        {
-          firstName: currentChild.firstName,
-          lastName: currentChild.lastName,
-          email: currentChild.email,
-          password: currentChild.password,
-          isEmailVerified: true,
-        },
-      ],
-    });
-
+  const handleVerified = () => {
+    const newChild: ChildData = {
+      firstName: currentChild.firstName,
+      lastName: currentChild.lastName,
+      email: currentChild.email,
+      password: currentChild.password,
+      isEmailVerified: true,
+    };
+    setChildren((prev) => [...prev, newChild]);
+    setStep("list");
     setCurrentChild({
       firstName: "",
       lastName: "",
       email: "",
       password: "",
       confirmPassword: "",
-      isEmailVerified: false,
     });
-    setPasswordStrength("weak");
-    setRequirements(requirementsState);
-    setAddingChild(false);
-    setError("");
   };
 
   const removeChild = (index: number) => {
-    const updatedChildren = formData.children.filter((_, i) => i !== index);
-    setFormData({
-      ...formData,
-      children: updatedChildren,
-    });
+    setChildren((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
-    <div className="mt-8 space-y-6">
-      <h3 className="text-lg font-medium text-gray-900">
-        Register Your Children
-      </h3>
-      <div className="mb-4 p-4 bg-blue-50 rounded-md">
-        <p className="text-sm text-gray-700 mb-2">
-          To add a child, click "Add Child", fill in their details, and click
-          "Add This Child". You will then verify their email via OTP in a popup
-          dialog. You can add or remove children anytime.
-        </p>
-        <p className="text-sm text-gray-700">
-          <strong>Benefits:</strong> Registering your children provides access
-          to personalized learning plans, progress tracking, teacher
-          communication, and a secure educational platform tailored to their
-          needs.
+    <div className="mt-8 space-y-8">
+      <div>
+        <h3 className="text-2xl font-bold text-gray-900">Your Children</h3>
+        <p className="text-gray-600 mt-2">
+          Add your children to give them access to personalized learning.
         </p>
       </div>
-      <form className="space-y-4">
-        <div className="border-t pt-4">
-          <h4 className="text-md font-medium text-gray-900 mb-4">
-            Children Registration
-          </h4>
-          {formData.children.length > 0 && (
-            <div className="space-y-4 mb-4">
-              {formData.children.map((child, index) => (
-                <div key={index} className="border p-4 rounded-md bg-gray-50">
-                  <div className="flex justify-between items-center">
-                    <span>
-                      {child.firstName} {child.lastName} - {child.email}{" "}
-                      (Verified)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeChild(index)}
-                      className="text-red-600 hover:text-red-800">
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
+
+      {/* Info Box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+        <p className="text-sm text-blue-800">
+          <strong>Tip:</strong> Each child gets their own secure account with
+          progress tracking, assignments, and communication with teachers.
+        </p>
+      </div>
+
+      {/* Children List */}
+      {children.length > 0 && (
+        <div className="space-y-3">
+          {children.map((child, i) => (
+            <div
+              key={i}
+              className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div>
+                <span className="font-medium">
+                  {child.firstName} {child.lastName}
+                </span>
+                <span className="text-gray-600 ml-3">— {child.email}</span>
+                <span className="text-green-600 text-sm ml-3">Verified</span>
+              </div>
+              <button
+                onClick={() => removeChild(i)}
+                className="text-red-600 hover:text-red-800 text-sm font-medium">
+                Remove
+              </button>
             </div>
-          )}
+          ))}
+        </div>
+      )}
+
+      {/* Step Renderer */}
+      {step === "list" && (
+        <button
+          onClick={() => setStep("form")}
+          className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 font-medium hover:border-[#f79771] hover:text-[#f79771] transition">
+          + Add Another Child
+        </button>
+      )}
+
+      {step === "form" && (
+        <div className="">
+          <AddChildForm
+            onNext={handleOtpSent}
+            currentChild={currentChild}
+            setCurrentChild={setCurrentChild}
+          />
           <button
-            type="button"
-            onClick={() => setAddingChild(!addingChild)}
-            className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
-            {addingChild ? "Cancel" : "Add Child"}
+            onClick={() => setStep("list")}
+            className="mt-4 text-sm text-gray-600 hover:text-gray-900 underline">
+            ← Cancel
           </button>
         </div>
+      )}
 
-        {addingChild && (
-          <div className="space-y-6">
-            {/* First Name */}
-            <div>
-              <label
-                htmlFor="firstName"
-                className="block text-sm font-medium text-gray-700">
-                First Name
-              </label>
-              <input
-                id="firstName"
-                name="firstName"
-                type="text"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
-                placeholder="Enter child's first name"
-                value={currentChild.firstName}
-                onChange={handleChildChange}
-              />
-            </div>
-
-            {/* Last Name */}
-            <div>
-              <label
-                htmlFor="lastName"
-                className="block text-sm font-medium text-gray-700">
-                Last Name
-              </label>
-              <input
-                id="lastName"
-                name="lastName"
-                type="text"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
-                placeholder="Enter child's last name"
-                value={currentChild.lastName}
-                onChange={handleChildChange}
-              />
-            </div>
-
-            {/* Email + OTP Section */}
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                disabled={currentChild.isEmailVerified}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm disabled:bg-gray-100"
-                placeholder="Enter child's email"
-                value={currentChild.email}
-                onChange={handleChildChange}
-              />
-
-              <div className="mt-3">
-                {!currentChild.isEmailVerified ? (
-                  <>
-                    {otpSentMessage ? (
-                      <p className="text-green-600 text-sm font-medium flex items-center animate-fade-in">
-                        <span className="mr-2">Sent</span> OTP sent! Check your
-                        email
-                      </p>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={requestOtp}
-                        disabled={isSendingOtp || !currentChild.email}
-                        className="text-xs bg-[#f79771] text-white py-2 px-5 rounded hover:bg-[#f58667] disabled:opacity-70 disabled:cursor-not-allowed transition flex items-center gap-2">
-                        {isSendingOtp ? (
-                          <>
-                            <svg
-                              className="animate-spin h-4 w-4"
-                              viewBox="0 0 24 24">
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                fill="none"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8z"
-                              />
-                            </svg>
-                            Sending...
-                          </>
-                        ) : (
-                          "Send OTP"
-                        )}
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-green-600 text-sm font-medium flex items-center">
-                    <span className="mr-2">Checkmark</span> Email verified
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Password Fields - Show only after email verified */}
-            {currentChild.isEmailVerified && (
-              <>
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700">
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
-                    placeholder="Create a strong password"
-                    value={currentChild.password}
-                    onChange={handleChildChange}
-                  />
-                  <div className="mt-3 space-y-1 text-xs">
-                    {(
-                      [
-                        "hasLowercase",
-                        "hasUppercase",
-                        "hasNumber",
-                        "hasSpecial",
-                      ] as const
-                    ).map((key) => {
-                      const met = requirements[key];
-                      const labels: Record<string, string> = {
-                        hasLowercase: "One lowercase letter",
-                        hasUppercase: "One uppercase letter",
-                        hasNumber: "One number",
-                        hasSpecial: "One special character (!@#$ etc.)",
-                      };
-                      return (
-                        <div
-                          key={key}
-                          className={`flex items-center ${
-                            met ? "text-green-600" : "text-gray-500"
-                          }`}>
-                          <span
-                            className={`w-2 h-2 rounded-full mr-2 ${
-                              met ? "bg-green-600" : "bg-gray-300"
-                            }`}
-                          />
-                          {labels[key]}
-                        </div>
-                      );
-                    })}
-                    <div
-                      className={`font-semibold mt-2 ${
-                        passwordStrength === "strong"
-                          ? "text-green-600"
-                          : passwordStrength === "medium"
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }`}>
-                      Password strength: {passwordStrength}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-gray-700">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
-                    placeholder="Confirm your password"
-                    value={currentChild.confirmPassword || ""}
-                    onChange={handleChildChange}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Global Error */}
-            {error && <p className="text-red-600 text-sm -mt-4">{error}</p>}
-
-            {/* Add Button */}
-            <button
-              type="button"
-              onClick={addChild}
-              disabled={
-                !currentChild.isEmailVerified ||
-                passwordStrength !== "strong" ||
-                currentChild.password !== currentChild.confirmPassword
-              }
-              className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-50 disabled:cursor-not-allowed transition">
-              Add This Child
-            </button>
-          </div>
-        )}
-      </form>
-
-      {/* OTP Modal */}
-      {showOtpDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Verify Your Email
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Enter the 6-digit code sent to{" "}
-              <strong>{currentChild.email}</strong>
-            </p>
-            <input
-              type="text"
-              maxLength={6}
-              placeholder="000000"
-              value={otpInput}
-              onChange={(e) =>
-                setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))
-              }
-              className="w-full px-4 py-3 text-center text-2xl tracking-widest border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#f79771] focus:border-[#f79771]"
-              autoFocus
-            />
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowOtpDialog(false);
-                  setOtpInput("");
-                  setError("");
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded hover:bg-gray-300">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleVerifyOtp}
-                className="px-6 py-2 text-sm font-medium text-white bg-[#f79771] rounded hover:bg-[#f58667]">
-                Verify
-              </button>
-            </div>
-          </div>
+      {step === "otp" && (
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <OtpVerificationStep
+            email={currentEmail}
+            onVerified={handleVerified}
+            onBack={() => setStep("form")}
+          />
         </div>
       )}
     </div>
