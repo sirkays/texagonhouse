@@ -1,7 +1,7 @@
 // app/api/admin/classrooms/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // ✅ Base configuration
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
@@ -19,13 +19,21 @@ export async function GET(request: Request) {
   if (!sessionToken) {
     console.warn("[Admin Classrooms] No session token found");
     return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
+      { detail: "Invalid or missing session token." },
+      { status: 401 }
     );
   }
 
   try {
-    const endpoint = `${BASE_URL}/api/classrooms/`;
+    const { searchParams } = new URL(request.url);
+    const org_id = searchParams.get("org_id");
+    const page_size = searchParams.get("page_size");
+
+    const url = new URL(`${BASE_URL}/api/classrooms/`);
+    if (org_id) url.searchParams.append("org_id", org_id);
+    if (page_size) url.searchParams.append("page_size", page_size);
+
+    const endpoint = url.toString();
     console.log("[Admin Classrooms] Fetching from:", endpoint);
 
     const res = await fetchWithRetry(endpoint, {
@@ -45,20 +53,20 @@ export async function GET(request: Request) {
       data = JSON.parse(text);
     } catch {
       console.error("[Admin Classrooms] Non-JSON response:", text);
-      data = {detail: text};
+      data = { detail: text };
     }
 
     if (!res.ok) {
       console.error("[Admin Classrooms] Backend error:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          {detail: "Unauthorized: Invalid session token or API key"},
-          {status: 403}
+          { detail: "Unauthorized: Invalid session token or API key" },
+          { status: 403 }
         );
       }
       return NextResponse.json(
-        {detail: data.detail || "Failed to fetch classrooms"},
-        {status: res.status}
+        { detail: data.detail || "Failed to fetch classrooms" },
+        { status: res.status }
       );
     }
 
@@ -66,7 +74,7 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Admin Classrooms] Error fetching classrooms:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -82,8 +90,8 @@ export async function POST(request: Request) {
   if (!sessionToken) {
     console.warn("[Admin Classrooms] No session token found");
     return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
+      { detail: "Invalid or missing session token." },
+      { status: 401 }
     );
   }
 
@@ -110,28 +118,28 @@ export async function POST(request: Request) {
       data = JSON.parse(text);
     } catch {
       console.error("[Admin Classrooms] Non-JSON response:", text);
-      data = {detail: text};
+      data = { detail: text };
     }
 
     if (!res.ok) {
       console.error("[Admin Classrooms] Backend error:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          {detail: "Unauthorized: Invalid session token or API key"},
-          {status: 403}
+          { detail: "Unauthorized: Invalid session token or API key" },
+          { status: 403 }
         );
       }
       return NextResponse.json(
-        {detail: data.detail || "Failed to create classroom"},
-        {status: res.status}
+        { detail: data.detail || "Failed to create classroom" },
+        { status: res.status }
       );
     }
 
     console.log("[Admin Classrooms] Successfully created classroom");
-    return NextResponse.json(data, {status: 201});
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error("[Admin Classrooms] Error creating classroom:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
 

@@ -1,29 +1,18 @@
-// components/ParentSignupForm.tsx
 "use client";
 
 import {useState} from "react";
 
-interface ParentSignupFormProps {
-  onComplete: () => void;
-}
-
-interface ParentSignupData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-export default function ParentSignupForm({onComplete}: ParentSignupFormProps) {
-  const [formData, setFormData] = useState<ParentSignupData>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [error, setError] = useState<string>("");
+// Step 1: Main Signup Form (until OTP is sent)
+function ParentSignupForm({
+  onOtpSent,
+  formData,
+  setFormData,
+}: {
+  onOtpSent: (email: string) => void;
+  formData: any;
+  setFormData: any;
+}) {
+  const [error, setError] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<
     "weak" | "medium" | "strong"
   >("weak");
@@ -33,268 +22,411 @@ export default function ParentSignupForm({onComplete}: ParentSignupFormProps) {
     hasNumber: false,
     hasSpecial: false,
   });
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [tempOtp, setTempOtp] = useState<string>("");
-  const [otpInput, setOtpInput] = useState<string>("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
 
   const checkPasswordStrength = (password: string) => {
-    const hasLowercase = /[a-z]/.test(password);
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const checks = {
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+    setRequirements(checks);
 
-    setRequirements({hasLowercase, hasUppercase, hasNumber, hasSpecial});
+    const met = Object.values(checks).filter(Boolean).length;
+    if (met >= 4) setPasswordStrength("strong");
+    else if (met >= 3) setPasswordStrength("medium");
+    else setPasswordStrength("weak");
+  };
 
-    const count =
-      (hasLowercase ? 1 : 0) +
-      (hasUppercase ? 1 : 0) +
-      (hasNumber ? 1 : 0) +
-      (hasSpecial ? 1 : 0);
-    if (count >= 3) {
-      setPasswordStrength("strong");
-    } else if (count >= 2) {
-      setPasswordStrength("medium");
-    } else {
-      setPasswordStrength("weak");
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const {name, value} = e.target;
+    setFormData((prev: any) => ({...prev, [name]: value}));
+    setError("");
+
+    if (name === "password") {
+      checkPasswordStrength(value);
     }
   };
 
-  const sendOtp = (email: string) => {
-    if (!email) return;
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setTempOtp(otp);
-    setOtpInput("");
-    // Simulate sending OTP
-    alert(`OTP sent to ${email}: ${otp}`); // In real app, send via API
-  };
-
-  const verifyOtp = () => {
-    if (otpInput === tempOtp) {
-      setEmailVerified(true);
-      alert("Email verified successfully!");
-    } else {
-      alert("Invalid OTP");
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailVerified) {
-      setError("Please verify your email");
+    setError("");
+
+    if (!formData.email.includes("@")) {
+      setError("Please enter a valid email address");
       return;
     }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    if (
-      !formData.email ||
-      !formData.password ||
-      !formData.firstName ||
-      !formData.lastName
-    ) {
-      setError("Please fill in all fields");
-      return;
-    }
-    if (passwordStrength !== "strong") {
-      setError(
-        "Password must include at least one lowercase letter, one uppercase letter, one number, and one special character"
-      );
-      return;
-    }
-    // Simulate API call
-    console.log("Parent signup data:", formData);
-    onComplete();
-  };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-    setError("");
-    if (e.target.name === "password") {
-      checkPasswordStrength(e.target.value);
+    if (passwordStrength !== "strong") {
+      setError("Password must be strong (all requirements met)");
+      return;
     }
+
+    const required = ["firstName", "lastName", "email", "password", "phone"];
+    for (const field of required) {
+      if (!formData[field]) {
+        setError("Please fill in all required fields");
+        return;
+      }
+    }
+
+    setIsSendingOtp(true);
+    // Simulate sending OTP
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSendingOtp(false);
+
+    onOtpSent(formData.email); // Move to OTP screen
   };
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+    <form className="mt-8 space-y-6" onSubmit={handleSendOtp}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            First Name
+          </label>
+          <input
+            name="firstName"
+            type="text"
+            required
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+            placeholder="John"
+            value={formData.firstName}
+            onChange={handleChange}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Last Name
+          </label>
+          <input
+            name="lastName"
+            type="text"
+            required
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+            placeholder="Doe"
+            value={formData.lastName}
+            onChange={handleChange}
+          />
+        </div>
+      </div>
+
       <div>
-        <label
-          htmlFor="firstName"
-          className="block text-sm font-medium text-gray-700">
-          First Name
-        </label>
+        <label className="block text-sm font-medium text-gray-700">Phone</label>
         <input
-          id="firstName"
-          name="firstName"
-          type="text"
+          name="phone"
+          type="tel"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
-          placeholder="Enter your first name"
-          value={formData.firstName}
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+          placeholder="+2348000000000"
+          value={formData.phone}
           onChange={handleChange}
         />
       </div>
+
       <div>
-        <label
-          htmlFor="lastName"
-          className="block text-sm font-medium text-gray-700">
-          Last Name
+        <label className="block text-sm font-medium text-gray-700">
+          Address
         </label>
         <input
-          id="lastName"
-          name="lastName"
+          name="address"
           type="text"
-          required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
-          placeholder="Enter your last name"
-          value={formData.lastName}
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+          placeholder="123 Main St, Lagos"
+          value={formData.address}
           onChange={handleChange}
         />
       </div>
+
       <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-gray-700">
-          Email address
+        <label className="block text-sm font-medium text-gray-700">
+          Email Address
         </label>
         <input
-          id="email"
           name="email"
           type="email"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
-          placeholder="Enter your email"
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+          placeholder="you@example.com"
           value={formData.email}
           onChange={handleChange}
         />
-        <div className="mt-2 space-y-2">
-          <button
-            type="button"
-            onClick={() => sendOtp(formData.email)}
-            disabled={!formData.email || emailVerified}
-            className="text-xs bg-[#f79771] text-white py-1 px-3 rounded disabled:opacity-50">
-            {emailVerified ? "Verified" : "Send OTP"}
-          </button>
-          {tempOtp && !emailVerified && (
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                placeholder="Enter OTP"
-                className="w-20 px-2 py-1 border rounded"
-                value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={verifyOtp}
-                className="text-xs bg-green-600 text-white py-1 px-3 rounded">
-                Verify
-              </button>
-            </div>
-          )}
-          {emailVerified && (
-            <p className="text-green-600 text-xs mt-1">Email verified</p>
-          )}
-        </div>
       </div>
+
       <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-700">
           Password
         </label>
         <input
-          id="password"
           name="password"
           type="password"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
-          placeholder="Enter password"
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+          placeholder="Create strong password"
           value={formData.password}
           onChange={handleChange}
         />
-        <div className="mt-2 space-y-1 text-xs">
-          <div
-            className={`flex items-center ${
-              requirements.hasLowercase ? "text-green-600" : "text-gray-500"
-            }`}>
-            <span
-              className={`w-2 h-2 rounded-full mr-2 ${
-                requirements.hasLowercase ? "bg-green-600" : "bg-gray-300"
-              }`}></span>
-            One lowercase letter
-          </div>
-          <div
-            className={`flex items-center ${
-              requirements.hasUppercase ? "text-green-600" : "text-gray-500"
-            }`}>
-            <span
-              className={`w-2 h-2 rounded-full mr-2 ${
-                requirements.hasUppercase ? "bg-green-600" : "bg-gray-300"
-              }`}></span>
-            One uppercase letter
-          </div>
-          <div
-            className={`flex items-center ${
-              requirements.hasNumber ? "text-green-600" : "text-gray-500"
-            }`}>
-            <span
-              className={`w-2 h-2 rounded-full mr-2 ${
-                requirements.hasNumber ? "bg-green-600" : "bg-gray-300"
-              }`}></span>
-            One number
-          </div>
-          <div
-            className={`flex items-center ${
-              requirements.hasSpecial ? "text-green-600" : "text-gray-500"
-            }`}>
-            <span
-              className={`w-2 h-2 rounded-full mr-2 ${
-                requirements.hasSpecial ? "bg-green-600" : "bg-gray-300"
-              }`}></span>
-            One special character
-          </div>
-          <div
-            className={`font-medium ${
-              passwordStrength === "strong"
-                ? "text-green-600"
-                : passwordStrength === "medium"
-                ? "text-yellow-600"
-                : "text-red-600"
-            }`}>
-            Password strength: {passwordStrength}
-          </div>
-        </div>
       </div>
+
       <div>
-        <label
-          htmlFor="confirmPassword"
-          className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-700">
           Confirm Password
         </label>
         <input
-          id="confirmPassword"
           name="confirmPassword"
           type="password"
           required
-          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] focus:z-10 sm:text-sm"
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
           placeholder="Confirm password"
           value={formData.confirmPassword}
           onChange={handleChange}
         />
       </div>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      <div>
-        <button
-          type="submit"
-          disabled={!emailVerified}
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#f79771] hover:bg-[#f79771] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f79771] disabled:opacity-50">
-          Sign up as Parent
-        </button>
+
+      {/* Password Requirements */}
+      <div className="bg-gray-50 p-4 rounded-lg text-xs space-y-2">
+        <p className="font-medium text-gray-700">Password must contain:</p>
+        {(
+          ["hasLowercase", "hasUppercase", "hasNumber", "hasSpecial"] as const
+        ).map((key) => (
+          <div
+            key={key}
+            className={`flex items-center ${
+              requirements[key] ? "text-green-600" : "text-gray-500"
+            }`}>
+            <span
+              className={`w-2 h-2 rounded-full mr-2 ${
+                requirements[key] ? "bg-green-600" : "bg-gray-300"
+              }`}
+            />
+            {key === "hasLowercase" && "One lowercase letter"}
+            {key === "hasUppercase" && "One uppercase letter"}
+            {key === "hasNumber" && "One number"}
+            {key === "hasSpecial" && "One special character (!@#$ etc.)"}
+          </div>
+        ))}
+        <p
+          className={`font-semibold mt-2 ${
+            passwordStrength === "strong"
+              ? "text-green-600"
+              : passwordStrength === "medium"
+              ? "text-yellow-600"
+              : "text-red-600"
+          }`}>
+          Strength: {passwordStrength}
+        </p>
       </div>
+
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={isSendingOtp}
+        className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition">
+        {isSendingOtp ? (
+          <>
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+                fill="none"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            Sending OTP...
+          </>
+        ) : (
+          "Send OTP & Continue"
+        )}
+      </button>
     </form>
+  );
+}
+
+// Step 2: OTP Verification Screen
+function OtpVerificationStep({
+  email,
+  onVerified,
+  onBack,
+}: {
+  email: string;
+  onVerified: () => void;
+  onBack: () => void;
+}) {
+  const [otp, setOtp] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.trim().length !== 6 || !/^\d+$/.test(otp)) {
+      setError("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    setIsVerifying(true);
+    setError("");
+
+    // Mock verification
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    // Success
+    onVerified();
+    setIsVerifying(false);
+  };
+
+  return (
+    <div className="max-w-md mx-auto text-center">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900">Check Your Email</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          We've sent a 6-digit verification code to
+        </p>
+        <p className="font-semibold text-[#f79771]">{email}</p>
+      </div>
+
+      <form onSubmit={handleVerify} className="space-y-6">
+        <div>
+          <input
+            type="text"
+            maxLength={6}
+            value={otp}
+            onChange={(e) =>
+              setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            placeholder="000000"
+            className="w-full px-4 py-4 text-center text-3xl font-mono tracking-widest border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#f79771] focus:ring-4 focus:ring-[#f79771]/20"
+            autoFocus
+          />
+        </div>
+
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+
+        <div className="flex flex-col gap-3">
+          <button
+            type="submit"
+            disabled={isVerifying || otp.length !== 6}
+            className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2">
+            {isVerifying ? (
+              <>
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
+                </svg>
+                Verifying...
+              </>
+            ) : (
+              "Verify & Complete Signup"
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-sm text-gray-600 hover:text-gray-800 underline">
+            ← Back to edit details
+          </button>
+        </div>
+      </form>
+
+      <p className="mt-6 text-xs text-gray-500">
+        Didn't receive the code?{" "}
+        <button className="text-[#f79771] font-medium">Resend OTP</button>
+      </p>
+    </div>
+  );
+}
+
+// Main Parent Component with Step Control
+export default function ParentSignupFlow({
+  onComplete,
+}: {
+  onComplete: () => void;
+}) {
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [emailForOtp, setEmailForOtp] = useState("");
+
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    phone: "",
+    address: "",
+  });
+
+  const handleOtpSent = (email: string) => {
+    setEmailForOtp(email);
+    setStep("otp");
+  };
+
+  const handleVerified = () => {
+    console.log("Parent signup completed:", {
+      ...formData,
+      confirmPassword: undefined,
+    });
+    onComplete();
+  };
+
+  const handleBack = () => {
+    setStep("form");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center py-12">
+      <div className="w-full max-w-2xl">
+        {step === "form" ? (
+          <div>
+            <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
+              Create Parent Account
+            </h1>
+            <p className="text-center text-gray-600 mb-8">
+              Fill in your details to get started
+            </p>
+            <ParentSignupForm
+              onOtpSent={handleOtpSent}
+              formData={formData}
+              setFormData={setFormData}
+            />
+          </div>
+        ) : (
+          <div>
+            <OtpVerificationStep
+              email={emailForOtp}
+              onVerified={handleVerified}
+              onBack={handleBack}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

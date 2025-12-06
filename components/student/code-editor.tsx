@@ -113,6 +113,23 @@ type Comment = {
 };
 
 export function CodeEditor() {
+  const languages = {
+    javascript: {
+      name: "JavaScript",
+      judgeId: 63,
+      template: `console.log("Hello, World!");`,
+    },
+    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
+    java: {
+      name: "Java",
+      judgeId: 62,
+      template: `System.out.println("Hello");`,
+    },
+    cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
+    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
+    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
+  } as const;
+
   const { data: session, status } = useSession();
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [htmlCode, setHtmlCode] = useState("<h1>Hello</h1>");
@@ -128,11 +145,19 @@ export function CodeEditor() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileLoading, setFileLoading] = useState<number | null>(null);
   const [syntaxError, setSyntaxError] = useState<string | null>(null);
+  // [ADD THIS NEW STATE]
+  const [codeBuffers, setCodeBuffers] = useState<Record<string, string>>({
+    javascript: languages.javascript.template,
+    python: languages.python.template,
+    java: languages.java.template,
+    cpp: languages.cpp.template,
+  });
   const [isImagePreview, setIsImagePreview] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [activeSnippetId, setActiveSnippetId] = useState<number | null>(null);
 
   // New File Modal states
   const [showNewFileModal, setShowNewFileModal] = useState(false);
@@ -178,21 +203,22 @@ export function CodeEditor() {
   };
 
   const fetchLessons = async () => {
-  try {
-    const res = await fetch("/api/student/lessons");
-    if (!res.ok) throw new Error("Failed to fetch lessons");
-    const data = await res.json();
-    const lessonList = Array.isArray(data) ? data : data.results || [];
-    setLessons(
-      lessonList.map((l: any) => ({
-        id: String(l.id),
-        title: l.title || `Lesson ${l.id}`,
-      }))
-    );
-  } catch (err) {
-    console.error("Failed to load lessons:", err);
-  }
-};
+    try {
+      const res = await fetch("/api/student/lessons");
+      if (!res.ok) throw new Error("Failed to fetch lessons");
+      const data = await res.json();
+      const lessonList = Array.isArray(data) ? data : data.results || [];
+      setLessons(
+        lessonList.map((l: any) => ({
+          id: String(l.id),
+          // Check multiple common property names before falling back to ID
+          title: l.title || l.name || l.topic || l.label || `Lesson ${l.id}`,
+        }))
+      );
+    } catch (err) {
+      console.error("Failed to load lessons:", err);
+    }
+  };
 
   const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
@@ -200,7 +226,8 @@ export function CodeEditor() {
 
     setIsSaving(true);
     try {
-      const body = {
+      // [UPDATED] Construct body with ID if we are editing an existing snippet
+      const body: any = {
         title: saveFileName.trim(),
         language: selectedLanguage,
         code_text:
@@ -211,6 +238,11 @@ export function CodeEditor() {
             : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
+
+      // If we have an active ID, add it to the body to trigger an UPDATE on the backend
+      if (activeSnippetId) {
+        body.id = activeSnippetId;
+      }
 
       const res = await fetch("/api/code-ide/snippets", {
         method: "POST",
@@ -226,11 +258,24 @@ export function CodeEditor() {
       }
 
       const savedSnippet: Snippet = await res.json();
-      setMySnippets((prev) => [savedSnippet, ...prev]);
+
+      // [UPDATED] Update the list based on whether it was a Create or Update
+      if (activeSnippetId) {
+        // We updated an existing one
+        setMySnippets((prev) =>
+          prev.map((s) => (s.id === savedSnippet.id ? savedSnippet : s))
+        );
+        alert("Snippet updated successfully!");
+      } else {
+        // We created a new one
+        setMySnippets((prev) => [savedSnippet, ...prev]);
+        setActiveSnippetId(savedSnippet.id); // Set as active so next save is an update
+        alert("Snippet saved successfully!");
+      }
+
       setShowSaveModal(false);
-      setSaveFileName("");
-      setPrepopulatedSaveData(null); // Clear prepopulated data
-      alert("Snippet saved successfully!");
+      // We do NOT clear saveFileName here anymore, so the user stays in "edit mode"
+      setPrepopulatedSaveData(null);
     } catch (error) {
       alert(`Save failed: ${(error as Error).message}`);
     } finally {
@@ -525,23 +570,6 @@ export function CodeEditor() {
     return res.json() as Promise<Comment>;
   };
 
-  const languages = {
-    javascript: {
-      name: "JavaScript",
-      judgeId: 63,
-      template: `console.log("Hello, World!");`,
-    },
-    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
-    java: {
-      name: "Java",
-      judgeId: 62,
-      template: `System.out.println("Hello");`,
-    },
-    cpp: { name: "C++", judgeId: 54, template: `std::cout << "Hello";` },
-    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
-    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
-  } as const;
-
   const handleLogout = async () => {
     await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
     document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
@@ -557,28 +585,66 @@ export function CodeEditor() {
     } else {
       setError(null);
       setLoading(false);
-      setCode(languages[selectedLanguage].template);
-      if (selectedLanguage === "html") setHtmlCode(languages.html.template);
-      if (selectedLanguage === "css") setCssCode(languages.css.template);
-    }
-  }, [session, status, selectedLanguage]);
 
-useEffect(() => {
-  if (status !== "authenticated") return;
-  Promise.all([
-    fetchLessons(),
-    fetchSnippets().then((snips) => {
-      setMySnippets(snips);
-    }),
-    fetchSubmissions()
-      .then(setMySubmissions)
-      .catch(() => {}),
-    fetch("/api/code-ide/uploads")
-      .then((res) => (res.ok ? res.json() : []))
-      .then(setUploadedFiles)
-      .catch(() => setUploadedFiles([])),
-  ]).catch(() => {});
-}, [status]);
+      // Only set the default template if the editor is completely empty (Initial Load)
+      // This prevents overwriting code when loadSnippet() or loadFile() is called
+      if (
+        !code &&
+        !htmlCode.includes("Hello") &&
+        !cssCode.includes("color: red")
+      ) {
+        setCode(languages[selectedLanguage].template);
+        if (selectedLanguage === "html") setHtmlCode(languages.html.template);
+        if (selectedLanguage === "css") setCssCode(languages.css.template);
+      }
+    }
+  }, [session, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    Promise.all([
+      fetchLessons(),
+      fetchSnippets().then((snips) => {
+        setMySnippets(snips);
+      }),
+      fetchSubmissions()
+        .then(setMySubmissions)
+        .catch(() => {}),
+      fetch("/api/code-ide/uploads")
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setUploadedFiles)
+        .catch(() => setUploadedFiles([])),
+    ]).catch(() => {});
+  }, [status]);
+
+  // Auto-save current work to localStorage
+  useEffect(() => {
+    if (!session || isImagePreview) return;
+
+    const draft = {
+      language: selectedLanguage,
+      code:
+        selectedLanguage === "html"
+          ? htmlCode
+          : selectedLanguage === "css"
+          ? cssCode
+          : code,
+      htmlCode: selectedLanguage === "html" ? code : htmlCode,
+      cssCode: selectedLanguage === "css" ? code : cssCode,
+      lesson: selectedLesson,
+      timestamp: new Date().toISOString(),
+    };
+
+    localStorage.setItem("code-ide-draft", JSON.stringify(draft));
+  }, [
+    code,
+    htmlCode,
+    cssCode,
+    selectedLanguage,
+    selectedLesson,
+    session,
+    isImagePreview,
+  ]);
 
   const copyCode = () => {
     const text =
@@ -621,6 +687,8 @@ useEffect(() => {
     setCode(languages[selectedLanguage].template);
     if (selectedLanguage === "html") setHtmlCode(languages.html.template);
     if (selectedLanguage === "css") setCssCode(languages.css.template);
+    setActiveSnippetId(null);
+    setSaveFileName("");
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
@@ -632,10 +700,28 @@ useEffect(() => {
 
   const handleLanguageChange = (lang: string) => {
     const languageKey = lang as keyof typeof languages;
+
+    if (selectedLanguage !== "html" && selectedLanguage !== "css") {
+      setCodeBuffers((prev) => ({
+        ...prev,
+        [selectedLanguage]: code,
+      }));
+    }
+
     setSelectedLanguage(languageKey);
-    setCode(languages[languageKey].template);
-    if (languageKey === "html") setHtmlCode(languages.html.template);
-    if (languageKey === "css") setCssCode(languages.css.template);
+
+    // 2. Load the code for the NEW language
+    if (languageKey === "html") {
+      // Do nothing: HTML has its own dedicated state (htmlCode) which persists automatically
+    } else if (languageKey === "css") {
+      // Do nothing: CSS has its own dedicated state (cssCode) which persists automatically
+    } else {
+      // For JS/Python/Java/CPP, load from the buffer
+      // If the buffer has code, use it. Otherwise, use the default template.
+      setCode(codeBuffers[languageKey] || languages[languageKey].template);
+    }
+
+    // 3. Reset UI states (Outputs, errors, etc)
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
@@ -725,6 +811,13 @@ useEffect(() => {
   const loadSnippet = async (snippet: Snippet) => {
     try {
       const detailedSnippet = await fetchSnippetDetail(snippet.id);
+
+      // ... existing reset logic ...
+      setHtmlCode(languages.html.template);
+      setCssCode(languages.css.template);
+      setCode(languages.javascript.template);
+
+      // ... existing loading logic ...
       if (detailedSnippet.language === "html") {
         setHtmlCode(detailedSnippet.code_text);
       } else if (detailedSnippet.language === "css") {
@@ -732,26 +825,20 @@ useEffect(() => {
       } else {
         setCode(detailedSnippet.code_text);
       }
+
+      // [ADD THIS] Store the ID and Title
+      setActiveSnippetId(detailedSnippet.id);
+      setSaveFileName(detailedSnippet.title); // Pre-fill the save name
+
       setSelectedLanguage(detailedSnippet.language);
       if (detailedSnippet.lesson)
         setSelectedLesson(String(detailedSnippet.lesson));
+
       setActiveTab("editor");
       setSyntaxError(null);
       setIsImagePreview(false);
-      setImagePreviewUrl("");
-      setHtmlPreview(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>${cssCode}</style>
-          </head>
-          <body>
-            ${htmlCode}
-          </body>
-        </html>
-      `);
-    } catch {
-      alert("Failed to load snippet details");
+    } catch (err) {
+      alert("Failed to load snippet");
     }
   };
 
@@ -919,6 +1006,8 @@ useEffect(() => {
   // Handle New File Modal Create - Close modal, go to editor, then open save modal
   const handleNewFileCreate = () => {
     if (!newFileTitle.trim()) return alert("Title required");
+
+    setActiveSnippetId(null);
 
     // Close the new file modal immediately
     setShowNewFileModal(false);
@@ -1847,7 +1936,7 @@ function SubmissionTab({
   lessons: { id: string; title: string }[];
   selectedLesson: string;
   setSelectedLesson: (v: string) => void;
-  onSubmit: () => void;
+ onSubmit: () => Promise<void>;
   role?: string;
   submissions: Submission[];
   onGrade: (id: number, upd: any) => Promise<void>;
@@ -1859,9 +1948,22 @@ function SubmissionTab({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmitClick = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const itemsPerPage = 10;
   const filteredSubmissions = submissions.filter((s) =>
-    `${s.id} ${s.status} ${s.language}`.toLowerCase().includes(searchQuery.toLowerCase())
+    `${s.id} ${s.status} ${s.language}`
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
   );
   const paginatedSubmissions = filteredSubmissions.slice(
     (currentPage - 1) * itemsPerPage,
@@ -1910,8 +2012,13 @@ function SubmissionTab({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={onSubmit} disabled={!selectedLesson}>
-          Submit Code
+       {/* [UPDATED BUTTON] Shows spinner and disables while submitting */}
+        <Button 
+          onClick={handleSubmitClick} 
+          disabled={!selectedLesson || isSubmitting}
+        >
+          {isSubmitting && <Spinner size="sm" className="mr-2" />}
+          {isSubmitting ? "Submitting..." : "Submit Code"}
         </Button>
         {submissions.length > 0 && (
           <div className="space-y-4">
@@ -1949,7 +2056,8 @@ function SubmissionTab({
                 Previous
               </Button>
               <span className="text-sm">
-                Page {currentPage} of {totalPages} ({filteredSubmissions.length} total)
+                Page {currentPage} of {totalPages} ({filteredSubmissions.length}{" "}
+                total)
               </span>
               <Button
                 variant="outline"
@@ -1964,7 +2072,9 @@ function SubmissionTab({
         {viewing && (
           <Card className="border rounded-md p-3 space-y-3">
             <CardHeader className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Submission #{viewing.id}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Submission #{viewing.id}
+              </CardTitle>
               <Button
                 size="sm"
                 variant="ghost"
@@ -1979,22 +2089,30 @@ function SubmissionTab({
                   <span className="font-medium">Status:</span> {viewing.status}
                 </div>
                 <div>
-                  <span className="font-medium">Feedback:</span> {viewing.feedback ? viewing.feedback : "N/A"}
+                  <span className="font-medium">Feedback:</span>{" "}
+                  {viewing.feedback ? viewing.feedback : "N/A"}
                 </div>
                 <div>
-                  <span className="font-medium">Language:</span> {viewing.language}
+                  <span className="font-medium">Language:</span>{" "}
+                  {viewing.language}
                 </div>
                 <div>
-                  <span className="font-medium">Score:</span> {viewing.score ?? "Not graded"}
+                  <span className="font-medium">Score:</span>{" "}
+                  {viewing.score ?? "Not graded"}
                 </div>
                 <div>
-                  <span className="font-medium">Graded By:</span> {viewing.graded_by ? `User ${viewing.graded_by}` : "N/A"}
+                  <span className="font-medium">Graded By:</span>{" "}
+                  {viewing.graded_by ? `User ${viewing.graded_by}` : "N/A"}
                 </div>
                 <div>
-                  <span className="font-medium">Graded At:</span> {viewing.graded_at ? new Date(viewing.graded_at).toLocaleString() : "N/A"}
+                  <span className="font-medium">Graded At:</span>{" "}
+                  {viewing.graded_at
+                    ? new Date(viewing.graded_at).toLocaleString()
+                    : "N/A"}
                 </div>
                 <div>
-                  <span className="font-medium">Created:</span> {new Date(viewing.created_at).toLocaleString()}
+                  <span className="font-medium">Created:</span>{" "}
+                  {new Date(viewing.created_at).toLocaleString()}
                 </div>
               </div>
               <div>
@@ -2006,7 +2124,9 @@ function SubmissionTab({
               {viewing.feedback && (
                 <div>
                   <span className="font-medium block mb-1">Feedback:</span>
-                  <p className="text-xs bg-muted p-2 rounded">{viewing.feedback}</p>
+                  <p className="text-xs bg-muted p-2 rounded">
+                    {viewing.feedback}
+                  </p>
                 </div>
               )}
               {viewing.correction_code && (
@@ -2056,8 +2176,8 @@ function SubmissionTab({
                 </p>
                 {viewing.comments.map((c) => (
                   <div key={c.id} className="text-xs bg-muted p-2 rounded">
-                    <span className="font-semibold">{c.author_name}</span> ({c.author_role}) –{" "}
-                    {c.message}
+                    <span className="font-semibold">{c.author_name}</span> (
+                    {c.author_role}) – {c.message}
                     <div className="text-muted-foreground">
                       {new Date(c.created_at).toLocaleString()}
                     </div>

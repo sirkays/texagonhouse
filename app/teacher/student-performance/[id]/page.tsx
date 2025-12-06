@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableHeader,
@@ -88,10 +87,9 @@ export default function StudentPerformancePage() {
       }
       setPerformanceDetail(data);
 
-      // Fetch the test using testId from the detail response
       const testRes = await fetch(
         `/api/teacher/assessments/tests/${data.test.testId}`,
-      ); // assumes backend provides testId
+      );
       const testData = await testRes.json();
       setTest(testData);
       setIsLoading(false);
@@ -101,70 +99,113 @@ export default function StudentPerformancePage() {
   }, [params.id, router]);
 
   const exportToCSV = async (detail: StudentPerformanceDetail) => {
-    if (!test) return;
-
     setIsSaving(true);
     try {
-      // ✅ load file-saver only in the browser, on demand
-      const { saveAs } = await import("file-saver");
+      let csvContent = "";
 
-      let csvContent =
-        "Student Name,Student ID,Email,Class,Test Title,Date,Duration,Total Questions,Passing Score,Total Score,Percentage,Status\n";
-      csvContent += `"${detail.student.studentName}","${
-        detail.student.studentId
-      }","${detail.student.email}","${detail.student.classGrade}","${
-        detail.test.testTitle
-      }","${
-        test.start_at ? new Date(test.start_at).toLocaleDateString() : "N/A"
-      }","${test.duration} minutes",${test.questionsCount},${
-        (detail.test.totalMarks || 0) * 0.7
-      },${detail.test.score},${detail.test.percentage},"${
-        detail.test.status
-      }"\n\n`;
+      csvContent += "=== STUDENT INFORMATION ===\n";
+      csvContent += "Field,Value\n";
+      csvContent += `"Student Name","${detail.student.studentName}"\n`;
+      csvContent += `"Student ID","${detail.student.studentId}"\n`;
+      csvContent += `"Email","${detail.student.email}"\n`;
+      csvContent += `"Class","${detail.student.classGrade}"\n`;
+      csvContent += "\n";
+
+      csvContent += "=== TEST SUMMARY ===\n";
+      csvContent += "Field,Value\n";
+      csvContent += `"Test Title","${detail.test.testTitle}"\n`;
+      csvContent += `"Score","${detail.test.score} out of ${detail.test.totalMarks}"\n`;
+      csvContent += `"Percentage","${detail.test.percentage}%"\n`;
+      csvContent += `"Status","${detail.test.status}"\n`;
+      csvContent += `"Completion Time","${detail.test.completionTime} minutes"\n`;
+      csvContent += `"Submitted At","${new Date(detail.test.submittedAt).toLocaleString()}"\n`;
+      csvContent += `"Total Questions","${detail.answers.length}"\n`;
+      csvContent += "\n";
+
+      csvContent += "=== ANSWER DETAILS ===\n";
       csvContent += "Question,Selected Option,Correct Option,Status\n";
       detail.answers.forEach((answer) => {
-        csvContent += `"${answer.question.replace(/"/g, '""')}","${
-          answer.selected
-        }","${answer.correct}","${answer.status}"\n`;
+        const questionText = answer.question.replace(/"/g, '""').replace(/\n/g, ' ');
+        csvContent += `"${questionText}","${answer.selected}","${answer.correct}","${answer.status}"\n`;
       });
 
-      const blob = new Blob([csvContent], {
+      const blob = new Blob(["\ufeff" + csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      saveAs(
-        blob,
-        `${detail.student.studentName}_${detail.test.testTitle}_performance.csv`,
-      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${detail.student.studentName}_${detail.test.testTitle}_performance.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
     } finally {
       setIsSaving(false);
     }
   };
 
   const exportToPDF = async (detail: StudentPerformanceDetail) => {
-    if (!test) return;
-
     const element = document.getElementById("studentPerformanceDetails");
     if (!element) return;
 
     setIsSaving(true);
     try {
-      // ✅ load html2pdf only in the browser, on demand
       const html2pdfModule = await import("html2pdf.js");
       const html2pdf = html2pdfModule.default || html2pdfModule;
 
       const opt = {
-        margin: 1,
+        margin: [0.3, 0.3, 0.3, 0.3],
         filename: `${detail.student.studentName}_${detail.test.testTitle}_performance.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+        image: { type: "jpeg" as "jpeg" | "png" | "webp", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 800,
+        },
+        jsPDF: {
+          unit: "in" as const,
+          format: "a4" as const,
+          orientation: "portrait" as const,
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
       };
 
-      html2pdf().from(element).set(opt).save();
+      await html2pdf().from(element).set(opt).save();
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
     } finally {
       setIsSaving(false);
     }
   };
+
+  // PDF-friendly badge style
+  const getBadgeStyle = (isSuccess: boolean) => ({
+    display: 'inline-block',
+    padding: '4px 12px',
+    borderRadius: '9999px',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: 'white',
+    backgroundColor: isSuccess ? '#22c55e' : '#ef4444',
+    overflow: 'visible',
+    whiteSpace: 'nowrap' as const,
+  });
+
+  const getStatusBadgeStyle = (isPassed: boolean) => ({
+    display: 'inline-block',
+    padding: '4px 12px',
+    borderRadius: '9999px',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: 'white',
+    backgroundColor: isPassed ? '#EF7B55' : '#ef4444',
+    overflow: 'visible',
+    whiteSpace: 'nowrap' as const,
+  });
 
   if (isLoading) {
     return (
@@ -179,7 +220,7 @@ export default function StudentPerformancePage() {
       <div className="min-h-screen p-6">
         <Button
           variant="outline"
-          onClick={() => router.push("/teacher/student-performance")}
+          onClick={() => router.push("/teacher/create-cbt?tab=performance")}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -192,10 +233,10 @@ export default function StudentPerformancePage() {
 
   return (
     <div className="min-h-screen p-6 bg-gray-50">
-      <div className="mx-auto">
+      <div className="mx-auto max-w-4xl">
         <Button
           variant="outline"
-          onClick={() => router.push("/teacher/student-performance")}
+          onClick={() => router.push("/teacher/create-cbt?tab=performance")}
           className="mb-6"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -205,7 +246,7 @@ export default function StudentPerformancePage() {
         <p className="text-muted-foreground mb-6">
           View detailed performance for {performanceDetail.student.studentName}
         </p>
-        <div id="studentPerformanceDetails" className="space-y-6">
+        <div id="studentPerformanceDetails" className="space-y-6 bg-white p-6 rounded-lg" style={{ maxWidth: '800px' }}>
           <Card>
             <CardHeader>
               <CardTitle>Student Information</CardTitle>
@@ -213,30 +254,23 @@ export default function StudentPerformancePage() {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Student Name</p>
-                <p className="text-lg font-medium">
-                  {performanceDetail.student.studentName}
-                </p>
+                <p className="text-lg font-medium">{performanceDetail.student.studentName}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Student ID</p>
-                <p className="text-lg font-medium">
-                  {performanceDetail.student.studentId}
-                </p>
+                <p className="text-lg font-medium">{performanceDetail.student.studentId}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="text-lg font-medium">
-                  {performanceDetail.student.email}
-                </p>
+                <p className="text-lg font-medium">{performanceDetail.student.email}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Class</p>
-                <p className="text-lg font-medium">
-                  {performanceDetail.student.classGrade}
-                </p>
+                <p className="text-lg font-medium">{performanceDetail.student.classGrade}</p>
               </div>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Test Summary</CardTitle>
@@ -244,54 +278,31 @@ export default function StudentPerformancePage() {
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Test Title</p>
-                <p className="text-lg font-medium">
-                  {performanceDetail.test.testTitle}
-                </p>
+                <p className="text-lg font-medium">{performanceDetail.test.testTitle}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Score</p>
                 <p className="text-lg font-medium">
-                  {performanceDetail.test.score}/
-                  {performanceDetail.test.totalMarks} (
-                  {performanceDetail.test.percentage}
-                  %)
+                  {performanceDetail.test.score}/{performanceDetail.test.totalMarks} ({performanceDetail.test.percentage}%)
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <Badge
-                  variant={
-                    performanceDetail.test.status === "Passed"
-                      ? "default"
-                      : "destructive"
-                  }
-                  className={
-                    performanceDetail.test.status === "Passed"
-                      ? "bg-[#EF7B55]"
-                      : "bg-red-500"
-                  }
-                >
+                <span style={getStatusBadgeStyle(performanceDetail.test.status === "Passed")}>
                   {performanceDetail.test.status}
-                </Badge>
+                </span>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
-                  Completion Time
-                </p>
-                <p className="text-lg font-medium">
-                  {performanceDetail.test.completionTime} minutes
-                </p>
+                <p className="text-sm text-muted-foreground">Completion Time</p>
+                <p className="text-lg font-medium">{performanceDetail.test.completionTime} minutes</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Submitted At</p>
-                <p className="text-lg font-medium">
-                  {new Date(
-                    performanceDetail.test.submittedAt,
-                  ).toLocaleString()}
-                </p>
+                <p className="text-lg font-medium">{new Date(performanceDetail.test.submittedAt).toLocaleString()}</p>
               </div>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Answer Details</CardTitle>
@@ -313,20 +324,9 @@ export default function StudentPerformancePage() {
                       <TableCell>{answer.selected}</TableCell>
                       <TableCell>{answer.correct}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            answer.status === "Correct"
-                              ? "default"
-                              : "destructive"
-                          }
-                          className={
-                            answer.status === "Correct"
-                              ? "bg-green-500"
-                              : "bg-red-500"
-                          }
-                        >
+                        <span style={getBadgeStyle(answer.status === "Correct")}>
                           {answer.status}
-                        </Badge>
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -334,28 +334,25 @@ export default function StudentPerformancePage() {
               </Table>
             </CardContent>
           </Card>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() =>
-                performanceDetail && exportToCSV(performanceDetail)
-              }
-              disabled={isSaving}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export to CSV
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() =>
-                performanceDetail && exportToPDF(performanceDetail)
-              }
-              disabled={isSaving}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export to PDF
-            </Button>
-          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <Button
+            variant="outline"
+            onClick={() => performanceDetail && exportToCSV(performanceDetail)}
+            disabled={isSaving}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export to CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => performanceDetail && exportToPDF(performanceDetail)}
+            disabled={isSaving}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export to PDF
+          </Button>
         </div>
       </div>
     </div>

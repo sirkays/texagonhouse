@@ -91,13 +91,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const requiredFields = ["language", "code_text"];
-  for (const field of requiredFields) {
-    if (!body[field]) {
-      console.error("[Route] Missing required field:", field);
-      return NextResponse.json({ error: `Missing ${field}` }, { status: 400 });
-    }
-  }
+  // const requiredFields = ["language", "code_text"];
+  // for (const field of requiredFields) {
+  //   if (!body[field]) {
+  //     console.error("[Route] Missing required field:", field);
+  //     return NextResponse.json({ error: `Missing ${field}` }, { status: 400 });
+  //   }
+  // }
 
   try {
     const url = `${BASE_URL}/snippets/create/`;
@@ -133,6 +133,53 @@ export async function POST(request: Request) {
     console.error("[Route] Error creating snippet:", (err as Error).message);
     return NextResponse.json(
       { error: "Internal server error", details: (err as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.sessionToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Note: In Next.js 15+, you might need to await params: const { id } = await params;
+  const { id } = params;
+
+  try {
+    // Construct the backend URL: /snippets/{id}/delete/
+    const url = `${BASE_URL}/snippets/${id}/delete/`;
+    
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Api-Key ${API_KEY}`,
+        "X-Session-Token": session.user.sessionToken,
+      },
+    });
+
+    // 204 means success with no content
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      return NextResponse.json(
+        { error: `Delete failed: ${errorText}` },
+        { status: res.status }
+      );
+    }
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

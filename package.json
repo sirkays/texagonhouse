@@ -90,6 +90,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwind-scrollbar-hide": "^4.0.0",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^13.0.0",
     "vaul": "latest",
     "workbox-background-sync": "^7.3.0",
     "workbox-window": "^7.3.0",

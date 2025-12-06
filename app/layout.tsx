@@ -36,9 +36,10 @@ import Providers from "@/utils/providers";
 
 import "react-datepicker/dist/react-datepicker.css";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
-import {Toaster} from "@/components/ui/sonner";
-import {SessionProvider} from "next-auth/react";
-import type {Metadata} from "next";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
+import { SessionProvider } from "next-auth/react";
+import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -59,7 +60,8 @@ export default function RootLayout({
         {/* <SessionProvider> */}
         <body>
           {children}
-          <Toaster />
+          <SonnerToaster />
+          <ShadcnToaster />
         </body>
         {/* </SessionProvider> */}
       </Providers>

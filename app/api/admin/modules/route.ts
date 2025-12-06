@@ -1,6 +1,6 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -19,8 +19,8 @@ export async function GET(request: Request) {
   if (!sessionToken) {
     console.warn("[Admin Modules] No session token found");
     return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
+      { detail: "Invalid or missing session token." },
+      { status: 401 }
     );
   }
 
@@ -76,8 +76,8 @@ export async function GET(request: Request) {
     } catch (err) {
       console.error("[Admin Modules] Non-JSON response:", text);
       return NextResponse.json(
-        {detail: "Invalid response format from backend"},
-        {status: 500}
+        { detail: "Invalid response format from backend" },
+        { status: 500 }
       );
     }
 
@@ -85,13 +85,13 @@ export async function GET(request: Request) {
       console.error("[Admin Modules] Backend error:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          {detail: data.detail || "Authentication failed"},
-          {status: 403}
+          { detail: data.detail || "Authentication failed" },
+          { status: 403 }
         );
       }
       return NextResponse.json(
-        {detail: data.detail || "Failed to fetch modules"},
-        {status: res.status}
+        { detail: data.detail || "Failed to fetch modules" },
+        { status: res.status }
       );
     }
 
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Admin Modules] Error fetching modules:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
 
