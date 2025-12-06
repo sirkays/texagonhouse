@@ -113,8 +113,7 @@ type Comment = {
 };
 
 export function CodeEditor() {
-
-    const languages = {
+  const languages = {
     javascript: {
       name: "JavaScript",
       judgeId: 63,
@@ -204,23 +203,24 @@ export function CodeEditor() {
   };
 
   const fetchLessons = async () => {
-  try {
-    const res = await fetch("/api/student/lessons");
-    if (!res.ok) throw new Error("Failed to fetch lessons");
-    const data = await res.json();
-    const lessonList = Array.isArray(data) ? data : data.results || [];
-    setLessons(
-      lessonList.map((l: any) => ({
-        id: String(l.id),
-        title: l.title || `Lesson ${l.id}`,
-      }))
-    );
-  } catch (err) {
-    console.error("Failed to load lessons:", err);
-  }
-};
+    try {
+      const res = await fetch("/api/student/lessons");
+      if (!res.ok) throw new Error("Failed to fetch lessons");
+      const data = await res.json();
+      const lessonList = Array.isArray(data) ? data : data.results || [];
+      setLessons(
+        lessonList.map((l: any) => ({
+          id: String(l.id),
+          // Check multiple common property names before falling back to ID
+          title: l.title || l.name || l.topic || l.label || `Lesson ${l.id}`,
+        }))
+      );
+    } catch (err) {
+      console.error("Failed to load lessons:", err);
+    }
+  };
 
-const saveAsFile = async () => {
+  const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
       return;
 
@@ -275,7 +275,7 @@ const saveAsFile = async () => {
 
       setShowSaveModal(false);
       // We do NOT clear saveFileName here anymore, so the user stays in "edit mode"
-      setPrepopulatedSaveData(null); 
+      setPrepopulatedSaveData(null);
     } catch (error) {
       alert(`Save failed: ${(error as Error).message}`);
     } finally {
@@ -570,14 +570,12 @@ const saveAsFile = async () => {
     return res.json() as Promise<Comment>;
   };
 
-
   const handleLogout = async () => {
     await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
     document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
     document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
     window.location.href = "/login";
   };
-
 
   useEffect(() => {
     if (status === "loading") return;
@@ -587,50 +585,66 @@ const saveAsFile = async () => {
     } else {
       setError(null);
       setLoading(false);
-      
+
       // Only set the default template if the editor is completely empty (Initial Load)
       // This prevents overwriting code when loadSnippet() or loadFile() is called
-      if (!code && !htmlCode.includes("Hello") && !cssCode.includes("color: red")) {
-         setCode(languages[selectedLanguage].template);
-         if (selectedLanguage === "html") setHtmlCode(languages.html.template);
-         if (selectedLanguage === "css") setCssCode(languages.css.template);
+      if (
+        !code &&
+        !htmlCode.includes("Hello") &&
+        !cssCode.includes("color: red")
+      ) {
+        setCode(languages[selectedLanguage].template);
+        if (selectedLanguage === "html") setHtmlCode(languages.html.template);
+        if (selectedLanguage === "css") setCssCode(languages.css.template);
       }
     }
-    
   }, [session, status]);
 
-useEffect(() => {
-  if (status !== "authenticated") return;
-  Promise.all([
-    fetchLessons(),
-    fetchSnippets().then((snips) => {
-      setMySnippets(snips);
-    }),
-    fetchSubmissions()
-      .then(setMySubmissions)
-      .catch(() => {}),
-    fetch("/api/code-ide/uploads")
-      .then((res) => (res.ok ? res.json() : []))
-      .then(setUploadedFiles)
-      .catch(() => setUploadedFiles([])),
-  ]).catch(() => {});
-}, [status]);
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    Promise.all([
+      fetchLessons(),
+      fetchSnippets().then((snips) => {
+        setMySnippets(snips);
+      }),
+      fetchSubmissions()
+        .then(setMySubmissions)
+        .catch(() => {}),
+      fetch("/api/code-ide/uploads")
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setUploadedFiles)
+        .catch(() => setUploadedFiles([])),
+    ]).catch(() => {});
+  }, [status]);
 
-// Auto-save current work to localStorage
-useEffect(() => {
-  if (!session || isImagePreview) return;
+  // Auto-save current work to localStorage
+  useEffect(() => {
+    if (!session || isImagePreview) return;
 
-  const draft = {
-    language: selectedLanguage,
-    code: selectedLanguage === "html" ? htmlCode : selectedLanguage === "css" ? cssCode : code,
-    htmlCode: selectedLanguage === "html" ? code : htmlCode,
-    cssCode: selectedLanguage === "css" ? code : cssCode,
-    lesson: selectedLesson,
-    timestamp: new Date().toISOString(),
-  };
+    const draft = {
+      language: selectedLanguage,
+      code:
+        selectedLanguage === "html"
+          ? htmlCode
+          : selectedLanguage === "css"
+          ? cssCode
+          : code,
+      htmlCode: selectedLanguage === "html" ? code : htmlCode,
+      cssCode: selectedLanguage === "css" ? code : cssCode,
+      lesson: selectedLesson,
+      timestamp: new Date().toISOString(),
+    };
 
-  localStorage.setItem("code-ide-draft", JSON.stringify(draft));
-}, [code, htmlCode, cssCode, selectedLanguage, selectedLesson, session, isImagePreview]);
+    localStorage.setItem("code-ide-draft", JSON.stringify(draft));
+  }, [
+    code,
+    htmlCode,
+    cssCode,
+    selectedLanguage,
+    selectedLesson,
+    session,
+    isImagePreview,
+  ]);
 
   const copyCode = () => {
     const text =
@@ -684,11 +698,9 @@ useEffect(() => {
     setActiveTab("editor");
   };
 
- 
   const handleLanguageChange = (lang: string) => {
     const languageKey = lang as keyof typeof languages;
 
-    
     if (selectedLanguage !== "html" && selectedLanguage !== "css") {
       setCodeBuffers((prev) => ({
         ...prev,
@@ -796,7 +808,7 @@ useEffect(() => {
     }
   };
 
-const loadSnippet = async (snippet: Snippet) => {
+  const loadSnippet = async (snippet: Snippet) => {
     try {
       const detailedSnippet = await fetchSnippetDetail(snippet.id);
 
@@ -804,7 +816,7 @@ const loadSnippet = async (snippet: Snippet) => {
       setHtmlCode(languages.html.template);
       setCssCode(languages.css.template);
       setCode(languages.javascript.template);
-      
+
       // ... existing loading logic ...
       if (detailedSnippet.language === "html") {
         setHtmlCode(detailedSnippet.code_text);
@@ -819,7 +831,8 @@ const loadSnippet = async (snippet: Snippet) => {
       setSaveFileName(detailedSnippet.title); // Pre-fill the save name
 
       setSelectedLanguage(detailedSnippet.language);
-      if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
+      if (detailedSnippet.lesson)
+        setSelectedLesson(String(detailedSnippet.lesson));
 
       setActiveTab("editor");
       setSyntaxError(null);
@@ -1923,7 +1936,7 @@ function SubmissionTab({
   lessons: { id: string; title: string }[];
   selectedLesson: string;
   setSelectedLesson: (v: string) => void;
-  onSubmit: () => void;
+ onSubmit: () => Promise<void>;
   role?: string;
   submissions: Submission[];
   onGrade: (id: number, upd: any) => Promise<void>;
@@ -1935,9 +1948,22 @@ function SubmissionTab({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmitClick = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const itemsPerPage = 10;
   const filteredSubmissions = submissions.filter((s) =>
-    `${s.id} ${s.status} ${s.language}`.toLowerCase().includes(searchQuery.toLowerCase())
+    `${s.id} ${s.status} ${s.language}`
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
   );
   const paginatedSubmissions = filteredSubmissions.slice(
     (currentPage - 1) * itemsPerPage,
@@ -1986,8 +2012,13 @@ function SubmissionTab({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={onSubmit} disabled={!selectedLesson}>
-          Submit Code
+       {/* [UPDATED BUTTON] Shows spinner and disables while submitting */}
+        <Button 
+          onClick={handleSubmitClick} 
+          disabled={!selectedLesson || isSubmitting}
+        >
+          {isSubmitting && <Spinner size="sm" className="mr-2" />}
+          {isSubmitting ? "Submitting..." : "Submit Code"}
         </Button>
         {submissions.length > 0 && (
           <div className="space-y-4">
@@ -2025,7 +2056,8 @@ function SubmissionTab({
                 Previous
               </Button>
               <span className="text-sm">
-                Page {currentPage} of {totalPages} ({filteredSubmissions.length} total)
+                Page {currentPage} of {totalPages} ({filteredSubmissions.length}{" "}
+                total)
               </span>
               <Button
                 variant="outline"
@@ -2040,7 +2072,9 @@ function SubmissionTab({
         {viewing && (
           <Card className="border rounded-md p-3 space-y-3">
             <CardHeader className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Submission #{viewing.id}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Submission #{viewing.id}
+              </CardTitle>
               <Button
                 size="sm"
                 variant="ghost"
@@ -2055,22 +2089,30 @@ function SubmissionTab({
                   <span className="font-medium">Status:</span> {viewing.status}
                 </div>
                 <div>
-                  <span className="font-medium">Feedback:</span> {viewing.feedback ? viewing.feedback : "N/A"}
+                  <span className="font-medium">Feedback:</span>{" "}
+                  {viewing.feedback ? viewing.feedback : "N/A"}
                 </div>
                 <div>
-                  <span className="font-medium">Language:</span> {viewing.language}
+                  <span className="font-medium">Language:</span>{" "}
+                  {viewing.language}
                 </div>
                 <div>
-                  <span className="font-medium">Score:</span> {viewing.score ?? "Not graded"}
+                  <span className="font-medium">Score:</span>{" "}
+                  {viewing.score ?? "Not graded"}
                 </div>
                 <div>
-                  <span className="font-medium">Graded By:</span> {viewing.graded_by ? `User ${viewing.graded_by}` : "N/A"}
+                  <span className="font-medium">Graded By:</span>{" "}
+                  {viewing.graded_by ? `User ${viewing.graded_by}` : "N/A"}
                 </div>
                 <div>
-                  <span className="font-medium">Graded At:</span> {viewing.graded_at ? new Date(viewing.graded_at).toLocaleString() : "N/A"}
+                  <span className="font-medium">Graded At:</span>{" "}
+                  {viewing.graded_at
+                    ? new Date(viewing.graded_at).toLocaleString()
+                    : "N/A"}
                 </div>
                 <div>
-                  <span className="font-medium">Created:</span> {new Date(viewing.created_at).toLocaleString()}
+                  <span className="font-medium">Created:</span>{" "}
+                  {new Date(viewing.created_at).toLocaleString()}
                 </div>
               </div>
               <div>
@@ -2082,7 +2124,9 @@ function SubmissionTab({
               {viewing.feedback && (
                 <div>
                   <span className="font-medium block mb-1">Feedback:</span>
-                  <p className="text-xs bg-muted p-2 rounded">{viewing.feedback}</p>
+                  <p className="text-xs bg-muted p-2 rounded">
+                    {viewing.feedback}
+                  </p>
                 </div>
               )}
               {viewing.correction_code && (
@@ -2132,8 +2176,8 @@ function SubmissionTab({
                 </p>
                 {viewing.comments.map((c) => (
                   <div key={c.id} className="text-xs bg-muted p-2 rounded">
-                    <span className="font-semibold">{c.author_name}</span> ({c.author_role}) –{" "}
-                    {c.message}
+                    <span className="font-semibold">{c.author_name}</span> (
+                    {c.author_role}) – {c.message}
                     <div className="text-muted-foreground">
                       {new Date(c.created_at).toLocaleString()}
                     </div>
