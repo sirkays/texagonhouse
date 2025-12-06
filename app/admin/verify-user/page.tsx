@@ -619,11 +619,7 @@ export default function VerifyUserPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {/* User Info Display */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
-                            <div>
-                                <p className="text-sm text-muted-foreground">User ID</p>
-                                <p className="font-medium">{verifiedUser.id}</p>
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                             <div>
                                 <p className="text-sm text-muted-foreground">Email</p>
                                 <p className="font-medium">{verifiedUser.email}</p>
@@ -632,6 +628,39 @@ export default function VerifyUserPage() {
                                 <p className="text-sm text-muted-foreground">Full Name</p>
                                 <p className="font-medium">{verifiedUser.full_name}</p>
                             </div>
+
+                            {/* Family Details for Students */}
+                            {verifiedUser.profile_type === "student" && verifiedUser.student_profile?.parent_links && verifiedUser.student_profile.parent_links.length > 0 && (
+                                <div className="md:col-span-2 mt-2 pt-2 border-t border-border/50">
+                                    <p className="text-sm text-muted-foreground mb-1">Parents / Guardians</p>
+                                    <div className="space-y-1">
+                                        {verifiedUser.student_profile.parent_links.map((link: any, idx: number) => (
+                                            <div key={idx} className="text-sm flex items-center gap-2">
+                                                <UserCircle className="h-3 w-3 text-muted-foreground" />
+                                                <span className="font-medium">{link.parent_user?.full_name || "Unknown"}</span>
+                                                <span className="text-muted-foreground text-xs">({link.relationship})</span>
+                                                <span className="text-muted-foreground text-xs">- {link.parent_user?.email}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Family Details for Parents */}
+                            {verifiedUser.profile_type === "parent" && verifiedUser.parent_profile?.children_links && verifiedUser.parent_profile.children_links.length > 0 && (
+                                <div className="md:col-span-2 mt-2 pt-2 border-t border-border/50">
+                                    <p className="text-sm text-muted-foreground mb-1">Children (Students)</p>
+                                    <div className="space-y-1">
+                                        {verifiedUser.parent_profile.children_links.map((link: any, idx: number) => (
+                                            <div key={idx} className="text-sm flex items-center gap-2">
+                                                <GraduationCap className="h-3 w-3 text-muted-foreground" />
+                                                <span className="font-medium">{link.student_user?.full_name || "Unknown"}</span>
+                                                <span className="text-muted-foreground text-xs">- {link.student_user?.email}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Step 2: Update Profile Form */}

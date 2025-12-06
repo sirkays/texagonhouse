@@ -71,9 +71,9 @@
 // ) {
 //   const path = params.path ? params.path.join("/") : "";
 
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY =
@@ -91,8 +91,8 @@ export async function GET(request: Request) {
   if (!session?.user?.sessionToken) {
     console.log("[Route] No session token found");
     return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
+      { detail: "Invalid or missing session token." },
+      { status: 401 }
     );
   }
 
@@ -120,8 +120,8 @@ export async function GET(request: Request) {
     } catch (e) {
       console.error("[Route] Failed to parse JSON:", e);
       return NextResponse.json(
-        {detail: "External API returned an invalid response"},
-        {status: 502}
+        { detail: "External API returned an invalid response" },
+        { status: 502 }
       );
     }
 
@@ -129,20 +129,20 @@ export async function GET(request: Request) {
       console.log("[Route] API fetch failed:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          {detail: "Unauthorized: Invalid session token or API key"},
-          {status: 403}
+          { detail: "Unauthorized: Invalid session token or API key" },
+          { status: 403 }
         );
       }
       return NextResponse.json(
-        {detail: data.detail || "Failed to fetch children data"},
-        {status: res.status}
+        { detail: data.detail || "Failed to fetch children data" },
+        { status: res.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error fetching children data:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -160,26 +160,26 @@ export async function POST(request: Request) {
   if (!session?.user?.sessionToken) {
     console.log("[Route] No session token found");
     return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
+      { detail: "Invalid or missing session token." },
+      { status: 401 }
     );
   }
 
   try {
     const body = await request.json();
-    const {childId, newPassword} = body;
+    const { childId, newPassword } = body;
 
     if (!childId || !newPassword) {
       return NextResponse.json(
-        {detail: "child_id and new_password are required."},
-        {status: 400}
+        { detail: "child_id and new_password are required." },
+        { status: 400 }
       );
     }
 
     if (newPassword.length < 8) {
       return NextResponse.json(
-        {detail: "Password must be at least 8 characters."},
-        {status: 400}
+        { detail: "Password must be at least 8 characters." },
+        { status: 400 }
       );
     }
 
@@ -199,7 +199,7 @@ export async function POST(request: Request) {
     const res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({child_id: childId, new_password: newPassword}),
+      body: JSON.stringify({ child_id: childId, new_password: newPassword }),
     });
 
     console.log("[Route] API response status:", res.status);
@@ -212,8 +212,8 @@ export async function POST(request: Request) {
     } catch (e) {
       console.error("[Route] Failed to parse JSON:", e);
       return NextResponse.json(
-        {detail: "External API returned an invalid response"},
-        {status: 502}
+        { detail: "External API returned an invalid response" },
+        { status: 502 }
       );
     }
 
@@ -221,19 +221,19 @@ export async function POST(request: Request) {
       console.log("[Route] API fetch failed:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          {detail: "Unauthorized: Invalid session token or API key"},
-          {status: 403}
+          { detail: "Unauthorized: Invalid session token or API key" },
+          { status: 403 }
         );
       }
       return NextResponse.json(
-        {detail: data.detail || "Failed to reset password"},
-        {status: res.status}
+        { detail: data.detail || "Failed to reset password" },
+        { status: res.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error resetting password:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
