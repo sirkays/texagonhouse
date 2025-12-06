@@ -1,6 +1,6 @@
 // import {NextRequest, NextResponse} from "next/server";
 // import {getServerSession} from "next-auth";
-// import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// import {authOptions} from "@/lib/auth";
 
 // const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 // const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -119,9 +119,9 @@
 //   }
 // }
 
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -139,11 +139,11 @@ export async function GET(request: NextRequest) {
 
   if (!session?.user?.sessionToken) {
     console.log("[Courses Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
-    const {searchParams} = new URL(request.url);
+    const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const url = queryString
       ? `${BASE_URL}/api/admin/courses/?${queryString}`
@@ -163,15 +163,15 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
       console.log("[Courses Route] API fetch failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch courses"},
-        {status: res.status}
+        { error: data.detail || "Failed to fetch courses" },
+        { status: res.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Courses Route] Error fetching courses:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
 
   if (!session?.user?.sessionToken) {
     console.log("[Courses Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
@@ -198,14 +198,14 @@ export async function POST(request: NextRequest) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       if (!formData.get("name")) {
-        return NextResponse.json({error: "Name is required"}, {status: 400});
+        return NextResponse.json({ error: "Name is required" }, { status: 400 });
       }
       fetchBody = formData;
     } else {
       const jsonBody = await request.json();
       console.log("[Courses Route] Request body:", jsonBody);
       if (!jsonBody.name) {
-        return NextResponse.json({error: "Name is required"}, {status: 400});
+        return NextResponse.json({ error: "Name is required" }, { status: 400 });
       }
       fetchBody = JSON.stringify(jsonBody);
       headers["Content-Type"] = "application/json";
@@ -227,14 +227,14 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       console.log("[Courses Route] API post failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to create course"},
-        {status: res.status}
+        { error: data.detail || "Failed to create course" },
+        { status: res.status }
       );
     }
 
-    return NextResponse.json(data, {status: 201});
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error("[Courses Route] Error creating course:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
