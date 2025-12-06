@@ -7,9 +7,9 @@ interface ChildData {
   firstName: string;
   lastName: string;
   email: string;
+  password: string;
   isEmailVerified: boolean;
-  tempOtp?: string;
-  otpInput?: string;
+  confirmPassword?: string;
 }
 
 interface ParentBiodataData {
@@ -25,64 +25,147 @@ export default function ParentBiodataForm() {
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     isEmailVerified: false,
   });
+  const [error, setError] = useState<string>("");
+  const [passwordStrength, setPasswordStrength] = useState<
+    "weak" | "medium" | "strong"
+  >("weak");
+
+  const requirementsState = {
+    hasLowercase: false,
+    hasUppercase: false,
+    hasNumber: false,
+    hasSpecial: false,
+  };
+  const [requirements, setRequirements] = useState(requirementsState);
+
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpSentMessage, setOtpSentMessage] = useState(false);
+  const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+
+  // Password strength checker
+  const checkPasswordStrength = (password: string) => {
+    const hasLowercase = /[a-z]/.test(password);
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    setRequirements({hasLowercase, hasUppercase, hasNumber, hasSpecial});
+
+    const metCount = [hasLowercase, hasUppercase, hasNumber, hasSpecial].filter(
+      Boolean
+    ).length;
+    if (metCount >= 4) setPasswordStrength("strong");
+    else if (metCount >= 3) setPasswordStrength("medium");
+    else setPasswordStrength("weak");
+  };
 
   const handleChildChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentChild({
-      ...currentChild,
-      [e.target.name]: e.target.value,
-    });
+    const {name, value} = e.target;
+    setCurrentChild((prev) => ({...prev, [name]: value}));
+    setError("");
+
+    if (name === "password") {
+      checkPasswordStrength(value);
+    }
   };
 
-  const sendOtp = (email: string) => {
-    if (!email) return;
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setCurrentChild({
-      ...currentChild,
-      tempOtp: otp,
-      otpInput: "",
-    });
-    // Simulate sending OTP
-    alert(`OTP sent to ${email}: ${otp}`); // In real app, send via API
+  // Handle Send OTP with loading → success → open modal
+  const requestOtp = async () => {
+    if (!currentChild.email.includes("@")) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setError("");
+    setIsSendingOtp(true);
+    setOtpSentMessage(false);
+
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    setIsSendingOtp(false);
+    setOtpSentMessage(true);
+
+    // Auto show OTP modal after "sent" message
+    setTimeout(() => {
+      setShowOtpDialog(true);
+      setOtpInput("");
+    }, 800);
   };
 
-  const verifyOtp = () => {
-    if (currentChild.otpInput === currentChild.tempOtp) {
-      setCurrentChild({
-        ...currentChild,
-        isEmailVerified: true,
-      });
-      alert("Email verified successfully!");
+  // Verify OTP (mock)
+  const handleVerifyOtp = () => {
+    if (otpInput.trim().length === 6) {
+      setCurrentChild((prev) => ({...prev, isEmailVerified: true}));
+      setShowOtpDialog(false);
+      setOtpInput("");
+      setOtpSentMessage(false);
+      setError("");
     } else {
-      alert("Invalid OTP");
+      setError("Please enter a valid 6-digit OTP");
     }
   };
 
   const addChild = () => {
-    if (
-      !currentChild.isEmailVerified ||
-      !currentChild.firstName ||
-      !currentChild.lastName ||
-      !currentChild.email
-    ) {
-      alert("Please fill all fields and verify email");
+    setError("");
+
+    if (!currentChild.isEmailVerified) {
+      setError("Please verify the email with OTP");
       return;
     }
+
+    if (currentChild.password !== currentChild.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (
+      !currentChild.firstName ||
+      !currentChild.lastName ||
+      !currentChild.email ||
+      !currentChild.password
+    ) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    if (passwordStrength !== "strong") {
+      setError("Password must meet all strength requirements");
+      return;
+    }
+
+    // Simulate adding child (no API call)
     setFormData({
       ...formData,
       children: [
         ...formData.children,
-        {...currentChild, tempOtp: undefined, otpInput: undefined},
+        {
+          firstName: currentChild.firstName,
+          lastName: currentChild.lastName,
+          email: currentChild.email,
+          password: currentChild.password,
+          isEmailVerified: true,
+        },
       ],
     });
+
     setCurrentChild({
       firstName: "",
       lastName: "",
       email: "",
+      password: "",
+      confirmPassword: "",
       isEmailVerified: false,
     });
+    setPasswordStrength("weak");
+    setRequirements(requirementsState);
     setAddingChild(false);
+    setError("");
   };
 
   const removeChild = (index: number) => {
@@ -93,17 +176,6 @@ export default function ParentBiodataForm() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.children.length === 0) {
-      alert("Please add at least one child");
-      return;
-    }
-    // Simulate API call
-    console.log("Children data:", formData.children);
-    alert("Children registered successfully!");
-  };
-
   return (
     <div className="mt-8 space-y-6">
       <h3 className="text-lg font-medium text-gray-900">
@@ -111,9 +183,9 @@ export default function ParentBiodataForm() {
       </h3>
       <div className="mb-4 p-4 bg-blue-50 rounded-md">
         <p className="text-sm text-gray-700 mb-2">
-          To add a child, click "Add Child", fill in their details, verify via
-          email OTP, and click "Add This Child". You can add or remove children
-          anytime.
+          To add a child, click "Add Child", fill in their details, and click
+          "Add This Child". You will then verify their email via OTP in a popup
+          dialog. You can add or remove children anytime.
         </p>
         <p className="text-sm text-gray-700">
           <strong>Benefits:</strong> Registering your children provides access
@@ -122,7 +194,7 @@ export default function ParentBiodataForm() {
           needs.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form className="space-y-4">
         <div className="border-t pt-4">
           <h4 className="text-md font-medium text-gray-900 mb-4">
             Children Registration
@@ -134,7 +206,7 @@ export default function ParentBiodataForm() {
                   <div className="flex justify-between items-center">
                     <span>
                       {child.firstName} {child.lastName} - {child.email}{" "}
-                      {child.isEmailVerified ? "(Verified)" : "(Pending)"}
+                      (Verified)
                     </span>
                     <button
                       type="button"
@@ -150,16 +222,14 @@ export default function ParentBiodataForm() {
           <button
             type="button"
             onClick={() => setAddingChild(!addingChild)}
-            className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
             {addingChild ? "Cancel" : "Add Child"}
           </button>
         </div>
 
         {addingChild && (
-          <div className="border p-4 rounded-md bg-blue-50 space-y-4">
-            <h5 className="text-sm font-medium text-gray-900">
-              Student Registration
-            </h5>
+          <div className="space-y-6">
+            {/* First Name */}
             <div>
               <label
                 htmlFor="firstName"
@@ -171,11 +241,14 @@ export default function ParentBiodataForm() {
                 name="firstName"
                 type="text"
                 required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
+                placeholder="Enter child's first name"
                 value={currentChild.firstName}
                 onChange={handleChildChange}
               />
             </div>
+
+            {/* Last Name */}
             <div>
               <label
                 htmlFor="lastName"
@@ -187,78 +260,227 @@ export default function ParentBiodataForm() {
                 name="lastName"
                 type="text"
                 required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
+                placeholder="Enter child's last name"
                 value={currentChild.lastName}
                 onChange={handleChildChange}
               />
             </div>
+
+            {/* Email + OTP Section */}
             <div>
               <label
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700">
-                Email
+                Email address
               </label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                disabled={currentChild.isEmailVerified}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm disabled:bg-gray-100"
+                placeholder="Enter child's email"
                 value={currentChild.email}
                 onChange={handleChildChange}
               />
-              {!currentChild.isEmailVerified && (
-                <div className="mt-2 space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => sendOtp(currentChild.email)}
-                    className="text-xs bg-[#f79771] text-white py-1 px-3 rounded">
-                    Send OTP
-                  </button>
-                  {currentChild.tempOtp && (
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Enter OTP"
-                        className="w-20 px-2 py-1 border rounded"
-                        value={currentChild.otpInput || ""}
-                        onChange={(e) =>
-                          setCurrentChild({
-                            ...currentChild,
-                            otpInput: e.target.value,
-                          })
-                        }
-                      />
+
+              <div className="mt-3">
+                {!currentChild.isEmailVerified ? (
+                  <>
+                    {otpSentMessage ? (
+                      <p className="text-green-600 text-sm font-medium flex items-center animate-fade-in">
+                        <span className="mr-2">Sent</span> OTP sent! Check your
+                        email
+                      </p>
+                    ) : (
                       <button
                         type="button"
-                        onClick={verifyOtp}
-                        className="text-xs bg-green-600 text-white py-1 px-3 rounded">
-                        Verify
+                        onClick={requestOtp}
+                        disabled={isSendingOtp || !currentChild.email}
+                        className="text-xs bg-[#f79771] text-white py-2 px-5 rounded hover:bg-[#f58667] disabled:opacity-70 disabled:cursor-not-allowed transition flex items-center gap-2">
+                        {isSendingOtp ? (
+                          <>
+                            <svg
+                              className="animate-spin h-4 w-4"
+                              viewBox="0 0 24 24">
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v8z"
+                              />
+                            </svg>
+                            Sending...
+                          </>
+                        ) : (
+                          "Send OTP"
+                        )}
                       </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              {currentChild.isEmailVerified && (
-                <p className="text-green-600 text-xs mt-1">Email verified</p>
-              )}
+                    )}
+                  </>
+                ) : (
+                  <p className="text-green-600 text-sm font-medium flex items-center">
+                    <span className="mr-2">Checkmark</span> Email verified
+                  </p>
+                )}
+              </div>
             </div>
+
+            {/* Password Fields - Show only after email verified */}
+            {currentChild.isEmailVerified && (
+              <>
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-700">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
+                    placeholder="Create a strong password"
+                    value={currentChild.password}
+                    onChange={handleChildChange}
+                  />
+                  <div className="mt-3 space-y-1 text-xs">
+                    {(
+                      [
+                        "hasLowercase",
+                        "hasUppercase",
+                        "hasNumber",
+                        "hasSpecial",
+                      ] as const
+                    ).map((key) => {
+                      const met = requirements[key];
+                      const labels: Record<string, string> = {
+                        hasLowercase: "One lowercase letter",
+                        hasUppercase: "One uppercase letter",
+                        hasNumber: "One number",
+                        hasSpecial: "One special character (!@#$ etc.)",
+                      };
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-center ${
+                            met ? "text-green-600" : "text-gray-500"
+                          }`}>
+                          <span
+                            className={`w-2 h-2 rounded-full mr-2 ${
+                              met ? "bg-green-600" : "bg-gray-300"
+                            }`}
+                          />
+                          {labels[key]}
+                        </div>
+                      );
+                    })}
+                    <div
+                      className={`font-semibold mt-2 ${
+                        passwordStrength === "strong"
+                          ? "text-green-600"
+                          : passwordStrength === "medium"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }`}>
+                      Password strength: {passwordStrength}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-gray-700">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#f79771] focus:border-[#f79771] sm:text-sm"
+                    placeholder="Confirm your password"
+                    value={currentChild.confirmPassword || ""}
+                    onChange={handleChildChange}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Global Error */}
+            {error && <p className="text-red-600 text-sm -mt-4">{error}</p>}
+
+            {/* Add Button */}
             <button
               type="button"
               onClick={addChild}
-              disabled={!currentChild.isEmailVerified}
-              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#f79771] hover:bg-[#f79771] disabled:opacity-50">
+              disabled={
+                !currentChild.isEmailVerified ||
+                passwordStrength !== "strong" ||
+                currentChild.password !== currentChild.confirmPassword
+              }
+              className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-50 disabled:cursor-not-allowed transition">
               Add This Child
             </button>
           </div>
         )}
-
-        <button
-          type="submit"
-          className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#f79771] hover:bg-[#f79771]">
-          Submit Children Registration
-        </button>
       </form>
+
+      {/* OTP Modal */}
+      {showOtpDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Verify Your Email
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter the 6-digit code sent to{" "}
+              <strong>{currentChild.email}</strong>
+            </p>
+            <input
+              type="text"
+              maxLength={6}
+              placeholder="000000"
+              value={otpInput}
+              onChange={(e) =>
+                setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              className="w-full px-4 py-3 text-center text-2xl tracking-widest border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#f79771] focus:border-[#f79771]"
+              autoFocus
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOtpDialog(false);
+                  setOtpInput("");
+                  setError("");
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded hover:bg-gray-300">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleVerifyOtp}
+                className="px-6 py-2 text-sm font-medium text-white bg-[#f79771] rounded hover:bg-[#f58667]">
+                Verify
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

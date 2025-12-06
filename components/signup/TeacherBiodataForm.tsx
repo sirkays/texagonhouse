@@ -48,7 +48,7 @@ export default function TeacherBiodataForm() {
     <div className="mt-8 space-y-6">
       <h3 className="text-lg font-medium text-gray-900">Teacher Biodata</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
+        {/* <div>
           <label
             htmlFor="firstName"
             className="block text-sm font-medium text-gray-700">
@@ -94,7 +94,7 @@ export default function TeacherBiodataForm() {
             value={formData.phone}
             onChange={handleChange}
           />
-        </div>
+        </div> */}
         {/* <div>
           <label
             htmlFor="address"
@@ -126,6 +126,8 @@ export default function TeacherBiodataForm() {
             onChange={handleChange}
           />
         </div>
+
+        {/* Should be multiple selection */}
         <div>
           <label
             htmlFor="subjects"
