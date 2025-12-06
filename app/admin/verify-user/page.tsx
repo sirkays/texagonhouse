@@ -164,7 +164,7 @@ export default function VerifyUserPage() {
             fetchClassrooms();
         }
         if (verifiedUser?.profile_type === "teacher") {
-            fetchLanguages();
+            // fetchLanguages(); // Skipped as per user request, using static list
             fetchSubjects();
         }
     }, [verifiedUser]);
@@ -185,14 +185,7 @@ export default function VerifyUserPage() {
         }
     };
 
-    const fetchLanguages = async () => {
-        if (MOCK_MODE) {
-            setLanguages(MOCK_LANGUAGES);
-            return;
-        }
-        // TODO: Replace with real API when available
-        setLanguages(MOCK_LANGUAGES);
-    };
+    // const fetchLanguages = async () => { ... } // Removed
 
     const fetchSubjects = async () => {
         if (MOCK_MODE) {
@@ -203,11 +196,20 @@ export default function VerifyUserPage() {
             const res = await fetch("/api/admin/subjects");
             const data = await res.json();
             if (Array.isArray(data)) {
-                setSubjects(data.map((s: any) => ({ id: s.id, name: s.name })));
+                const apiSubjects = data.map((s: any) => ({ id: s.id, name: s.name }));
+
+                setSubjects(prev => {
+                    const newSubjects = [...prev];
+                    apiSubjects.forEach((as: any) => {
+                        if (!newSubjects.find(ps => ps.id === as.id)) {
+                            newSubjects.push(as);
+                        }
+                    });
+                    return newSubjects;
+                });
             }
         } catch (error) {
             console.error("Failed to fetch subjects:", error);
-            setSubjects(MOCK_SUBJECTS);
         }
     };
 
@@ -275,8 +277,50 @@ export default function VerifyUserPage() {
                 const p = data.teacher_profile;
                 if (p.bio) setBio(p.bio);
                 if (p.experience) setExperience(p.experience.toString());
-                if (p.languages) setSelectedLanguages(p.languages.map((l: any) => l.id));
-                if (p.specialties) setSelectedSubjects(p.specialties.map((s: any) => s.id));
+
+                // Handle Languages
+                if (p.languages && Array.isArray(p.languages)) {
+                    const userLangs = p.languages.map((l: any) => ({
+                        id: l.id,
+                        name: l.language_name || l.name
+                    }));
+
+                    // Set selected IDs
+                    setSelectedLanguages(userLangs.map((l: any) => l.id));
+
+                    // Merge into available languages so they render correctly
+                    setLanguages(prev => {
+                        const newLangs = [...prev];
+                        userLangs.forEach((ul: any) => {
+                            if (!newLangs.find(pl => pl.id === ul.id)) {
+                                newLangs.push(ul);
+                            }
+                        });
+                        return newLangs;
+                    });
+                }
+
+                // Handle Specialties (Subjects)
+                if (p.specialties && Array.isArray(p.specialties)) {
+                    const userSubjects = p.specialties.map((s: any) => ({
+                        id: s.id,
+                        name: s.name
+                    }));
+
+                    // Set selected IDs
+                    setSelectedSubjects(userSubjects.map((s: any) => s.id));
+
+                    // Merge into available subjects so they render correctly
+                    setSubjects(prev => {
+                        const newSubjects = [...prev];
+                        userSubjects.forEach((us: any) => {
+                            if (!newSubjects.find(ps => ps.id === us.id)) {
+                                newSubjects.push(us);
+                            }
+                        });
+                        return newSubjects;
+                    });
+                }
             } else if (data.profile_type === "parent" && data.parent_profile) {
                 const p = data.parent_profile;
                 if (p.address) setAddress(p.address);

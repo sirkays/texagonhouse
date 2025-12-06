@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         });
 
         const data = await response.json();
+        console.log("[fetch-user] Backend Response:", JSON.stringify(data, null, 2));
 
         if (!response.ok) {
             console.error("Backend API Error:", {

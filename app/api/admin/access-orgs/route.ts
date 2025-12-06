@@ -108,9 +108,9 @@
 //   }
 // }
 
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com/accounts";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
 
   if (!session?.user?.sessionToken) {
     console.log("[Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
@@ -150,15 +150,15 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
       console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+        { error: data.detail || "Failed to fetch data" },
+        { status: res.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
 
   if (!session?.user?.sessionToken) {
     console.log("[Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
@@ -180,8 +180,8 @@ export async function POST(request: NextRequest) {
 
     if (!body.orgs_id) {
       return NextResponse.json(
-        {error: "Organization ID is required"},
-        {status: 400}
+        { error: "Organization ID is required" },
+        { status: 400 }
       );
     }
 
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
-      body: JSON.stringify({orgs_id: body.orgs_id}),
+      body: JSON.stringify({ orgs_id: body.orgs_id }),
     });
 
     console.log("[Route] API response status:", res.status);
@@ -206,14 +206,14 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       console.log("[Route] API post failed:", data);
       return NextResponse.json(
-        {error: data.detail || "Failed to set organization"},
-        {status: res.status}
+        { error: data.detail || "Failed to set organization" },
+        { status: res.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error setting organization:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
