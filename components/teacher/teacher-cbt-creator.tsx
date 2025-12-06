@@ -99,6 +99,13 @@ interface Course {
   classroom: string;
   description: string;
 }
+interface TeacherTestMini {
+  id: string;
+  title: string;
+  // Optional extra fields if your serializer returns them:
+  // subject_name?: string;
+  // class_name?: string;
+}
 
 interface CBTTest {
   id: string;
@@ -310,6 +317,9 @@ export function TeacherCBTCreator() {
     _startLocal: "",
     _endLocal: "",
   });
+  const [myTests, setMyTests] = useState<TeacherTestMini[]>([]);
+  const [selectedTestFilter, setSelectedTestFilter] = useState<string>("all");
+
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [isEditTestOpen, setIsEditTestOpen] = useState(false);
   const [isPreviewTestOpen, setIsPreviewTestOpen] = useState(false);
@@ -355,26 +365,48 @@ export function TeacherCBTCreator() {
   const [loadingPerformances, setLoadingPerformances] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setLoadingTests(true);
-      const res = await fetch("/api/teacher/assessments/courses");
+useEffect(() => {
+  const fetchCourses = async () => {
+    setLoadingTests(true);
+    const res = await fetch("/api/teacher/assessments/courses");
+    if (!res.ok) {
+      console.error("Failed to fetch courses");
+      setLoadingTests(false);
+      return;
+    }
+    const data = await res.json();
+    if (data.error === "Session expired") {
+      router.push("/login");
+      setLoadingTests(false);
+      return;
+    }
+    setCourses(data.courses || []);
+    setLoadingTests(false);
+  };
+
+  const fetchMyTests = async () => {
+    try {
+      const res = await fetch("/api/teacher/fetch-my-tests");
       if (!res.ok) {
-        console.error("Failed to fetch courses");
-        setLoadingTests(false);
+        console.error("Failed to fetch my tests");
         return;
       }
       const data = await res.json();
       if (data.error === "Session expired") {
         router.push("/login");
-        setLoadingTests(false);
         return;
       }
-      setCourses(data.courses || []);
-      setLoadingTests(false);
-    };
-    fetchCourses();
-  }, [router]);
+      // Django view returns: { success, count, results: [...] }
+      setMyTests(data.results || []);
+    } catch (err) {
+      console.error("Error fetching my tests:", err);
+    }
+  };
+
+  fetchCourses();
+  fetchMyTests();
+}, [router]);
+
 
   const fetchTests = useCallback(async () => {
     setLoadingTests(true);
@@ -491,42 +523,51 @@ export function TeacherCBTCreator() {
     [router]
   );
 
-  const fetchPerformances = useCallback(async () => {
-    setLoadingPerformances(true);
-    const params = new URLSearchParams();
-    if (studentFilter) params.append("student_filter", studentFilter);
-    params.append("sort_field", sortField);
-    params.append("sort_order", sortOrder);
-    params.append("page", performancePagination.page.toString());
-    params.append("limit", performancePagination.limit.toString());
+const fetchPerformances = useCallback(async () => {
+  setLoadingPerformances(true);
+  const params = new URLSearchParams();
 
-    const res = await fetch(
-      `/api/teacher/performance-list?${params.toString()}`
-    );
-    if (!res.ok) {
-      console.error("Failed to fetch performances");
-      setLoadingPerformances(false);
-      return;
-    }
-    const data = await res.json();
-    if (data.error === "Session expired") {
-      router.push("/login");
-      setLoadingPerformances(false);
-      return;
-    }
-    setStudentPerformances(data.performances || []);
-    setPerformancePagination(
-      data.pagination || { page: 1, limit: 10, total: 0, pages: 1 }
-    );
+  if (studentFilter) params.append("student_filter", studentFilter);
+
+  // ✅ Only filter when not 'all'
+  if (selectedTestFilter && selectedTestFilter !== "all") {
+    params.append("test_id", selectedTestFilter);
+  }
+
+  params.append("sort_field", sortField);
+  params.append("sort_order", sortOrder);
+  params.append("page", performancePagination.page.toString());
+  params.append("limit", performancePagination.limit.toString());
+
+  const res = await fetch(
+    `/api/teacher/performance-list?${params.toString()}`
+  );
+  if (!res.ok) {
+    console.error("Failed to fetch performances");
     setLoadingPerformances(false);
-  }, [
-    studentFilter,
-    sortField,
-    sortOrder,
-    performancePagination.page,
-    performancePagination.limit,
-    router,
-  ]);
+    return;
+  }
+  const data = await res.json();
+  if (data.error === "Session expired") {
+    router.push("/login");
+    setLoadingPerformances(false);
+    return;
+  }
+  setStudentPerformances(data.performances || []);
+  setPerformancePagination(
+    data.pagination || { page: 1, limit: 10, total: 0, pages: 1 }
+  );
+  setLoadingPerformances(false);
+}, [
+  studentFilter,
+  selectedTestFilter,   // ✅ NEW
+  sortField,
+  sortOrder,
+  performancePagination.page,
+  performancePagination.limit,
+  router,
+]);
+
 
   useEffect(() => {
     if (activeTab === "manage" || activeTab === "analytics") {
@@ -1781,6 +1822,27 @@ export function TeacherCBTCreator() {
                 disabled={isSaving}
               />
             </div>
+            {/* 🔽 New Test filter */}
+              <Select
+                value={selectedTestFilter}
+                onValueChange={(value) => setSelectedTestFilter(value)}
+                disabled={isSaving}
+              >
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Filter by test" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* ✅ value is 'all', not empty string */}
+                  <SelectItem value="all">All Tests</SelectItem>
+                  {myTests.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+
             <Select
               value={sortField}
               onValueChange={(value: "score" | "completionTime" | "submittedAt") =>
