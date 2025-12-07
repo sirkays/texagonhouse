@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 //const BASE_URL = "http://127.0.0.1:9098";
 const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; 
 
 const headers = (sessionToken: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
@@ -45,17 +45,12 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
     const body = await req.json();
     console.log("[TestUpdateAPI] Request body:", body);
 
-    // Restrict request body to match test specification
-    const processedBody = {
-      start_at: body.start_at || null,
-      end_at: body.end_at || null,
-    };
 
     console.log("[TestUpdateAPI] Sending request to", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "PUT",
       headers: headers(session.user.sessionToken),
-      body: JSON.stringify(processedBody),
+      body: JSON.stringify(body),
     });
 
     console.log("[TestUpdateAPI] Response status:", response.status);

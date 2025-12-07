@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
+
 //const BASE_URL = "http://127.0.0.1:9098";
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -18,16 +19,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const queryString = searchParams.toString();
   const fullUrl = `${BASE_URL}${endpoint}${queryString ? `?${queryString}` : ""}`;
-  console.log("[TeacherTestsAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[TeacherTestsAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[TeacherTestsAPI] No session token found");
     return NextResponse.json(
       { error: "Not authenticated" },
       {
@@ -43,22 +38,17 @@ export async function GET(req: Request) {
   }
 
   try {
-    console.log("[TeacherTestsAPI] Fetchi...............ng from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[TeacherTestsAPI] Fetch response status:", response.status);
-    console.log("[TeacherTestsAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[TeacherTestsAPI] Fetch response content-type:", response.headers.get("content-type"));
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[TeacherTestsAPI] Raw response.......:", rawResponse);
 
     if (!response.ok) {
       console.error("[TeacherTestsAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired" },
@@ -71,6 +61,7 @@ export async function GET(req: Request) {
           }
         );
       }
+
       if (response.status === 404) {
         return NextResponse.json(
           { error: "Teacher tests endpoint not found" },
@@ -83,6 +74,7 @@ export async function GET(req: Request) {
           }
         );
       }
+
       return NextResponse.json(
         { error: "Failed to fetch teacher tests" },
         {
@@ -126,24 +118,25 @@ export async function GET(req: Request) {
       );
     }
 
-    // Validate and transform response to match expected structure
     const processedData = {
-      tests: Array.isArray(data.tests) ? data.tests.map((test: any) => ({
-        id: test.id || "",
-        title: test.title || "",
-        instructions: test.instructions || "",
-        duration: test.duration || 0,
-        total_marks: test.total_marks || 0,
-        totalPoints: test.totalPoints || 0,
-        difficulty: test.difficulty || "Medium",
-        category: test.category || "",
-        isPublished: test.isPublished || false,
-        questionsCount: test.questionsCount || 0,
-        createdAt: test.createdAt || "",
-        updatedAt: test.updatedAt || "",
-        start_at: test.start_at || null,
-        end_at: test.end_at || null,
-      })) : [],
+      tests: Array.isArray(data.tests)
+        ? data.tests.map((test: any) => ({
+            id: test.id || "",
+            title: test.title || "",
+            instructions: test.instructions || "",
+            duration: test.duration || 0,
+            total_marks: test.total_marks || 0,
+            totalPoints: test.totalPoints || 0,
+            difficulty: test.difficulty || "Medium",
+            category: test.category || "",
+            isPublished: test.isPublished || false,
+            questionsCount: test.questionsCount || 0,
+            createdAt: test.createdAt || "",
+            updatedAt: test.updatedAt || "",
+            start_at: test.start_at || null,
+            end_at: test.end_at || null,
+          }))
+        : [],
       pagination: {
         page: data.pagination?.page || 1,
         limit: data.pagination?.limit || 20,
@@ -152,7 +145,6 @@ export async function GET(req: Request) {
       },
     };
 
-    console.log("[TeacherTestsAPI] Fetch successful:", processedData);
     return NextResponse.json(processedData, {
       status: 200,
       headers: {

@@ -1,4 +1,14 @@
 "use client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -168,6 +178,11 @@ interface PerformanceSummary {
   passRate: number;
   averageCompletionTime: number;
 }
+function truncateText(text: string | null | undefined, max: number): string {
+  if (!text) return "";
+  if (text.length <= max) return text;
+  return text.slice(0, max) + "…";
+}
 
 /* ----------------------------- Date Utilities --------------------------- */
 
@@ -285,6 +300,33 @@ function DateTimePicker({
 
 export function TeacherCBTCreator() {
   const router = useRouter();
+  type AlertKind = "success" | "error" | "info";
+
+  const [alertState, setAlertState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    type: AlertKind;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+
+  const showAlert = (opts: {
+    title: string;
+    message: string;
+    type?: AlertKind;
+  }) => {
+    setAlertState({
+      open: true,
+      title: opts.title,
+      message: opts.message,
+      type: opts.type ?? "info",
+    });
+  };
+
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("create");
 
@@ -516,7 +558,7 @@ useEffect(() => {
         router.push("/login");
         setLoadingSummary(false);
         return null;
-      }
+      } 
       setLoadingSummary(false);
       return data;
     },
@@ -787,18 +829,19 @@ const fetchPerformances = useCallback(async () => {
         _startLocal: nextStartLocal,
         _endLocal: nextEndLocal,
       }));
-      alert(data.message);
-      alert(`Test ${isEditing ? "updated" : "created"} successfully!`);
+      showAlert({
+        title: `Test ${isEditing ? "updated" : "created"} successfully`,
+        message: data.message || "",
+        type: "success",
+      });
+
       if (isEditing) setIsEditTestOpen(false);
     } catch (error: any) {
-      console.error(
-        `Error ${currentTest.id ? "updating" : "creating"} test:`,
-        error
-      );
-      alert(
-        `Failed to ${currentTest.id ? "update" : "create"} test: ${error.message
-        }`
-      );
+    showAlert({
+      title: `Failed to ${currentTest.id ? "update" : "create"} test`,
+      message: error.message || "An unexpected error occurred.",
+      type: "error",
+    });
     } finally {
       setIsSaving(false);
     }
@@ -898,16 +941,17 @@ const fetchPerformances = useCallback(async () => {
             : test
         )
       );
-      alert(data.message);
+      showAlert({
+        title: data.message || `Test ${isPublished ? "published" : "unpublished"}`,
+        message: "",
+        type: "success",
+      });
     } catch (error: any) {
-      console.error(
-        `Error ${isPublished ? "publishing" : "unpublishing"} test:`,
-        error
-      );
-      alert(
-        `Failed to ${isPublished ? "publish" : "unpublish"} test: ${error.message
-        }`
-      );
+    showAlert({
+      title: `Failed to ${isPublished ? "publish" : "unpublish"} test`,
+      message: error.message || "An unexpected error occurred.",
+      type: "error",
+    });
     }
   };
 
@@ -928,11 +972,19 @@ const fetchPerformances = useCallback(async () => {
         }
         throw new Error(data.error || "Failed to duplicate test");
       }
-      alert("Test duplicated successfully!");
+    showAlert({
+      title: `Duplicate test`,
+      message: "Test duplicated successfully!",
+      type: "success",
+    });
       router.push(`/teacher/create-cbt`);
     } catch (error: any) {
       console.error("Error duplicating test:", error);
-      alert(`Failed to duplicate test: ${error.message}`);
+    showAlert({
+      title: `Failed to duplicate test`,
+      message: error.message || "An unexpected error occurred.",
+      type: "error",
+    });
     }
   };
 
@@ -998,10 +1050,18 @@ const fetchPerformances = useCallback(async () => {
         )
       );
 
-      alert(data.message);
+      showAlert({
+        title: "Delete Question success",
+        message: data.message,
+        type: "success",
+      });
     } catch (error: any) {
       console.error("Error deleting question:", error);
-      alert(`Failed to delete question: ${error.message}`);
+    showAlert({
+      title: `Failed to delete question`,
+      message: error.message || "An unexpected error occurred.",
+      type: "error",
+    });
     }
   };
 
@@ -1023,11 +1083,18 @@ const fetchPerformances = useCallback(async () => {
         throw new Error(data.error || "Failed to delete test");
       }
       setTests((prev) => prev.filter((test) => test.id !== testId));
-      alert(data.message);
+      showAlert({
+        title: data.message,
+        message: "",
+        type: "success",
+      });
       router.push("/teacher/create-cbt");
     } catch (error: any) {
-      console.error("Error deleting test:", error);
-      alert(`Failed to delete test: ${error.message}`);
+    showAlert({
+      title: `Failed to `,
+      message: error.message || "An unexpected error occurred.",
+      type: "error",
+    });
     }
   };
 
@@ -1620,9 +1687,17 @@ const fetchPerformances = useCallback(async () => {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">{test.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">
-                          {test.instructions || "No description provided."}
+                        <CardTitle
+                          className="text-lg"
+                          title={test.title}              // show full on hover
+                        >
+                          {truncateText(test.title,35)}  {/* shorten for UI */}
+                        </CardTitle>
+                        <CardDescription
+                          className="line-clamp-2"
+                          title={test.instructions || "No description provided."}
+                        >
+                          {truncateText(test.instructions || "No description provided.", 100)}
                         </CardDescription>
                       </div>
                       <DropdownMenu>
@@ -1832,14 +1907,14 @@ const fetchPerformances = useCallback(async () => {
                   <SelectValue placeholder="Filter by test" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* ✅ value is 'all', not empty string */}
                   <SelectItem value="all">All Tests</SelectItem>
                   {myTests.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.title}
+                      {truncateText(t.title, 40)}
                     </SelectItem>
                   ))}
                 </SelectContent>
+
               </Select>
 
 
@@ -2676,6 +2751,27 @@ const fetchPerformances = useCallback(async () => {
           )}
         </DialogContent>
       </Dialog>
+    <AlertDialog
+      open={alertState.open}
+      onOpenChange={(open) =>
+        setAlertState((prev) => ({ ...prev, open }))
+      }
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {alertState.title}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {alertState.message || " "}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     </div>
   );
 }
