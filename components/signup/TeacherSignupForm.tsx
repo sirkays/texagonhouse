@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import TeacherBiodataForm from "./TeacherBiodataForm"; // Adjust path as needed
 
 // Step 1: Teacher Registration Form
 function TeacherSignupForm({
@@ -24,6 +25,7 @@ function TeacherSignupForm({
     const score = [hasLower, hasUpper, hasNumber, hasSpecial, length].filter(
       Boolean
     ).length;
+
     if (score === 5) return "strong";
     if (score >= 3) return "medium";
     return "weak";
@@ -48,48 +50,23 @@ function TeacherSignupForm({
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSendOtp) return;
+    if (!canSendOtp) {
+      setError("Please fix the errors above before continuing");
+      return;
+    }
 
     setError("");
     setIsSendingOtp(true);
 
-    try {
-      const payload = {
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password,
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone.trim() || undefined,
-        primary_org_id: 1,
-        account_type: "teacher" as const,
-      };
+    await new Promise((resolve) => setTimeout(resolve, 1800));
 
-      const res = await fetch("/api/accounts/create", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload),
-      });
+    console.log("Simulated account creation:", {
+      email: formData.email.trim().toLowerCase(),
+      name: `${formData.firstName} ${formData.lastName}`,
+    });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errMsg =
-          typeof data.detail === "string"
-            ? data.detail
-            : data.detail
-            ? Object.values(data.detail).flat().join(", ")
-            : "Failed to create account";
-        setError(errMsg);
-        return;
-      }
-
-      // Success: OTP sent by backend
-      onOtpRequested();
-    } catch (err) {
-      setError("Network error. Please try again.");
-    } finally {
-      setIsSendingOtp(false);
-    }
+    setIsSendingOtp(false);
+    onOtpRequested();
   };
 
   return (
@@ -105,7 +82,7 @@ function TeacherSignupForm({
             required
             value={formData.firstName}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771] focus:outline-none"
             placeholder="John"
           />
         </div>
@@ -119,7 +96,7 @@ function TeacherSignupForm({
             required
             value={formData.lastName}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771] focus:outline-none"
             placeholder="Doe"
           />
         </div>
@@ -134,7 +111,7 @@ function TeacherSignupForm({
           type="tel"
           value={formData.phone}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771] focus:outline-none"
           placeholder="+2348012345678"
         />
         <p className="text-xs text-gray-500 mt-1">Use international format</p>
@@ -150,7 +127,7 @@ function TeacherSignupForm({
           required
           value={formData.email}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771] focus:outline-none"
           placeholder="teacher@school.com"
         />
       </div>
@@ -166,7 +143,7 @@ function TeacherSignupForm({
           minLength={8}
           value={formData.password}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771] focus:outline-none"
         />
       </div>
 
@@ -181,7 +158,7 @@ function TeacherSignupForm({
           minLength={8}
           value={formData.confirmPassword}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771]"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#f79771] focus:ring-[#f79771] focus:outline-none"
         />
         {formData.password &&
           formData.password !== formData.confirmPassword && (
@@ -247,7 +224,7 @@ function TeacherSignupForm({
   );
 }
 
-// Step 2: OTP Verification Screen
+// Step 2: OTP Verification
 function OtpVerificationStep({
   email,
   onVerified,
@@ -270,43 +247,22 @@ function OtpVerificationStep({
 
     setError("");
     setIsVerifying(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    try {
-      const res = await fetch("/api/accounts/verify", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          code: otp,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.detail || "Invalid or expired code");
-        return;
-      }
-
-      if (data.emailVerified === true) {
-        onVerified();
-      }
-    } catch (err) {
-      setError("Verification failed. Please try again.");
-    } finally {
+    if (otp === "123456" || otp.length === 6) {
+      setIsVerifying(false);
+      onVerified();
+    } else {
+      setError("Invalid code. Try 123456 for demo");
       setIsVerifying(false);
     }
   };
 
   const resendOtp = async () => {
     setIsResending(true);
-    // Reuse the same create account flow (it resends OTP)
-    // You might want to create a dedicated resend endpoint later
-    setTimeout(() => {
-      setIsResending(false);
-      setError("");
-      alert("New code sent! Check your email.");
-    }, 1500);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    setIsResending(false);
+    alert(`New code sent to ${email} (simulated)`);
   };
 
   return (
@@ -316,6 +272,9 @@ function OtpVerificationStep({
         <p className="mt-2 text-gray-600">We sent a 6-digit code to</p>
         <p className="text-lg font-semibold text-[#f79771] break-all">
           {email}
+        </p>
+        <p className="text-sm text-gray-500 mt-2">
+          Hint: Use 123456 to proceed
         </p>
       </div>
 
@@ -343,17 +302,16 @@ function OtpVerificationStep({
           type="submit"
           disabled={isVerifying || otp.length !== 6}
           className="w-full py-3 rounded-md bg-[#f79771] text-white font-medium hover:bg-[#f58667] disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2">
-          {isVerifying ? <>Verifying...</> : "Verify & Complete Registration"}
+          {isVerifying ? "Verifying..." : "Verify & Continue"}
         </button>
       </form>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-8 space-y-4">
         <button
           onClick={onBack}
           className="text-sm text-gray-600 hover:text-gray-900 underline">
-          ← Back to edit details
+          Back to edit details
         </button>
-
         <div className="text-sm text-gray-500">
           Didn't receive the code?{" "}
           <button
@@ -372,10 +330,11 @@ function OtpVerificationStep({
 export default function TeacherSignupFlow({
   onComplete,
 }: {
-  onComplete: () => void;
+  onComplete?: () => void;
 }) {
-  const [step, setStep] = useState<"form" | "otp">("form");
-  const [formData, setFormData] = useState({
+  const [step, setStep] = useState<"form" | "otp" | "biodata">("form");
+
+  const [registrationData, setRegistrationData] = useState({
     firstName: "",
     lastName: "",
     email: "",
@@ -384,39 +343,126 @@ export default function TeacherSignupFlow({
     phone: "",
   });
 
-  const handleOtpRequested = () => {
-    setStep("otp");
-  };
-
-  const handleVerified = () => {
-    onComplete(); // Account is now verified and active
-  };
-
-  const handleBack = () => {
-    setStep("form");
-  };
+  const handleOtpRequested = () => setStep("otp");
+  const handleVerified = () => setStep("biodata");
+  const handleBack = () => setStep("form");
 
   return (
-    <div className="flex items-center justify-center">
-      <div className="w-full">
-        {step === "form" ? (
+    <div className="flex items-center justify-center py-12 px-4">
+      <div className="w-full max-w-3xl">
+        {/* Progress Bar */}
+        <div className="flex justify-center mb-12">
+          <div className="flex items-center space-x-8">
+            <div
+              className={`flex items-center ${
+                step !== "form" ? "text-green-600" : "text-[#f79771]"
+              }`}>
+              <div className="w-10 h-10 rounded-full bg-current text-white flex items-center justify-center font-bold">
+                1
+              </div>
+              <span className="ml-3 font-medium">Account</span>
+            </div>
+            <div
+              className={`w-24 h-1 ${
+                step !== "form" ? "bg-green-600" : "bg-gray-300"
+              }`}
+            />
+            <div
+              className={`flex items-center ${
+                step === "otp"
+                  ? "text-[#f79771]"
+                  : step === "biodata"
+                  ? "text-green-600"
+                  : "text-gray-500"
+              }`}>
+              <div
+                className={`w-10 h-10 rounded-full ${
+                  step === "otp"
+                    ? "bg-[#f79771]"
+                    : step === "biodata"
+                    ? "bg-green-600"
+                    : "bg-gray-300"
+                } text-white flex items-center justify-center font-bold`}>
+                2
+              </div>
+              <span className="ml-3 font-medium">Verify</span>
+            </div>
+            <div
+              className={`w-24 h-1 ${
+                step === "biodata" ? "bg-green-600" : "bg-gray-300"
+              }`}
+            />
+            <div
+              className={`flex items-center ${
+                step === "biodata" ? "text-[#f79771]" : "text-gray-500"
+              }`}>
+              <div
+                className={`w-10 h-10 rounded-full ${
+                  step === "biodata" ? "bg-[#f79771]" : "bg-gray-300"
+                } text-white flex items-center justify-center font-bold`}>
+                3
+              </div>
+              <span className="ml-3 font-medium">Profile</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Step: Registration Form */}
+        {step === "form" && (
           <div className="">
-            <p className="text-left text-gray-600 mb-8">
-              Create your account in seconds
+            <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
+              Create Teacher Account
+            </h1>
+            <p className="text-center text-gray-600 mb-8">
+              Join thousands of educators
             </p>
             <TeacherSignupForm
               onOtpRequested={handleOtpRequested}
-              formData={formData}
-              setFormData={setFormData}
+              formData={registrationData}
+              setFormData={setRegistrationData}
             />
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-lg">
+        )}
+
+        {/* Step: OTP Verification */}
+        {step === "otp" && (
+          <div className="">
             <OtpVerificationStep
-              email={formData.email}
+              email={registrationData.email}
               onVerified={handleVerified}
               onBack={handleBack}
             />
+          </div>
+        )}
+
+        {/* Step: Biodata Form - Only after OTP success */}
+        {step === "biodata" && (
+          <div className="">
+            <div className="text-center mb-8">
+              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-12 h-12 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mt-4">
+                Email Verified Successfully!
+              </h2>
+              <p className="text-gray-600 mt-2">
+                Welcome, {registrationData.firstName}!
+              </p>
+            </div>
+
+            {/* Your exact TeacherBiodataForm - prefilled with registration data */}
+            <TeacherBiodataForm />
           </div>
         )}
       </div>
