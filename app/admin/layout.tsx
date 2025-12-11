@@ -1146,7 +1146,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
-import { useSession } from "next-auth/react";
+import { useSession, signOut, } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 interface Organization {
@@ -1323,14 +1323,18 @@ export default function DashboardLayout({
       }
 
       console.log("[AdminLayout] Logout successful, redirecting to /login");
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      router.push("/login");
+      // document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      // document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      // router.push("/login");
+
+      await signOut({ callbackUrl: "/login" });
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      router.push("/login");
+      // document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
+      // document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      // router.push("/login");
+
+      await signOut({ callbackUrl: "/login" });
     }
   };
 
