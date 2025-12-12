@@ -13,6 +13,10 @@ import {
     CheckCircle2,
     Loader2,
     Edit,
+    Trash2,
+    Plus,
+    X,
+    Undo2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -155,7 +159,23 @@ export default function VerifyUserPage() {
     // Parent fields
     const [address, setAddress] = useState("");
 
-    // Confirmation dialog state
+    // Parent - Manage Children state
+    const [showAddStudentSearch, setShowAddStudentSearch] = useState(false);
+    const [studentSearchEmail, setStudentSearchEmail] = useState("");
+    const [isSearchingStudent, setIsSearchingStudent] = useState(false);
+    const [foundStudentToAdd, setFoundStudentToAdd] = useState<any | null>(null);
+
+    // Action Confirmation State
+    const [actionConfirmation, setActionConfirmation] = useState<{
+        isOpen: boolean;
+        type: 'add' | 'remove' | 'update_profile';
+        student?: any;
+    }>({ isOpen: false, type: 'update_profile' });
+
+    // Confirmation dialog state (Legacy - replaced by actionConfirmation but kept for compatibility if needed, though we'll use actionConfirmation for everything)
+    // const [showConfirmDialog, setShowConfirmDialog] = useState(false); 
+    // We will reuse showConfirmDialog for the main profile update to keep changes minimal, 
+    // but we'll use actionConfirmation for the specific add/remove actions.
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
     // Fetch data when user is verified
@@ -275,6 +295,10 @@ export default function VerifyUserPage() {
         setSelectedLanguages([]);
         setSelectedSubjects([]);
         setAddress("");
+        setShowAddStudentSearch(false);
+        setStudentSearchEmail("");
+        setFoundStudentToAdd(null);
+        setActionConfirmation({ isOpen: false, type: 'update_profile' });
     };
 
     // Step 1: Fetch user by email
@@ -406,6 +430,7 @@ export default function VerifyUserPage() {
         setStep("updating");
 
         try {
+            // 1. Update Main Profile
             const payload: any = { email: verifiedUser.email };
             const profile = buildProfilePayload(verifiedUser.profile_type);
             if (profile && Object.keys(profile).length > 0) {
@@ -480,10 +505,153 @@ export default function VerifyUserPage() {
             case "parent":
                 const parentProfile: any = {};
                 if (address) parentProfile.address = address;
+                // Note: add_child_ids and remove_child_ids are now handled via separate API calls
                 return parentProfile;
 
             default:
                 return {};
+        }
+    };
+
+    // Parent - Manage Children Helpers
+    const handleSearchStudent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!studentSearchEmail.trim()) return;
+
+        setIsSearchingStudent(true);
+        setFoundStudentToAdd(null);
+
+        try {
+            const res = await fetch("/api/admin/fetch-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: studentSearchEmail.trim() }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast({
+                    title: "Student Not Found",
+                    description: data.detail || "Could not find a student with that email.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            if (data.profile_type !== "student") {
+                toast({
+                    title: "Invalid User Type",
+                    description: `The user found is a ${data.profile_type}, not a student.`,
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            // Check if already linked
+            const isAlreadyLinked = verifiedUser?.parent_profile?.children_links?.some(
+                (link: any) => link.student_user?.id === data.id
+            );
+
+            if (isAlreadyLinked) {
+                toast({
+                    title: "Already Linked",
+                    description: "This student is already linked to this parent.",
+                    variant: "warning",
+                });
+                return;
+            }
+
+            setFoundStudentToAdd(data);
+        } catch (error) {
+            console.error("Search student error:", error);
+            toast({
+                title: "Error",
+                description: "Failed to search for student.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSearchingStudent(false);
+        }
+    };
+
+    const handleAddClick = (student: any) => {
+        setActionConfirmation({
+            isOpen: true,
+            type: 'add',
+            student: student
+        });
+    };
+
+    const handleRemoveClick = (student: any) => {
+        setActionConfirmation({
+            isOpen: true,
+            type: 'remove',
+            student: student
+        });
+    };
+
+    const confirmAction = async () => {
+        if (!verifiedUser || !actionConfirmation.student) return;
+
+        const { type, student } = actionConfirmation;
+        setActionConfirmation({ ...actionConfirmation, isOpen: false });
+        setIsLoading(true);
+
+        try {
+            const res = await fetch("/api/admin/parent-child-link", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: verifiedUser.email,
+                    other_email: student.email,
+                    action: type === 'add' ? 'create' : 'delete',
+                    relationship: "Parent"
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast({
+                    title: "Action Failed",
+                    description: data.detail || `Failed to ${type} student.`,
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            toast({
+                title: "Success",
+                description: `Student successfully ${type === 'add' ? 'added' : 'removed'}.`,
+            });
+
+            // Refresh user data
+            const fetchRes = await fetch("/api/admin/fetch-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: verifiedUser.email }),
+            });
+
+            if (fetchRes.ok) {
+                const updatedUser = await fetchRes.json();
+                setVerifiedUser(updatedUser);
+                // Reset search state if adding
+                if (type === 'add') {
+                    setFoundStudentToAdd(null);
+                    setStudentSearchEmail("");
+                    setShowAddStudentSearch(false);
+                }
+            }
+
+        } catch (error) {
+            console.error("Link action error:", error);
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -672,6 +840,8 @@ export default function VerifyUserPage() {
                                 </h3>
                             </div>
 
+
+
                             {/* Student Fields */}
                             {verifiedUser.profile_type === "student" && (
                                 <div className="space-y-4 p-4 border rounded-lg">
@@ -847,17 +1017,122 @@ export default function VerifyUserPage() {
 
                             {/* Parent Fields */}
                             {verifiedUser.profile_type === "parent" && (
-                                <div className="space-y-4 p-4 border rounded-lg">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="address">Address</Label>
-                                        <Textarea
-                                            id="address"
-                                            placeholder="e.g., 123 Test Street, Lagos"
-                                            value={address}
-                                            onChange={(e) => setAddress(e.target.value)}
-                                            disabled={isLoading}
-                                            rows={3}
-                                        />
+                                <div className="space-y-6">
+                                    <div className="space-y-4 p-4 border rounded-lg">
+                                        <h4 className="font-medium flex items-center gap-2">
+                                            <UserCircle className="h-4 w-4" /> Parent Details
+                                        </h4>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="address">Address</Label>
+                                            <Textarea
+                                                id="address"
+                                                placeholder="e.g., 123 Main St"
+                                                value={address}
+                                                onChange={(e) => setAddress(e.target.value)}
+                                                disabled={isLoading}
+                                                rows={2}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Manage Children Section */}
+                                    <div className="space-y-4 p-4 border rounded-lg">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium flex items-center gap-2">
+                                                <GraduationCap className="h-4 w-4" /> Manage Children
+                                            </h4>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={(e) => { e.preventDefault(); setShowAddStudentSearch(!showAddStudentSearch); }}
+                                                className="h-8 gap-1"
+                                            >
+                                                {showAddStudentSearch ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                                                {showAddStudentSearch ? "Cancel" : "Add Child"}
+                                            </Button>
+                                        </div>
+
+                                        {/* Add Student Search Area */}
+                                        {showAddStudentSearch && (
+                                            <div className="p-3 border rounded-md bg-muted/30 animate-in fade-in slide-in-from-top-2 mb-4">
+                                                <Label className="mb-2 block">Search Student by Email</Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        placeholder="student@example.com"
+                                                        value={studentSearchEmail}
+                                                        onChange={(e) => setStudentSearchEmail(e.target.value)}
+                                                        disabled={isSearchingStudent}
+                                                        className="flex-1"
+                                                    />
+                                                    <Button
+                                                        onClick={handleSearchStudent}
+                                                        disabled={isSearchingStudent || !studentSearchEmail}
+                                                        variant="secondary"
+                                                        type="button"
+                                                    >
+                                                        {isSearchingStudent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                                    </Button>
+                                                </div>
+
+                                                {/* Found Student Result */}
+                                                {foundStudentToAdd && (
+                                                    <div className="mt-3 p-3 border rounded-md bg-background flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="bg-primary/10 p-2 rounded-full">
+                                                                <User className="h-4 w-4 text-primary" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-sm">{foundStudentToAdd.full_name}</p>
+                                                                <p className="text-xs text-muted-foreground">{foundStudentToAdd.email}</p>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={(e) => { e.preventDefault(); handleAddClick(foundStudentToAdd); }}
+                                                            className="gap-1"
+                                                        >
+                                                            <Plus className="h-3 w-3" /> Add
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* List Existing Children */}
+                                        <div className="space-y-3">
+                                            <Label>Linked Students</Label>
+
+                                            {verifiedUser.parent_profile?.children_links?.map((link: any) => (
+                                                <div
+                                                    key={link.link_id}
+                                                    className="flex items-center justify-between p-3 rounded-md border bg-muted/50"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="bg-background p-2 rounded-full">
+                                                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-sm">
+                                                                {link.student_user?.full_name || "Unknown"}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">{link.student_user?.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={(e) => { e.preventDefault(); handleRemoveClick(link.student_user); }}
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+
+                                            {!verifiedUser.parent_profile?.children_links?.length && (
+                                                <p className="text-sm text-muted-foreground italic py-2">No children linked yet.</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -895,19 +1170,44 @@ export default function VerifyUserPage() {
                 </Card>
             )}
 
+            {/* Main Profile Update Confirmation */}
             <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Confirm Profile Update</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to update the profile for {verifiedUser?.email}?
-                            This action will save the changes.
+                            Are you sure you want to update the profile details for {verifiedUser?.email}?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleConfirmUpdate} className="bg-[#EF7B55] hover:bg-[#d96a47]">
                             Confirm Update
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Add/Remove Student Confirmation */}
+            <AlertDialog open={actionConfirmation.isOpen} onOpenChange={(open) => setActionConfirmation({ ...actionConfirmation, isOpen: open })}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {actionConfirmation.type === 'add' ? 'Add Student' : 'Remove Student'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to {actionConfirmation.type === 'add' ? 'add' : 'remove'}
+                            <span className="font-semibold"> {actionConfirmation.student?.full_name} </span>
+                            {actionConfirmation.type === 'add' ? 'to' : 'from'} this parent's profile?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmAction}
+                            className={actionConfirmation.type === 'remove' ? "bg-destructive hover:bg-destructive/90" : "bg-[#EF7B55] hover:bg-[#d96a47]"}
+                        >
+                            Confirm {actionConfirmation.type === 'add' ? 'Add' : 'Remove'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
