@@ -29,7 +29,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "./types/**/*.ts",
-    "app/api/teacher/modules/create/route.js"
+    "app/api/teacher/modules/create/route.js",
+    "components/signup/TeacherSignupFlow"
   ],
   "exclude": ["node_modules"]
 }
