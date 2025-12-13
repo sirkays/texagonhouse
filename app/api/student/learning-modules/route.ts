@@ -23,7 +23,10 @@ const headers = (sessionToken) => ({
 export async function GET(req) {
   noStore();
   const endpoint = "/learning/api/modules/learning/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
+  const url = new URL(req.url);
+
+  const qs = url.searchParams.toString(); // e.g. module_id=12
+  const fullUrl = `${BASE_URL}${endpoint}${qs ? `?${qs}` : ""}`;
   console.log("[LearningModulesAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
@@ -51,10 +54,8 @@ export async function GET(req) {
 
   try {
     console.log("[LearningModulesAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(session.user.sessionToken),
-    });
+    const response = await fetch(fullUrl, { method: "GET", headers: headers(session.user.sessionToken) });
+
 
     console.log("[LearningModulesAPI] Fetch response status:", response.status);
     console.log("[LearningModulesAPI] Fetch response headers:", Object.fromEntries(response.headers));

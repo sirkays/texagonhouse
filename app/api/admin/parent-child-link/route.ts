@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || !session.user.accessToken) {
+    if (!session || !session.user || !session.user.sessionToken) {
         return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Api-Key ${process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"}`,
-                "X-Session-Token": session.user.accessToken,
+                "X-Session-Token": session.user.sessionToken,
             },
             body: JSON.stringify({
                 email,

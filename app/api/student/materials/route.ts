@@ -56,256 +56,96 @@ const headers = (sessionToken) => ({
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function GET(req) {
+
+export async function GET(req: Request) {
   noStore();
-  const endpoint = "/learning/api/materials/mine/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[Materials API] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[Materials API] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
+  if (!session?.user?.sessionToken) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const q = (searchParams.get("q") || "").trim();
+
+  const endpoint = "/learning/api/materials/mine/";
+  const fullUrl = `${BASE_URL}${endpoint}${q ? `?q=${encodeURIComponent(q)}` : ""}`;
+
+  const response = await fetch(fullUrl, {
+    method: "GET",
+    headers: headers(session.user.sessionToken),
   });
 
-  if (!session?.user?.sessionToken) {
-    console.log("[Materials API] No session token found");
+  const raw = await response.text();
+
+  if (!response.ok) {
     return NextResponse.json(
-      { error: "Not authenticated" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
+      { error: "Failed to fetch materials", details: raw },
+      { status: response.status }
     );
   }
 
-  try {
-    console.log("[Materials API] Fetching from", fullUrl, "with token:", session.user.sessionToken);
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(session.user.sessionToken),
-    });
-
-    console.log("[Materials API] Fetch response status:", response.status);
-    console.log("[Materials API] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[Materials API] Fetch response content-type:", response.headers.get("content-type"));
-
-    const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
-    console.log("[Materials API] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
-
-    if (!response.ok) {
-      console.error("[Materials API] Fetch failed:", response.status, rawResponse.slice(0, 100));
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired" },
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: "Materials endpoint not found" },
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      return NextResponse.json(
-        { error: "Failed to fetch materials" },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    if (!contentType.includes("application/json")) {
-      console.error("[Materials API] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[Materials API] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        { error: "Invalid response format" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    const normalizedData = {
-      ...data,
-      saved: {
-        ...data.saved,
-        videos: data.saved.videos.map((video) => ({
-          ...video,
-          thumbnail: normalizeMedia(video.thumbnail) || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
-          videoUrl: normalizeMedia(video.videoUrl) || "/sample-video.mp4",
-        })),
-        pdfs: data.saved.pdfs.map((pdf) => ({
-          ...pdf,
-          downloadUrl: normalizeMedia(pdf.downloadUrl) || "/sample.pdf",
-        })),
-        audio: data.saved.audio.map((audio) => ({
-          ...audio,
-          audioUrl: normalizeMedia(audio.audioUrl) || "/sample-audio.mp3",
-        })),
-      },
-
-    // NEW: normalize notes and bookmarks to snake_case & correct types
-    notes: (data.notes ?? []).map(normalizeNote),
-    bookmarks: (data.bookmarks ?? []).map(normalizeBookmark),
-    };
-
-    console.log("[Materials API] Fetch successful, normalized data:", normalizedData);
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
-  } catch (error) {
-    console.error("[Materials API] Fetch error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch materials", details: error.message },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
-    );
-  }
+  const data = raw ? JSON.parse(raw) : {};
+  return NextResponse.json(data, { status: 200 });
 }
-
 
 
 export async function DELETE(req: Request) {
   noStore();
-  const { id } = await req.json();
-  const fullUrl = `${BASE_URL}${deleteEndpoint}${id}`;
-  console.log("[Notes API] Initiating DELETE to:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[Notes API] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user
-      ? { id: session.user.id, role: session.user.role }
-      : null,
-  });
-
   if (!session?.user?.sessionToken) {
-    console.log("[Notes API] No session token found");
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const lesson_id = body.lesson_id ?? null;
+  const material_id = body.material_id ?? null;
+
+  if (!lesson_id && !material_id) {
     return NextResponse.json(
-      { error: "Not authenticated" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Provide lesson_id or material_id" },
+      { status: 400 }
     );
   }
 
+  const endpoint = "/learning/api/materials/delete/";
+  const fullUrl = `${BASE_URL}${endpoint}`;
+
   try {
+    // We send JSON body (backend supports it), safest.
     const response = await fetch(fullUrl, {
       method: "DELETE",
       headers: headers(session.user.sessionToken),
+      body: JSON.stringify({
+        lesson_id,
+        material_id,
+      }),
     });
 
-    console.log("[Notes API] DELETE response status:", response.status);
-    const rawResponse = await response.text();
-    console.log(
-      "[Notes API] Raw response:",
-      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
-    );
+    const raw = await response.text();
+    let data: any = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
 
     if (!response.ok) {
-      console.error(
-        "[Notes API] DELETE failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
-      let errorData;
-      try {
-        errorData = JSON.parse(rawResponse);
-      } catch {
-        errorData = { error: "Invalid response format" };
-      }
       return NextResponse.json(
-        { error: "Failed to delete note", details: errorData },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Failed to delete material", details: data },
+        { status: response.status }
       );
     }
 
-    console.log("[Notes API] DELETE successful");
+    return NextResponse.json(data, { status: 200 });
+  } catch (error: any) {
     return NextResponse.json(
-      { message: "Note deleted" },
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
-    );
-  } catch (error) {
-    console.error("[Notes API] DELETE error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete note", details: error.message },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to delete material", details: error?.message },
+      { status: 500 }
     );
   }
 }
+
+
+

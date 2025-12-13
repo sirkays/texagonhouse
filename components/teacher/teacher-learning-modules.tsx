@@ -1,4 +1,14 @@
 "use client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { useState, useRef, useEffect } from "react";
 import {
@@ -105,21 +115,29 @@ interface Module {
 }
 
 interface APIModule {
-  id: string;
+  id: string | number;
   title: string;
   description: string;
   difficulty: string;
-  category: { id: string; name: string };
+  category: { id: string | number; name: string } | null;
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: { id: string; name: string };
-  createdAt: string;
-  updatedAt: string;
-  lessons: any[]; // Backend lessons with cover_image
+  course: { id: string | number; name: string } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  lessons: any[];
   lessonCount: number;
+
+  // optional fields
+  enrollments?: number;
+  rating?: number;
+  // 👇 important: make type compatible with Module["type"]
+  type?: Module["type"] | string;
 }
+
+
 
 interface APIError {
   error: string;
@@ -147,27 +165,54 @@ const durationToMinutes = (duration: string): number => {
   return hours * 60 + minutes;
 };
 
-const minutesToDuration = (minutes: number): string => {
-  if (!minutes) return "0m";
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+const minutesToDuration = (minutes: number | string | null | undefined): string => {
+  const total = Number(minutes);
+
+  if (!total || isNaN(total)) return "0m";
+
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
+
 
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0];
 };
+const shortenText = (text: string, maxLength: number) => {
+  if (!text) return "";
+  return text.length > maxLength
+    ? text.slice(0, maxLength).trim() + "…"
+    : text;
+};
 
-// Add this utility function at the top with other utilities
-// function normalizeMedia(media: string | undefined): string | undefined {
-//   if (!media) return undefined;
-//   const BASE_URL = "https://texagonbackend.onrender.com";
-//   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
-//   if (cleaned.startsWith("http")) return cleaned;
-//   return `${BASE_URL}/media/covers/${cleaned}`;
-// }
+
+const normalizeDifficulty = (difficulty: string): Module["difficulty"] => {
+  const v = (difficulty || "").toLowerCase();
+  if (v === "beginner") return "Beginner";
+  if (v === "intermediate") return "Intermediate";
+  if (v === "advanced") return "Advanced";
+  // Fallback
+  return "Beginner";
+};
+
+const normalizeModuleType = (t?: string): Module["type"] => {
+  switch ((t || "").toLowerCase()) {
+    case "video":
+      return "video";
+    case "audio":
+      return "audio";
+    case "document":
+      return "document";
+    case "tutorial":
+      return "tutorial";
+    default:
+      return "video"; // sensible default
+  }
+};
 
 export function TeacherLearningModules() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -210,7 +255,7 @@ export function TeacherLearningModules() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const modulesPerPage = 3;
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
-
+  const [loadingModuleId, setLoadingModuleId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<{
     aggregates: { total_enrollments: number; completion_rate: number };
     pagination: {
@@ -224,6 +269,44 @@ export function TeacherLearningModules() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(""); // NEW: Controlled input
+
+  const [courseFilter, setCourseFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // Feedback dialog for success/info messages
+  const [feedbackDialog, setFeedbackDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+  });
+
+  const openFeedback = (title: string, description?: string) => {
+    setFeedbackDialog({
+      open: true,
+      title,
+      description,
+    });
+  };
+
+  // Confirm delete dialog for modules
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState<string | null>(null);
+
+  const handleDeleteModuleClick = (moduleId: string) => {
+    setModuleToDelete(moduleId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteModule = async () => {
+    if (!moduleToDelete) return;
+    const id = moduleToDelete;
+    setDeleteDialogOpen(false);
+    setModuleToDelete(null);
+    await deleteModule(id);
+  };
 
   // Fetch session token
   useEffect(() => {
@@ -302,48 +385,62 @@ export function TeacherLearningModules() {
   }, [sessionToken]);
 
   // Fetch modules
-  useEffect(() => {
-    if ((activeTab === "manage" || activeTab === "analytics") && sessionToken) {
-      const fetchModules = async () => {
-        setIsLoadingModules(true);
-        setError(null);
-        try {
-          const query = new URLSearchParams();
-          if (search) query.set("search", search);
-          if (difficultyFilter)
-            query.set("difficulty", difficultyFilter.toLowerCase());
-          query.set("active", "true");
-          const response = await fetch(
-            `${BASE_URL}/modules/?${query.toString()}`,
-            {
-              method: "GET",
-              headers: headers(sessionToken),
-            }
-          );
-          if (!response.ok) {
-            const errorData: APIError = await response.json();
-            if (response.status === 401 && errorData.redirect) {
-              window.location.href = errorData.redirect;
-              return;
-            }
-            throw new Error(errorData.error || "Failed to fetch modules");
+useEffect(() => {
+  if ((activeTab === "manage" || activeTab === "analytics") && sessionToken) {
+    const fetchModules = async () => {
+      setIsLoadingModules(true);
+      setError(null);
+      try {
+        const query = new URLSearchParams();
+
+        if (search) query.set("search", search);
+        if (difficultyFilter)
+          query.set("difficulty", difficultyFilter.toLowerCase());
+
+        // You were forcing active=true here; keep or change as needed
+        query.set("active", "true");
+
+        // NEW: course filter (send course id as backend expects)
+        if (courseFilter && courseFilter !== "all") {
+          query.set("course", courseFilter);
+        }
+
+        // NEW: category filter (send category id)
+        if (categoryFilter && categoryFilter !== "all") {
+          query.set("category", categoryFilter);
+        }
+
+        const response = await fetch(
+          `${BASE_URL}/modules/?${query.toString()}`,
+          {
+            method: "GET",
+            headers: headers(sessionToken),
           }
-          let data: APIModule[] = await response.json();
-          console.log(data, " fetchesedkmvfklvmfklvlk");
-          const sanitizedModules: Module[] = data.map((module) => ({
+        );
+        if (!response.ok) {
+          const errorData: APIError = await response.json();
+          if (response.status === 401 && errorData.redirect) {
+            window.location.href = errorData.redirect;
+            return;
+          }
+          throw new Error(errorData.error || "Failed to fetch modules");
+        }
+
+        let data: APIModule[] = await response.json();
+
+        const sanitizedModules: Module[] = data.map(
+          (module: APIModule): Module => ({
             id: String(module.id),
             title: module.title,
             description: module.description,
-            type: module.type || "video",
-            duration: module.estimatedDuration,
-            difficulty:
-              module.difficulty.charAt(0).toUpperCase() +
-              module.difficulty.slice(1),
-            category: module.category || "Uncategorized",
-            enrollments: module.enrollments || 0,
-            rating: module.rating || 0,
+            type: normalizeModuleType(module.type),
+            duration: Number(module.estimatedDuration || 0), // ✅ FIX
+            difficulty: normalizeDifficulty(module.difficulty),
+            category: module.category?.name || "Uncategorized",
+            enrollments: module.enrollments ?? 0,
+            rating: module.rating ?? 0,
             isPublished: module.isPublished,
-            createdDate: formatDate(module.createdAt),
+            createdDate: formatDate(module.createdAt || undefined),
             course: {
               id: module.course?.id ? String(module.course.id) : undefined,
               name: module.course?.name || "",
@@ -352,19 +449,24 @@ export function TeacherLearningModules() {
             lessonCount: module.lessonCount || 0,
             order: module.order,
             active: module.active,
-          }));
-          setModules(sanitizedModules);
-        } catch (err) {
-          setError(
-            (err as Error).message || "An error occurred while fetching modules"
-          );
-        } finally {
-          setIsLoadingModules(false);
-        }
-      };
-      fetchModules();
-    }
-  }, [activeTab, search, difficultyFilter, sessionToken]);
+          })
+        );
+
+
+
+
+        setModules(sanitizedModules);
+      } catch (err) {
+        setError(
+          (err as Error).message || "An error occurred while fetching modules"
+        );
+      } finally {
+        setIsLoadingModules(false);
+      }
+    };
+    fetchModules();
+  }
+}, [activeTab, search, difficultyFilter, courseFilter, categoryFilter, sessionToken]);
 
   // NEW: Fetch analytics separately
   useEffect(() => {
@@ -438,61 +540,61 @@ export function TeacherLearningModules() {
     return `${BASE_URL}/media/covers/${cleaned}`;
   }
 
-  const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
-    try {
-      const response = await fetch(
-        `${BASE_URL}/modules/${moduleId}?t=${Date.now()}`,
-        {
-          method: "GET",
-          headers: headers(sessionToken),
-        }
-      );
-      if (!response.ok) {
-        const errorData: APIError = await response.json();
-        throw new Error(errorData.error || "Failed to fetch module details");
+const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/modules/${moduleId}?t=${Date.now()}`,
+      {
+        method: "GET",
+        headers: headers(sessionToken),
       }
-      const module: APIModule = await response.json();
-
-      const lessonsWithCover =
-        module.lessons?.map((lesson: any) => ({
-          ...lesson,
-          id: String(lesson.id),
-          coverImageUrl: lesson.cover_image
-            ? normalizeMedia(lesson.cover_image)
-            : null,
-        })) || [];
-
-      return {
-        id: String(module.id),
-        title: module.title,
-        description: module.description,
-        type: module.type || "video",
-        duration: module.estimatedDuration,
-        difficulty:
-          module.difficulty.charAt(0).toUpperCase() +
-          module.difficulty.slice(1),
-        category: module.category?.name || undefined,
-        enrollments: module.enrollments || 0,
-        rating: module.rating || 0,
-        isPublished: module.isPublished,
-        createdDate: formatDate(module.createdAt),
-        course: {
-          id: module.course?.id ? String(module.course.id) : undefined,
-          name: module.course?.name || "",
-        },
-        lessons: lessonsWithCover,
-        lessonCount: module.lessonCount || 0,
-        order: module.order,
-        active: module.active,
-      };
-    } catch (err) {
-      setError(
-        (err as Error).message ||
-          "An error occurred while fetching module details"
-      );
-      return null;
+    );
+    if (!response.ok) {
+      const errorData: APIError = await response.json();
+      throw new Error(errorData.error || "Failed to fetch module details");
     }
-  };
+    const module: APIModule = await response.json();
+
+    const lessonsWithCover =
+      module.lessons?.map((lesson: any) => ({
+        ...lesson,
+        id: String(lesson.id),
+        coverImageUrl: lesson.cover_image
+          ? normalizeMedia(lesson.cover_image)
+          : null,
+      })) || [];
+
+    return {
+      id: String(module.id),
+      title: module.title,
+      description: module.description,
+      type: normalizeModuleType(module.type),
+      duration: module.estimatedDuration,
+      difficulty: normalizeDifficulty(module.difficulty),
+      category: module.category?.name || undefined,
+      enrollments: module.enrollments ?? 0,
+      rating: module.rating ?? 0,
+      isPublished: module.isPublished,
+      createdDate: formatDate(module.createdAt || undefined),
+      course: {
+        id: module.course?.id ? String(module.course.id) : undefined,
+        name: module.course?.name || "",
+      },
+      lessons: lessonsWithCover,
+      lessonCount: module.lessonCount || 0,
+      order: module.order,
+      active: module.active,
+    };
+
+  } catch (err) {
+    setError(
+      (err as Error).message ||
+        "An error occurred while fetching module details"
+    );
+    return null;
+  }
+};
+
 
   // Pagination
   const getPaginatedModules = (modules: Module[], currentPage: number) => {
@@ -583,7 +685,7 @@ export function TeacherLearningModules() {
       if (editingLesson?.id === lessonId) {
         setEditingLesson(null);
       }
-      alert("Lesson deleted successfully!");
+      openFeedback("Lesson deleted", "The lesson was deleted successfully.");
     } catch (err) {
       setError(
         (err as Error).message || "An error occurred while deleting the lesson"
@@ -618,7 +720,10 @@ export function TeacherLearningModules() {
       if (currentModule.id === moduleId) {
         setCurrentModule((prev) => ({ ...prev, isPublished: active }));
       }
-      alert(`Module ${active ? "published" : "unpublished"} successfully!`);
+      openFeedback(
+        `Module ${active ? "published" : "unpublished"}`,
+        `The module was ${active ? "published" : "unpublished"} successfully.`
+      );
     } catch (err) {
       setError(
         (err as Error).message ||
@@ -632,9 +737,6 @@ export function TeacherLearningModules() {
   const deleteModule = async (moduleId: string) => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
-      return;
-    }
-    if (!confirm("Are you sure you want to delete this module?")) {
       return;
     }
     try {
@@ -655,13 +757,14 @@ export function TeacherLearningModules() {
         setCurrentModule(initialModule);
         setEditingLesson(null);
       }
-      alert("Module deleted successfully!");
+      openFeedback("Module deleted", "The module was deleted successfully.");
     } catch (err) {
       setError(
         (err as Error).message || "An error occurred while deleting the module"
       );
     }
   };
+
 
   const getNextOrder = async (
     courseId: string,
@@ -854,24 +957,24 @@ export function TeacherLearningModules() {
         id: String(data.id),
         title: data.title,
         description: data.description,
-        type: currentModule.type,
+        type: currentModule.type, // keep whatever the UI had
         duration: data.estimatedDuration,
-        difficulty:
-          data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1),
-        category: data.category || "Uncategorized",
-        enrollments: data.enrollments || 0,
-        rating: data.rating || 0,
+        difficulty: normalizeDifficulty(data.difficulty),
+        category: data.category?.name || "Uncategorized",
+        enrollments: data.enrollments ?? 0,
+        rating: data.rating ?? 0,
         isPublished: data.isPublished,
-        createdDate: formatDate(data.createdAt),
+        createdDate: formatDate(data.createdAt || undefined),
         course: {
           id: data.course?.id ? String(data.course.id) : undefined,
           name: data.course?.name || "",
         },
         lessons: [],
-        lessonCount: data.lessonCount || currentModule.lessons.length,
+        lessonCount: data.lessonCount || currentModule.lessonCount || currentModule.lessons.length,
         order: data.order,
         active: data.active,
       };
+
       setModules((prev) => [...prev, newModule]);
 
       // Now create the lessons
@@ -897,10 +1000,14 @@ export function TeacherLearningModules() {
         );
       }
 
-      alert("Module and lessons saved successfully!");
+      openFeedback(
+        "Module saved",
+        "Module and lessons were saved successfully."
+      );
       setCurrentModule(initialModule);
       setEditingLesson(null);
       setActiveTab("manage");
+
     } catch (err) {
       setError(
         (err as Error).message ||
@@ -911,122 +1018,144 @@ export function TeacherLearningModules() {
     }
   };
 
+
   const updateModule = async () => {
-    if (!sessionToken) {
-      setError("No session token available. Please log in again.");
-      return;
-    }
-    if (!currentModule.id) {
-      setError("No module ID provided for update.");
-      return;
-    }
-    if (!currentModule.title) {
-      setError("Module title is required.");
-      return;
-    }
-    if (!currentModule.course.id) {
-      setError("Please select a course.");
-      return;
-    }
-    if (!currentModule.category) {
-      setError("Please select a category.");
-      return;
-    }
-    try {
-      setIsSaving(true);
-      const payload = {
-        title: currentModule.title,
-        description: currentModule.description,
-        difficulty: currentModule.difficulty.toLowerCase(),
-        estimatedDuration: currentModule.duration, // FIX: Send as number (minutes)
-        order: currentModule.order,
-      };
+  if (!sessionToken) {
+    setError("No session token available. Please log in again.");
+    return;
+  }
+  if (!currentModule.id) {
+    setError("No module ID provided for update.");
+    return;
+  }
+  if (!currentModule.title) {
+    setError("Module title is required.");
+    return;
+  }
+  if (!currentModule.course.id) {
+    setError("Please select a course.");
+    return;
+  }
+  if (!currentModule.category) {
+    setError("Please select a category.");
+    return;
+  }
 
-      // Ensure estimatedDuration is a number
-      payload.estimatedDuration = Number(payload.estimatedDuration);
+  try {
+    setIsSaving(true);
 
-      console.log("[updateModule] Payload:", payload);
+    const payload: any = {
+      title: currentModule.title,
+      description: currentModule.description,
+      difficulty: currentModule.difficulty.toLowerCase(),
+      estimatedDuration: Number(currentModule.duration) || 0,
+      order: currentModule.order,
+    };
 
-      const response = await fetch(
-        `${BASE_URL}/modules/${currentModule.id}/update/`,
-        {
-          method: "PATCH",
-          headers: headers(sessionToken),
-          body: JSON.stringify(payload),
-        }
-      );
+    // 🔹 Send course_id (int) for backend
+    if (currentModule.course.id) {
+      payload.course_id = parseInt(currentModule.course.id, 10);
+    }
 
-      let errorData;
-      if (!response.ok) {
-        try {
-          errorData = await response.json();
-        } catch (parseErr) {
-          throw new Error("Server error occurred. Please try again later.");
-        }
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        if (
-          errorData.error?.includes(
-            "IntegrityError: duplicate key value violates unique constraint"
-          )
-        ) {
-          setError(
-            "The specified order already exists for this course. Please choose a different order."
-          );
-          return;
-        }
-        throw new Error(
-          errorData.error ||
-            "Failed to update module. Please check the details and try again."
+    // 🔹 Send categoryId (same way you do in createModule)
+    const selectedCategory = categories.find(
+      (c) => c.name === currentModule.category
+    );
+    if (selectedCategory?.id) {
+      payload.categoryId = parseInt(String(selectedCategory.id), 10);
+    } else {
+      // If you want to allow clearing category, send null
+      // payload.categoryId = null;
+    }
+
+    console.log("[updateModule] Payload:", payload);
+
+    const response = await fetch(
+      `${BASE_URL}/modules/${currentModule.id}/update/`,
+      {
+        method: "PATCH",
+        headers: headers(sessionToken),
+        body: JSON.stringify(payload),
+      }
+    );
+
+    let errorData;
+    if (!response.ok) {
+      try {
+        errorData = await response.json();
+      } catch {
+        throw new Error("Server error occurred. Please try again later.");
+      }
+      if (response.status === 401 && errorData.redirect) {
+        window.location.href = errorData.redirect;
+        return;
+      }
+      if (
+        errorData.error?.includes(
+          "IntegrityError: duplicate key value violates unique constraint"
+        )
+      ) {
+        setError(
+          "The specified order already exists for this course. Please choose a different order."
         );
+        return;
       }
-
-      const data: { module: APIModule } = await response.json();
-      const updatedModule: Module = {
-        id: String(data.module.id),
-        title: data.module.title,
-        description: data.module.description,
-        type: currentModule.type,
-        duration: data.module.estimatedDuration,
-        difficulty:
-          data.module.difficulty.charAt(0).toUpperCase() +
-          data.module.difficulty.slice(1),
-        category: data.module.category || "Uncategorized",
-        enrollments: data.module.enrollments || currentModule.enrollments,
-        rating: data.module.rating || currentModule.rating,
-        isPublished: data.module.isPublished,
-        createdDate: formatDate(data.module.createdAt),
-        course: {
-          id: data.module.course?.id
-            ? String(data.module.course.id)
-            : undefined,
-          name: data.module.course?.name || "",
-        },
-        lessons: currentModule.lessons,
-        lessonCount: data.module.lessonCount || currentModule.lessonCount,
-        order: data.module.order || currentModule.order,
-        active: data.module.active,
-      };
-      setModules((prev) =>
-        prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
+      throw new Error(
+        errorData.error ||
+          "Failed to update module. Please check the details and try again."
       );
-      // Refresh to get latest data
-      const moduleData = await getModuleDetails(currentModule.id);
-      if (moduleData) {
-        setCurrentModule(moduleData);
-      }
-      alert(`Module updated successfully! ID: ${updatedModule.id}`);
-    } catch (err) {
-      setError(
-        (err as Error).message ||
-          "An unexpected error occurred while updating the module. Please try again."
-      );
-    } finally {
-      setIsSaving(false);
     }
-  };
+
+    const data: { module: APIModule } = await response.json();
+
+    const updatedModule: Module = {
+      id: String(data.module.id),
+      title: data.module.title,
+      description: data.module.description,
+      type: currentModule.type,
+      duration: data.module.estimatedDuration,
+      difficulty: normalizeDifficulty(data.module.difficulty),
+      category: data.module.category?.name || "Uncategorized",
+      enrollments: data.module.enrollments ?? currentModule.enrollments,
+      rating: data.module.rating ?? currentModule.rating,
+      isPublished: data.module.isPublished,
+      createdDate: formatDate(data.module.createdAt || undefined),
+      course: {
+        id: data.module.course?.id ? String(data.module.course.id) : undefined,
+        name: data.module.course?.name || "",
+      },
+      lessons: currentModule.lessons,
+      lessonCount: data.module.lessonCount || currentModule.lessonCount,
+      order: data.module.order || currentModule.order,
+      active: data.module.active,
+    };
+
+
+    // Update list
+    setModules((prev) =>
+      prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
+    );
+
+    // Refresh to be 100% in sync with backend (including lessons)
+    const moduleData = await getModuleDetails(currentModule.id);
+    if (moduleData) {
+      setCurrentModule(moduleData);
+    }
+
+    openFeedback(
+      "Module updated",
+      `Module "${updatedModule.title}" was updated successfully.`
+    );
+  } catch (err) {
+    setError(
+      (err as Error).message ||
+        "An unexpected error occurred while updating the module. Please try again."
+    );
+  } finally {
+    setIsSaving(false);
+  }
+};
+
 
   const handleFileUpload = async (file: File, type: "video" | "audio") => {
     if (!sessionToken) {
@@ -1225,7 +1354,8 @@ export function TeacherLearningModules() {
         lessonCount: prev.lessonCount, // Update if needed
       }));
       setEditingLesson(newLesson);
-      alert("Lesson saved successfully!");
+      openFeedback("Lesson saved", "Lesson saved successfully.");
+
 
       if (!response.ok) {
         let errorData;
@@ -1455,7 +1585,8 @@ export function TeacherLearningModules() {
         setCurrentModule({ ...moduleData, lessons: syncedLessons });
       }
 
-      alert("Lesson updated successfully!");
+      openFeedback("Lesson updated", "Lesson was updated successfully.");
+
     } catch (err) {
       setError(
         (err as Error).message || "An error occurred while updating the lesson"
@@ -2431,26 +2562,70 @@ export function TeacherLearningModules() {
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem
-                    value="Beginner"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                  <SelectItem value="Beginner" className="text-xs xs:text-sm sm:text-base">
                     Beginner
                   </SelectItem>
-                  <SelectItem
-                    value="Intermediate"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                  <SelectItem value="Intermediate" className="text-xs xs:text-sm sm:text-base">
                     Intermediate
                   </SelectItem>
-                  <SelectItem
-                    value="Advanced"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                  <SelectItem value="Advanced" className="text-xs xs:text-sm sm:text-base">
                     Advanced
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* NEW: Course Filter */}
+              <Select
+                value={courseFilter}
+                onValueChange={(value) => setCourseFilter(value)}
+              >
+                <SelectTrigger className="w-[160px] text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="All Courses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">
+                    All Courses
+                  </SelectItem>
+                  {courses
+                    .filter((c) => c.id)
+                    .map((course) => (
+                      <SelectItem
+                        key={course.id}
+                        value={String(course.id)}
+                        className="text-xs xs:text-sm sm:text-base"
+                      >
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+
+              {/* NEW: Category Filter */}
+              <Select
+                value={categoryFilter}
+                onValueChange={(value) => setCategoryFilter(value)}
+              >
+                <SelectTrigger className="w-[160px] text-xs xs:text-sm sm:text-base">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">
+                    All Categories
+                  </SelectItem>
+                  {categories
+                    .filter((cat) => cat.id)
+                    .map((category) => (
+                      <SelectItem
+                        key={category.id}
+                        value={String(category.id)}
+                        className="text-xs xs:text-sm sm:text-base"
+                      >
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+
 
               {/* Create New Module Button */}
               <Button
@@ -2500,12 +2675,19 @@ export function TeacherLearningModules() {
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
-                            <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                              {module.title}
-                            </CardTitle>
-                            <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
-                              {module.description}
-                            </CardDescription>
+                              <CardTitle
+                                className="text-sm xs:text-base sm:text-lg"
+                                title={module.title}
+                              >
+                                {shortenText(module.title, 45)}
+                              </CardTitle>
+
+                              <CardDescription
+                                className="text-xs sm:text-sm"
+                                title={module.description}
+                              >
+                                {shortenText(module.description, 90)}
+                              </CardDescription>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -2543,13 +2725,15 @@ export function TeacherLearningModules() {
                                 <Eye className="mr-2 h-4 w-4" />
                                 <span>Preview</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => deleteModule(module.id)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Delete</span>
-                              </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteModuleClick(module.id)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <span>Delete</span>
+                                </DropdownMenuItem>
+
+
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -2593,7 +2777,7 @@ export function TeacherLearningModules() {
                           <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
                             <div className="flex items-center gap-1">
                               <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              {minutesToDuration(module.duration)}
+                              {module.duration}
                             </div>
                             <div className="flex items-center gap-1">
                               <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
@@ -2605,37 +2789,65 @@ export function TeacherLearningModules() {
 
                         {/* 👇 Buttons pushed to bottom */}
                         <div className="flex gap-2 flex-col lg:flex-row mt-auto">
-                          <Button
-                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                            onClick={async () => {
-                              const moduleData = await getModuleDetails(
-                                module.id
-                              );
+                        <Button
+                          className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                          disabled={loadingModuleId === module.id}
+                          onClick={async () => {
+                            setLoadingModuleId(module.id);          // 🔹 start loading
+                            try {
+                              const moduleData = await getModuleDetails(module.id);
                               if (moduleData) {
                                 setCurrentModule(moduleData);
                                 setActiveTab("create");
                               }
-                            }}
-                          >
-                            <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
-                            onClick={async () => {
-                              const moduleData = await getModuleDetails(
-                                module.id
-                              );
+                            } finally {
+                              setLoadingModuleId(null);            // 🔹 stop loading
+                            }
+                          }}
+                        >
+                          {loadingModuleId === module.id ? (
+                            <>
+                              <Spinner size="sm" className="mr-1 xs:mr-2 text-white" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              Edit
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                          disabled={loadingModuleId === module.id}
+                          onClick={async () => {
+                            setLoadingModuleId(module.id);
+                            try {
+                              const moduleData = await getModuleDetails(module.id);
                               if (moduleData) {
                                 setPreviewModule(moduleData);
                                 setIsPreviewOpen(true);
                               }
-                            }}
-                          >
-                            <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Preview
-                          </Button>
+                            } finally {
+                              setLoadingModuleId(null);
+                            }
+                          }}
+                        >
+                          {loadingModuleId === module.id ? (
+                            <>
+                              <Spinner size="sm" className="mr-1 xs:mr-2" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              Preview
+                            </>
+                          )}
+                        </Button>
+
                         </div>
                       </CardContent>
                     </Card>
@@ -2861,6 +3073,67 @@ export function TeacherLearningModules() {
           setPreviewModule(null);
         }}
       />
+
+      {/* Feedback Dialog */}
+      <AlertDialog
+        open={feedbackDialog.open}
+        onOpenChange={(open) =>
+          setFeedbackDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{feedbackDialog.title}</AlertDialogTitle>
+            {feedbackDialog.description && (
+              <AlertDialogDescription>
+                {feedbackDialog.description}
+              </AlertDialogDescription>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() =>
+                setFeedbackDialog((prev) => ({ ...prev, open: false }))
+              }
+            >
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm Delete Module Dialog */}
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete module?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              module and all its lessons.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setModuleToDelete(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleConfirmDeleteModule}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

@@ -3,18 +3,26 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
+//const BASE_URL = "http://127.0.0.1:9098";
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   noStore();
-  const moduleId = params.id;
+
+  // ✅ params is a Promise, so await it
+  const { id } = await context.params;
+  const moduleId = id;
+
   const endpoint = `/learning/api/teacher/modules/${moduleId}/update/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log("[ModuleUpdateAPI] Initiating PATCH request for:", fullUrl);
@@ -45,7 +53,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const body = await req.json();
     console.log("[ModuleUpdateAPI] Request body:", body);
 
-    console.log("[ModuleUpdateAPI] Sending PATCH to", fullUrl, "with token:", session.user.sessionToken);
+    console.log(
+      "[ModuleUpdateAPI] Sending PATCH to",
+      fullUrl,
+      "with token:",
+      session.user.sessionToken
+    );
     const response = await fetch(fullUrl, {
       method: "PATCH",
       headers: headers(session.user.sessionToken),
@@ -53,15 +66,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
 
     console.log("[ModuleUpdateAPI] Response status:", response.status);
-    console.log("[ModuleUpdateAPI] Response headers:", Object.fromEntries(response.headers));
-    console.log("[ModuleUpdateAPI] Response content-type:", response.headers.get("content-type"));
+    console.log(
+      "[ModuleUpdateAPI] Response headers:",
+      Object.fromEntries(response.headers)
+    );
+    console.log(
+      "[ModuleUpdateAPI] Response content-type:",
+      response.headers.get("content-type")
+    );
 
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[ModuleUpdateAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log(
+      "[ModuleUpdateAPI] Raw response:",
+      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
+    );
 
     if (!response.ok) {
-      console.error("[ModuleUpdateAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[ModuleUpdateAPI] Fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
+
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired", redirect: "/auth/signin" },
@@ -74,6 +101,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           }
         );
       }
+
       if (response.status === 404) {
         return NextResponse.json(
           { error: `Module with ID ${moduleId} not found` },
@@ -86,6 +114,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           }
         );
       }
+
       return NextResponse.json(
         { error: "Failed to update module" },
         {
@@ -99,7 +128,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[ModuleUpdateAPI] Non-JSON response received:", contentType);
+      console.error(
+        "[ModuleUpdateAPI] Non-JSON response received:",
+        contentType
+      );
       return NextResponse.json(
         { error: "Invalid response format, expected JSON" },
         {
@@ -134,7 +166,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },

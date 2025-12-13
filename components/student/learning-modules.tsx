@@ -1,6 +1,8 @@
 "use client";
+import { useRef } from "react";
 
-import {useState, useEffect, useMemo} from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -23,15 +24,13 @@ import {
   Play,
   Video,
   Headphones,
-  BookOpen,
   FileText,
   Clock,
   Users,
   CheckCircle,
-  Download,
   Eye,
-  Star,
   Bookmark,
+  Star,
 } from "lucide-react";
 import {
   Pagination,
@@ -42,14 +41,24 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {VideoModal} from "@/components/student/video-modal";
-import {AudioPlayer} from "@/components/student/audio-player";
-import {useSession} from "next-auth/react";
-import {Spinner} from "@/components/ui/spinner";
+import { VideoModal } from "@/components/student/video-modal";
+import { AudioPlayer } from "@/components/student/audio-player";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
 import toast from "react-hot-toast";
 import AntiInspect from "@/components/AntiInspect";
 
-interface Module {
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+// -------------------- Types --------------------
+interface ModuleItem {
   id: number;
   title: string;
   content_type: string;
@@ -59,23 +68,40 @@ interface Module {
   course: string;
   subject: string;
   instructor: string | null;
+  module_id: number;
   module_order: number;
   lesson_order: number;
   progress: number;
   popularity: number;
   updated_at: string;
+
+  // ✅ returned by backend (materials)
+  is_saved?: boolean;
+}
+
+interface TutorialItem {
+  id: number;
+  title: string;
   type?: string;
+  content_type?: string;
+  duration: string;
   scheduledAt?: string;
+  course: string;
+  subject: string;
+  host?: string | null;
   isActiveNow?: boolean;
+
+  // If you want to support saving tutorials later:
+  is_saved?: boolean;
 }
 
 interface ModulesData {
-  videos: Module[];
-  audio: Module[];
-  pdfs: Module[];
-  docs: Module[];
-  links: Module[];
-  tutorials: Module[];
+  videos: ModuleItem[];
+  audio: ModuleItem[];
+  pdfs: ModuleItem[];
+  docs: ModuleItem[];
+  links: ModuleItem[];
+  tutorials: TutorialItem[];
 }
 
 interface ActiveModule {
@@ -84,7 +110,8 @@ interface ActiveModule {
   courseName: string;
 }
 
-const StarRating = ({popularity}: {popularity: number | null}) => {
+// -------------------- Helpers --------------------
+const StarRating = ({ popularity }: { popularity: number | null }) => {
   if (!popularity || popularity <= 0) return null;
   const maxStars = 5;
   const filledStars = Math.min(Math.max(popularity, 0), maxStars);
@@ -104,24 +131,62 @@ const StarRating = ({popularity}: {popularity: number | null}) => {
   );
 };
 
+function markSavedInData(data: ModulesData, lessonId: number): ModulesData {
+  // ✅ updates the returned modules state so the UI reflects saved without refresh
+  const patch = <T extends { id: number; is_saved?: boolean }>(arr: T[]) =>
+    arr.map((x) => (x.id === lessonId ? { ...x, is_saved: true } : x));
+
+  return {
+    ...data,
+    videos: patch(data.videos),
+    audio: patch(data.audio),
+    pdfs: patch(data.pdfs),
+    docs: patch(data.docs),
+    links: patch(data.links),
+    tutorials: data.tutorials, // not saving tutorials in this implementation
+  };
+}
+
 export function LearningModules() {
-  const {data: session, status} = useSession();
+  const [pageLoading, setPageLoading] = useState(true);     // first load only
+  const [filterLoading, setFilterLoading] = useState(false); // module filter loading
+  const didInitialLoadRef = useRef(false);
+  const { data: session, status } = useSession();
+  const [savingLessonIds, setSavingLessonIds] = useState<Set<number>>(new Set());
   const [currentPage, setCurrentPage] = useState({
     videos: 1,
     audio: 1,
     pdfs: 1,
     tutorials: 1,
   });
+
   const [modules, setModules] = useState<ModulesData | null>(null);
   const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<Module | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<Module | null>(null);
-  const [selectedModuleName, setSelectedModuleName] = useState<string>("all");
+  const [selectedVideo, setSelectedVideo] = useState<ModuleItem | null>(null);
+  const [selectedAudio, setSelectedAudio] = useState<ModuleItem | null>(null);
+
+  // ✅ filter by module_id (recommended)
+  const [selectedModuleId, setSelectedModuleId] = useState<string>("all");
+
+  // ✅ local optimistic saved set (for instant button disable)
   const [savedLessons, setSavedLessons] = useState<Set<number>>(new Set());
+
+  // Alert modal
+  const [alertModal, setAlertModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+  }>({ open: false, title: "", message: "" });
+
+  const showAlert = (title: string, message: string) => {
+    setAlertModal({ open: true, title, message });
+  };
+
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
@@ -129,247 +194,106 @@ export function LearningModules() {
 
   const itemsPerPage = 3;
 
-  // Fallback data for UI stability
-  const fallbackData: ModulesData = {
-    videos: [
-      {
-        id: 1,
-        title: "React Hooks Masterclass",
-        content_type: "video",
-        duration: "4h 30m",
-        url: "/sample-video.mp4",
-        course: "Advanced React Development",
-        subject: "Advanced React Development",
-        instructor: "Sarah Wilson",
-        module_order: 1,
-        lesson_order: 1,
-        progress: 65,
-        popularity: 3,
-        updated_at: "2025-08-27T14:17:18.781644+00:00",
-      },
-      {
-        id: 2,
-        title: "Python for Beginners",
-        content_type: "video",
-        duration: "6h 15m",
-        url: "/sample-video.mp4",
-        course: "Python for Data Science",
-        subject: "Python for Data Science",
-        instructor: "John Martinez",
-        module_order: 2,
-        lesson_order: 1,
-        progress: 100,
-        popularity: 4,
-        updated_at: "2025-08-27T14:16:34.225646+00:00",
-      },
-    ],
-    audio: [
-      {
-        id: 4,
-        title: "Tech Career Podcast Series",
-        content_type: "audio",
-        duration: "12h total",
-        url: "/sample-audio.mp3",
-        course: "Career Development",
-        subject: "Career Development",
-        instructor: "Industry Experts",
-        module_order: 1,
-        lesson_order: 1,
-        progress: 40,
-        popularity: 2,
-        updated_at: "2025-08-27T14:17:18.781644+00:00",
-      },
-    ],
-    pdfs: [
-      {
-        id: 5,
-        title: "JavaScript ES6 Guide",
-        content_type: "pdf",
-        duration: "N/A",
-        url: "/sample.pdf",
-        course: "JavaScript Algorithms",
-        subject: "JavaScript Algorithms",
-        instructor: "John Doe",
-        module_order: 1,
-        lesson_order: 1,
-        progress: 0,
-        popularity: 1,
-        updated_at: "2025-08-27T14:17:18.781644+00:00",
-      },
-    ],
-    docs: [],
-    links: [],
-    tutorials: [
-      {
-        id: 6,
-        title: "Sample Tutorial",
-        type: "Live Session",
-        content_type: "tutorial",
-        duration: "60m",
-        url: null,
-        scheduledAt: "2025-09-02T14:27:12+00:00",
-        course: "Python for Data Science",
-        subject: "Python for Data Science",
-        instructor: null,
-        module_order: 1,
-        lesson_order: 1,
-        progress: 0,
-        popularity: 0,
-        updated_at: "2025-08-27T14:17:18.781644+00:00",
-        isActiveNow: false,
-      },
-    ],
-  };
+  // -------------------- Fetch modules --------------------
+useEffect(() => {
+  const fetchModules = async () => {
+    const isInitial = !didInitialLoadRef.current;
+    if (isInitial) setPageLoading(true);
 
-  const handleLogout = async () => {
-    console.log(
-      "[LearningModules] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
-    try {
-      const response = await fetch("/api/auth/logout-route", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-      });
-      console.log(
-        "[LearningModules] Logout API response status:",
-        response.status
+    if (status !== "authenticated" || !sessionToken) {
+      setError("Not authenticated");
+      setModules(null);
+      setPageLoading(false);
+      showAlert(
+        "Not authenticated",
+        "Your session is not active. Please log in again to access your learning modules."
       );
-      const data = await response.json();
-      console.log("[LearningModules] Logout API response:", data);
-      if (!response.ok) {
-        console.error("[LearningModules] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
-      }
-      console.log("[LearningModules] Logout successful, redirecting to /login");
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("[LearningModules] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
+      return;
     }
-  };
 
-  useEffect(() => {
-    const fetchModules = async () => {
-      console.log(
-        "[LearningModules] Session status:",
-        status,
-        "Session token:",
-        session?.user?.sessionToken
-      );
-      if (status !== "authenticated" || !sessionToken) {
-        console.log(
-          "[LearningModules] Session not authenticated, status:",
-          status
-        );
-        setError("Not authenticated");
-        setModules(fallbackData);
-        setLoading(false);
+    try {
+      const response = await fetch("/api/student/learning-modules", {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          setModules(null);
+          showAlert(
+            "Session expired",
+            "Your session has expired. Please log in again to continue."
+          );
+          return;
+        }
+        setError("Failed to fetch modules");
+        setModules(null);
+        showAlert("Error", "Failed to fetch your learning modules.");
         return;
       }
 
-      try {
-        console.log(
-          "[LearningModules] Fetching from /api/student/learning-modules with token:",
-          session.user.sessionToken
-        );
-        const response = await fetch("/api/student/learning-modules", {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-          },
-        });
-        console.log(
-          "[LearningModules] Fetch response status:",
-          response.status
-        );
-        if (!response.ok) {
-          console.error(
-            "[LearningModules] Fetch failed with status:",
-            response.status
-          );
-          if (response.status === 401 || response.status === 403) {
-            setError("Session expired");
-            setModules(null);
-            setLoading(false);
-            return;
-          }
-          setError("Failed to fetch modules");
-          setModules(fallbackData);
-          throw new Error("Fetch failed");
-        }
-        const data = await response.json();
-        console.log("[LearningModules] Fetch response data:", data);
-        setModules(data);
-        setError(null);
-      } catch (e) {
-        console.error("[LearningModules] Fetch error:", e);
-        setError("Session expired");
-        setModules(null);
-      }
-      setLoading(false);
-    };
+      const data: ModulesData = await response.json();
+      setModules(data);
+      setError(null);
 
-    fetchModules();
-  }, [sessionToken, status]);
+      // ✅ hydrate local saved set from backend is_saved flags
+      const serverSaved = new Set<number>();
+      [
+        ...(data.videos || []),
+        ...(data.audio || []),
+        ...(data.pdfs || []),
+        ...(data.docs || []),
+        ...(data.links || []),
+      ].forEach((x) => {
+        if (x?.is_saved) serverSaved.add(x.id);
+      });
+      setSavedLessons(serverSaved);
+    } catch (e) {
+      setError("Session expired");
+      setModules(null);
+      showAlert(
+        "Session expired",
+        "Your session has expired or there was a network issue. Please log in again."
+      );
+    } finally {
+      didInitialLoadRef.current = true;
+      setPageLoading(false);
+    }
+  };
 
+  fetchModules();
+}, [sessionToken, status]);
+
+  // -------------------- Fetch active modules (dropdown options) --------------------
   useEffect(() => {
     const fetchActiveModules = async () => {
-      console.log(
-        "[LearningModules] Session status for active modules:",
-        status,
-        "Session token:",
-        session?.user?.sessionToken
-      );
       if (status !== "authenticated" || !sessionToken) {
-        console.log(
-          "[LearningModules] Skipping active modules fetch, not authenticated"
-        );
         setActiveModules([]);
         return;
       }
 
       try {
-        console.log(
-          "[LearningModules] Fetching from /api/student/modules/active with token:",
-          session.user.sessionToken
-        );
         const response = await fetch("/api/student/modules/active", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
           },
         });
-        console.log(
-          "[LearningModules] Active modules fetch response status:",
-          response.status
-        );
+
         if (!response.ok) {
-          console.error(
-            "[LearningModules] Active modules fetch failed with status:",
-            response.status
-          );
           if (response.status === 401 || response.status === 403) {
-            setError("Session expired");
             setActiveModules([]);
             return;
           }
           throw new Error("Failed to fetch active modules");
         }
-        const data = await response.json();
-        console.log(
-          "[LearningModules] Active modules fetch response data:",
-          data
-        );
-        setActiveModules(data);
-        setError(null);
-      } catch (e) {
-        console.error("[LearningModules] Active modules fetch error:", e);
-        setError("Session expired");
+
+        const data: ActiveModule[] = await response.json();
+        setActiveModules(data || []);
+      } catch {
         setActiveModules([]);
       }
     };
@@ -377,86 +301,100 @@ export function LearningModules() {
     fetchActiveModules();
   }, [sessionToken, status]);
 
-  const handleSaveLesson = async (module: Module) => {
-    if (!session?.user?.sessionToken) {
-      toast.error("Please log in to save lessons");
-      return;
-    }
+  // -------------------- Save Lesson -> Material --------------------
+const handleSaveLesson = async (module: ModuleItem) => {
+  if (!session?.user?.sessionToken) {
+    showAlert("Login required", "Please log in to your account to save lessons for later.");
+    return;
+  }
 
-    if (savedLessons.has(module.id)) {
-      toast.error("Lesson already saved");
-      return;
-    }
+  if (savedLessons.has(module.id)) {
+    showAlert("Already saved", "You have already saved this lesson.");
+    return;
+  }
 
-    try {
-      console.log("[LearningModules] Saving lesson:", module.id, module.title);
-      const response = await fetch(`/api/student/save/lesson/${module.id}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-        body: JSON.stringify({}),
-      });
+  // ✅ start loading for this lesson
+  setSavingLessonIds((prev) => new Set(prev).add(module.id));
 
-      console.log("[LearningModules] Save response status:", response.status);
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(
-          "[LearningModules] Save failed:",
-          response.status,
-          errorData
-        );
-        if (response.status === 401 || response.status === 403) {
-          setError("Session expired");
-          setModules(null);
-          toast.error("Session expired, please log in again");
-          return;
-        }
-        if (response.status === 404) {
-          toast.error("Lesson not found");
-          return;
-        }
-        toast.error("Failed to save lesson");
+  try {
+    const response = await fetch(`/api/student/save/lesson/${module.id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": session.user.sessionToken,
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401 || response.status === 403) {
+        setError("Session expired");
+        setModules(null);
+        showAlert("Session expired", "Your session has expired. Please log in again to save lessons.");
         return;
       }
-
-      const data = await response.json();
-      console.log("[LearningModules] Save successful:", data);
-      setSavedLessons((prev) => new Set([...prev, module.id]));
-      toast.success("Lesson saved!");
-    } catch (error) {
-      console.error("[LearningModules] Save error:", error);
-      setError("Session expired");
-      setModules(null);
-      toast.error("Session expired, please log in again");
+      if (response.status === 404) {
+        showAlert("Lesson not found", "This lesson could not be found.");
+        return;
+      }
+      showAlert("Failed to save", errorData?.detail || "We could not save this lesson. Please try again later.");
+      return;
     }
-  };
 
-  const moduleNameOptions = useMemo(() => {
-    const modulesToUse = activeModules.length > 0 ? activeModules : [];
-    return modulesToUse.sort((a, b) => a.name.localeCompare(b.name));
+    await response.json().catch(() => null);
+
+    setSavedLessons((prev) => new Set([...prev, module.id]));
+    showAlert("Saved", `"${module.title}" has been saved successfully.`);
+    toast.success("Lesson saved!");
+  } catch (error) {
+    console.error("[LearningModules] Save error:", error);
+    showAlert("Network error", "Please check your connection and try again.");
+  } finally {
+    // ✅ stop loading for this lesson
+    setSavingLessonIds((prev) => {
+      const next = new Set(prev);
+      next.delete(module.id);
+      return next;
+    });
+  }
+};
+
+
+  // -------------------- Dropdown options --------------------
+  const moduleOptions = useMemo(() => {
+    const mods = activeModules || [];
+    return [...mods].sort((a, b) => a.name.localeCompare(b.name));
   }, [activeModules]);
 
+  // -------------------- Filter by module_id --------------------
   const filteredModules = useMemo(() => {
-    const data = modules || fallbackData;
-    if (selectedModuleName === "all") return data;
-    const selectedModule = moduleNameOptions.find(
-      (m) => m.name === selectedModuleName
-    );
-    if (!selectedModule) return data;
-    const courseName = selectedModule.courseName;
+    const data = modules;
+    if (!data) {
+      return {
+        videos: [],
+        audio: [],
+        pdfs: [],
+        docs: [],
+        links: [],
+        tutorials: [],
+      } as ModulesData;
+    }
+
+    if (selectedModuleId === "all") return data;
+
+    const mid = Number(selectedModuleId);
+    if (!Number.isFinite(mid)) return data;
+
     return {
-      videos: data.videos.filter((video) => video.course === courseName),
-      audio: data.audio.filter((audio) => audio.course === courseName),
-      pdfs: data.pdfs.filter((pdf) => pdf.course === courseName),
-      docs: data.docs.filter((doc) => doc.course === courseName),
-      links: data.links.filter((link) => link.course === courseName),
-      tutorials: data.tutorials.filter(
-        (tutorial) => tutorial.course === courseName
-      ),
+      videos: data.videos.filter((x) => x.module_id === mid),
+      audio: data.audio.filter((x) => x.module_id === mid),
+      pdfs: data.pdfs.filter((x) => x.module_id === mid),
+      docs: data.docs.filter((x) => x.module_id === mid),
+      links: data.links.filter((x) => x.module_id === mid),
+      tutorials: data.tutorials, // you can filter tutorials by course/module if you want
     };
-  }, [modules, selectedModuleName]);
+  }, [modules, selectedModuleId]);
 
   const getPaginatedItems = (items: any[], page: number) => {
     if (!items) return [];
@@ -470,7 +408,7 @@ export function LearningModules() {
   };
 
   const renderPagination = (tab: keyof typeof currentPage) => {
-    const totalPages = getTotalPages(filteredModules[tab]);
+    const totalPages = getTotalPages((filteredModules as any)[tab]);
     const current = currentPage[tab] || 1;
 
     return (
@@ -486,47 +424,58 @@ export function LearningModules() {
               }
             />
           </PaginationItem>
+
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
+                onClick={() =>
+                  setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))
+                }
+              >
                 1
               </PaginationLink>
             </PaginationItem>
           )}
+
           {current > 3 && (
             <PaginationItem>
               <PaginationEllipsis />
             </PaginationItem>
           )}
-          {Array.from({length: totalPages}, (_, i) => i + 1)
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
                   onClick={() =>
-                    setCurrentPage((prev) => ({...prev, [tab]: page}))
-                  }>
+                    setCurrentPage((prev) => ({ ...prev, [tab]: page }))
+                  }
+                >
                   {page}
                 </PaginationLink>
               </PaginationItem>
             ))}
+
           {current < totalPages - 2 && (
             <PaginationItem>
               <PaginationEllipsis />
             </PaginationItem>
           )}
+
           {current < totalPages - 1 && (
             <PaginationItem>
               <PaginationLink
                 onClick={() =>
-                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
-                }>
+                  setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))
+                }
+              >
                 {totalPages}
               </PaginationLink>
             </PaginationItem>
           )}
+
           <PaginationItem>
             <PaginationNext
               onClick={() =>
@@ -542,61 +491,44 @@ export function LearningModules() {
     );
   };
 
-  const handlePlayVideo = (video: Module) => {
+  // -------------------- Play handlers --------------------
+  const handlePlayVideo = (video: ModuleItem) => {
     if (!video.url) {
-      console.error("[LearningModules] No video URL for:", video.title);
-      setError("No video URL available");
+      showAlert("Video unavailable", "No video URL is available for this lesson yet.");
       return;
     }
     setSelectedVideo(video);
     setVideoModalOpen(true);
   };
 
-  const handlePlayAudio = (audio: Module) => {
+  const handlePlayAudio = (audio: ModuleItem) => {
     if (!audio.url) {
-      console.error("[LearningModules] No audio URL for:", audio.title);
-      setError("No audio URL available");
+      showAlert("Audio unavailable", "No audio URL is available for this lesson yet.");
       return;
     }
     setSelectedAudio(audio);
     setAudioPlayerOpen(true);
   };
 
-  const handlePreviewPdf = (pdf: Module) => {
+  const handlePreviewPdf = (pdf: ModuleItem) => {
     if (!pdf.url) {
-      console.error("[LearningModules] No PDF URL for:", pdf.title);
-      setError("No PDF URL available");
+      showAlert("PDF unavailable", "No PDF URL is available for this document yet.");
       return;
     }
-    console.log("[LearningModules] Opening PDF in new tab:", pdf.url);
     const url = new URL(pdf.url);
-    if (session?.user?.sessionToken) {
-      url.searchParams.append("sessionToken", session.user.sessionToken);
-    }
+    if (sessionToken) url.searchParams.append("sessionToken", sessionToken);
     window.open(url.toString(), "_blank");
   };
 
-  const handleDownloadPdf = (pdf: Module) => {
-    if (!pdf.url) {
-      console.error("[LearningModules] No PDF URL for download:", pdf.title);
-      setError("No PDF URL available for download");
-      return;
-    }
-    const link = document.createElement("a");
-    link.href = pdf.url;
-    link.download = pdf.title || "document.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  if (loading) {
+  // -------------------- Loading / errors --------------------
+  if (pageLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
+
 
   if (
     error === "Session expired" ||
@@ -616,8 +548,7 @@ export function LearningModules() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={handleLogout} className="flex items-center gap-2">
-              <Play className="h-4 w-4" />
+            <Button onClick={() => (window.location.href = "/login")}>
               Log In Again
             </Button>
           </CardContent>
@@ -626,32 +557,11 @@ export function LearningModules() {
     );
   }
 
-  if (error && !modules) {
-    return (
-      <div className="p-6">
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">
-              Error
-            </CardTitle>
-            <CardDescription className="text-center">{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <Button
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2">
-              <Play className="h-4 w-4" />
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // -------------------- Main UI --------------------
   return (
     <>
       <AntiInspect />
+
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Learning Modules</h1>
@@ -660,24 +570,35 @@ export function LearningModules() {
           </p>
         </div>
 
+        {/* Filter */}
         <div className="flex items-center gap-4">
-          <label htmlFor="module-name-filter" className="text-sm font-medium">
+          <label htmlFor="module-filter" className="text-sm font-medium">
             Filter by Module:
           </label>
+
           <Select
-            value={selectedModuleName}
+            value={selectedModuleId}
             onValueChange={(value) => {
-              setSelectedModuleName(value);
-              setCurrentPage({videos: 1, audio: 1, pdfs: 1, tutorials: 1});
-            }}>
-            <SelectTrigger id="module-name-filter" className="w-[180px]">
+              setFilterLoading(true); // ✅ start skeleton
+              setSelectedModuleId(value);
+              setCurrentPage({ videos: 1, audio: 1, pdfs: 1, tutorials: 1 });
+
+              // ✅ let the UI update, then stop skeleton shortly after
+              requestAnimationFrame(() => {
+                setTimeout(() => setFilterLoading(false), 250);
+              });
+            }}
+          >
+
+            <SelectTrigger id="module-filter" className="w-[220px]">
               <SelectValue placeholder="Select module" />
             </SelectTrigger>
+
             <SelectContent>
               <SelectItem value="all">All Modules</SelectItem>
-              {moduleNameOptions.map((module) => (
-                <SelectItem key={module.id} value={module.name}>
-                  {module.name}
+              {moduleOptions.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  {m.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -688,381 +609,452 @@ export function LearningModules() {
           <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
             <TabsTrigger
               value="videos"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               <Video className="h-4 w-4" />
               Video
             </TabsTrigger>
             <TabsTrigger
               value="audio"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               <Headphones className="h-4 w-4" />
               Audio
             </TabsTrigger>
             <TabsTrigger
               value="pdfs"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               <FileText className="h-4 w-4" />
               PDFs
             </TabsTrigger>
-            {/* <TabsTrigger value="tutorials" className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
-            <BookOpen className="h-4 w-4" />
-            Live Session
-          </TabsTrigger> */}
           </TabsList>
 
+          {/* -------------------- VIDEOS -------------------- */}
           <TabsContent value="videos" className="space-y-6">
+          {filterLoading ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {getPaginatedItems(
-                filteredModules.videos,
-                currentPage.videos
-              ).map((video) => (
-                <Card
-                  key={video.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
+              {Array.from({ length: itemsPerPage }).map((_, i) => (
+                <Card key={`video-skel-${i}`} className="flex flex-col h-full">
                   <CardHeader className="p-0">
-                    <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative overflow-hidden">
-                      {video.cover_image ? (
-                        <>
-                          <img
-                            src={
-                              video.cover_image.startsWith("http")
-                                ? video.cover_image
-                                : `https://texagonbackend.onrender.com${video.cover_image}`
-                            }
-                            alt={video.title}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                              e.currentTarget.parentElement
-                                ?.querySelector(".fallback-icon")
-                                ?.classList.remove("hidden");
-                            }}
-                          />
-                          <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
-                            <Video className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Video className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      )}
-                      {video.progress === 100 && (
-                        <div className="absolute top-2 right-2 z-10">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 right-2 z-10">
-                        <Badge variant="secondary" className="text-xs">
-                          {video.progress > 0 ? "In Progress" : "Available"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-2 px-6">
-                      <CardTitle className="text-lg">{video.title}</CardTitle>
-                      <CardDescription>{video.course}</CardDescription>
+                    <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
+                    <div className="space-y-2 px-6 pb-4">
+                      <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
                     </div>
                   </CardHeader>
-
                   <CardContent className="flex flex-col flex-1">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {video.duration}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {video.popularity} students
-                      </div>
-                      {video.instructor && (
-                        <div className="col-span-2">
-                          Instructor: {video.instructor}
-                        </div>
-                      )}
-                      <div>Module: {video.module_order}</div>
-                      <div>Lesson: {video.lesson_order}</div>
-                      <div className="col-span-2">
-                        Updated:{" "}
-                        {new Date(video.updated_at).toLocaleDateString()}
-                      </div>
-                      {/* {video.popularity > 0 && (
-                        <div className="col-span-2">
-                          <StarRating popularity={video.popularity} />
-                        </div>
-                      )} */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
                     </div>
 
                     <div className="mt-auto flex flex-wrap gap-3 pt-4">
-                      <Button
-                        className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                        onClick={() => handlePlayVideo(video)}
-                        disabled={!video.url}>
-                        {video.progress === 100 ? (
-                          <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Review Video
-                          </>
-                        ) : video.progress > 0 ? (
-                          <>
-                            <Play className="mr-2 h-4 w-4" />
-                            Continue Watching
-                          </>
-                        ) : (
-                          <>
-                            <Play className="mr-2 h-4 w-4" />
-                            Start Video
-                          </>
-                        )}
-                      </Button>
-
-                      <Button
-                        variant={
-                          savedLessons.has(video.id) ? "default" : "outline"
-                        }
-                        className="flex-1 w-full h-10 bg-transparent shadow-md"
-                        onClick={() => handleSaveLesson(video)}
-                        disabled={
-                          !session?.user?.sessionToken ||
-                          savedLessons.has(video.id)
-                        }>
-                        <Bookmark
-                          className={`mr-2 h-4 w-4 ${
-                            savedLessons.has(video.id) ? "fill-current" : ""
-                          }`}
-                        />
-                        {savedLessons.has(video.id) ? "Saved" : "Save"}
-                      </Button>
+                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-            {renderPagination("videos")}
-          </TabsContent>
+          ) : (
+            <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {getPaginatedItems(filteredModules.videos, currentPage.videos).map(
+                (video) => {
+                    const isSaving = savingLessonIds.has(video.id);
+                    const isSaved = savedLessons.has(video.id);
 
-          <TabsContent value="audio" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {getPaginatedItems(filteredModules.audio, currentPage.audio).map(
-                (audio) => (
-                  <Card
-                    key={audio.id}
-                    className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-[#f797712f] rounded-lg flex items-center justify-center">
-                          <Headphones className="h-8 w-8 text-[#EF7B55]" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <CardTitle className="text-lg">
-                            {audio.title}
-                          </CardTitle>
-                          <CardDescription>{audio.course}</CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                        <div>{audio.duration}</div>
-                        <div>{audio.popularity} listeners</div>
-                        {audio.instructor && (
-                          <div className="col-span-2">
-                            Instructor: {audio.instructor}
+                  return (
+                    <Card
+                      key={video.id}
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                    >
+                      <CardHeader className="p-0">
+                      <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative overflow-hidden">
+                        {video.cover_image ? (
+                          <>
+                            <img
+                              src={
+                                video.cover_image.startsWith("http")
+                                  ? video.cover_image
+                                  : `https://texagonbackend.onrender.com${video.cover_image}`
+                              }
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // hide broken image
+                                e.currentTarget.style.display = "none";
+                                // show placeholder icon
+                                e.currentTarget.parentElement
+                                  ?.querySelector(".fallback-icon")
+                                  ?.classList.remove("hidden");
+                              }}
+                            />
+                            <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
+                              <Video className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Video className="h-8 w-8 text-muted-foreground" />
                           </div>
                         )}
-                        <div>Module: {audio.module_order}</div>
-                        <div>Lesson: {audio.lesson_order}</div>
-                        <div className="col-span-2">
-                          Updated:{" "}
-                          {new Date(audio.updated_at).toLocaleDateString()}
-                        </div>
-                        {/* {audio.popularity > 0 && (
-                        <div className="col-span-2">
-                          <StarRating popularity={audio.popularity} />
-                        </div>
-                      )} */}
+
+                        {/* keep your badges here */}
                       </div>
-                      <div className="space-y-2">
-                        {/* <div className="flex justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{audio.progress}%</span>
-                    </div> */}
-                        {/* <Progress value={audio.progress} className="h-2" /> */}
-                      </div>
-                      <div className="mt-auto flex flex-wrap gap-2">
-                        <Button
-                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                          onClick={() => handlePlayAudio(audio)}
-                          disabled={!audio.url}>
-                          <Headphones className="mr-2 h-4 w-4" />
-                          {audio.progress > 0
-                            ? "Continue Listening"
-                            : "Start Listening"}
-                        </Button>
-                        <Button
-                          variant={
-                            savedLessons.has(audio.id) ? "default" : "outline"
-                          }
-                          className="flex-1 w-full h-10 bg-transparent shadow-md"
-                          onClick={() => handleSaveLesson(audio)}
-                          disabled={
-                            !session?.user?.sessionToken ||
-                            savedLessons.has(audio.id)
-                          }>
-                          <Bookmark
-                            className={`mr-2 h-4 w-4 ${
-                              savedLessons.has(audio.id) ? "fill-current" : ""
+
+                        <div className="space-y-2 px-6">
+                          <CardTitle className="text-lg">{video.title}</CardTitle>
+                          <CardDescription>{video.course}</CardDescription>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="flex flex-col flex-1">
+                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {video.duration}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {video.popularity} students
+                          </div>
+                          {video.instructor && (
+                            <div className="col-span-2">
+                              Instructor: {video.instructor}
+                            </div>
+                          )}
+                          <div>Module: {video.module_order}</div>
+                          <div>Lesson: {video.lesson_order}</div>
+                          <div className="col-span-2">
+                            Updated:{" "}
+                            {new Date(video.updated_at).toLocaleDateString()}
+                          </div>
+                        </div>
+
+                        <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                          <Button
+                            className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                            onClick={() => handlePlayVideo(video)}
+                            disabled={!video.url}
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            {video.progress === 100
+                              ? "Review Video"
+                              : video.progress > 0
+                              ? "Continue Watching"
+                              : "Start Video"}
+                          </Button>
+
+                          {/* ✅ Save button that stays readable */}
+                          <Button
+                            variant={isSaved ? "default" : "outline"}
+                            className={`flex-1 w-full h-10 shadow-md ${
+                              isSaved
+                                ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
+                                : "bg-transparent"
                             }`}
-                          />
-                          {savedLessons.has(audio.id) ? "Saved" : "Save"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
+                            onClick={() => handleSaveLesson(video)}
+                            disabled={!session?.user?.sessionToken || isSaved || isSaving}
+                          >
+                            {isSaving ? (
+                              <span className="flex items-center gap-2">
+                                <Spinner size="sm" className="text-current" />
+                                Saving...
+                              </span>
+                            ) : (
+                              <>
+                                <Bookmark
+                                  className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`}
+                                />
+                                {isSaved ? "Saved" : "Save"}
+                              </>
+                            )}
+                          </Button>
+
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
               )}
             </div>
-            {renderPagination("audio")}
+            {renderPagination("videos")}
+            </>
+          )}
           </TabsContent>
 
-          <TabsContent value="pdfs" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map(
-                (pdf) => (
-                  <Card
-                    key={pdf.id}
-                    className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{pdf.title}</CardTitle>
-                          <CardDescription>{pdf.course}</CardDescription>
-                        </div>
-                        <FileText className="h-8 w-8 text-[#EF7B55]" />
+          {/* -------------------- AUDIO -------------------- */}
+          <TabsContent value="audio" className="space-y-6">
+            {filterLoading ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <Card key={`video-skel-${i}`} className="flex flex-col h-full">
+                    <CardHeader className="p-0">
+                      <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
+                      <div className="space-y-2 px-6 pb-4">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
                       </div>
                     </CardHeader>
                     <CardContent className="flex flex-col flex-1">
-                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                        <div>Course: {pdf.course}</div>
-                        <div>
-                          Updated:{" "}
-                          {new Date(pdf.updated_at).toLocaleDateString()}
-                        </div>
-                        {pdf.instructor && (
-                          <div className="col-span-2">
-                            Instructor: {pdf.instructor}
-                          </div>
-                        )}
-                        <div>Module: {pdf.module_order}</div>
-                        <div>Lesson: {pdf.lesson_order}</div>
-                        {/* {pdf.popularity > 0 && (
-                        <div className="col-span-2">
-                          <StarRating popularity={pdf.popularity} />
-                        </div>
-                      )} */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
                       </div>
-                      <div className="mt-auto pt-4 flex flex-wrap gap-2">
-                        <Button
-                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                          onClick={() => handlePreviewPdf(pdf)}
-                          disabled={!pdf.url}>
-                          <Eye className="mr-2 h-3 w-3" />
-                          Preview
-                        </Button>
-                        {/* <Button variant="outline" className="flex-1 h-10" onClick={() => handleDownloadPdf(pdf)} disabled={!pdf.url}>
-                      <Download className="mr-2 h-3 w-3" />
-                      Download
-                    </Button> */}
-                        <Button
-                          variant={
-                            savedLessons.has(pdf.id) ? "default" : "outline"
-                          }
-                          className="flex-1 w-full h-10 bg-transparent shadow-md"
-                          onClick={() => handleSaveLesson(pdf)}
-                          disabled={
-                            !session?.user?.sessionToken ||
-                            savedLessons.has(pdf.id)
-                          }>
-                          <Bookmark
-                            className={`mr-2 h-3 w-3 ${
-                              savedLessons.has(pdf.id) ? "fill-current" : ""
-                            }`}
-                          />
-                          {savedLessons.has(pdf.id) ? "Saved" : "Save"}
-                        </Button>
+
+                      <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
                       </div>
                     </CardContent>
                   </Card>
-                )
-              )}
-            </div>
-            {renderPagination("pdfs")}
-          </TabsContent>
+                ))}
+              </div>
+            ) : (
+              <>
+              <div className="grid gap-6 md:grid-cols-2">
+                {getPaginatedItems(filteredModules.audio, currentPage.audio).map(
+                  (audio) => {
+                      const isSaving = savingLessonIds.has(audio.id);
+                      const isSaved = savedLessons.has(audio.id);
 
-          <TabsContent value="tutorials" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {getPaginatedItems(
-                filteredModules.tutorials,
-                currentPage.tutorials
-              ).map((tutorial) => (
-                <Card
-                  key={tutorial.id}
-                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline">
-                          {tutorial.type || tutorial.content_type}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-lg">
-                        {tutorial.title}
-                      </CardTitle>
-                      <CardDescription>{tutorial.course}</CardDescription>
+                    return (
+                      <Card
+                        key={audio.id}
+                        className="flex flex-col min-h-[250px] hover:shadow-lg transition-shadow"
+                      >
+                        <CardHeader>
+                          <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 bg-[#f797712f] rounded-lg flex items-center justify-center relative">
+                              <Headphones className="h-8 w-8 text-[#EF7B55]" />
+                              {isSaved && (
+                                <span className="absolute -top-2 -right-2">
+                                  <Badge className="bg-black/70 text-white">
+                                    Saved
+                                  </Badge>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex-1 space-y-1">
+                              <CardTitle className="text-lg">{audio.title}</CardTitle>
+                              <CardDescription>{audio.course}</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="flex flex-col justify-between flex-1 space-y-4">
+                          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                            <div>{audio.duration}</div>
+                            <div>{audio.popularity} listeners</div>
+                            {audio.instructor && (
+                              <div className="col-span-2">
+                                Instructor: {audio.instructor}
+                              </div>
+                            )}
+                            <div>Module: {audio.module_order}</div>
+                            <div>Lesson: {audio.lesson_order}</div>
+                            <div className="col-span-2">
+                              Updated:{" "}
+                              {new Date(audio.updated_at).toLocaleDateString()}
+                            </div>
+                          </div>
+
+                          <div className="mt-auto flex flex-wrap gap-2">
+                            <Button
+                              className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                              onClick={() => handlePlayAudio(audio)}
+                              disabled={!audio.url}
+                            >
+                              <Headphones className="mr-2 h-4 w-4" />
+                              {audio.progress > 0
+                                ? "Continue Listening"
+                                : "Start Listening"}
+                            </Button>
+
+                          <Button
+                            variant={isSaved ? "default" : "outline"}
+                            className={`flex-1 w-full h-10 shadow-md ${
+                              isSaved
+                                ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
+                                : "bg-transparent"
+                            }`}
+                            onClick={() => handleSaveLesson(audio)}
+                            disabled={!session?.user?.sessionToken || isSaved || isSaving}
+                          >
+                            {isSaving ? (
+                              <span className="flex items-center gap-2">
+                                <Spinner size="sm" className="text-current" />
+                                Saving...
+                              </span>
+                            ) : (
+                              <>
+                                <Bookmark
+                                  className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`}
+                                />
+                                {isSaved ? "Saved" : "Save"}
+                              </>
+                            )}
+                          </Button>
+
+                            
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                )}
+              </div>
+              {renderPagination("audio")}
+              </>
+            )}
+          </TabsContent>
+          {/* -------------------- PDFS -------------------- */}
+          <TabsContent value="pdfs" className="space-y-6">
+          {filterLoading ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: itemsPerPage }).map((_, i) => (
+                <Card key={`video-skel-${i}`} className="flex flex-col h-full">
+                  <CardHeader className="p-0">
+                    <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
+                    <div className="space-y-2 px-6 pb-4">
+                      <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
                     </div>
                   </CardHeader>
-                  <CardContent className="flex flex-col justify-between flex-1 space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div>{tutorial.duration}</div>
-                      <div>{tutorial.popularity || 0} participants</div>
-                      {tutorial.instructor && (
-                        <div className="col-span-2">
-                          Instructor: {tutorial.instructor}
-                        </div>
-                      )}
-                      <div>Module: {tutorial.module_order}</div>
-                      <div>Lesson: {tutorial.lesson_order}</div>
-                      <div className="col-span-2">
-                        Scheduled:{" "}
-                        {tutorial.scheduledAt
-                          ? new Date(tutorial.scheduledAt).toLocaleString()
-                          : "TBD"}
-                      </div>
-                      <div>Active: {tutorial.isActiveNow ? "Yes" : "No"}</div>
-                      {/* {tutorial.popularity > 0 && (
-                      <div className="col-span-2">
-                        <StarRating popularity={tutorial.popularity} />
-                      </div>
-                    )} */}
+                  <CardContent className="flex flex-col flex-1">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
                     </div>
-                    <Button
-                      className="w-full mt-auto"
-                      disabled={!tutorial.isActiveNow}>
-                      Join Session
-                    </Button>
+
+                    <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-            {renderPagination("tutorials")}
+          ) : (
+            <>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map(
+                  (pdf) => {
+                      const isSaving = savingLessonIds.has(pdf.id);
+                      const isSaved = savedLessons.has(pdf.id);
+
+                    return (
+                      <Card
+                        key={pdf.id}
+                        className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px]"
+                      >
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                              <CardDescription>{pdf.course}</CardDescription>
+                            </div>
+
+                            <div className="relative">
+                              <FileText className="h-8 w-8 text-[#EF7B55]" />
+                              {isSaved && (
+                                <span className="absolute -top-2 -right-2">
+                                  <Badge className="bg-black/70 text-white">
+                                    Saved
+                                  </Badge>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="flex flex-col flex-1">
+                          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                            <div>Course: {pdf.course}</div>
+                            <div>
+                              Updated:{" "}
+                              {new Date(pdf.updated_at).toLocaleDateString()}
+                            </div>
+                            {pdf.instructor && (
+                              <div className="col-span-2">
+                                Instructor: {pdf.instructor}
+                              </div>
+                            )}
+                            <div>Module: {pdf.module_order}</div>
+                            <div>Lesson: {pdf.lesson_order}</div>
+                          </div>
+
+                          <div className="mt-auto pt-4 flex flex-wrap gap-2">
+                            <Button
+                              className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                              onClick={() => handlePreviewPdf(pdf)}
+                              disabled={!pdf.url}
+                            >
+                              <Eye className="mr-2 h-3 w-3" />
+                              Preview
+                            </Button>
+
+                            <Button
+                              variant={isSaved ? "default" : "outline"}
+                              className={`flex-1 w-full h-10 shadow-md ${
+                                isSaved
+                                  ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
+                                  : "bg-transparent"
+                              }`}
+                              onClick={() => handleSaveLesson(pdf)}
+                              disabled={!session?.user?.sessionToken || isSaved || isSaving}
+                            >
+                              {isSaving ? (
+                                <span className="flex items-center gap-2">
+                                  <Spinner size="sm" className="text-current" />
+                                  Saving...
+                                </span>
+                              ) : (
+                                <>
+                                  <Bookmark
+                                    className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`}
+                                  />
+                                  {isSaved ? "Saved" : "Save"}
+                                </>
+                              )}
+                            </Button>
+
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                )}
+              </div>
+              {renderPagination("pdfs")}
+            </>
+          )}
           </TabsContent>
         </Tabs>
 
+        {/* Modals */}
         <VideoModal
           isOpen={videoModalOpen}
           onClose={() => setVideoModalOpen(false)}
           title={selectedVideo?.title || ""}
           videoUrl={selectedVideo?.url ?? undefined}
         />
+
         <AudioPlayer
           isOpen={audioPlayerOpen}
           onClose={() => setAudioPlayerOpen(false)}
@@ -1070,6 +1062,24 @@ export function LearningModules() {
           audioUrl={selectedAudio?.url ?? undefined}
           duration={selectedAudio?.duration}
         />
+
+        {/* Global Alert Modal */}
+        <Dialog
+          open={alertModal.open}
+          onOpenChange={(open) => setAlertModal((prev) => ({ ...prev, open }))}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{alertModal.title}</DialogTitle>
+              <DialogDescription>{alertModal.message}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setAlertModal((prev) => ({ ...prev, open: false }))}>
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );

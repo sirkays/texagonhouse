@@ -93,6 +93,7 @@ export function MyMaterials() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   // const [noteEditorOpen, setNoteEditorOpen] = useState(false);
@@ -105,7 +106,9 @@ export function MyMaterials() {
     notes: Note[];
     bookmarks: Bookmark[];
   } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);   // only first load
+  const [dataLoading, setDataLoading] = useState(false);  // search / refetch
+
   const [error, setError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [currentPageNotes, setCurrentPageNotes] = useState(1);
@@ -121,70 +124,12 @@ export function MyMaterials() {
   const defaultThumbnail =
     "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
 
-  const fallbackData = {
-    saved: {
-      videos: [
-        {
-          id: "1",
-          title: "Advanced React Patterns",
-          instructor: "Sarah Johnson",
-          duration: "2h 45m",
-          progress: 65,
-          thumbnail: defaultThumbnail,
-          videoUrl: "/sample-video.mp4",
-        },
-        {
-          id: "2",
-          title: "Python Web Development",
-          instructor: "Mike Chen",
-          duration: "3h 20m",
-          progress: 30,
-          thumbnail: defaultThumbnail,
-          videoUrl: "/sample-video.mp4",
-        },
-      ],
-      pdfs: [
-        {
-          id: "1",
-          title: "JavaScript ES6 Guide",
-          author: "John Doe",
-          pages: 150,
-          size: "5.2 MB",
-          downloadUrl: "/sample.pdf",
-        },
-        {
-          id: "2",
-          title: "React Best Practices",
-          author: "Jane Smith",
-          pages: 89,
-          size: "3.1 MB",
-          downloadUrl: "/sample.pdf",
-        },
-      ],
-      audio: [
-        {
-          id: "1",
-          title: "Tech Podcast: Future of AI",
-          speaker: "Tech Leaders",
-          duration: "45m",
-          progress: 80,
-          audioUrl: "/sample-audio.mp3",
-        },
-        {
-          id: "2",
-          title: "JavaScript Deep Dive",
-          speaker: "Dev Community",
-          duration: "1h 20m",
-          progress: 45,
-          audioUrl: "/sample-audio.mp3",
-        },
-      ],
-    },
-    notes: [
-
-    ],
+  const emptyData = {
+    saved: { videos: [], pdfs: [], audio: [] },
+    notes: [],
     bookmarks: [],
   };
+
 
   const handleLogout = async () => {
     console.log("[MyMaterials] Initiating logout, sessionToken:", sessionToken);
@@ -212,87 +157,94 @@ export function MyMaterials() {
     }
   };
 
-  const fetchData = async () => {
-    console.log("[MyMaterials] Initiating fetch for /api/student/materials");
-    if (status !== "authenticated" || !sessionToken) {
-      console.log(
-        "[MyMaterials] Session not authenticated, status:",
-        status,
-        "sessionToken:",
-        session?.user?.sessionToken
+const fetchData = async (qOverride?: string, opts?: { initial?: boolean }) => {
+  const q = (qOverride ?? appliedQuery ?? "").trim();
+  const initial = !!opts?.initial;
+
+  if (initial) setPageLoading(true);
+  else setDataLoading(true);
+
+  if (status !== "authenticated" || !sessionToken) {
+    setError("Not authenticated");
+    setData(null);
+    setPageLoading(false);
+    setDataLoading(false);
+    return;
+  }
+
+  try {
+    const url = q
+      ? `/api/student/materials?q=${encodeURIComponent(q)}`
+      : "/api/student/materials";
+
+    const res = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken,
+      },
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      if (res.status === 401 || res.status === 403) {
+        setError("Session expired");
+        setData(null);
+        return;
+      }
+
+      setError(
+        res.status === 404
+          ? "Materials endpoint not found"
+          : `Failed to fetch materials: ${JSON.stringify(errorData)}`
       );
-      setError("Not authenticated");
-      setLoading(false);
+
+      setData({
+        saved: { videos: [], pdfs: [], audio: [] },
+        notes: [],
+        bookmarks: [],
+      });
       return;
     }
 
-    try {
-      console.log(
-        "[MyMaterials] Fetching from /api/student/materials with token:",
-        session.user.sessionToken
-      );
-      const res = await fetch("/api/student/materials", {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
-      });
-      console.log("[MyMaterials] Fetch response status:", res.status);
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error(
-          "[MyMaterials] Fetch failed with status:",
-          res.status,
-          "details:",
-          errorData
-        );
-        if (res.status === 401 || res.status === 403) {
-          setError("Session expired");
-          setData(null);
-          setLoading(false);
-          return;
-        }
-        setError(
-          res.status === 404
-            ? "Materials endpoint not found"
-            : `Failed to fetch materials: ${JSON.stringify(errorData)}`
-        );
-        setData(fallbackData);
-        throw new Error("Fetch failed");
-      }
-      const json = await res.json();
-      console.log("[MyMaterials] Fetch response data:", json);
+    const json = await res.json();
 
-      const bookmarksWithTitles = json.bookmarks.map((bookmark) => {
-        if (!bookmark.lessonId) {
-          console.warn("[MyMaterials] Bookmark missing lessonId:", bookmark);
-          return {
-            ...bookmark,
-            lessonTitle: "Unknown Lesson",
-          };
-        }
-        return {
-          ...bookmark,
-          lessonTitle:
-            json.saved.videos.find((v) => v.id === bookmark.lessonId.toString())
-              ?.title || `Lesson ${bookmark.lessonId}`,
-        };
-      });
+    setData({
+      saved: {
+        videos: json?.saved?.videos ?? [],
+        pdfs: json?.saved?.pdfs ?? [],
+        audio: json?.saved?.audio ?? [],
+      },
+      notes: json?.notes ?? [],
+      bookmarks: json?.bookmarks ?? [],
+    });
 
-      setData({ ...json, bookmarks: bookmarksWithTitles });
-      setError(null);
-    } catch (e) {
-      console.error("[MyMaterials] Fetch error:", e);
-      setError(`Session expired: ${e.message}`);
-      setData(null);
-    }
-    setLoading(false);
-  };
+    setError(null);
+  } catch (e: any) {
+    setError(e?.message || "Failed to fetch materials");
+    setData({
+      saved: { videos: [], pdfs: [], audio: [] },
+      notes: [],
+      bookmarks: [],
+    });
+  } finally {
+    setPageLoading(false);
+    setDataLoading(false);
+  }
+};
+
+
 
   useEffect(() => {
-    fetchData();
-  }, [sessionToken, status]);
-
+    if (searchQuery === "" && appliedQuery !== "") {
+      setAppliedQuery("");
+      fetchData("");
+    }
+  }, [searchQuery]);
+useEffect(() => {
+  if (status === "authenticated" && sessionToken) {
+    fetchData("", { initial: true });
+  }
+}, [sessionToken, status]);
   // Extract lessons from videos
   useEffect(() => {
     if (data?.saved?.videos) {
@@ -418,63 +370,81 @@ export function MyMaterials() {
     }
   };
 
-  const handleDeleteSavedItem = async (type: 'videos' | 'pdfs' | 'audio', id: string) => {
-    const key = `${type}-${id}`;
-    setDeletingIds((prev) => new Set([...prev, key]));
-    console.log(
-      "[MyMaterials] Sending DELETE to /api/student/materials for item ID:",
-      id,
-      "type:",
-      type
-    );
-    try {
-      const response = await fetch(`/api/student/materials`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken || "",
-        },
-        body: JSON.stringify({ id }),
-      });
-      console.log("[MyMaterials] DELETE response status:", response.status);
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("[MyMaterials] Delete item error details:", errorData);
-        throw new Error(`Failed to delete item: ${JSON.stringify(errorData)}`);
-      }
-      setData((prev) => {
-        if (!prev) return prev;
-        const newSaved = { ...prev.saved };
-        newSaved[type] = newSaved[type].filter((item) => item.id !== id);
-        // Reset page if necessary
-        const totalItems = newSaved[type].length;
-        const maxPage = Math.ceil(totalItems / itemsPerPage);
-        if (type === 'videos' && currentPageVideos > maxPage) setCurrentPageVideos(maxPage || 1);
-        if (type === 'pdfs' && currentPagePdfs > maxPage) setCurrentPagePdfs(maxPage || 1);
-        if (type === 'audio' && currentPageAudio > maxPage) setCurrentPageAudio(maxPage || 1);
-        return { ...prev, saved: newSaved };
-      });
-      setError(null);
-    } catch (err: any) {
-      console.error("[MyMaterials] Item delete error:", err);
-      setError(err.message);
-    } finally {
-      setDeletingIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(key);
-        return newSet;
-      });
-    }
-  };
+const handleDeleteSavedItem = async (
+  type: "videos" | "pdfs" | "audio",
+  item: any
+) => {
+  // item MUST carry lesson_id (recommended) or material_id
+  const lessonId = item.lesson_id ?? item.lessonId ?? item.lesson ?? null;
+  const materialId = item.material_id ?? item.materialId ?? item.id ?? null;
 
-  if (loading) {
+  if (!lessonId && !materialId) {
+    setError("Cannot delete: missing lesson_id/material_id on this item.");
+    return;
+  }
+
+  const key = `${type}-${item.id}`;
+  setDeletingIds((prev) => new Set([...prev, key]));
+
+  try {
+    const response = await fetch(`/api/student/materials`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken || "",
+      },
+      body: JSON.stringify({
+        lesson_id: lessonId,       // ✅ preferred
+        material_id: materialId,   // ✅ fallback
+        type,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload?.error || "Failed to delete material");
+    }
+
+    // ✅ update UI locally
+    setData((prev) => {
+      if (!prev) return prev;
+
+      const newSaved = { ...prev.saved };
+
+      if (type === "videos") {
+        newSaved.videos = newSaved.videos.filter((x) => x.id !== item.id);
+      } else if (type === "pdfs") {
+        newSaved.pdfs = newSaved.pdfs.filter((x) => x.id !== item.id);
+      } else {
+        newSaved.audio = newSaved.audio.filter((x) => x.id !== item.id);
+      }
+
+      return { ...prev, saved: newSaved };
+    });
+
+
+    setError(null);
+  } catch (err: any) {
+    console.error("[MyMaterials] Material delete error:", err);
+    setError(err.message || "Failed to delete material");
+  } finally {
+    setDeletingIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(key);
+      return newSet;
+    });
+  }
+};
+
+
+  if (pageLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Spinner size="md" className="text-orange-500" />
       </div>
     );
   }
-
   if (
     error === "Session expired" ||
     error === "Not authenticated" ||
@@ -527,9 +497,9 @@ export function MyMaterials() {
     );
   }
 
-  const savedItems = data?.saved ?? fallbackData.saved;
-  const notes = data?.notes ?? fallbackData.notes;
-  const bookmarks = data?.bookmarks ?? fallbackData.bookmarks;
+  const savedItems = data?.saved ?? emptyData.saved;
+  const notes = data?.notes ?? emptyData.notes;
+  const bookmarks = data?.bookmarks ?? emptyData.bookmarks;
 
   const handleWatchVideo = (video: any) => {
     setSelectedVideo(video);
@@ -585,6 +555,12 @@ export function MyMaterials() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div>
         <h1 className="text-3xl font-bold">My Materials</h1>
         <p className="text-muted-foreground">
@@ -599,16 +575,28 @@ export function MyMaterials() {
             placeholder="Search your materials..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setAppliedQuery(searchQuery);
+                fetchData(searchQuery);
+              }
+            }}
             className="pl-8 border focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-gray-300 focus:shadow-none"
           />
+
         </div>
-        <Button
-          className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-          variant="outline"
-        >
-          <Filter className="mr-2 h-4 w-4" />
-          Search
-        </Button>
+      <Button
+        className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+        variant="outline"
+        onClick={() => {
+          setAppliedQuery(searchQuery);
+          fetchData(searchQuery);
+        }}
+      >
+        <Filter className="mr-2 h-4 w-4" />
+        Search
+      </Button>
+
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
@@ -625,12 +613,6 @@ export function MyMaterials() {
           >
             My Notes
           </TabsTrigger>
-          {/* <TabsTrigger
-            value="bookmarks"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
-            Bookmarks
-          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="saved" className="space-y-6">
@@ -639,7 +621,35 @@ export function MyMaterials() {
               <Video className="h-5 w-5" />
               Saved Videos
             </h3>
-            {savedItems.videos.length === 0 ? (
+
+            {dataLoading ? (
+              // ✅ Only the data area loads (search bar stays visible)
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card
+                    key={`video-skel-${i}`}
+                    className="hover:shadow-lg transition-shadow flex flex-col h-full overflow-hidden"
+                  >
+                    <CardHeader className="p-0">
+                      <div className="relative">
+                        <div className="w-full h-32 bg-muted animate-pulse rounded-md rounded-bl-none rounded-br-none" />
+                      </div>
+                      <div className="space-y-2 px-4 py-3">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col flex-1 px-4 pb-4">
+                      <div className="mt-auto pt-2 flex gap-2">
+                        <div className="h-10 flex-1 bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 flex-1 bg-muted animate-pulse rounded-md" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : savedItems.videos.length === 0 ? (
               <div className="text-center py-12">
                 <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No saved videos yet</h3>
@@ -656,31 +666,29 @@ export function MyMaterials() {
                       <CardHeader className="p-0">
                         <div className="relative">
                           <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                            {video.thumbnail &&
-                            video.thumbnail !== defaultThumbnail ? (
-                              <>
-                                <img
-                                  src={
-                                    video.thumbnail.startsWith("http")
-                                      ? video.thumbnail
-                                      : `https://texagonbackend.onrender.com${video.thumbnail}`
-                                  }
-                                  alt={video.title}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    console.warn(
-                                      "[MyMaterials] Image load error for:",
-                                      video.thumbnail,
-                                      "using default thumbnail"
-                                    );
-                                    e.currentTarget.src = defaultThumbnail;
-                                  }}
-                                />
-                              </>
+                            {video.thumbnail && video.thumbnail !== defaultThumbnail ? (
+                              <img
+                                src={
+                                  video.thumbnail.startsWith("http")
+                                    ? video.thumbnail
+                                    : `https://texagonbackend.onrender.com${video.thumbnail}`
+                                }
+                                alt={video.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.warn(
+                                    "[MyMaterials] Image load error for:",
+                                    video.thumbnail,
+                                    "using default thumbnail"
+                                  );
+                                  e.currentTarget.src = defaultThumbnail;
+                                }}
+                              />
                             ) : (
                               <Video className="h-8 w-8 text-muted-foreground" />
                             )}
                           </div>
+
                           <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md rounded-bl-none rounded-br-none">
                             <Button
                               size="sm"
@@ -691,18 +699,14 @@ export function MyMaterials() {
                             </Button>
                           </div>
                         </div>
+
                         <div className="space-y-1 px-4">
                           <CardTitle className="text-lg">{video.title}</CardTitle>
                           <CardDescription>by {video.instructor}</CardDescription>
                         </div>
                       </CardHeader>
+
                       <CardContent className="flex flex-col flex-1 px-4">
-                        {/*<div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {video.duration}
-                          </div>
-                        </div>*/}
                         <div className="mt-auto pt-4 flex gap-2">
                           <Button
                             size="sm"
@@ -712,14 +716,17 @@ export function MyMaterials() {
                             <Play className="mr-2 h-3 w-3" />
                             Continue Watching
                           </Button>
+
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteSavedItem('videos', video.id)}
+                            onClick={() => handleDeleteSavedItem("videos", video)}
                             className="flex-1 h-10 shadow-md"
                             disabled={deletingIds.has(`videos-${video.id}`)}
                           >
-                            {deletingIds.has(`videos-${video.id}`) ? "Deleting..." : (
+                            {deletingIds.has(`videos-${video.id}`) ? (
+                              "Deleting..."
+                            ) : (
                               <>
                                 <Trash className="mr-2 h-3 w-3" />
                                 Delete
@@ -731,6 +738,7 @@ export function MyMaterials() {
                     </Card>
                   ))}
                 </div>
+
                 {totalPagesVideos > 1 && (
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
@@ -739,7 +747,9 @@ export function MyMaterials() {
                     >
                       Previous
                     </Button>
-                    <span>Page {currentPageVideos} of {totalPagesVideos}</span>
+                    <span>
+                      Page {currentPageVideos} of {totalPagesVideos}
+                    </span>
                     <Button
                       disabled={currentPageVideos === totalPagesVideos}
                       onClick={() => setCurrentPageVideos((prev) => prev + 1)}
@@ -757,7 +767,32 @@ export function MyMaterials() {
               <FileText className="h-5 w-5" />
               Saved PDFs
             </h3>
-            {savedItems.pdfs.length === 0 ? (
+
+            {dataLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card
+                    key={`pdf-skel-${i}`}
+                    className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                  >
+                    <CardHeader>
+                      <div className="space-y-2">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="h-3 w-2/3 bg-muted animate-pulse rounded" />
+                      <div className="mt-auto pt-4 flex gap-2">
+                        <div className="h-10 flex-1 bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 flex-1 bg-muted animate-pulse rounded-md" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : savedItems.pdfs.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No saved PDFs yet</h3>
@@ -777,12 +812,14 @@ export function MyMaterials() {
                           <CardDescription>by {pdf.author}</CardDescription>
                         </div>
                       </CardHeader>
+
                       <CardContent className="flex flex-col flex-1">
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            {pdf.pages} pages • {pdf.size}
+                            {pdf.pages ?? "—"} pages • {pdf.size ?? "—"}
                           </div>
                         </div>
+
                         <div className="mt-auto pt-4 flex gap-2">
                           <Button
                             size="sm"
@@ -792,14 +829,17 @@ export function MyMaterials() {
                             <Download className="mr-2 h-3 w-3" />
                             Preview
                           </Button>
+
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteSavedItem('pdfs', pdf.id)}
+                            onClick={() => handleDeleteSavedItem("pdfs", pdf)}
                             className="flex-1 h-10 shadow-md"
                             disabled={deletingIds.has(`pdfs-${pdf.id}`)}
                           >
-                            {deletingIds.has(`pdfs-${pdf.id}`) ? "Deleting..." : (
+                            {deletingIds.has(`pdfs-${pdf.id}`) ? (
+                              "Deleting..."
+                            ) : (
                               <>
                                 <Trash className="mr-2 h-3 w-3" />
                                 Delete
@@ -811,6 +851,7 @@ export function MyMaterials() {
                     </Card>
                   ))}
                 </div>
+
                 {totalPagesPdfs > 1 && (
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
@@ -819,7 +860,9 @@ export function MyMaterials() {
                     >
                       Previous
                     </Button>
-                    <span>Page {currentPagePdfs} of {totalPagesPdfs}</span>
+                    <span>
+                      Page {currentPagePdfs} of {totalPagesPdfs}
+                    </span>
                     <Button
                       disabled={currentPagePdfs === totalPagesPdfs}
                       onClick={() => setCurrentPagePdfs((prev) => prev + 1)}
@@ -837,7 +880,31 @@ export function MyMaterials() {
               <Headphones className="h-5 w-5" />
               Saved Audio
             </h3>
-            {savedItems.audio.length === 0 ? (
+
+            {dataLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card
+                    key={`audio-skel-${i}`}
+                    className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                  >
+                    <CardHeader>
+                      <div className="space-y-2">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="mt-auto pt-4 flex gap-2">
+                        <div className="h-10 flex-1 bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 flex-1 bg-muted animate-pulse rounded-md" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : savedItems.audio.length === 0 ? (
               <div className="text-center py-12">
                 <Headphones className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No saved audio yet</h3>
@@ -857,13 +924,8 @@ export function MyMaterials() {
                           <CardDescription>by {audio.speaker}</CardDescription>
                         </div>
                       </CardHeader>
+
                       <CardContent className="flex flex-col flex-1">
-                        {/*<div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {audio.duration}
-                          </div>
-                        </div>*/}
                         <div className="mt-auto pt-4 flex gap-2">
                           <Button
                             size="sm"
@@ -873,14 +935,17 @@ export function MyMaterials() {
                             <Play className="mr-2 h-3 w-3" />
                             Continue Listening
                           </Button>
+
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteSavedItem('audio', audio.id)}
+                            onClick={() => handleDeleteSavedItem("audio", audio)}
                             className="flex-1 h-10 shadow-md"
                             disabled={deletingIds.has(`audio-${audio.id}`)}
                           >
-                            {deletingIds.has(`audio-${audio.id}`) ? "Deleting..." : (
+                            {deletingIds.has(`audio-${audio.id}`) ? (
+                              "Deleting..."
+                            ) : (
                               <>
                                 <Trash className="mr-2 h-3 w-3" />
                                 Delete
@@ -892,6 +957,7 @@ export function MyMaterials() {
                     </Card>
                   ))}
                 </div>
+
                 {totalPagesAudio > 1 && (
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
@@ -900,7 +966,9 @@ export function MyMaterials() {
                     >
                       Previous
                     </Button>
-                    <span>Page {currentPageAudio} of {totalPagesAudio}</span>
+                    <span>
+                      Page {currentPageAudio} of {totalPagesAudio}
+                    </span>
                     <Button
                       disabled={currentPageAudio === totalPagesAudio}
                       onClick={() => setCurrentPageAudio((prev) => prev + 1)}
@@ -912,6 +980,7 @@ export function MyMaterials() {
               </>
             )}
           </div>
+
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-4">
@@ -1063,16 +1132,6 @@ export function MyMaterials() {
         audioUrl={selectedAudio?.audioUrl}
         duration={selectedAudio?.duration}
       />
-      {/* <NoteEditor
-        isOpen={noteEditorOpen}
-        onClose={() => {
-          setNoteEditorOpen(false);
-          setSelectedNote(null);
-        }}
-        note={selectedNote || undefined}
-        onSave={handleSaveNote}
-        lessons={lessons}
-      /> */}
       <BookmarkManager
         isOpen={bookmarkManagerOpen}
         onClose={() => setBookmarkManagerOpen(false)}
