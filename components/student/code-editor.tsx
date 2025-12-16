@@ -1926,10 +1926,14 @@ export function CodeEditor() {
               selectedLesson={selectedLesson}
               setSelectedLesson={setSelectedLesson}
               onSubmit={handleSubmit}
-              role={session?.user?.role}
+              role={session?.user?.role || undefined}
               submissions={mySubmissions}
-              onGrade={gradeSubmission}
-              onComment={addComment}
+              onGrade={async (id, upd) => {
+                await gradeSubmission(id, upd);
+              }}
+              onComment={async (id, msg) => {
+                await addComment(id, msg);
+              }}
               fetchSubmissionDetail={fetchSubmissionDetail}
             />
           </TabsContent>

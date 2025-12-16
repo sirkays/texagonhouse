@@ -88,14 +88,18 @@ const SubmissionList: React.FC = () => {
       setLoading(true);
       try {
         const res = await fetch(`/api/teacher/code/submissions?page_size=100`);
-        if (!res.ok) throw new Error("Failed");
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("API Fetch Error:", res.status, errText);
+          throw new Error(`Failed to fetch: ${res.status}`);
+        }
         const data = await res.json();
         const results: Submission[] = data.results || [];
         await extractFilters(results);
         // Set first page
         setSubmissions(results.slice(0, pageSize));
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        console.error("Load Error:", err.message);
       } finally {
         setLoading(false);
       }

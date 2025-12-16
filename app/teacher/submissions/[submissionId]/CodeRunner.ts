@@ -23,14 +23,18 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
     setIsRunning(true);
     setOutput("");
 
+    console.log(`[CodeRunner] Run called. Lang: ${activeLang}`);
     const code = files[activeLang];
+    console.log(`[CodeRunner] Code len: ${code?.length}`);
     if (!code.trim()) {
+      console.log("[CodeRunner] Code is empty.");
       setOutput("No code to run.");
       setIsRunning(false);
       return;
     }
 
     if (activeLang === "html" || activeLang === "css") {
+      // ... html/css logic ...
       const html = activeLang === "html" ? code : files.html;
       const css = activeLang === "css" ? code : files.css;
       setOutput(`
@@ -41,6 +45,7 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
     }
 
     if (activeLang === "javascript") {
+      // ... existing js logic ...
       const logs: string[] = [];
       const original = console.log;
       console.log = (...a) => logs.push(a.map(String).join(" "));
@@ -73,6 +78,8 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n    ${code}\n    return 0;\n}`;
     }
 
+    console.log("[CodeRunner] Sending to Judge0:", { lang: activeLang, len: codeToRun.length });
+
     try {
       const res = await fetch(
         "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
@@ -92,6 +99,8 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       );
 
       const result = await res.json();
+      console.log("[CodeRunner] Judge0 Result:", result);
+
       if (result.status?.id === 3) {
         setOutput(result.stdout || "Success (no output)");
       } else if (result.compile_output) {
@@ -101,7 +110,8 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       } else {
         setOutput(result.stdout || "Unknown result");
       }
-    } catch {
+    } catch (err: any) {
+      console.error("[CodeRunner] API Error:", err);
       setOutput("Online execution unavailable. Try local JS.");
     } finally {
       setIsRunning(false);
