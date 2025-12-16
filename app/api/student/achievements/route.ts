@@ -3,16 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098"
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
-const headers = (sessionToken) => ({
+const headers = (sessionToken: any) => ({
   "Authorization": `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function GET(req) {
+export async function GET(req: any) {
   noStore();
   const endpoint = "/academics/api/gamification/achievements/";
   const fullUrl = `${BASE_URL}${endpoint}`;
@@ -137,7 +138,7 @@ export async function GET(req) {
   } catch (error) {
     console.error("[AchievementsAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch achievements", details: error.message },
+      { error: "Failed to fetch achievements", details: error },
       {
         status: 500,
         headers: {
