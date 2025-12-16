@@ -542,7 +542,7 @@ export function DashboardOverview() {
               <p className="text-sm text-green-600">in your school</p>
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <Zap className="h-3 w-3" />
-                <span>Global rank: N/A</span>
+                <span>Global rank: #{data?.gamification?.leaderboard?.global_rank ?? "N/A"}</span>
               </div>
             </div>
           </CardContent>
