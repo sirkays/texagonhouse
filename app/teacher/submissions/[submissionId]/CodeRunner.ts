@@ -64,6 +64,15 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       return;
     }
 
+    let codeToRun = code;
+
+    // Auto-wrap Java/C++ execution
+    if (activeLang === "java" && !code.includes("class Main")) {
+      codeToRun = `public class Main {\n    public static void main(String[] args) {\n        ${code}\n    }\n}`;
+    } else if (activeLang === "cpp" && !code.includes("int main")) {
+      codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n    ${code}\n    return 0;\n}`;
+    }
+
     try {
       const res = await fetch(
         "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
@@ -75,7 +84,7 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
             "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
           },
           body: JSON.stringify({
-            source_code: code,
+            source_code: codeToRun,
             language_id: cfg.judgeId,
             stdin: "",
           }),

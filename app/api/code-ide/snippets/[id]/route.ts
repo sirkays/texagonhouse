@@ -81,7 +81,8 @@ export async function DELETE(
 
   try {
     // Construct the backend URL: /snippets/{id}/delete/
-    const url = `${BASE_URL}/snippets/${id}/delete/`;
+    // Construct the backend URL: /snippets/{id}/delete/ - Note: this endpoint is outside /api/ide/
+    const url = `https://texagonbackend.onrender.com/code-ide/snippets/${id}/delete/`;
     
     const res = await fetch(url, {
       method: "DELETE",
