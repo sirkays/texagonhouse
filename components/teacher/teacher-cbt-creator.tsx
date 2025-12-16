@@ -847,16 +847,24 @@ const fetchPerformances = useCallback(async () => {
     }
   };
 
-  const handleEditTest = async (test: CBTTest) => {
-    setIsSaving(true);
-    const testData = await fetchTestById(test.id);
-    if (testData) {
-      setSelectedTestForEdit(testData);
-      setCurrentTest(testData);
-      setIsEditTestOpen(true);
-    }
-    setIsSaving(false);
-  };
+const handleEditTest = async (test: CBTTest) => {
+  setIsSaving(true);
+  const testData = await fetchTestById(test.id);
+
+  if (testData) {
+    setSelectedTestForEdit(testData);
+    setCurrentTest(testData);
+
+    // ✅ go to Create New Test tab instead of opening modal
+    setActiveTab("create");
+
+    // ✅ ensure modal is not used
+    setIsEditTestOpen(false);
+  }
+
+  setIsSaving(false);
+};
+
 
   const handlePreviewTest = async (test: CBTTest) => {
     setIsSaving(true);
