@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-//const BASE_URL = "https://texagonbackend.onrender.com";
-const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 function normalizeMedia(media: string | undefined): string | undefined {
@@ -39,16 +39,22 @@ interface Module {
   id: string;
   title: string;
   description: string;
-  type: "video" | "audio" | "document" | "tutorial";
-  duration: string;
   difficulty: "Beginner" | "Intermediate" | "Advanced";
-  category: string;
-  enrollments: number;
-  rating: number;
+  category: { id: string; name: string } | null;
+  estimatedDuration: number; // ✅ minutes (API)
+  order: number;
+  active: boolean;
   isPublished: boolean;
-  createdDate: string;
-  course: { id: string; name: string };
+  course: { id: string; name: string } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
   lessons: Lesson[];
+  lessonCount?: number;
+
+  // optional
+  enrollments?: number;
+  rating?: number;
+  type?: "video" | "audio" | "document" | "tutorial";
 }
 
 export async function GET(req: Request) {
@@ -224,51 +230,58 @@ export async function GET(req: Request) {
       );
     }
 
-    const normalizedData: Module[] = data.modules.map((module) => ({
-      id: module.id.toString(),
-      title: module.title || "",
-      description: module.description || "",
-      type: module.type || "video",
-      duration: module.estimatedDuration?.toString() || module.duration || "",
-      difficulty: module.difficulty
-        ? ((module.difficulty.charAt(0).toUpperCase() +
-            module.difficulty.slice(1).toLowerCase()) as
-            | "Beginner"
-            | "Intermediate"
-            | "Advanced")
-        : "Beginner",
-      category: module.category?.name || module.category || "",
-      enrollments: module.enrollments || 0,
-      rating: module.rating || 0,
-      isPublished: module.isPublished ?? true,
-      createdDate:
-        module.createdAt ||
-        module.createdDate ||
-        new Date().toISOString().split("T")[0],
-      course: module.course
-        ? { id: module.course.id.toString(), name: module.course.name || "" }
-        : { id: "", name: "" },
-      lessons: Array.isArray(module.lessons)
-        ? module.lessons.map(
-            (lesson: any): Lesson => ({
-              id: lesson.id.toString(),
-              title: lesson.title || "",
-              type: lesson.type || "video",
-              duration: lesson.duration || "",
-              content: lesson.content || undefined,
-              videoUrl: lesson.video_url
-                ? normalizeMedia(lesson.video_url)
-                : undefined,
-              audioUrl: lesson.audio_url
-                ? normalizeMedia(lesson.audio_url)
-                : undefined,
-              coverImageUrl: lesson.cover_image
-                ? normalizeMedia(lesson.cover_image)
-                : undefined, // FIX: Apply normalizeMedia
-            })
-          )
-        : [],
-    }));
+  const normalizedData: Module[] = data.modules.map((module) => ({
+    id: String(module.id),
+    title: module.title || "",
+    description: module.description || "",
+    type: module.type || "video",
+
+    // ✅ keep API field name + number type
+    estimatedDuration: Number(module.estimatedDuration ?? 0),
+
+    difficulty: module.difficulty
+      ? ((module.difficulty.charAt(0).toUpperCase() +
+          module.difficulty.slice(1).toLowerCase()) as
+          | "Beginner"
+          | "Intermediate"
+          | "Advanced")
+      : "Beginner",
+
+    // ✅ keep API category shape
+    category: module.category
+      ? { id: String(module.category.id), name: module.category.name || "" }
+      : null,
+
+    enrollments: module.enrollments ?? 0,
+    rating: module.rating ?? 0,
+    order: module.order ?? 0,
+    active: !!module.active,
+    isPublished: module.isPublished ?? !!module.active,
+
+    course: module.course
+      ? { id: String(module.course.id), name: module.course.name || "" }
+      : null,
+
+    createdAt: module.createdAt ?? null,
+    updatedAt: module.updatedAt ?? null,
+
+    lessons: Array.isArray(module.lessons)
+      ? module.lessons.map((lesson: any): Lesson => ({
+          id: String(lesson.id),
+          title: lesson.title || "",
+          type: lesson.type || "video",
+
+          // keep as-is OR normalize if backend sends seconds (see section 3)
+          duration: lesson.duration ?? "",
+
+          content: lesson.content || undefined,
+          videoUrl: lesson.video_url ? normalizeMedia(lesson.video_url) : undefined,
+          audioUrl: lesson.audio_url ? normalizeMedia(lesson.audio_url) : undefined,
+          coverImageUrl: lesson.cover_image ? normalizeMedia(lesson.cover_image) : undefined,
+        }))
+      : [],
+  }));
+
 
     console.log(
       "[TeacherModulesAPI] Fetch successful, normalized data:",

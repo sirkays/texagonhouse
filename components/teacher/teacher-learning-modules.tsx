@@ -2777,11 +2777,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                           <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
                             <div className="flex items-center gap-1">
                               <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              {module.duration}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              {module.enrollments}
+                              {module.duration} min
                             </div>
                             <div>{module.createdDate}</div>
                           </div>
@@ -3003,10 +2999,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                               {module.title}
                             </h4>
                             <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                {module.enrollments} enrolled
-                              </div>
+
                               {/*<div>
                                 Completion: {module.completion.toFixed(1)}%
                               </div>*/}
