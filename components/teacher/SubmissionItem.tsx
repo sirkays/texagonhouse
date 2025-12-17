@@ -19,7 +19,7 @@ const SubmissionItem: React.FC<SubmissionItemProps> = ({ submission }) => {
       <div className="mt-3 space-y-1 text-sm text-muted-foreground">
         <p>Status: <span className="font-medium text-slate-700">{submission.status}</span></p>
         <p>Language: <span className="font-medium text-slate-700">{submission.language}</span></p>
-        {submission.score && <p>Score: <span className="font-medium text-[#EF7B55]">{parseFloat(submission.score) / 10}</span></p>}
+        {submission.score && <p>Score: <span className="font-medium text-[#EF7B55]">{submission.score}</span></p>}
         {submission.feedback && <p>Feedback: <span className="font-medium text-slate-700">{submission.feedback}</span></p>}
       </div>
 

@@ -148,7 +148,7 @@ export default function CodePage() {
           </p>
           <p className="text-sm text-slate-600 mt-1">
             Status: {submission.status}{" "}
-            {submission.score ? `| Score: ${parseFloat(submission.score) / 10}` : ""}
+            {submission.score ? `| Score: ${submission.score}` : ""}
           </p>
         </div>
         {/* Tabs */}

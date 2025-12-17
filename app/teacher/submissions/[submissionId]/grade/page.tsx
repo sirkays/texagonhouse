@@ -118,7 +118,7 @@ export default function GradePage() {
     (submission?.language as Lang) ?? "html"
   );
   const [score, setScore] = useState<number>(
-    submission?.score ? parseInt(submission.score) / 10 : 0
+    submission?.score ? parseInt(submission.score) : 0
   );
   const [feedback, setFeedback] = useState<string>(submission?.feedback ?? "");
   const [newComment, setNewComment] = useState("");
