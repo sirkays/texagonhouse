@@ -1041,8 +1041,23 @@ export function TeacherTutoringBooking() {
                         pattern="[0-9]*"
                         value={ratePerHour || ""}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, "");
-                          setRatePerHour(val ? parseFloat(val).toFixed(2) : "");
+                          let val = e.target.value.replace(/[^0-9.]/g, "");
+                          // Allow only one decimal point
+                          const parts = val.split('.');
+                          if (parts.length > 2) {
+                            val = parts[0] + '.' + parts.slice(1).join('');
+                          }
+                          // Limit to 2 decimal places
+                          if (parts[1] && parts[1].length > 2) {
+                            val = parts[0] + '.' + parts[1].substring(0, 2);
+                          }
+                          setRatePerHour(val);
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          if (val) {
+                            setRatePerHour(parseFloat(val).toFixed(2));
+                          }
                         }}
                         placeholder="7500"
                         className="w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
