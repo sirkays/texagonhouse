@@ -1,7 +1,7 @@
 // app/teacher/submissions/CodeRunner.ts
 import { useState, useEffect } from "react";
 
-type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
+export type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
 
 const languages = {
   javascript: { judgeId: 63 },
@@ -123,12 +123,26 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
   `;
 
   const download = () => {
+    console.log("[CodeRunner] Download called");
+    console.log("[CodeRunner] Active language:", activeLang);
+    console.log("[CodeRunner] Files state:", files);
+    console.log("[CodeRunner] Code to download:", files[activeLang]);
+    console.log("[CodeRunner] Code length:", files[activeLang]?.length);
+
     const ext = { javascript: "js", python: "py", java: "java", cpp: "cpp", html: "html", css: "css" };
-    const blob = new Blob([files[activeLang]], { type: "text/plain" });
+    const code = files[activeLang];
+
+    if (!code || code.trim() === "") {
+      console.warn("[CodeRunner] Warning: No code to download!");
+      return;
+    }
+
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `code.${ext[activeLang]}`;
+    console.log("[CodeRunner] Downloading file:", a.download);
     a.click();
     URL.revokeObjectURL(url);
   };

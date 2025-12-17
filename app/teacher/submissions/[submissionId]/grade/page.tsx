@@ -61,6 +61,7 @@ export default function GradePage() {
         const res = await fetch(`/api/teacher/code/submissions/${id}`);
         if (!res.ok) throw new Error("Failed to fetch submission");
         const data = await res.json();
+        console.log("[GradePage] Fetched submission data:", data);
         setSubmission(data);
       } catch (err) {
         setError("Submission not found");
@@ -81,9 +82,11 @@ export default function GradePage() {
     };
     if (!submission) return empty;
     const key = submission.language as Lang;
+    const code = submission.correction_code || submission.code_text;
+    console.log("[GradePage] Building initialFiles. Lang:", key, "Code:", code);
     return {
       ...empty,
-      [key]: submission.correction_code ?? submission.code_text,
+      [key]: code,
     };
   }, [submission]);
   const {
@@ -104,16 +107,18 @@ export default function GradePage() {
     console.log("[GradePage] useEffect triggered. Submission:", !!submission);
     console.log("[GradePage] initialFiles:", initialFiles);
     if (submission) {
+      console.log("[GradePage] Setting language to:", submission.language);
+      setActiveLang(submission.language as any);
       console.log("[GradePage] Calling setFiles with initialFiles");
       setFiles(initialFiles);
     }
-  }, [submission, initialFiles, setFiles]);
+  }, [submission, initialFiles, setFiles, setActiveLang]);
 
   const [activeTab, setActiveTab] = useState<Tab>(
     (submission?.language as Lang) ?? "html"
   );
   const [score, setScore] = useState<number>(
-    submission?.score ? parseInt(submission.score) : 0
+    submission?.score ? parseInt(submission.score) / 10 : 0
   );
   const [feedback, setFeedback] = useState<string>(submission?.feedback ?? "");
   const [newComment, setNewComment] = useState("");
@@ -149,6 +154,13 @@ export default function GradePage() {
         feedback,
         correction_code: files[submission.language as Lang] ?? "",
       };
+
+      console.log("[GradePage] Submitting grade...");
+      console.log("[GradePage] Score (UI):", score);
+      console.log("[GradePage] Score (scaled for API):", body.score);
+      console.log("[GradePage] Feedback:", feedback);
+      console.log("[GradePage] Correction code length:", body.correction_code.length);
+
       const res = await fetch(`/api/teacher/code/submissions/${id}/grade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,6 +171,7 @@ export default function GradePage() {
         throw new Error(errData.detail || "Failed to submit grade");
       }
       const updatedData = await res.json();
+      console.log("[GradePage] Grade submitted successfully:", updatedData);
       setSubmissions((prev) =>
         prev.map((s) =>
           s.id === id
@@ -384,7 +397,7 @@ export default function GradePage() {
                 }
                 className="order-1 w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5"
               >
-                {isRunning ? "Running…" : "Run Correction"}
+                {isRunning ? "Running…" : "Run "}
               </Button>
             )}
             <Button
@@ -404,7 +417,7 @@ export default function GradePage() {
               <Send className="w-4 h-4 mr-2" />
               {submitting ? "Submitting..." : "Submit Grade"}
             </Button>
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/teacher/submissions")}
@@ -412,7 +425,7 @@ export default function GradePage() {
             >
               <X className="w-4 h-4 mr-2" />
               Cancel
-            </Button>
+            </Button> */}
           </div>
           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         </form>

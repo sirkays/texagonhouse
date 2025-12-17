@@ -77,8 +77,12 @@ const SubmissionList: React.FC = () => {
       }
       return null;
     });
-    const courseResults = (await Promise.all(coursePromises)).filter(Boolean);
-    const classResults = (await Promise.all(classPromises)).filter(Boolean);
+    const courseResults = (await Promise.all(coursePromises)).filter(
+      (c): c is { id: number; name: string } => c !== null
+    );
+    const classResults = (await Promise.all(classPromises)).filter(
+      (c): c is { id: number; name: string } => c !== null
+    );
     setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
     setClasses(classResults.sort((a, b) => a.name.localeCompare(b.name)));
   };

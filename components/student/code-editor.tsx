@@ -144,6 +144,7 @@ export function CodeEditor() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileLoading, setFileLoading] = useState<number | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<number | null>(null);
   const [syntaxError, setSyntaxError] = useState<string | null>(null);
   // [ADD THIS NEW STATE]
   const [codeBuffers, setCodeBuffers] = useState<Record<string, string>>({
@@ -385,6 +386,7 @@ export function CodeEditor() {
   const deleteUploadedFile = async (id: number) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
 
+    setDeletingFileId(id);
     try {
       const res = await fetch(`/api/code-ide/uploads/${id}`, {
         method: "DELETE",
@@ -400,6 +402,8 @@ export function CodeEditor() {
       setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
     } catch (error) {
       alert(`Delete failed: ${(error as Error).message}`);
+    } finally {
+      setDeletingFileId(null);
     }
   };
 
@@ -1883,11 +1887,15 @@ export function CodeEditor() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => deleteUploadedFile(file.id)}
-                                title="Delete file"
+                                title={deletingFileId === file.id ? "Deleting..." : "Delete file"}
                                 className="text-destructive hover:text-destructive"
-                                disabled={loading || fileLoading === file.id}
+                                disabled={loading || fileLoading === file.id || deletingFileId === file.id}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                {deletingFileId === file.id ? (
+                                  <Spinner size="sm" className="h-4 w-4" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
                               </Button>
                             </div>
                           </div>
