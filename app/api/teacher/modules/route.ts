@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 function normalizeMedia(media: string | undefined): string | undefined {
@@ -53,17 +54,27 @@ interface Module {
 export async function GET(req: Request) {
   noStore();
   const { searchParams } = new URL(req.url);
+
+  const endpoint = "/learning/api/teacher/modules/";
+  const query = new URLSearchParams();
+
+  // ✅ forward all supported filters
   const active = searchParams.get("active");
   const search = searchParams.get("search");
   const difficulty = searchParams.get("difficulty");
-  const endpoint = "/learning/api/teacher/modules/";
-  const query = new URLSearchParams();
+  const course = searchParams.get("course");
+  const category = searchParams.get("category");
+  const include_lessons = searchParams.get("include_lessons");
+
   if (active) query.set("active", active);
   if (search) query.set("search", search);
   if (difficulty) query.set("difficulty", difficulty.toLowerCase());
-  const fullUrl = `${BASE_URL}${endpoint}${
-    query.toString() ? `?${query.toString()}` : ""
-  }`;
+  if (course) query.set("course", course);
+  if (category) query.set("category", category);
+  if (include_lessons) query.set("include_lessons", include_lessons);
+
+  const fullUrl = `${BASE_URL}${endpoint}${query.toString() ? `?${query.toString()}` : ""}`;
+
   console.log("[TeacherModulesAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);

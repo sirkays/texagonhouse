@@ -416,15 +416,15 @@ export function DashboardOverview() {
         </Card>
         <Card className="bg-transparent border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hours Learned</CardTitle>
+            <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {data?.stats?.hours_learned ?? 0}
+              {data?.stats?.badges_earned ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              +{data?.stats?.hours_learned ?? 0} this week
+              +{data?.stats?.badges_earned ?? 0} this week
             </p>
           </CardContent>
         </Card>
@@ -542,7 +542,7 @@ export function DashboardOverview() {
               <p className="text-sm text-green-600">in your school</p>
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <Zap className="h-3 w-3" />
-                <span>Global rank: N/A</span>
+                <span>Global rank: #{data?.gamification?.leaderboard?.global_rank ?? "N/A"}</span>
               </div>
             </div>
           </CardContent>
