@@ -63,24 +63,38 @@ export default function CodePage() {
     if (id) fetchSubmission();
   }, [id]);
 
-  const [files, setFiles] = useState<{ [key: string]: string }>({
-    python: "",
-    javascript: "",
-    html: "",
-    css: "",
-    java: "",
-    cpp: "",
-  });
-
-  useEffect(() => {
-    if (submission) {
-      const key = submission.language as keyof typeof files;
-      setFiles((prev) => ({ ...prev, [key]: submission.code_text }));
-    }
+  const initialFiles = useMemo(() => {
+    const empty = {
+      python: "",
+      javascript: "",
+      html: "",
+      css: "",
+      java: "",
+      cpp: "",
+    };
+    if (!submission) return empty;
+    const key = submission.language as keyof typeof empty;
+    return {
+      ...empty,
+      [key]: submission.code_text,
+    };
   }, [submission]);
 
-  const { activeLang, output, isRunning, run, renderWeb, download } =
-    useCodeRunner(files);
+  const { files, setFiles, activeLang, setActiveLang, output, isRunning, run, renderWeb, download } =
+    useCodeRunner(initialFiles);
+
+  // Sync runner state when submission loads
+  useEffect(() => {
+    console.log("[CodePage] Sync effect running...");
+    console.log("[CodePage] Submission:", submission);
+    console.log("[CodePage] initialFiles:", initialFiles);
+    if (submission) {
+      console.log("[CodePage] Setting language to:", submission.language);
+      setActiveLang(submission.language as any);
+      console.log("[CodePage] Setting files...");
+      setFiles(initialFiles);
+    }
+  }, [submission, initialFiles, setFiles, setActiveLang]);
 
   const [activeTab, setActiveTab] = useState<Tab>("html");
 
@@ -148,13 +162,12 @@ export default function CodePage() {
                 type="button"
                 disabled={disabled}
                 onClick={() => setActiveTab(lang)}
-                className={`px-2 py-1 rounded-t-md text-xs transition ${
-                  activeTab === lang
-                    ? "bg-[#EF7B55] text-white"
-                    : disabled
+                className={`px-2 py-1 rounded-t-md text-xs transition ${activeTab === lang
+                  ? "bg-[#EF7B55] text-white"
+                  : disabled
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
-                }`}
+                  }`}
               >
                 {l}
               </button>
@@ -163,11 +176,10 @@ export default function CodePage() {
           <button
             type="button"
             onClick={() => setActiveTab("output")}
-            className={`px-2 py-1 rounded-t-md text-xs transition ml-1 ${
-              activeTab === "output"
-                ? "bg-[#EF7B55] text-white"
-                : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
-            }`}
+            className={`px-2 py-1 rounded-t-md text-xs transition ml-1 ${activeTab === "output"
+              ? "bg-[#EF7B55] text-white"
+              : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
+              }`}
           >
             Output
           </button>

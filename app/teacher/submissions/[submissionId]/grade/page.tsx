@@ -61,6 +61,7 @@ export default function GradePage() {
         const res = await fetch(`/api/teacher/code/submissions/${id}`);
         if (!res.ok) throw new Error("Failed to fetch submission");
         const data = await res.json();
+        console.log("[GradePage] Fetched submission data:", data);
         setSubmission(data);
       } catch (err) {
         setError("Submission not found");
@@ -81,9 +82,11 @@ export default function GradePage() {
     };
     if (!submission) return empty;
     const key = submission.language as Lang;
+    const code = submission.correction_code || submission.code_text;
+    console.log("[GradePage] Building initialFiles. Lang:", key, "Code:", code);
     return {
       ...empty,
-      [key]: submission.correction_code ?? submission.code_text,
+      [key]: code,
     };
   }, [submission]);
   const {
@@ -98,6 +101,19 @@ export default function GradePage() {
     renderWeb,
     download,
   } = useCodeRunner(initialFiles);
+
+  // Sync runner state when submission loads
+  useEffect(() => {
+    console.log("[GradePage] useEffect triggered. Submission:", !!submission);
+    console.log("[GradePage] initialFiles:", initialFiles);
+    if (submission) {
+      console.log("[GradePage] Setting language to:", submission.language);
+      setActiveLang(submission.language as any);
+      console.log("[GradePage] Calling setFiles with initialFiles");
+      setFiles(initialFiles);
+    }
+  }, [submission, initialFiles, setFiles, setActiveLang]);
+
   const [activeTab, setActiveTab] = useState<Tab>(
     (submission?.language as Lang) ?? "html"
   );
@@ -138,6 +154,13 @@ export default function GradePage() {
         feedback,
         correction_code: files[submission.language as Lang] ?? "",
       };
+
+      console.log("[GradePage] Submitting grade...");
+      console.log("[GradePage] Score (UI):", score);
+      console.log("[GradePage] Score (scaled for API):", body.score);
+      console.log("[GradePage] Feedback:", feedback);
+      console.log("[GradePage] Correction code length:", body.correction_code.length);
+
       const res = await fetch(`/api/teacher/code/submissions/${id}/grade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,15 +171,16 @@ export default function GradePage() {
         throw new Error(errData.detail || "Failed to submit grade");
       }
       const updatedData = await res.json();
+      console.log("[GradePage] Grade submitted successfully:", updatedData);
       setSubmissions((prev) =>
         prev.map((s) =>
           s.id === id
             ? {
-                ...s,
-                status: updatedData.status,
-                score: updatedData.score,
-                feedback: updatedData.feedback,
-              }
+              ...s,
+              status: updatedData.status,
+              score: updatedData.score,
+              feedback: updatedData.feedback,
+            }
             : s
         )
       );
@@ -246,9 +270,8 @@ export default function GradePage() {
                     Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
                   )
                 }
-                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 ${
-                  errors.score ? "border-red-500" : "border-[#EF7B55]/30"
-                }`}
+                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 ${errors.score ? "border-red-500" : "border-[#EF7B55]/30"
+                  }`}
                 min="0"
                 max="100"
               />
@@ -281,13 +304,12 @@ export default function GradePage() {
                   type="button"
                   disabled={disabled}
                   onClick={() => setActiveTab(lang)}
-                  className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${
-                    activeTab === lang
-                      ? "bg-[#EF7B55] text-white"
-                      : disabled
+                  className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${activeTab === lang
+                    ? "bg-[#EF7B55] text-white"
+                    : disabled
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                       : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
-                  }`}
+                    }`}
                 >
                   {l}
                 </button>
@@ -296,11 +318,10 @@ export default function GradePage() {
             <button
               type="button"
               onClick={() => setActiveTab("output")}
-              className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ml-1 ${
-                activeTab === "output"
-                  ? "bg-[#EF7B55] text-white"
-                  : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
-              }`}
+              className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ml-1 ${activeTab === "output"
+                ? "bg-[#EF7B55] text-white"
+                : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
+                }`}
             >
               Output
             </button>
@@ -367,16 +388,16 @@ export default function GradePage() {
                 disabled={
                   isRunning ||
                   !ready[
-                    activeTab === "python"
-                      ? "pyodide"
-                      : activeTab === "java"
+                  activeTab === "python"
+                    ? "pyodide"
+                    : activeTab === "java"
                       ? "cheerpj"
                       : "emception"
                   ]
                 }
                 className="order-1 w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5"
               >
-                {isRunning ? "Running…" : "Run Correction"}
+                {isRunning ? "Running…" : "Run "}
               </Button>
             )}
             <Button
@@ -396,7 +417,7 @@ export default function GradePage() {
               <Send className="w-4 h-4 mr-2" />
               {submitting ? "Submitting..." : "Submit Grade"}
             </Button>
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/teacher/submissions")}
@@ -404,7 +425,7 @@ export default function GradePage() {
             >
               <X className="w-4 h-4 mr-2" />
               Cancel
-            </Button>
+            </Button> */}
           </div>
           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         </form>

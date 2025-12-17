@@ -77,8 +77,12 @@ const SubmissionList: React.FC = () => {
       }
       return null;
     });
-    const courseResults = (await Promise.all(coursePromises)).filter(Boolean);
-    const classResults = (await Promise.all(classPromises)).filter(Boolean);
+    const courseResults = (await Promise.all(coursePromises)).filter(
+      (c): c is { id: number; name: string } => c !== null
+    );
+    const classResults = (await Promise.all(classPromises)).filter(
+      (c): c is { id: number; name: string } => c !== null
+    );
     setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
     setClasses(classResults.sort((a, b) => a.name.localeCompare(b.name)));
   };
@@ -88,14 +92,18 @@ const SubmissionList: React.FC = () => {
       setLoading(true);
       try {
         const res = await fetch(`/api/teacher/code/submissions?page_size=100`);
-        if (!res.ok) throw new Error("Failed");
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("API Fetch Error:", res.status, errText);
+          throw new Error(`Failed to fetch: ${res.status}`);
+        }
         const data = await res.json();
         const results: Submission[] = data.results || [];
         await extractFilters(results);
         // Set first page
         setSubmissions(results.slice(0, pageSize));
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        console.error("Load Error:", err.message);
       } finally {
         setLoading(false);
       }

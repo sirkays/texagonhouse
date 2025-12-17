@@ -1,7 +1,7 @@
 // app/teacher/submissions/CodeRunner.ts
 import { useState, useEffect } from "react";
 
-type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
+export type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
 
 const languages = {
   javascript: { judgeId: 63 },
@@ -23,14 +23,18 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
     setIsRunning(true);
     setOutput("");
 
+    console.log(`[CodeRunner] Run called. Lang: ${activeLang}`);
     const code = files[activeLang];
+    console.log(`[CodeRunner] Code len: ${code?.length}`);
     if (!code.trim()) {
+      console.log("[CodeRunner] Code is empty.");
       setOutput("No code to run.");
       setIsRunning(false);
       return;
     }
 
     if (activeLang === "html" || activeLang === "css") {
+      // ... html/css logic ...
       const html = activeLang === "html" ? code : files.html;
       const css = activeLang === "css" ? code : files.css;
       setOutput(`
@@ -41,6 +45,7 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
     }
 
     if (activeLang === "javascript") {
+      // ... existing js logic ...
       const logs: string[] = [];
       const original = console.log;
       console.log = (...a) => logs.push(a.map(String).join(" "));
@@ -64,6 +69,17 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       return;
     }
 
+    let codeToRun = code;
+
+    // Auto-wrap Java/C++ execution
+    if (activeLang === "java" && !code.includes("class Main")) {
+      codeToRun = `public class Main {\n    public static void main(String[] args) {\n        ${code}\n    }\n}`;
+    } else if (activeLang === "cpp" && !code.includes("int main")) {
+      codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n    ${code}\n    return 0;\n}`;
+    }
+
+    console.log("[CodeRunner] Sending to Judge0:", { lang: activeLang, len: codeToRun.length });
+
     try {
       const res = await fetch(
         "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
@@ -75,7 +91,7 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
             "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
           },
           body: JSON.stringify({
-            source_code: code,
+            source_code: codeToRun,
             language_id: cfg.judgeId,
             stdin: "",
           }),
@@ -83,6 +99,8 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       );
 
       const result = await res.json();
+      console.log("[CodeRunner] Judge0 Result:", result);
+
       if (result.status?.id === 3) {
         setOutput(result.stdout || "Success (no output)");
       } else if (result.compile_output) {
@@ -92,7 +110,8 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       } else {
         setOutput(result.stdout || "Unknown result");
       }
-    } catch {
+    } catch (err: any) {
+      console.error("[CodeRunner] API Error:", err);
       setOutput("Online execution unavailable. Try local JS.");
     } finally {
       setIsRunning(false);
@@ -104,12 +123,26 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
   `;
 
   const download = () => {
+    console.log("[CodeRunner] Download called");
+    console.log("[CodeRunner] Active language:", activeLang);
+    console.log("[CodeRunner] Files state:", files);
+    console.log("[CodeRunner] Code to download:", files[activeLang]);
+    console.log("[CodeRunner] Code length:", files[activeLang]?.length);
+
     const ext = { javascript: "js", python: "py", java: "java", cpp: "cpp", html: "html", css: "css" };
-    const blob = new Blob([files[activeLang]], { type: "text/plain" });
+    const code = files[activeLang];
+
+    if (!code || code.trim() === "") {
+      console.warn("[CodeRunner] Warning: No code to download!");
+      return;
+    }
+
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `code.${ext[activeLang]}`;
+    console.log("[CodeRunner] Downloading file:", a.download);
     a.click();
     URL.revokeObjectURL(url);
   };
