@@ -150,7 +150,7 @@ export default function GradePage() {
     setError(null);
     try {
       const body = {
-        score: score * 10, // Scale to 0-1000 as per API
+        score: score , // Scale to 0-1000 as per API
         feedback,
         correction_code: files[submission.language as Lang] ?? "",
       };
