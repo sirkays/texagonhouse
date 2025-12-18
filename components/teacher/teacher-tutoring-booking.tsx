@@ -266,14 +266,19 @@ export function TeacherTutoringBooking() {
       console.log(
         "[TeacherTutoringBooking] Fetching courses from /api/teacher/courses"
       );
-      const response = await fetch("/api/teacher/courses", {
-        method: "GET",
-        headers: {
-          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-      });
+      
+      const response = await fetch(
+        "/api/teacher/courses?course_type=private",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+        }
+      );
+
 
       console.log(
         "[TeacherTutoringBooking] Courses fetch response status:",

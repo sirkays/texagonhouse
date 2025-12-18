@@ -24,131 +24,45 @@ interface Course {
 
 export async function GET(req: Request) {
   noStore();
+
+  const { searchParams } = new URL(req.url);
+  const courseType = searchParams.get("course_type"); // "private"
+
   const endpoint = "/learning/api/teacher/courses/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
+  const fullUrl =
+    courseType
+      ? `${BASE_URL}${endpoint}?course_type=${courseType}`
+      : `${BASE_URL}${endpoint}`;
+
   console.log("[TeacherCoursesAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[TeacherCoursesAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[TeacherCoursesAPI] No session token found");
     return NextResponse.json(
       { error: "Not authenticated", redirect: "/login" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
+      { status: 401 }
     );
   }
 
   try {
-    console.log("[TeacherCoursesAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[TeacherCoursesAPI] Fetch response status:", response.status);
-    console.log("[TeacherCoursesAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[TeacherCoursesAPI] Fetch response content-type:", response.headers.get("content-type"));
-
-    const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[TeacherCoursesAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[TeacherCoursesAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: "Teacher courses endpoint not found" },
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
       return NextResponse.json(
         { error: "Failed to fetch teacher courses" },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: response.status }
       );
     }
 
-    if (!contentType.includes("application/json")) {
-      console.error("[TeacherCoursesAPI] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
+    const data = JSON.parse(rawResponse);
 
-    let data: { courses: any[] };
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[TeacherCoursesAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        { error: "Invalid response format" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    if (!Array.isArray(data.courses)) {
-      console.error("[TeacherCoursesAPI] Response does not contain a courses array:", data);
-      return NextResponse.json(
-        { error: "Invalid response format, expected courses array" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    const normalizedData: Course[] = data.courses.map((course) => ({
+    const normalizedData: Course[] = data.courses.map((course: any) => ({
       id: course.id.toString(),
       name: course.name || "",
       subject: course.subject || "",
@@ -157,27 +71,11 @@ export async function GET(req: Request) {
       isActive: course.isActive ?? true,
     }));
 
-    console.log("[TeacherCoursesAPI] Fetch successful, normalized data:", normalizedData);
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    return NextResponse.json(normalizedData, { status: 200 });
   } catch (error) {
-    console.error("[TeacherCoursesAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch teacher courses", details: (error as Error).message },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to fetch teacher courses" },
+      { status: 500 }
     );
   }
 }
