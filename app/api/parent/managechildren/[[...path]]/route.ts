@@ -9,6 +9,8 @@ export const BASE_URL =
 export const API_KEY =
   process.env.API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // fallback for dev
 
+
+//const BASE_URL = "http://127.0.0.1:9098";
 // ✅ GET endpoint - fetch children
 export async function GET(request: Request) {
   console.log("[Route] Received GET request to /api/parent/managechildren");
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
     console.log("[Route] Received request body:", body);
 
     const userId = session.user.id; // 👈 adjust this field name if your session uses userId instead
-    const { newPassword } = body;
+    const { childId, newPassword } = body;
 
     if (!userId || !newPassword) {
       return NextResponse.json(
@@ -118,7 +120,7 @@ export async function POST(request: Request) {
     const res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ childId: userId, newPassword }), // 👈 backend expects "childId"
+      body: JSON.stringify({ childId: childId, newPassword }), // 👈 backend expects "childId"
     });
 
     console.log("[Route] API response status:", res.status);

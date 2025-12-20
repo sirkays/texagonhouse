@@ -1,95 +1,17 @@
-// import {NextResponse} from "next/server";
-// import {getServerSession} from "next-auth";
-// import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-// const BASE_URL = "https://texagonbackend.onrender.com";
-// const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // Store in .env
-
-// export async function GET(
-//   request: Request,
-//   {params}: {params: {path?: string[]}}
-// ) {
-//   console.log(
-//     `[Route] GET handler triggered for path: ${params.path?.join("/") || ""}`
-//   );
-//   const path = params.path ? params.path.join("/") : "";
-//   console.log(`[Route] Received GET request to /api/parent/${path}`);
-
-//   const session = await getServerSession(authOptions);
-//   console.log("[Route] Session data:", {
-//     sessionToken: session?.user?.sessionToken,
-//   });
-
-//   if (!session?.user?.sessionToken) {
-//     console.log("[Route] No session token found");
-//     return NextResponse.json(
-//       {detail: "Invalid or missing session token."},
-//       {status: 401}
-//     );
-//   }
-
-//   if (path !== "children") {
-//     return NextResponse.json({detail: "Not found"}, {status: 404});
-//   }
-
-//   try {
-//     console.log(
-//       "[Route] Fetching data from",
-//       `${BASE_URL}/api/parent/children/`
-//     );
-//     const res = await fetch(`${BASE_URL}/api/parent/children/`, {
-//       method: "GET",
-//       headers: {
-//         "X-API-Key": API_KEY,
-//         Authorization: `Session ${session.user.sessionToken}`,
-//         "Content-Type": "application/json",
-//       },
-//     });
-
-//     console.log("[Route] API response status:", res.status);
-//     const data = await res.json();
-//     console.log("[Route] API response data:", data);
-
-//     if (!res.ok) {
-//       console.log("[Route] API fetch failed:", data);
-//       return NextResponse.json(
-//         {detail: data.detail || "Failed to fetch children data"},
-//         {status: res.status}
-//       );
-//     }
-
-//     return NextResponse.json(data);
-//   } catch (error) {
-//     console.error("[Route] Error fetching children data:", error);
-//     return NextResponse.json({detail: "Internal server error"}, {status: 500});
-//   }
-// }
-
-// export async function POST(
-//   request: Request,
-//   {params}: {params: {path?: string[]}}
-// ) {
-//   const path = params.path ? params.path.join("/") : "";
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+//const BASE_URL = "http://127.0.0.1:9098";
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY =
   process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // Fallback for dev, should be in .env
 
 export async function GET(request: Request) {
-  console.log("[Route] Received GET request to /api/parent/children");
-
   const session = await getServerSession(authOptions);
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json(
       { detail: "Invalid or missing session token." },
       { status: 401 }
@@ -97,28 +19,28 @@ export async function GET(request: Request) {
   }
 
   try {
-    const url = `${BASE_URL}/accounts/api/parent/children/`;
-    console.log("[Route] Fetching data from", url);
+
+
     const headers = {
       Authorization: `Api-Key ${API_KEY}`,
       "Content-Type": "application/json",
       "X-Session-Token": session.user.sessionToken,
     };
-    console.log("[Route] Request headers:", headers); // Debug headers
-    const res = await fetch(url, {
-      method: "GET",
-      headers,
+
+    const backendUrl = new URL("/accounts/api/parent/children/", BASE_URL);
+
+    const incomingUrl = new URL(request.url);
+    incomingUrl.searchParams.forEach((value, key) => {
+      backendUrl.searchParams.set(key, value);
     });
 
-    console.log("[Route] API response status:", res.status);
-    const text = await res.text();
-    console.log("[Route] API response text:", text.substring(0, 500));
+    const res = await fetch(backendUrl.toString(), { method: "GET", headers });
 
-    let data;
+    const text = await res.text();
+    let data: any;
     try {
       data = JSON.parse(text);
-    } catch (e) {
-      console.error("[Route] Failed to parse JSON:", e);
+    } catch {
       return NextResponse.json(
         { detail: "External API returned an invalid response" },
         { status: 502 }
@@ -126,13 +48,6 @@ export async function GET(request: Request) {
     }
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
-      if (res.status === 403) {
-        return NextResponse.json(
-          { detail: "Unauthorized: Invalid session token or API key" },
-          { status: 403 }
-        );
-      }
       return NextResponse.json(
         { detail: data.detail || "Failed to fetch children data" },
         { status: res.status }
@@ -142,7 +57,10 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error fetching children data:", error);
-    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { detail: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 

@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import {
   Card,
@@ -9,7 +8,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -21,14 +19,12 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Clock,
   TrendingUp,
   Target,
   CheckCircle,
   RefreshCw,
 } from "lucide-react";
 import { Spinner } from "../ui/spinner";
-
 // Types based on API docs and logs
 interface Subject {
   name: string;
@@ -37,15 +33,12 @@ interface Subject {
   lastScore: number;
   trend: "up" | "down" | "stable";
 }
-
 interface Stats {
-  hoursStudied: number;
   testsCompleted: number;
   averageScore: number;
   streak: number;
   coursesCompleted?: number;
 }
-
 interface Child {
   id: number;
   name: string;
@@ -64,13 +57,25 @@ interface Child {
   subjects?: Subject[];
   weeklyStats?: Stats;
   monthlyStats?: Stats;
+  quarterlyStats?: Stats;
+  semesterStats?: Stats;
+  yearlyStats?: Stats;
 }
-
 interface TimePeriod {
   value: string;
   label: string;
   description?: string;
 }
+
+// DEFAULTS BEFORE API LOADS
+const DEFAULT_TIME_PERIODS: TimePeriod[] = [
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "quarter", label: "This Quarter" },
+  { value: "semester", label: "This Semester" },
+  { value: "year", label: "This Year" },
+];
+
 
 // Utility for fetch with retry
 const fetchWithRetry = async (
@@ -96,7 +101,6 @@ const fetchWithRetry = async (
   }
   throw new Error("Max retries reached");
 };
-
 export default function ChildrenProgress() {
   const [children, setChildren] = useState<Child[]>([]);
   const [timePeriods, setTimePeriods] = useState<TimePeriod[]>([]);
@@ -106,7 +110,6 @@ export default function ChildrenProgress() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const fetchStaticData = async () => {
       setIsInitialLoading(true);
@@ -125,7 +128,7 @@ export default function ChildrenProgress() {
     if (!isInitialLoading) {
       fetchProgressData();
     }
-  }, [selectedChild, selectedPeriod]);
+  }, [isInitialLoading, selectedChild, selectedPeriod]);
 
   const fetchChildrenList = async () => {
     try {
@@ -141,7 +144,6 @@ export default function ChildrenProgress() {
       setError(err.message || "Failed to load children list");
     }
   };
-
   const fetchTimePeriods = async () => {
     try {
       const res = await fetchWithRetry("/api/parent/time-periods", {
@@ -156,7 +158,6 @@ export default function ChildrenProgress() {
       setError(err.message || "Failed to load time periods");
     }
   };
-
   const fetchProgressData = async () => {
     setIsProgressLoading(true);
     setError(null);
@@ -182,13 +183,16 @@ export default function ChildrenProgress() {
       setIsProgressLoading(false);
     }
   };
+const refreshAll = async () => {
+  setError(null);
+  setIsInitialLoading(true);
 
-  const refreshAll = () => {
-    setError(null);
-    fetchChildrenList();
-    fetchTimePeriods();
-    fetchProgressData();
-  };
+  try {
+    await Promise.all([fetchChildrenList(), fetchTimePeriods()]);
+  } finally {
+    setIsInitialLoading(false);
+  }
+};
 
   const getSelectedChildData = (): Child[] => {
     return selectedChild === "all"
@@ -197,8 +201,20 @@ export default function ChildrenProgress() {
   };
 
   const getStatsKey = (period: string): keyof Child => {
-    if (period === "week") return "weeklyStats";
-    return "monthlyStats"; // Fallback for quarter/semester/year
+    switch (period) {
+      case "week":
+        return "weeklyStats";
+      case "month":
+        return "monthlyStats";
+      case "quarter":
+        return "quarterlyStats";
+      case "semester":
+        return "semesterStats";
+      case "year":
+        return "yearlyStats";
+      default:
+        return "weeklyStats";
+    }
   };
 
   const getTrendIcon = (trend: string = "stable") => {
@@ -211,21 +227,15 @@ export default function ChildrenProgress() {
         return <TrendingUp className="h-3 w-3 text-gray-400" />;
     }
   };
-
   const getGradeColor = (grade: string = "") => {
     if (grade.startsWith("A")) return "text-green-600 bg-transparent";
     if (grade.startsWith("B")) return "text-blue-600 bg-transparent";
     if (grade.startsWith("C")) return "text-yellow-600 bg-transparent";
     return "text-red-600";
   };
-
   const getOverallStats = () => {
     const childrenData = getSelectedChildData();
     const statsKey = getStatsKey(selectedPeriod);
-    const totalHours = childrenData.reduce((sum, child) => {
-      const stats = child[statsKey] as Stats | undefined;
-      return sum + (stats?.hoursStudied || 0);
-    }, 0);
     const totalTests = childrenData.reduce((sum, child) => {
       const stats = child[statsKey] as Stats | undefined;
       return sum + (stats?.testsCompleted || 0);
@@ -242,13 +252,10 @@ export default function ChildrenProgress() {
         return sum + (stats?.streak || 0);
       }, 0) / Math.max(childrenData.length, 1)
     );
-
-    return { totalHours, totalTests, avgScore, avgStreak };
+    return { totalTests, avgScore, avgStreak };
   };
-
   const overallStats = getOverallStats();
   const selectedData = getSelectedChildData();
-
   if (isInitialLoading) {
     return (
       <div className="inset-0 flex justify-center items-center bg-white z-50 h-[100vh]">
@@ -259,7 +266,6 @@ export default function ChildrenProgress() {
       </div>
     );
   }
-
   return (
     <div className="container mx-auto sm:p-6">
       <div className="space-y-4 mb-6">
@@ -276,7 +282,6 @@ export default function ChildrenProgress() {
           Refresh Data
         </Button>
       </div>
-
       {error && (
         <div className="text-center py-4 mb-6">
           <p className="text-red-600 mb-2">{error}</p>
@@ -289,7 +294,6 @@ export default function ChildrenProgress() {
           </Button>
         </div>
       )}
-
       {children.length === 0 && !error && (
         <Card className="text-center py-8">
           <CardContent>
@@ -302,7 +306,6 @@ export default function ChildrenProgress() {
           </CardContent>
         </Card>
       )}
-
       {children.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
@@ -342,11 +345,12 @@ export default function ChildrenProgress() {
                     <SelectValue placeholder="Choose period" />
                   </SelectTrigger>
                   <SelectContent>
-                    {timePeriods.map((period) => (
-                      <SelectItem key={period.value} value={period.value}>
-                        {period.label}
-                      </SelectItem>
-                    ))}
+                  {(timePeriods.length ? timePeriods : DEFAULT_TIME_PERIODS).map((period) => (
+                    <SelectItem key={period.value} value={period.value}>
+                      {period.label}
+                    </SelectItem>
+                  ))}
+
                   </SelectContent>
                 </Select>
               </div>
@@ -354,29 +358,11 @@ export default function ChildrenProgress() {
           </CardContent>
         </Card>
       )}
-
       {isProgressLoading && (
         <p className="text-center py-4">Updating progress...</p>
       )}
-
       {!isProgressLoading && !error && progressData.length > 0 && (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">
-                Hours Studied
-              </CardTitle>
-              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-xl font-bold">
-                {overallStats.totalHours}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                This {selectedPeriod}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">
@@ -405,7 +391,7 @@ export default function ChildrenProgress() {
                 {overallStats.avgScore}%
               </div>
               <p className="text-xs text-muted-foreground">
-                Across all subjects
+                Across all tests
               </p>
             </CardContent>
           </Card>
@@ -425,14 +411,13 @@ export default function ChildrenProgress() {
           </Card>
         </div>
       )}
-
       <Tabs defaultValue="subjects" className="space-y-4">
         <TabsList className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
             value="subjects"
           >
-            Courses Performance
+            Tests Performance
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
@@ -441,7 +426,6 @@ export default function ChildrenProgress() {
             Progress Timeline
           </TabsTrigger>
         </TabsList>
-
         <TabsContent
           value="subjects"
           className="grid gap-4 grid-cols-1 md:grid-cols-2"
@@ -492,19 +476,9 @@ export default function ChildrenProgress() {
                             </div>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                            <div className="flex-1">
-                              <div className="flex justify-between text-xs sm:text-sm mb-1">
-                                <span>Progress</span>
-                                <span>{subject.progress}%</span>
-                              </div>
-                              <Progress
-                                value={subject.progress}
-                                className="h-2"
-                              />
-                            </div>
                             <div className="text-left sm:text-right">
                               <div className="text-xs sm:text-sm font-medium">
-                                Last Score
+                                Score
                               </div>
                               <div
                                 className={`text-sm sm:text-base font-bold ${getGradeColor(
@@ -519,7 +493,7 @@ export default function ChildrenProgress() {
                       ))
                     ) : (
                       <p className="text-center text-muted-foreground">
-                        No subjects available
+                        No tests available
                       </p>
                     )}
                   </div>
@@ -532,7 +506,6 @@ export default function ChildrenProgress() {
             </p>
           )}
         </TabsContent>
-
         <TabsContent value="timeline" className="space-y-4">
           {!isProgressLoading && !error && progressData.length > 0 ? (
             <Card>

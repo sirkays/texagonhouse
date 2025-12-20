@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+//const BASE_URL = "http://127.0.0.1:9098";
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
   try {
     console.log(
       "[Route] Fetching data from",
-      `${BASE_URL}accounts/api/dashboard/parent/overview/`
+      `${BASE_URL}accounts/api/dashboard/parent/overview/....`
     );
     const res = await fetch(`${BASE_URL}/accounts/api/dashboard/parent/overview/`, {
       headers: {

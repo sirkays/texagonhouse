@@ -21,28 +21,44 @@ import {
 } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 
-interface BadgeType {
+interface BadgeDTO {
+  id: number;
   name: string;
-  icon: string;
+  icon: string;           // Badge.icon_name
+  color: string;          // Badge.color (Tailwind class)
+  pointsThreshold: number;// Badge.points
   earned: boolean;
-  date?: string;
+  earnedAt?: string | null;
+  reason?: string;
 }
 
-interface Achievement {
+interface AchievementDTO {
+  code: string;           // AchievementDefinition.code
   title: string;
+  description?: string;
+  icon: string;           // AchievementDefinition.icon
+  category: string;       // AchievementDefinition.category
+  points: number;         // AchievementDefinition.points
+  acquiredAt: string;     // AchievementAcquired.acquired_at
+  valueAtUnlock?: number; // AchievementAcquired.value_at_unlock
+}
+
+interface RecentPointDTO {
+  reason: string;
   points: number;
   date: string;
-  type: string;
+  balanceAfter: number;
 }
 
-interface Child {
+interface ChildDTO {
   id: number;
   name: string;
   avatar: string;
   totalPoints: number;
   currentStreak: number;
-  badges: BadgeType[];
-  recentAchievements: Achievement[];
+  badges: BadgeDTO[];
+  achievements: AchievementDTO[];
+  recentPoints: RecentPointDTO[];
 }
 
 interface LeaderboardEntry {
@@ -53,6 +69,11 @@ interface LeaderboardEntry {
   isChild?: boolean;
 }
 
+type RewardsResponse = {
+  children: ChildDTO[];
+  leaderboard: LeaderboardEntry[];
+};
+
 const badgeIconMap: Record<string, React.ReactNode> = {
   medal: <span className="text-base">🥇</span>,
   trophy: <span className="text-base">🏆</span>,
@@ -61,13 +82,14 @@ const badgeIconMap: Record<string, React.ReactNode> = {
   silver: <span className="text-base">🥈</span>,
 };
 
+
+
 export function RewardsTracking() {
   const [leaderboardPage, setLeaderboardPage] = React.useState(1);
+  
   const itemsPerPageLeaderboard = 5;
-  const [data, setData] = React.useState<{
-    children: Child[];
-    leaderboard: LeaderboardEntry[];
-  } | null>(null);
+  const [data, setData] = React.useState<RewardsResponse | null>(null);
+
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -222,43 +244,78 @@ export function RewardsTracking() {
                       <div className="text-xs font-medium truncate">
                         {badge.name}
                       </div>
-                      {badge.earned && (
+                      {badge.earned && badge.earnedAt && (
                         <div className="text-xs text-green-600 mt-1">
-                          Earned {badge.date}
+                          Earned {badge.earnedAt}
                         </div>
                       )}
+
                     </div>
                   ))}
                 </div>
               </div>
 
+            <div className="space-y-2">
+              <h4 className="font-semibold text-xs sm:text-sm">Unlocked Achievements</h4>
+
+              <div className="space-y-2 max-h-40 scrollbar-thin">
+                {(child.achievements ?? []).slice(0, 3).map((a) => (
+                  <div
+                    key={a.code}
+                    className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{a.title}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {a.category} • {a.acquiredAt}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-green-600 font-medium flex-shrink-0">
+                      <Star className="h-3 w-3" />+{a.points}
+                    </div>
+                  </div>
+                ))}
+
+                {(!child.achievements || child.achievements.length === 0) && (
+                  <div className="text-xs text-muted-foreground p-2">
+                    No achievements unlocked yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+
               <div className="space-y-2">
-                <h4 className="font-semibold text-xs sm:text-sm">
-                  Recent Achievements
-                </h4>
+                <h4 className="font-semibold text-xs sm:text-sm">Recent Points</h4>
+
                 <div className="space-y-2 max-h-40 scrollbar-thin">
-                  {child.recentAchievements
-                    .slice(0, 3)
-                    .map((achievement, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">
-                            {achievement.title}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {achievement.type} • {achievement.date}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-green-600 font-medium flex-shrink-0">
-                          <Star className="h-3 w-3" />+{achievement.points}
+                  {(child.recentPoints ?? []).slice(0, 3).map((p, idx) => (
+                    <div
+                      key={`${p.date}-${idx}`}
+                      className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{p.reason}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {p.date} • Balance: {p.balanceAfter.toLocaleString()}
                         </div>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-1 text-green-600 font-medium flex-shrink-0">
+                        <Star className="h-3 w-3" />
+                        {p.points > 0 ? "+" : ""}
+                        {p.points}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!child.recentPoints || child.recentPoints.length === 0) && (
+                    <div className="text-xs text-muted-foreground p-2">
+                      No recent point activity.
+                    </div>
+                  )}
                 </div>
               </div>
+
             </CardContent>
           </Card>
         ))}

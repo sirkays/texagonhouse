@@ -26,21 +26,32 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
+
 interface Child {
   id: number;
   name: string;
   grade: string;
   school: string;
-  avatar: string;
+  avatar: string | null;
+
   coursesEnrolled: number;
   coursesCompleted: number;
   averageScore: number;
-  weeklyHours: number;
+
   lastActive: string;
   upcomingTest: string;
+
   currentStreak: number;
+
+  // Replaces weeklyHours
+  badgesEarned: number;
+  achievementsUnlocked: number;
+  pointsBalance: number;
+
+  // keep for backward compatibility
   totalRewards: number;
 }
+
 
 interface FamilyStat {
   title: string;
@@ -274,17 +285,22 @@ export function ParentOverview() {
                 {/* Extra Stats */}
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                   <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 shrink-0" />
-                    <span>{child.weeklyHours}h this week</span>
-                  </div>
-                  <div className="flex items-center gap-1">
                     <Trophy className="h-3 w-3 text-orange-500 shrink-0" />
-                    <span>{child.totalRewards} rewards</span>
+                    <span>
+                      {child.badgesEarned} badges • {child.achievementsUnlocked} achievements
+                    </span>
                   </div>
+
                   <div className="flex items-center gap-1">
                     <TrendingUp className="h-3 w-3 text-green-500 shrink-0" />
                     <span>{child.currentStreak} day streak</span>
                   </div>
+
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3 text-blue-500 shrink-0" />
+                    <span>{child.pointsBalance} pts</span>
+                  </div>
+
                 </div>
 
                 {/* Upcoming */}
