@@ -252,7 +252,7 @@ export function TeacherTutoringBooking() {
         status
       );
       setError("Not authenticated");
-      setCoursesLoading(false);
+      //setCoursesLoading(false);
       return;
     }
 
@@ -299,7 +299,7 @@ export function TeacherTutoringBooking() {
         if (response.status === 401 || response.status === 403) {
           setError("Session expired");
           setCourses([]);
-          setCoursesLoading(false);
+          //setCoursesLoading(false);
           return;
         }
         throw new Error(
@@ -313,12 +313,12 @@ export function TeacherTutoringBooking() {
       );
       setCourses(data);
       setError(null);
-      setCoursesLoading(false);
+      //setCoursesLoading(false);
     } catch (err: any) {
       console.error("[TeacherTutoringBooking] Error fetching courses:", err);
       setError(err.message || "Failed to load courses");
       setCourses([]);
-      setCoursesLoading(false);
+      //setCoursesLoading(false);
     }
   };
 
@@ -1124,19 +1124,24 @@ export function TeacherTutoringBooking() {
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                           <div className="space-y-2">
-                            <h4 className="font-semibold text-base sm:text-lg">
-                              {p.title} —{" "}
-                              {courses.find((c) => c.id === p.courseId)?.name ||
-                                p.courseName}
-                            </h4>
+                              <h4 className="font-semibold text-base sm:text-lg">
+                                {p.title}
+                                {(p.courseName || courses.find(c => c.id === p.courseId)?.name) && (
+                                  <>
+                                    {" — "}
+                                    {courses.find(c => c.id === p.courseId)?.name || p.courseName}
+                                  </>
+                                )}
+                              </h4>
+
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <span className="font-medium">Rate:</span>
                               <span>
-                                ₦{Number(p.ratePerHour).toLocaleString()}/hour
+                                ₦{Number(p.ratePerHour).toLocaleString()}/Month
                               </span>
                               <span className="mx-1">•</span>
                               <span className="font-medium">Duration:</span>
-                              <span>{p.durationDays} day(s)</span>
+                              <span>{p.durationDays} hour(s)</span>
                               <span className="mx-1">•</span>
                               {getStatusBadge(p.status)}
                             </div>

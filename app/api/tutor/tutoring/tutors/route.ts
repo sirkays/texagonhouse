@@ -35,11 +35,7 @@ export async function GET(req: Request) {
 
   try {
     const requestHeaders = headers(session.user.sessionToken);
-    console.log("[TutoringTutorsAPI] Request headers:", {
-      "Authorization": requestHeaders["Authorization"],
-      "X-Session-Token": requestHeaders["X-Session-Token"] || "not sent",
-      "Content-Type": requestHeaders["Content-Type"]
-    });
+    console.log(fullUrl, " connecting..")
 
     const response = await fetch(fullUrl, {
       method: "GET",

@@ -59,7 +59,7 @@ export default function CreatePrivateTutoringPage() {
 
     const fetchCourses = async () => {
         try {
-            const response = await fetch("/api/teacher/courses", {
+            const response = await fetch("/api/teacher/courses?course_type=private", {
                 headers: {
                     "Content-Type": "application/json",
                     "X-Session-Token": session?.user?.sessionToken || "",
