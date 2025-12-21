@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -157,25 +157,16 @@ PaginationEllipsis.displayName = "PaginationEllipsis";
 // TutoringBooking Component
 export function TutoringBooking() {
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [isCardBookingOpen, setIsCardBookingOpen] = useState(false);
-  const [bookingTutorId, setBookingTutorId] = useState<number | null>(null);
   const router = useRouter();
-  // Booking form state
-  const [child, setChild] = useState<string>("");
-  const [preferredTime, setPreferredTime] = useState<string>("");
-  const [duration, setDuration] = useState<string>("");
-  const [learningObjectives, setLearningObjectives] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
-  const [preferredDays, setPreferredDays] = useState<string[]>([]);
+  const searchParams = useSearchParams();
 
-  const resetBookingForm = () => {
-    setChild("");
-    setPreferredTime("");
-    setDuration("");
-    setLearningObjectives("");
-    setNotes("");
-    setPreferredDays([]);
-  };
+  // Handle tab from query param (useful for redirects after booking)
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && (tab === "upcoming" || tab === "past" || tab === "tutors")) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Pagination state
   const [upcomingPage, setUpcomingPage] = useState(1);
@@ -275,11 +266,6 @@ export function TutoringBooking() {
     }
   }, [activeTab, tutorsPage]);
 
-  const bookingTutor =
-    bookingTutorId != null
-      ? availableTutors.find((t) => t.id === bookingTutorId) || null
-      : null;
-
   // Pagination navigation handlers
   const handlePageChange = (
     setPage: React.Dispatch<React.SetStateAction<number>>,
@@ -341,9 +327,8 @@ export function TutoringBooking() {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-3 w-3 ${
-          i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-        }`}
+        className={`h-3 w-3 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+          }`}
       />
     ));
   };
@@ -352,33 +337,11 @@ export function TutoringBooking() {
   const dayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const toggleDay = (day: string, checked: boolean | string) => {
-    setPreferredDays((prev) => {
-      const set = new Set(prev);
-      if (checked) set.add(day);
-      else set.delete(day);
-      return Array.from(set);
-    });
+    // Logic removed as it's now on the standalone page
   };
 
   const handleBookSubmit = async () => {
-    const payload = {
-      student_id: parseInt(child),
-      private_tutoring_id: bookingTutorId,
-      duration_hours: parseInt(duration),
-      notes: `Learning objectives: ${learningObjectives}\nPreferred days: ${preferredDays.join(
-        ", "
-      )}\nPreferred time: ${preferredTime}\n${notes}`,
-    };
-    const res = await fetch("/api/tutor/tutoring/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      setIsCardBookingOpen(false);
-      resetBookingForm();
-      setActiveTab("upcoming");
-    }
+    // Logic removed as it's now on the standalone page
   };
 
   return (
@@ -799,8 +762,7 @@ export function TutoringBooking() {
                         className="flex-1 min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm w-full"
                         size="sm"
                         onClick={() => {
-                          setBookingTutorId(tutor.id);
-                          setIsCardBookingOpen(true);
+                          router.push(`/parent/tutoring/book/${tutor.id}?name=${encodeURIComponent(tutor.teacher_name)}&course=${encodeURIComponent(tutor.course)}`);
                         }}
                       >
                         <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -874,171 +836,6 @@ export function TutoringBooking() {
             </CardContent>
           </Card>
 
-          {/* Central booking dialog for tutor cards */}
-          <Dialog
-            open={isCardBookingOpen}
-            onOpenChange={(open) => {
-              setIsCardBookingOpen(open);
-              if (!open) {
-                setBookingTutorId(null);
-                resetBookingForm();
-              }
-            }}
-          >
-            <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
-              <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
-                <DialogTitle>
-                  {bookingTutor
-                    ? `Book ${bookingTutor.course} with ${bookingTutor.teacher_name}`
-                    : "Book Tutoring"}
-                </DialogTitle>
-                <DialogDescription>
-                  Choose preferences and we’ll confirm availability.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="px-4 sm:px-6 py-4 overflow-y-auto">
-                <div className="grid gap-4">
-                  {/* Select Child */}
-                  <div className="space-y-2">
-                    <Label htmlFor="select-child">Select Child</Label>
-                    <Select value={child} onValueChange={setChild}>
-                      <SelectTrigger className="w-full" id="select-child">
-                        <SelectValue placeholder="Choose child" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {children.map((ch: any) => (
-                          <SelectItem key={ch.id} value={ch.id.toString()}>
-                            {ch.name} ({ch.classroom})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Preferred Days (multi-select) */}
-                  <div className="space-y-2">
-                    <Label>Preferred Days</Label>
-                    <div className="grid grid-cols-7 gap-2 sm:gap-3">
-                      {dayOptions.map((d) => {
-                        const checked = preferredDays.includes(d);
-                        return (
-                          <label
-                            key={d}
-                            className={cn(
-                              "flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs sm:text-sm cursor-pointer",
-                              checked
-                                ? "border-[#EF7B55] bg-[#f797712e]"
-                                : "border-muted"
-                            )}
-                          >
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(val) => toggleDay(d, val)}
-                              className="mr-1"
-                            />
-                            {d}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Preferred Time & Duration */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* <div className="space-y-2">
-                      <Label htmlFor="pref-time">Preferred Time</Label>
-                      <Select
-                        value={preferredTime}
-                        onValueChange={setPreferredTime}
-                      >
-                        <SelectTrigger id="pref-time" className="w-full">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="14:00-15:00">
-                            2:00 PM - 3:00 PM
-                          </SelectItem>
-                          <SelectItem value="15:00-16:00">
-                            3:00 PM - 4:00 PM
-                          </SelectItem>
-                          <SelectItem value="16:00-17:00">
-                            4:00 PM - 5:00 PM
-                          </SelectItem>
-                          <SelectItem value="17:00-18:00">
-                            5:00 PM - 6:00 PM
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div> */}
-
-                    <div className="space-y-2">
-                      <Label htmlFor="duration">Duration (hours)</Label>
-                      <Input
-                        id="duration"
-                        type="number"
-                        min="1"
-                        max="3"
-                        step="1"
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        placeholder="e.g., 1"
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Learning Objectives */}
-                  <div className="space-y-2">
-                    <Label htmlFor="learning-objectives">
-                      Learning Objectives
-                    </Label>
-                    <Textarea
-                      id="learning-objectives"
-                      placeholder="e.g., Algebra foundations, differentiation techniques, essay structuring…"
-                      rows={3}
-                      className="w-full"
-                      value={learningObjectives}
-                      onChange={(e) => setLearningObjectives(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Notes */}
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Any other helpful details for the tutor…"
-                      rows={3}
-                      className="w-full"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsCardBookingOpen(false);
-                    resetBookingForm();
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleBookSubmit}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
-                  <Video className="h-4 w-4 mr-2" />
-                  Book Tutoring
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
       </Tabs>
 

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -214,8 +215,7 @@ interface PastSession {
 
 export function TeacherTutoringBooking() {
   const { data: session, status } = useSession();
-  const [isCreatePrivateDialogOpen, setIsCreatePrivateDialogOpen] =
-    useState(false);
+  const router = useRouter();
   const [isDeleteSessionDialogOpen, setIsDeleteSessionDialogOpen] =
     useState(false);
   const [selectedSession, setSelectedSession] = useState<
@@ -237,14 +237,8 @@ export function TeacherTutoringBooking() {
   const [privateTitle, setPrivateTitle] = useState("My Private Tutoring");
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
   const [privateSessions, setPrivateSessions] = useState<PrivateSession[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [privateCourseId, setPrivateCourseId] = useState<string | undefined>();
-  const [ratePerHour, setRatePerHour] = useState<string | undefined>();
-  const [tutoringDurationDays, setTutoringDurationDays] = useState<number>(24);
-  const [privateNotes, setPrivateNotes] = useState("");
-  const [availableDays, setAvailableDays] = useState<string[]>([]);
   const itemsPerPage = 3;
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -402,12 +396,12 @@ export function TeacherTutoringBooking() {
           date: new Date(item.created_at).toISOString().split("T")[0],
           time: item.duration_hours
             ? `${new Date(item.created_at).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })} - ${new Date(
-                new Date(item.created_at).getTime() +
-                  item.duration_hours * 60 * 60 * 1000
-              ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              hour: "numeric",
+              minute: "2-digit",
+            })} - ${new Date(
+              new Date(item.created_at).getTime() +
+              item.duration_hours * 60 * 60 * 1000
+            ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
             : "N/A",
           type: item.private_tutoring ? "One-on-One" : "Group Session",
           status: item.status
@@ -428,12 +422,12 @@ export function TeacherTutoringBooking() {
           date: new Date(item.created_at).toISOString().split("T")[0],
           time: item.duration_hours
             ? `${new Date(item.created_at).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })} - ${new Date(
-                new Date(item.created_at).getTime() +
-                  item.duration_hours * 60 * 60 * 1000
-              ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              hour: "numeric",
+              minute: "2-digit",
+            })} - ${new Date(
+              new Date(item.created_at).getTime() +
+              item.duration_hours * 60 * 60 * 1000
+            ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
             : "N/A",
           type: item.private_tutoring ? "One-on-One" : "Group Session",
           status: item.status
@@ -487,7 +481,7 @@ export function TeacherTutoringBooking() {
 
   useEffect(() => {
     if (status === "loading") return;
-    fetchCourses();
+    // fetchCourses(); // No longer needed here if we only used it for the modal
     fetchSessions(
       "upcoming",
       upcomingPage,
@@ -573,9 +567,8 @@ export function TeacherTutoringBooking() {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-3 w-3 ${
-          i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-        }`}
+        className={`h-3 w-3 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+          }`}
       />
     ));
   };
@@ -648,113 +641,7 @@ export function TeacherTutoringBooking() {
     }
   };
 
-  const toggleDay = (day: string) => {
-    setAvailableDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  };
 
-  const resetPrivateForm = () => {
-    setPrivateCourseId(undefined);
-    setRatePerHour(undefined);
-    setTutoringDurationDays(24);
-    setPrivateNotes("");
-    setAvailableDays([]);
-    setPrivateTitle("My Private Tutoring");
-  };
-
-  const handleCreatePrivateSession = async () => {
-    if (!session?.user?.sessionToken) {
-      setError("Not authenticated");
-      return;
-    }
-
-    if (!privateCourseId || !ratePerHour || availableDays.length === 0) {
-      setError(
-        "Please fill in all required fields: course, rate, and available days"
-      );
-      return;
-    }
-
-    try {
-      const course = courses.find((c) => c.id === privateCourseId);
-      if (!course) {
-        setError("Selected course is invalid");
-        return;
-      }
-
-      const response = await fetch(`/api/teacher/tutoring-bookings/post`, {
-        method: "POST",
-        headers: {
-          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-        body: JSON.stringify({
-          course: privateCourseId,
-          title: privateTitle,
-          rate_per_hour: parseFloat(ratePerHour).toFixed(2),
-          tutoring_duration_days: tutoringDurationDays,
-          notes: privateNotes?.trim().slice(0, 225),
-          available_days: availableDays.map((day) => ({ day })),
-        }),
-      });
-
-      const text = await response.text();
-      console.log("[TeacherTutoringBooking] POST response:", text);
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.error(
-          "[TeacherTutoringBooking] POST response is not JSON, content-type:",
-          contentType
-        );
-        throw new Error(
-          `Backend returned non-JSON response (status: ${response.status})`
-        );
-      }
-
-      const data = JSON.parse(text);
-
-      if (!response.ok) {
-        console.error("[TeacherTutoringBooking] POST failed:", data);
-        if (response.status === 401 || response.status === 403) {
-          setError("Session expired");
-          return;
-        }
-        throw new Error(
-          data.error ||
-            `Failed to create private session: ${JSON.stringify(data)}`
-        );
-      }
-
-      const newItem: PrivateSession = {
-        id: data.id.toString(),
-        courseId: privateCourseId,
-        courseName: course.name,
-        title: privateTitle,
-        ratePerHour: parseFloat(ratePerHour).toFixed(2),
-        durationDays: tutoringDurationDays,
-        availableDays: [...availableDays],
-        notes: privateNotes?.trim(),
-        status: "Active",
-        createdAt: new Date().toISOString(),
-      };
-
-      setPrivateSessions((prev) => [newItem, ...prev]);
-      setIsCreatePrivateDialogOpen(false);
-      resetPrivateForm();
-      setActiveTab("private");
-      setPrivatePage(1);
-      setError(null);
-    } catch (err: any) {
-      console.error(
-        "[TeacherTutoringBooking] Error creating private session:",
-        err
-      );
-      setError(err.message || "Failed to create private session");
-    }
-  };
 
   const handleConfirmDelete = async () => {
     if (!session?.user?.sessionToken) {
@@ -910,7 +797,7 @@ export function TeacherTutoringBooking() {
     }
   };
 
-  if (status === "loading" || coursesLoading || sessionsLoading) {
+  if (status === "loading" || sessionsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-transparent">
         <Spinner size="md" className="text-orange-500" />
@@ -979,168 +866,13 @@ export function TeacherTutoringBooking() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog
-            open={isCreatePrivateDialogOpen}
-            onOpenChange={setIsCreatePrivateDialogOpen}
+          <Button
+            onClick={() => router.push("/teacher/tutoring/create")}
+            className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
           >
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
-                <Plus className="h-4 w-4" />
-                Create Private Session
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
-              <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
-                <DialogTitle>Create Private Session</DialogTitle>
-                <DialogDescription>
-                  Configure your private tutoring offering (maps to{" "}
-                  <code>PrivateTutoring</code>)
-                </DialogDescription>
-              </DialogHeader>
-              <div className="px-4 sm:px-6 py-4 overflow-y-auto">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="course">Course</Label>
-                    <Select
-                      value={privateCourseId}
-                      onValueChange={setPrivateCourseId}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select course" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {courses.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name} ({c.subject})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
-                    <input
-                      id="title"
-                      type="text"
-                      value={privateTitle}
-                      onChange={(e) => setPrivateTitle(e.target.value)}
-                      placeholder="My Private Tutoring"
-                      className="w-full border rounded-md p-2"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="rate">Rate per hour</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        ₦
-                      </span>
-                      <input
-                        id="rate"
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={ratePerHour || ""}
-                        onChange={(e) => {
-                          let val = e.target.value.replace(/[^0-9.]/g, "");
-                          // Allow only one decimal point
-                          const parts = val.split('.');
-                          if (parts.length > 2) {
-                            val = parts[0] + '.' + parts.slice(1).join('');
-                          }
-                          // Limit to 2 decimal places
-                          if (parts[1] && parts[1].length > 2) {
-                            val = parts[0] + '.' + parts[1].substring(0, 2);
-                          }
-                          setRatePerHour(val);
-                        }}
-                        onBlur={(e) => {
-                          const val = e.target.value;
-                          if (val) {
-                            setRatePerHour(parseFloat(val).toFixed(2));
-                          }
-                        }}
-                        placeholder="7500"
-                        className="w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                        /hour
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="duration-days">
-                      Tutoring Duration (days)
-                    </Label>
-                    <input
-                      id="duration-days"
-                      type="number"
-                      min={1}
-                      value={tutoringDurationDays}
-                      onChange={(e) =>
-                        setTutoringDurationDays(Number(e.target.value || 1))
-                      }
-                      className="w-full border rounded-md p-2"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Available Days</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        "monday",
-                        "tuesday",
-                        "wednesday",
-                        "thursday",
-                        "friday",
-                        "saturday",
-                        "sunday",
-                      ].map((d) => (
-                        <Button
-                          key={d}
-                          type="button"
-                          variant={
-                            availableDays.includes(d) ? "default" : "outline"
-                          }
-                          className="justify-start"
-                          onClick={() => toggleDay(d)}
-                        >
-                          {availableDays.includes(d) && (
-                            <Check className="h-3 w-3 mr-2" />
-                          )}
-                          {d.charAt(0).toUpperCase() + d.slice(1)}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Any specific requirements or preferences..."
-                      rows={3}
-                      className="w-full"
-                      value={privateNotes}
-                      onChange={(e) => setPrivateNotes(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="p-4 sm:p-6 sticky bottom-0 bg-background z-10 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreatePrivateDialogOpen(false)}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreatePrivateSession}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
-                  Create Private Session
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            <Plus className="h-4 w-4" />
+            Create Private Session
+          </Button>
         </div>
       </div>
 
