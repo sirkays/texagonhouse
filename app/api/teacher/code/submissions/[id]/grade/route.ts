@@ -20,6 +20,7 @@ export async function POST(
   }
   try {
     const body = await request.json();
+    console.log("[Route] Incoming body:", body);
     const backendUrl = `${BASE_URL}/code-ide/api/teacher/submissions/${id}/grade/`;
     console.log("[Route] Posting to", backendUrl);
     const res = await fetch(backendUrl, {
