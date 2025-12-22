@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-//const BASE_URL = "https://texagonbackend.onrender.com";
-const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 export async function GET() {
