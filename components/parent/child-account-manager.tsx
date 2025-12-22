@@ -46,6 +46,9 @@ export default function ChildAccountManager() {
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
+  // ✅ NEW: loading state for Update Password button
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
   const fetchChildren = async () => {
     setIsLoading(true);
     setError(null);
@@ -62,13 +65,11 @@ export default function ChildAccountManager() {
         throw new Error(data.detail || "Failed to fetch children data");
       }
 
-      setChildren(data.children || data || []); // Handle both { children: [...] } and [...] responses
+      setChildren(data.children || data || []);
       setError(null);
     } catch (err: any) {
       console.error("API fetch error:", err);
-      setError(
-        err.message || "Failed to load children data. Please try again."
-      );
+      setError(err.message || "Failed to load children data. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +110,7 @@ export default function ChildAccountManager() {
 
   const copyEmail = (email: string) => {
     navigator.clipboard.writeText(email);
-    alert("Email copied to clipboard!"); // Replace with toast in production
+    alert("Email copied to clipboard!");
   };
 
   const openResetDialog = (childId: number) => {
@@ -120,13 +121,16 @@ export default function ChildAccountManager() {
     setShowConfirm(false);
     setResetError(null);
     setResetSuccess(null);
+    setIsUpdatingPassword(false); // ✅ reset button loading
   };
 
   const closeResetDialog = () => {
+    if (isUpdatingPassword) return; // ✅ prevent closing while request is running (optional)
     setResetChildId(null);
   };
 
   const submitPasswordReset = async () => {
+    if (isUpdatingPassword) return; // ✅ prevent double-click
     setResetError(null);
     setResetSuccess(null);
 
@@ -143,17 +147,16 @@ export default function ChildAccountManager() {
       return;
     }
 
+    setIsUpdatingPassword(true); // ✅ start loading
+
     try {
-      const res = await fetch(
-        "/api/parent/managechildren/reset-child-password",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ childId: resetChildId, newPassword }),
-        }
-      );
+      const res = await fetch("/api/parent/managechildren/reset-child-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ childId: resetChildId, newPassword }),
+      });
 
       const data = await res.json();
 
@@ -162,11 +165,13 @@ export default function ChildAccountManager() {
       }
 
       setResetSuccess(data.detail || "Password updated successfully.");
-      setTimeout(closeResetDialog, 2000);
+      setTimeout(() => {
+        setIsUpdatingPassword(false);
+        closeResetDialog();
+      }, 2000);
     } catch (err: any) {
-      setResetError(
-        err.message || "An error occurred while resetting the password"
-      );
+      setResetError(err.message || "An error occurred while resetting the password");
+      setIsUpdatingPassword(false); // ✅ stop loading on error
     }
   };
 
@@ -186,13 +191,13 @@ export default function ChildAccountManager() {
           <Spinner className="h-10 w-10 text-[#EF7B55]" />
         </div>
       )}
+
       {error && (
         <div className="text-center">
           <p className="text-red-600">{error}</p>
           {error.includes("Unauthorized") && (
             <p className="text-red-600">
-              Please ensure you are logged in with a parent account or contact
-              support.
+              Please ensure you are logged in with a parent account or contact support.
             </p>
           )}
           <Button variant="outline" className="mt-2" onClick={fetchChildren}>
@@ -201,6 +206,7 @@ export default function ChildAccountManager() {
           </Button>
         </div>
       )}
+
       {!isLoading && children.length === 0 && !error && (
         <p className="text-center">No children accounts found.</p>
       )}
@@ -220,6 +226,7 @@ export default function ChildAccountManager() {
                         .join("") || "N/A"}
                     </AvatarFallback>
                   </Avatar>
+
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-lg sm:text-xl truncate">
                       {child.name || "Unknown"}
@@ -236,6 +243,7 @@ export default function ChildAccountManager() {
                     </CardDescription>
                   </div>
                 </div>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -255,6 +263,7 @@ export default function ChildAccountManager() {
                     <BookOpen className="h-4 w-4" />
                     Account Information
                   </h4>
+
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Email:</span>
@@ -262,39 +271,33 @@ export default function ChildAccountManager() {
                         {child.email || "N/A"}
                       </span>
                     </div>
+
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Join Date:</span>
                       <span>{child.joinDate || child.join_date || "N/A"}</span>
                     </div>
+
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Last Active:
-                      </span>
-                      <span>
-                        {child.lastActive || child.last_active || "N/A"}
-                      </span>
+                      <span className="text-muted-foreground">Last Active:</span>
+                      <span>{child.lastActive || child.last_active || "N/A"}</span>
                     </div>
+
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Courses:</span>
                       <span>
-                        {child.completedCourses || child.completed_courses || 0}
-                        /{child.totalCourses || child.total_courses || 0}{" "}
-                        completed
+                        {child.completedCourses || child.completed_courses || 0}/
+                        {child.totalCourses || child.total_courses || 0} completed
                       </span>
                     </div>
+
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Relationship:
-                      </span>
+                      <span className="text-muted-foreground">Relationship:</span>
                       <span>{child.relationship || "N/A"}</span>
                     </div>
+
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Admission No:
-                      </span>
-                      <span>
-                        {child.admissionNo || child.admission_no || "N/A"}
-                      </span>
+                      <span className="text-muted-foreground">Admission No:</span>
+                      <span>{child.admissionNo || child.admission_no || "N/A"}</span>
                     </div>
                   </div>
                 </div>
@@ -304,6 +307,7 @@ export default function ChildAccountManager() {
                     <Link className="h-4 w-4" />
                     Account Email
                   </h4>
+
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       value={child.email || "N/A"}
@@ -320,6 +324,7 @@ export default function ChildAccountManager() {
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
+
                   <p className="text-xs text-muted-foreground">
                     This is the child's login email.
                   </p>
@@ -352,17 +357,15 @@ export default function ChildAccountManager() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
+                  disabled={isUpdatingPassword}
                 />
                 <Button
                   variant="outline"
                   type="button"
                   onClick={() => setShowNew((s) => !s)}
+                  disabled={isUpdatingPassword}
                 >
-                  {showNew ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -376,33 +379,41 @@ export default function ChildAccountManager() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
+                  disabled={isUpdatingPassword}
                 />
                 <Button
                   variant="outline"
                   type="button"
                   onClick={() => setShowConfirm((s) => !s)}
+                  disabled={isUpdatingPassword}
                 >
-                  {showConfirm ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
             {resetError && <p className="text-sm text-red-600">{resetError}</p>}
-            {resetSuccess && (
-              <p className="text-sm text-green-700">{resetSuccess}</p>
-            )}
+            {resetSuccess && <p className="text-sm text-green-700">{resetSuccess}</p>}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeResetDialog}>
+            <Button variant="outline" onClick={closeResetDialog} disabled={isUpdatingPassword}>
               Cancel
             </Button>
-            <Button onClick={submitPasswordReset} disabled={!!resetSuccess}>
-              Update Password
+
+            <Button
+              onClick={submitPasswordReset}
+              disabled={!!resetSuccess || isUpdatingPassword}
+              className="min-w-[150px]"
+            >
+              {isUpdatingPassword ? (
+                <span className="flex items-center gap-2">
+                  <Spinner className="h-4 w-4" />
+                  Updating...
+                </span>
+              ) : (
+                "Update Password"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

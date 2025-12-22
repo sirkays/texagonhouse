@@ -122,15 +122,8 @@ export function ResourceMaterials() {
     [session?.user?.sessionToken]
   );
 
-  const fallbackResources: ResourcesData = {
-    categories: [
-      "Frontend",
-      "Backend",
-      "AI/ML",
-      "Database",
-      "Security",
-      "Career",
-    ],
+  const EMPTY_RESOURCES: ResourcesData = {
+    categories: [],
     courses: [],
     selected_course_id: null,
     selected_module_id: null,
@@ -139,6 +132,7 @@ export function ResourceMaterials() {
     audio: [],
     journals: [],
   };
+
 
   const handleLogout = async () => {
     console.log(
@@ -183,12 +177,13 @@ useEffect(() => {
 
     if (status !== "authenticated" || !sessionToken) {
       setError("Not authenticated");
-      setResourcesData(fallbackResources);
-      setCategories(fallbackResources.categories);
+      setResourcesData(null);
+      setCategories([]);
       setPageLoading(false);
       setDataLoading(false);
       return;
     }
+
 
     try {
       const queryParams = new URLSearchParams();
@@ -208,23 +203,25 @@ useEffect(() => {
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          setError("Session expired");
-          setResourcesData(fallbackResources);
-          setCategories(fallbackResources.categories);
-          return;
-        }
         if (response.status === 404) {
           setError("Resources not found");
-          setResourcesData(fallbackResources);
+          setResourcesData(EMPTY_RESOURCES);
+          setCategories([]);
+          return;
+        }
+
+        if (response.status === 401) {
+          setError("Session expired");
+          setResourcesData(null);
           setCategories([]);
           return;
         }
 
         setError("Failed to fetch resources");
-        setResourcesData(fallbackResources);
-        setCategories(fallbackResources.categories);
+        setResourcesData(null);
+        setCategories([]);
         return;
+
       }
 
       const data = await response.json();
@@ -238,8 +235,10 @@ useEffect(() => {
       setCurrentPage({ pdfs: 1, videos: 1, audio: 1, journals: 1 });
     } catch (e) {
       setError("Failed to fetch resources");
-      setResourcesData(fallbackResources);
-      setCategories(fallbackResources.categories);
+      setResourcesData(null);
+      setCategories([]);
+
+
     } finally {
       didInitialLoadRef.current = true;
       setPageLoading(false);
@@ -298,9 +297,11 @@ useEffect(() => {
   };
 
   const renderPagination = (tab: keyof typeof currentPage) => {
-    const resources = resourcesData || fallbackResources;
+    const resources = resourcesData ?? EMPTY_RESOURCES;
     const totalPages = getTotalPages(resources[tab]);
     const current = currentPage[tab];
+
+    if (totalPages <= 1) return null;
 
     return (
       <Pagination>
@@ -318,8 +319,7 @@ useEffect(() => {
 
           {current > 2 && (
             <PaginationItem>
-              <PaginationLink
-                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
+              <PaginationLink onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}>
                 1
               </PaginationLink>
             </PaginationItem>
@@ -331,15 +331,14 @@ useEffect(() => {
             </PaginationItem>
           )}
 
-          {Array.from({length: totalPages}, (_, i) => i + 1)
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
-                  onClick={() =>
-                    setCurrentPage((prev) => ({...prev, [tab]: page}))
-                  }>
+                  onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: page }))}
+                >
                   {page}
                 </PaginationLink>
               </PaginationItem>
@@ -353,10 +352,7 @@ useEffect(() => {
 
           {current < totalPages - 1 && (
             <PaginationItem>
-              <PaginationLink
-                onClick={() =>
-                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
-                }>
+              <PaginationLink onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))}>
                 {totalPages}
               </PaginationLink>
             </PaginationItem>
@@ -376,6 +372,7 @@ useEffect(() => {
       </Pagination>
     );
   };
+
 
   if (pageLoading) {
     return (
@@ -477,7 +474,34 @@ useEffect(() => {
     );
   }
 
-  const resources = resourcesData || fallbackResources;
+  const resources = resourcesData ?? EMPTY_RESOURCES;
+  
+  const EmptyState = ({
+    title,
+    subtitle,
+    icon,
+  }: {
+    title: string
+    subtitle?: string
+    icon: React.ReactNode
+  }) => (
+    <Card className="border-dashed">
+      <CardHeader className="flex flex-row items-start gap-3">
+        <div className="mt-1 text-muted-foreground">{icon}</div>
+        <div className="space-y-1">
+          <CardTitle className="text-base">{title}</CardTitle>
+          {subtitle ? (
+            <CardDescription className="text-sm">{subtitle}</CardDescription>
+          ) : null}
+        </div>
+      </CardHeader>
+    </Card>
+  )
+
+const pdfItems = getPaginatedItems(resources.pdfs, currentPage.pdfs)
+const videoItems = getPaginatedItems(resources.videos, currentPage.videos)
+const audioItems = getPaginatedItems(resources.audio, currentPage.audio)
+const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
 
   return (
     <div className="space-y-6">
@@ -526,18 +550,18 @@ useEffect(() => {
 
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      {/* <div className="flex gap-2 flex-wrap">
         {categories.map((category) => (
           <Badge
             key={category}
             variant={selectedCategory === category ? "default" : "outline"}
             className={`cursor-pointer hover:bg-[#F79771] hover:text-white 
-    ${selectedCategory === category ? "bg-[#EF7B55] text-white" : ""}`}
+            ${selectedCategory === category ? "bg-[#EF7B55] text-white" : ""}`}
             onClick={() => setSelectedCategory(category)}>
             {category}
           </Badge>
         ))}
-      </div>
+      </div> */}
 
       <Tabs defaultValue="pdfs" className="w-full mr-auto relative">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
@@ -593,54 +617,81 @@ useEffect(() => {
             </>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {getPaginatedItems(resources.pdfs, currentPage.pdfs).map((pdf, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                    <CardHeader>
-                      <div className="flex flex-wrap gap-2 items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{pdf.title}</CardTitle>
-                          <CardDescription>by {pdf.author || "Unknown"}</CardDescription>
-                        </div>
-                        <Badge variant="secondary">{pdf.category}</Badge>
+              {(() => {
+                const pdfItems = getPaginatedItems(resources.pdfs, currentPage.pdfs);
+
+                return pdfItems.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardHeader className="flex flex-row items-start gap-3">
+                      <div className="mt-1 text-muted-foreground">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <CardTitle className="text-base">No PDFs found</CardTitle>
+                        <CardDescription className="text-sm">
+                          Try changing the course/module or search query.
+                        </CardDescription>
                       </div>
                     </CardHeader>
-
-                    <CardContent className="flex flex-wrap flex-1">
-                      <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
-                        <Button
-                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                          onClick={() => handlePreviewPdf(pdf)}
-                        >
-                          <Eye className="mr-2 h-3 w-3" />
-                          Preview
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleDownloadPdf(pdf)}
-                          className="flex-1 w-full h-10 bg-transparent shadow-md"
-                        >
-                          <Download className="mr-2 h-3 w-3" />
-                          Download
-                        </Button>
-                      </div>
-                    </CardContent>
                   </Card>
-                ))}
-              </div>
+                ) : (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {pdfItems.map((pdf, index) => (
+                        <Card
+                          key={pdf.id || index}
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                        >
+                          <CardHeader>
+                            <div className="flex flex-wrap gap-2 items-start justify-between">
+                              <div className="space-y-1">
+                                <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                                <CardDescription>
+                                  by {pdf.author || "Unknown"}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="secondary">{pdf.category}</Badge>
+                            </div>
+                          </CardHeader>
 
-              {renderPagination("pdfs")}
+                          <CardContent className="flex flex-wrap flex-1">
+                            <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
+                              <Button
+                                className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                                onClick={() => handlePreviewPdf(pdf)}
+                              >
+                                <Eye className="mr-2 h-3 w-3" />
+                                Preview
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                onClick={() => handleDownloadPdf(pdf)}
+                                className="flex-1 w-full h-10 bg-transparent shadow-md"
+                              >
+                                <Download className="mr-2 h-3 w-3" />
+                                Download
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {renderPagination("pdfs")}
+                  </>
+                );
+              })()}
             </>
           )}
         </TabsContent>
-
 
         <TabsContent value="videos" className="space-y-4">
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: itemsPerPage }).map((_, i) => (
-                  <Card key={`audio-skel-${i}`} className="flex flex-col h-full">
+                  <Card key={`video-skel-${i}`} className="flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
                         <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
@@ -659,82 +710,105 @@ useEffect(() => {
               {/* no pagination while loading */}
             </>
           ) : (
-             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {getPaginatedItems(resources.videos, currentPage.videos).map(
-                  (video, index) => (
-                    <Card
-                      key={index}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                      <CardHeader>
-                        <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center relative overflow-hidden">
-                          {video.thumbnail ? (
-                            <>
-                              <img
-                                src={
-                                  video.thumbnail.startsWith('http')
-                                    ? video.thumbnail
-                                    : `https://texagonbackend.onrender.com${video.thumbnail}`
-                                }
-                                alt={video.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
-                                }}
-                              />
-                              <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
+            <>
+              {(() => {
+                const videoItems = getPaginatedItems(resources.videos, currentPage.videos);
+
+                return videoItems.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardHeader className="flex flex-row items-start gap-3">
+                      <div className="mt-1 text-muted-foreground">
+                        <Video className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <CardTitle className="text-base">No videos found</CardTitle>
+                        <CardDescription className="text-sm">
+                          Try changing the course/module or search query.
+                        </CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ) : (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {videoItems.map((video, index) => (
+                        <Card
+                          key={video.id || index}
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                        >
+                          <CardHeader>
+                            <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center relative overflow-hidden">
+                              {video.thumbnail ? (
+                                <>
+                                  <img
+                                    src={
+                                      video.thumbnail.startsWith("http")
+                                        ? video.thumbnail
+                                        : `https://texagonbackend.onrender.com${video.thumbnail}`
+                                    }
+                                    alt={video.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                      e.currentTarget.parentElement
+                                        ?.querySelector(".fallback-icon")
+                                        ?.classList.remove("hidden");
+                                    }}
+                                  />
+                                  <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
+                                    <Video className="h-8 w-8 text-muted-foreground" />
+                                  </div>
+                                </>
+                              ) : (
                                 <Video className="h-8 w-8 text-muted-foreground" />
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-start justify-between">
+                              <div className="space-y-1">
+                                <CardTitle className="text-lg">{video.title}</CardTitle>
+                                <CardDescription>
+                                  by {video.instructor || "Unknown"}
+                                </CardDescription>
                               </div>
-                            </>
-                          ) : (
-                            <Video className="h-8 w-8 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg">{video.title}</CardTitle>
-                            <CardDescription>
-                              by {video.instructor || "Unknown"}
-                            </CardDescription>
-                          </div>
-                          <Badge variant="secondary">{video.category}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex flex-col flex-1">
-                        <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {video.duration || "—"}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Eye className="h-3 w-3" />
-                            {video.views || 0} views
-                          </div>
-                          {/* <div className="flex items-center gap-1">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            {video.rating}
-                          </div> */}
-                        </div>
-                        <div className="mt-auto pt-4">
-                          <Button
-                            size="sm"
-                            className="w-full bg-[#f79771] hover:bg-gray-300 shadow-md"
-                            onClick={() => handleWatchVideo(video)}>
-                            <Video className="mr-2 h-3 w-3" />
-                            Watch Now
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                )}
-              </div>
-              {renderPagination("videos")}
+                              <Badge variant="secondary">{video.category}</Badge>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="flex flex-col flex-1">
+                            <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {video.duration || "—"}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Eye className="h-3 w-3" />
+                                {video.views || 0} views
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-4">
+                              <Button
+                                size="sm"
+                                className="w-full bg-[#f79771] hover:bg-gray-300 shadow-md"
+                                onClick={() => handleWatchVideo(video)}
+                              >
+                                <Video className="mr-2 h-3 w-3" />
+                                Watch Now
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {renderPagination("videos")}
+                  </>
+                );
+              })()}
             </>
           )}
         </TabsContent>
-
 
         <TabsContent value="audio" className="space-y-4">
           {dataLoading ? (
@@ -761,107 +835,186 @@ useEffect(() => {
             </>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {getPaginatedItems(resources.audio, currentPage.audio).map((audio, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                    <CardHeader>
-                      <div className="flex flex-wrap gap-3 items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{audio.title}</CardTitle>
-                          <CardDescription>by {audio.speaker || "Unknown"}</CardDescription>
-                        </div>
-                        <Badge variant="secondary">{audio.category}</Badge>
+              {(() => {
+                const audioItems = getPaginatedItems(resources.audio, currentPage.audio);
+
+                return audioItems.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardHeader className="flex flex-row items-start gap-3">
+                      <div className="mt-1 text-muted-foreground">
+                        <Headphones className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <CardTitle className="text-base">No audio found</CardTitle>
+                        <CardDescription className="text-sm">
+                          Try changing the course/module or search query.
+                        </CardDescription>
                       </div>
                     </CardHeader>
-
-                    <CardContent className="flex flex-col flex-1">
-                      <div className="flex gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {audio.duration || "—"}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Headphones className="h-3 w-3" />
-                          {audio.listens || 0} listens
-                        </div>
-                      </div>
-
-                      <div className="mt-auto pt-4">
-                        <Button
-                          size="sm"
-                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                          onClick={() => handlePlayAudio(audio)}
-                        >
-                          <Headphones className="mr-2 h-3 w-3" />
-                          Listen Now
-                        </Button>
-                      </div>
-                    </CardContent>
                   </Card>
-                ))}
-              </div>
+                ) : (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {audioItems.map((audio, index) => (
+                        <Card
+                          key={audio.id || index}
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                        >
+                          <CardHeader>
+                            <div className="flex flex-wrap gap-3 items-start justify-between">
+                              <div className="space-y-1">
+                                <CardTitle className="text-lg">{audio.title}</CardTitle>
+                                <CardDescription>
+                                  by {audio.speaker || "Unknown"}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="secondary">{audio.category}</Badge>
+                            </div>
+                          </CardHeader>
 
-              {renderPagination("audio")}
+                          <CardContent className="flex flex-col flex-1">
+                            <div className="flex gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {audio.duration || "—"}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Headphones className="h-3 w-3" />
+                                {audio.listens || 0} listens
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-4">
+                              <Button
+                                size="sm"
+                                className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                                onClick={() => handlePlayAudio(audio)}
+                              >
+                                <Headphones className="mr-2 h-3 w-3" />
+                                Listen Now
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {renderPagination("audio")}
+                  </>
+                );
+              })()}
             </>
           )}
         </TabsContent>
 
 
         <TabsContent value="journals" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {getPaginatedItems(resources.journals, currentPage.journals).map(
-              (journal, index) => (
-                <Card
-                  key={index}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                  <CardHeader>
-                    <div className="flex flex-wrap gap-2 items-start justify-between">
+          {dataLoading ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <Card key={`journal-skel-${i}`} className="flex flex-col h-full">
+                    <CardHeader>
+                      <div className="space-y-2">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="h-3 w-2/3 bg-muted animate-pulse rounded" />
+                      <div className="mt-auto pt-4 flex gap-2">
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {/* no pagination while loading */}
+            </>
+          ) : (
+            <>
+              {(() => {
+                const journalItems = getPaginatedItems(resources.journals, currentPage.journals);
+
+                return journalItems.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardHeader className="flex flex-row items-start gap-3">
+                      <div className="mt-1 text-muted-foreground">
+                        <BookOpen className="h-5 w-5" />
+                      </div>
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">
-                          {journal.title}
-                        </CardTitle>
-                        <CardDescription>
-                          {journal.journal || "Unknown"}
+                        <CardTitle className="text-base">No journals found</CardTitle>
+                        <CardDescription className="text-sm">
+                          Try changing the course/module or search query.
                         </CardDescription>
                       </div>
-                      <Badge variant="secondary">{journal.category}</Badge>
+                    </CardHeader>
+                  </Card>
+                ) : (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {journalItems.map((journal, index) => (
+                        <Card
+                          key={journal.id || index}
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                        >
+                          <CardHeader>
+                            <div className="flex flex-wrap gap-2 items-start justify-between">
+                              <div className="space-y-1">
+                                <CardTitle className="text-lg">{journal.title}</CardTitle>
+                                <CardDescription>{journal.journal || "Unknown"}</CardDescription>
+                              </div>
+                              <Badge variant="secondary">{journal.category}</Badge>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="flex flex-col flex-1">
+                            <div className="text-sm text-muted-foreground line-clamp-3">
+                              {journal.content || "No description available"}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mt-3">
+                              <div>Published: {journal.date || "—"}</div>
+                              <div>Pages: {journal.pages || "—"}</div>
+                              <div>Citations: {journal.citations || 0}</div>
+                            </div>
+
+                            <div className="mt-auto pt-4 flex gap-2">
+                              {journal.pdfUrl && (
+                                <Button
+                                  size="sm"
+                                  className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                                  onClick={() => handlePreviewPdf(journal)}
+                                >
+                                  <BookOpen className="mr-2 h-3 w-3" />
+                                  Read
+                                </Button>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDownloadJournal(journal)}
+                                className="flex-1 w-full h-10 bg-transparent shadow-md"
+                              >
+                                <Download className="mr-2 h-3 w-3" />
+                                Download
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col flex-1">
-                    <div className="text-sm text-muted-foreground line-clamp-3">
-                      {journal.content || "No description available"}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mt-3">
-                      <div>Published: {journal.date || "—"}</div>
-                      <div>Pages: {journal.pages || "—"}</div>
-                      <div>Citations: {journal.citations || 0}</div>
-                    </div>
-                    <div className="mt-auto pt-4 flex gap-2">
-                      {journal.pdfUrl && (
-                        <Button
-                          size="sm"
-                          className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                          onClick={() => handlePreviewPdf(journal)}>
-                          <BookOpen className="mr-2 h-3 w-3" />
-                          Read
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownloadJournal(journal)}
-                        className="flex-1 w-full h-10 bg-transparent shadow-md">
-                        <Download className="mr-2 h-3 w-3" />
-                        Download
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            )}
-          </div>
-          {renderPagination("journals")}
+
+                    {renderPagination("journals")}
+                  </>
+                );
+              })()}
+            </>
+          )}
         </TabsContent>
+
       </Tabs>
 
       <PDFViewer

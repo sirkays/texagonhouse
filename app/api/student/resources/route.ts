@@ -4,22 +4,23 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "http://127.0.0.1:9098";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
-function normalizeMedia(media) {
+function normalizeMedia(media: any) {
   if (!media) return null;
   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
   return `${BASE_URL}/media/${cleaned}`;
 }
 
-const headers = (sessionToken) => ({
+const headers = (sessionToken: any) => ({
   "Authorization": `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
-export async function GET(req) {
+export async function GET(req: any) {
   noStore();
   const endpoint = "/learning/api/academics/resources/";
   const { searchParams } = new URL(req.url);
@@ -135,19 +136,19 @@ export async function GET(req) {
 
     const normalizedData = {
       ...data,
-      pdfs: data.pdfs.map((pdf) => ({
+      pdfs: data.pdfs.map((pdf: any) => ({
         ...pdf,
         pdfUrl: normalizeMedia(pdf.pdfUrl),
       })),
-      videos: data.videos.map((video) => ({
+      videos: data.videos.map((video: any) => ({
         ...video,
         videoUrl: normalizeMedia(video.videoUrl),
       })),
-      audio: data.audio.map((audio) => ({
+      audio: data.audio.map((audio: any) => ({
         ...audio,
         audioUrl: normalizeMedia(audio.audioUrl),
       })),
-      journals: data.journals.map((journal) => ({
+      journals: data.journals.map((journal: any) => ({
         ...journal,
         url: journal.url ? normalizeMedia(journal.url) : null,
       })),
@@ -166,7 +167,7 @@ export async function GET(req) {
   } catch (error) {
     console.error("[ResourcesRoute] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch resources", details: error.message },
+      { error: "Failed to fetch resources", details: ""},
       { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
