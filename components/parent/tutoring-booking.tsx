@@ -159,6 +159,21 @@ export function TutoringBooking() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [cancelDialog, setCancelDialog] = useState<{
+    open: boolean;
+    session: any | null;
+  }>({ open: false, session: null });
+
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
+  const openCancelDialog = (session: any) => {
+    setCancelDialog({ open: true, session });
+  };
+
+  const closeCancelDialog = () => {
+    if (cancelSubmitting) return; // prevent closing while submitting
+    setCancelDialog({ open: false, session: null });
+  };
 
   // Handle tab from query param (useful for redirects after booking)
   useEffect(() => {
@@ -185,10 +200,11 @@ export function TutoringBooking() {
   const [stats, setStats] = useState({
     total_tutoring: 0,
     upcoming_count: 0,
-    hours_completed: 0,
-    average_rating: 0,
+    confirmed_tutors: 0,
+    cancelled_bookings: 0,
     active_tutors: 0,
   });
+
 
   // Fetch functions
   const fetchUpcoming = async (page: number) => {
@@ -202,7 +218,7 @@ export function TutoringBooking() {
     }
   };
 
-  console.log(upcomingSessions, "upcoming sessions");
+
   const fetchPast = async (page: number) => {
     const res = await fetch(
       `/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`
@@ -225,13 +241,57 @@ export function TutoringBooking() {
     }
   };
 
-  console.log("Available Tutors:", availableTutors);
 
   const fetchChildren = async () => {
     const res = await fetch(`/api/tutor/tutoring/children`);
     if (res.ok) {
       const data = await res.json();
       setChildren(data);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: number | string) => {
+    // Adjust endpoint to whatever your backend expects.
+    // If you already have a PATCH endpoint similar to teacher side, use that.
+    const res = await fetch(`/api/parent/tutoring/bookings/cancel`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: bookingId, status: "cancelled" }),
+    });
+
+    // If your endpoint returns JSON:
+    if (!res.ok) {
+      let msg = "Failed to cancel booking";
+      try {
+        const data = await res.json();
+        msg = data?.detail || data?.error || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    return true;
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!cancelDialog.session?.id) return;
+
+    try {
+      setCancelSubmitting(true);
+
+      await handleCancelBooking(cancelDialog.session.id);
+
+      // Switch to Past tab
+      setActiveTab("past");
+
+      // Refetch both lists (so UI shows the cancelled session in past)
+      await Promise.all([fetchUpcoming(upcomingPage), fetchPast(pastPage)]);
+
+      closeCancelDialog();
+    } catch (e: any) {
+      // You can replace this with toast if you have one
+      alert(e?.message || "Failed to cancel booking");
+    } finally {
+      setCancelSubmitting(false);
     }
   };
 
@@ -458,6 +518,16 @@ export function TutoringBooking() {
                               Pay Now
                             </Button>
                           )}
+                          <Button
+                          size="sm"
+                          className="mt-2 w-full sm:w-auto bg-red-600 hover:bg-red-700"
+                          onClick={() => openCancelDialog(session)}
+                          disabled={cancelSubmitting || session.status === "Cancelled" || session.status === "Completed"}
+                        >
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+
                         </div>
                       </div>
                     </div>
@@ -856,30 +926,30 @@ export function TutoringBooking() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Hours Completed
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Confirmed Tutors</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.hours_completed}h</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl font-bold">{stats.confirmed_tutors}</div>
+            <p className="text-xs text-muted-foreground">
+              Tutors with confirmed bookings
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Average Rating
-            </CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Cancelled Bookings</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.average_rating.toFixed(1)}
-            </div>
-            <p className="text-xs text-muted-foreground">From past tutoring</p>
+            <div className="text-2xl font-bold">{stats.cancelled_bookings}</div>
+            <p className="text-xs text-muted-foreground">
+              Cancelled tutoring sessions
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Tutors</CardTitle>
@@ -890,6 +960,65 @@ export function TutoringBooking() {
             <p className="text-xs text-muted-foreground">Available now</p>
           </CardContent>
         </Card>
+      </div>
+      <div>
+        <Dialog open={cancelDialog.open} onOpenChange={(open) => {
+          if (!open) closeCancelDialog();
+        }}>
+          <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
+            <DialogHeader>
+              <DialogTitle>Cancel tutoring booking?</DialogTitle>
+              <DialogDescription>
+                This action will mark the tutoring as <b>Cancelled</b> and move it to Past Tutoring.
+                <div className="mt-2 text-sm text-muted-foreground">
+                  <div>
+                    <span className="font-medium">Tutor:</span>{" "}
+                    {cancelDialog.session?.tutor || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Child:</span>{" "}
+                    {cancelDialog.session?.child || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Subject:</span>{" "}
+                    {cancelDialog.session?.subject || "—"}
+                  </div>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+              <Button
+                variant="outline"
+                onClick={closeCancelDialog}
+                disabled={cancelSubmitting}
+                className="w-full sm:w-auto"
+              >
+                No, go back
+              </Button>
+
+              <Button
+                onClick={confirmCancelBooking}
+                disabled={cancelSubmitting}
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
+              >
+                {cancelSubmitting ? (
+                  <>
+                    {/* if you have Spinner component, use it here */}
+                    <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Yes, Cancel
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </div>
   );
