@@ -1,92 +1,64 @@
-// app/api/code-ide/submissions/route.ts
+// app/api/student/code/submissions/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-//const BASE_URL = "http://127.0.0.1:9098/code-ide/api/ide";
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
+//const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
-async function fetchWithTimeout(url: string, options: any) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
+export async function GET(request: Request) {
+  console.log("[Route] Received GET request to /code-ide/api/ide/submissions/");
 
-export async function POST(request: Request) {
-  console.log("[Route] Received POST request to /api/ide/submissions");
   const session = await getServerSession(authOptions);
-
   if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found");
+    console.log("[Route] No session token found");
     return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
-  let body;
+  // forward optional ?lesson= query to backend
+  const { searchParams } = new URL(request.url);
+  const lesson = searchParams.get("lesson");
+
+  const backendUrl = new URL(`${BASE_URL}/code-ide/api/ide/student/submissions/`);
+  if (lesson) backendUrl.searchParams.set("lesson", lesson);
 
   try {
-    body = await request.json();
-    console.log("[Route] Raw POST body:", body);
-  } catch (err) {
-    console.error("[Route] Error parsing request body:", (err as Error).message);
-    return NextResponse.json(
-      { error: "Invalid request body", details: (err as Error).message },
-      { status: 400 }
-    );
-  }
+    console.log("[Route] Fetching data from", backendUrl.toString());
 
-  const requiredFields = ["lesson", "language", "code_text"];
-  for (const field of requiredFields) {
-    if (!body[field]) {
-      console.error("[Route] Missing required field:", field);
-      return NextResponse.json({ error: `Missing ${field}` }, { status: 400 });
-    }
-  }
-
-  try {
-    const url = `${BASE_URL}/submissions/create/`;
-    console.log("[Route] Creating submission at:", url);
-    console.log("[Route] Payload for backend:", JSON.stringify(body, null, 2));
-
-    const res = await fetchWithTimeout(url, {
-      method: "POST",
+    const res = await fetch(backendUrl.toString(), {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
-      timeout: 20000,
+      cache: "no-store",
     });
 
-    console.log("[Route] External API response status:", res.status);
+    console.log("[Route] API response status:", res.status);
+
+    const raw = await res.text();
+    let data: any = raw;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      // keep as text (useful when backend returns HTML/trace)
+    }
+
+    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
       return NextResponse.json(
-        { error: `Failed to create submission: ${errorText}` },
+        { error: (data && (data.detail || data.error)) || "Failed to fetch data", details: data },
         { status: res.status }
       );
     }
 
-    const data = await res.json();
-    console.log("[Route] External API response data:", data);
-    return NextResponse.json(data, { status: 201 });
-  } catch (err) {
-    console.error("[Route] Error creating submission:", (err as Error).message);
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    console.error("[Route] Error fetching data:", error);
     return NextResponse.json(
-      { error: "Internal server error", details: (err as Error).message },
+      { error: "Internal server error", details: (error as Error).message },
       { status: 500 }
     );
   }

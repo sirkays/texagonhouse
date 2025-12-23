@@ -1,4 +1,3 @@
-// components/SubmissionList.tsx
 "use client";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,18 +10,23 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from "../ui/spinner";
+
 interface Submission {
   id: number;
+  title?: string | null;        // ✅ added
+  created_at?: string;          // ✅ added
   status: "graded" | "submitted" | "revised";
   student_name: string;
   lesson_title: string;
   course_name: string;
   class_name: string | null;
 }
+
 interface FilterOption {
   id: number;
   name: string;
 }
+
 const SubmissionList: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [courses, setCourses] = useState<FilterOption[]>([]);
@@ -35,7 +39,9 @@ const SubmissionList: React.FC = () => {
     startDate?: string;
     endDate?: string;
   }>({});
+
   const pageSize = 5;
+
   // Fetch detail to get ID for a given submission ID
   const fetchDetailForId = async (
     id: number
@@ -51,6 +57,7 @@ const SubmissionList: React.FC = () => {
       return null;
     }
   };
+
   // Extract filter options by fetching details for unique names
   const extractFilters = async (results: Submission[]) => {
     const uniqueCourses = [
@@ -59,6 +66,7 @@ const SubmissionList: React.FC = () => {
     const uniqueClasses = [
       ...new Set(results.map((s) => s.class_name).filter(Boolean)),
     ];
+
     const coursePromises = uniqueCourses.map(async (name) => {
       const sampleSub = results.find((s) => s.course_name === name);
       if (!sampleSub) return null;
@@ -68,6 +76,7 @@ const SubmissionList: React.FC = () => {
       }
       return null;
     });
+
     const classPromises = uniqueClasses.map(async (name) => {
       const sampleSub = results.find((s) => s.class_name === name);
       if (!sampleSub) return null;
@@ -77,15 +86,30 @@ const SubmissionList: React.FC = () => {
       }
       return null;
     });
+
     const courseResults = (await Promise.all(coursePromises)).filter(
       (c): c is { id: number; name: string } => c !== null
     );
     const classResults = (await Promise.all(classPromises)).filter(
       (c): c is { id: number; name: string } => c !== null
     );
+
     setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
     setClasses(classResults.sort((a, b) => a.name.localeCompare(b.name)));
   };
+
+  // helper: format created_at
+  const formatDate = (iso?: string) => {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  };
+
   // Fetch initial data + extract filter options
   useEffect(() => {
     const load = async () => {
@@ -110,21 +134,27 @@ const SubmissionList: React.FC = () => {
     };
     load();
   }, []);
+
   // Refetch when filters or page change
   useEffect(() => {
     if (courses.length === 0 && classes.length === 0) return;
+
     const fetchPage = async () => {
       setLoading(true);
       const params = new URLSearchParams();
+
       if (filters.course_id)
         params.append("course_id", filters.course_id.toString());
       if (filters.classroom_id)
         params.append("classroom_id", filters.classroom_id.toString());
-      if (filters.startDate)
-        params.append("created_at__gte", filters.startDate);
+
+      // ✅ your backend filter keys already use created_at__gte / created_at__lte
+      if (filters.startDate) params.append("created_at__gte", filters.startDate);
       if (filters.endDate) params.append("created_at__lte", filters.endDate);
+
       params.append("page", currentPage.toString());
       params.append("page_size", pageSize.toString());
+
       try {
         const res = await fetch(`/api/teacher/code/submissions?${params}`);
         if (!res.ok) throw new Error("Failed");
@@ -137,9 +167,12 @@ const SubmissionList: React.FC = () => {
         setLoading(false);
       }
     };
+
     fetchPage();
   }, [currentPage, filters, courses.length, classes.length]);
+
   const hasNext = submissions.length === pageSize;
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "graded":
@@ -152,10 +185,12 @@ const SubmissionList: React.FC = () => {
         return "bg-gray-100 text-gray-800";
     }
   };
+
   const handleDateChange = (key: "startDate" | "endDate", value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
     setCurrentPage(1);
   };
+
   if (loading && submissions.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-transparent">
@@ -163,6 +198,7 @@ const SubmissionList: React.FC = () => {
       </div>
     );
   }
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -189,6 +225,7 @@ const SubmissionList: React.FC = () => {
             ))}
           </SelectContent>
         </Select>
+
         <Select
           value={filters.course_id?.toString() ?? ""}
           onValueChange={(v) => {
@@ -211,8 +248,9 @@ const SubmissionList: React.FC = () => {
             ))}
           </SelectContent>
         </Select>
+
         <div className="flex gap-3 items-center justify-center self-start">
-          <p className="">Start Date</p>
+          <p>Start Date</p>
           <input
             type="date"
             value={filters.startDate || ""}
@@ -223,7 +261,7 @@ const SubmissionList: React.FC = () => {
         </div>
 
         <div className="flex gap-3 items-center justify-center self-start">
-          <p className="">End Date</p>
+          <p>End Date</p>
           <input
             type="date"
             value={filters.endDate || ""}
@@ -233,14 +271,21 @@ const SubmissionList: React.FC = () => {
           />
         </div>
       </div>
+
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
-        <table className="w-full min-w-[640px] table-auto">
+        <table className="w-full min-w-[760px] table-auto">
           <thead className="bg-[#EF7B55]/5">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
                 Student
               </th>
+
+              {/* ✅ Title column */}
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Title
+              </th>
+
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
                 Lesson
               </th>
@@ -250,6 +295,12 @@ const SubmissionList: React.FC = () => {
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
                 Course
               </th>
+
+              {/* ✅ Date submitted column */}
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+                Submitted
+              </th>
+
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
                 Status
               </th>
@@ -258,12 +309,19 @@ const SubmissionList: React.FC = () => {
               </th>
             </tr>
           </thead>
+
           <tbody className="divide-y divide-[#EF7B55]/10">
             {submissions.map((s) => (
               <tr key={s.id} className="hover:bg-[#EF7B55]/5 transition-colors">
                 <td className="px-4 py-3 text-sm text-slate-800">
                   {s.student_name}
                 </td>
+
+                {/* ✅ show title only if present */}
+                <td className="px-4 py-3 text-sm text-slate-800">
+                  {s.title ? s.title : "-"}
+                </td>
+
                 <td className="px-4 py-3 text-sm text-slate-800">
                   {s.lesson_title}
                 </td>
@@ -273,6 +331,12 @@ const SubmissionList: React.FC = () => {
                 <td className="px-4 py-3 text-sm text-slate-600">
                   {s.course_name}
                 </td>
+
+                {/* ✅ created_at in table */}
+                <td className="px-4 py-3 text-sm text-slate-600">
+                  {formatDate(s.created_at)}
+                </td>
+
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
@@ -282,6 +346,7 @@ const SubmissionList: React.FC = () => {
                     {s.status}
                   </span>
                 </td>
+
                 <td className="px-4 py-3 text-sm">
                   <div className="flex gap-2">
                     <Button
@@ -292,6 +357,7 @@ const SubmissionList: React.FC = () => {
                     >
                       <a href={`/teacher/submissions/${s.id}/code`}>View</a>
                     </Button>
+
                     {s.status !== "graded" && (
                       <Button
                         size="sm"
@@ -307,12 +373,14 @@ const SubmissionList: React.FC = () => {
             ))}
           </tbody>
         </table>
+
         {submissions.length === 0 && !loading && (
           <div className="text-center py-8 text-muted-foreground">
             No submissions found.
           </div>
         )}
       </div>
+
       {/* Pagination */}
       {submissions.length > 0 && (
         <div className="flex items-center justify-between">
@@ -342,4 +410,5 @@ const SubmissionList: React.FC = () => {
     </div>
   );
 };
+
 export default SubmissionList;

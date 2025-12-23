@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
+//const BASE_URL = "http://127.0.0.1:9098/code-ide";
 const BASE_URL = "https://texagonbackend.onrender.com/code-ide";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 

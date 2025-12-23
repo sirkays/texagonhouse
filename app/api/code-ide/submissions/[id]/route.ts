@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
+//const BASE_URL = "http://127.0.0.1:9098/code-ide/api/ide";
 const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
@@ -41,7 +42,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
-      timeout: 8000,
+      timeout: 18000,
     });
 
     console.log("[Route] External API response status:", res.status);
@@ -89,7 +90,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   try {
-    const url = `${BASE_URL}/submissions/${params.id}/teacher-update/`;
+    const url = `${BASE_URL}/submissions/${params.id}/student-update/`;
     console.log("[Route] Updating submission at:", url);
     console.log("[Route] Payload for backend:", JSON.stringify(body, null, 2));
 

@@ -133,7 +133,6 @@ export function CodeEditor() {
 
   const { data: session, status } = useSession();
   const [submissionTitle, setSubmissionTitle] = useState("");
-  const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [htmlCode, setHtmlCode] = useState("<h1>Hello</h1>");
   const [cssCode, setCssCode] = useState("body { color: red; }");
@@ -385,74 +384,6 @@ export function CodeEditor() {
       setUploadProgress(0);
     }
   };
-
-  const updateSubmission = async () => {
-    if (!editingSubmissionId) throw new Error("No submission selected to update");
-    if (!selectedLesson) throw new Error("No lesson selected");
-
-    const body = {
-      title: submissionTitle.trim() || null,
-      language: selectedLanguage,
-      code_text:
-        selectedLanguage === "html"
-          ? htmlCode
-          : selectedLanguage === "css"
-            ? cssCode
-            : code,
-    };
-
-    const res = await fetch(`/api/code-ide/submissions/${editingSubmissionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Update failed");
-    }
-
-    const updated: Submission = await res.json();
-
-    // update list so it reflects revised status/title immediately
-    setMySubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-
-    return updated;
-  };
-
-  const loadSubmissionIntoEditor = (sub: Submission) => {
-    // set editing mode
-    setEditingSubmissionId(sub.id);
-
-    // title in submission form
-    setSubmissionTitle(sub.title ?? "");
-
-    // lesson
-    setSelectedLesson(String(sub.lesson));
-
-    // language + code
-    setSelectedLanguage(sub.language);
-
-    if (sub.language === "html") {
-      setHtmlCode(sub.code_text || "");
-    } else if (sub.language === "css") {
-      setCssCode(sub.code_text || "");
-    } else {
-      setCode(sub.code_text || "");
-    }
-
-    // reset output UI
-    setOutput("");
-    setHtmlPreview("");
-    setExecutionError("");
-    setSyntaxError(null);
-    setIsImagePreview(false);
-    setImagePreviewUrl("");
-
-    // go to editor tab
-    setActiveTab("editor");
-  };
-
 
   const deleteUploadedFile = async (id: number) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
@@ -779,9 +710,6 @@ const addComment = async (submissionId: number, message: string) => {
     setIsImagePreview(false);
     setImagePreviewUrl("");
     setActiveTab("editor");
-    setEditingSubmissionId(null);
-    setSubmissionTitle("");
-
   };
 
   const handleLanguageChange = (lang: string) => {
@@ -1099,20 +1027,13 @@ const addComment = async (submissionId: number, message: string) => {
 
   const handleSubmit = async () => {
     if (!selectedLesson) return alert("Please select a lesson");
-
     try {
-      if (editingSubmissionId) {
-        await updateSubmission();
-        alert("Submission updated successfully");
-      } else {
-        await createSubmission();
-        alert("Submitted successfully");
-      }
+      await createSubmission();
+      alert("Submitted successfully");
     } catch (error) {
-      alert(`${editingSubmissionId ? "Update" : "Submission"} failed: ${(error as Error).message}`);
+      alert(`Submission failed: ${(error as Error).message}`);
     }
   };
-
 
   // Handle New File Modal Create - Close modal, go to editor, then open save modal
   const handleNewFileCreate = () => {
@@ -1674,10 +1595,8 @@ const addComment = async (submissionId: number, message: string) => {
                     onClick={handleSubmit}
                     disabled={!selectedLesson || loading || isImagePreview}
                   >
-                    {editingSubmissionId ? "Update Submission" : "Submit"}
+                    Submit
                   </Button>
-
-
                   <Button
                     variant="outline"
                     size="sm"
@@ -2034,7 +1953,6 @@ const addComment = async (submissionId: number, message: string) => {
                 await addComment(id, msg);
               }}
               fetchSubmissionDetail={fetchSubmissionDetail}
-              onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
             />
 
           </TabsContent>
@@ -2056,7 +1974,6 @@ function SubmissionTab({
   onGrade,
   onComment,
   fetchSubmissionDetail,
-  onLoadToEditor, // ✅ ADD THIS
 }: {
   lessons: { id: string; title: string }[];
   selectedLesson: string;
@@ -2071,11 +1988,7 @@ function SubmissionTab({
   onGrade: (id: number, upd: any) => Promise<void>;
   onComment: (id: number, msg: string) => Promise<void>;
   fetchSubmissionDetail: (id: number) => Promise<Submission>;
-  onLoadToEditor: (sub: Submission) => void; // ✅ ADD THIS TYPE
 }) {
-
-
-
   const [viewing, setViewing] = useState<Submission | null>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -2184,31 +2097,15 @@ function SubmissionTab({
               {paginatedSubmissions.map((s) => (
                 <div
                   key={s.id}
-                  className="submission-item flex items-center justify-between border-b pb-2 rounded px-2 hover:bg-accent/20"
+                  className="submission-item flex items-center justify-between border-b pb-2 cursor-pointer hover:bg-accent/20 rounded px-2"
+                  onClick={() => viewDetail(s)}
                 >
-                  <div className="flex-1 cursor-pointer" onClick={() => viewDetail(s)}>
-                    <span>
-                      #{s.id}
-                      {s.title ? ` – ${s.title}` : ""} – {s.status} ({s.language})
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs">{s.score ?? "-"} pts</span>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onLoadToEditor(s);
-                      }}
-                    >
-                      Load Code
-                    </Button>
-                  </div>
+                  <span>
+                    #{s.id}
+                    {s.title ? ` – ${s.title}` : ""} – {s.status} ({s.language})
+                  </span>
+                  <span>{s.score ?? "-"} pts</span>
                 </div>
-
               ))}
             </div>
 
