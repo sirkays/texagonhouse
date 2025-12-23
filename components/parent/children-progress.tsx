@@ -32,7 +32,10 @@ interface Subject {
   grade: string;
   lastScore: number;
   trend: "up" | "down" | "stable";
+  isPrivate?: boolean;
+  tag?: string | null;
 }
+
 interface Stats {
   testsCompleted: number;
   averageScore: number;
@@ -465,9 +468,24 @@ const refreshAll = async () => {
                           className="flex flex-col gap-3 p-3 border rounded-lg"
                         >
                           <div className="flex items-center justify-between flex-wrap gap-2">
-                            <h4 className="font-medium text-sm sm:text-base">
-                              {subject.name}
-                            </h4>
+                            <div className="flex flex-col gap-1">
+                              <h4 className="font-medium text-sm sm:text-base">
+                                {subject.name}
+                              </h4>
+
+                              {subject.isPrivate && (
+                                <div className="flex flex-col gap-1">
+                                  <Badge className="bg-red-600 text-white text-xs w-fit">
+                                    Private
+                                  </Badge>
+                                  <span className="text-[11px] text-red-600">
+                                    Not included in average score
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+
                             <div className="flex items-center gap-2">
                               <Badge className={getGradeColor(subject.grade)}>
                                 {subject.grade}

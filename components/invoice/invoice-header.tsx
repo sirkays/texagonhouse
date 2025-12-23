@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // Unused in provided code
 import { Download, Filter, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useInvoiceFilters } from "@/hooks/use-invoice-filters";
@@ -19,12 +19,9 @@ export function InvoiceHeader() {
               <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl lg:text-3xl">
                 Invoice Management
               </h1>
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                Pro
-              </Badge>
             </div>
             <p className="text-muted-foreground text-sm md:text-base">
-              Create, track, and manage professional invoices with comprehensive analytics
+              All invoices
             </p>
           </div>
 
@@ -36,7 +33,7 @@ export function InvoiceHeader() {
                   placeholder="Search invoices..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && triggerSearch()} // optional: Enter key
+                  onKeyDown={(e) => e.key === "Enter" && triggerSearch()}
                   className="pl-10 w-full bg-background/50 backdrop-blur"
                 />
               </div>

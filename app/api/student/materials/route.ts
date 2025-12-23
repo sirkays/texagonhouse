@@ -8,7 +8,7 @@ const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 const deleteEndpoint = `/api/materials/`;
 
-function normalizeMedia(media) {
+function normalizeMedia(media:any) {
   if (!media) return null;
   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
@@ -50,7 +50,7 @@ function normalizeBookmark(b: any) {
   };
 }
 
-const headers = (sessionToken) => ({
+const headers = (sessionToken: any) => ({
   "Authorization": `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),

@@ -4,7 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://texagonbackend.onrender.com";
+//const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098"
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
@@ -55,7 +56,7 @@ export async function GET(req: Request) {
 
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[BillingAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
+    console.log("[BillingAPI] Raw response.......:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
       console.error("[BillingAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
