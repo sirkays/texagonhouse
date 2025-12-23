@@ -1,14 +1,15 @@
 "use client";
 
-import {useState} from "react";
+import { useState } from "react";
 
-// Step 1: Main Signup Form (until OTP is sent)
+// --- Sub-Component: Signup Form ---
 function ParentSignupForm({
   onOtpSent,
   formData,
   setFormData,
 }: {
-  onOtpSent: (email: string) => void;
+  // Updated signature to pass back the parentProfileId
+  onOtpSent: (email: string, parentProfileId: number) => void;
   formData: any;
   setFormData: any;
 }) {
@@ -32,7 +33,6 @@ function ParentSignupForm({
       hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
     };
     setRequirements(checks);
-
     const met = Object.values(checks).filter(Boolean).length;
     if (met >= 4) setPasswordStrength("strong");
     else if (met >= 3) setPasswordStrength("medium");
@@ -40,52 +40,69 @@ function ParentSignupForm({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const {name, value} = e.target;
-    setFormData((prev: any) => ({...prev, [name]: value}));
+    const { name, value } = e.target;
+    setFormData((prev: any) => ({ ...prev, [name]: value }));
     setError("");
-
-    if (name === "password") {
-      checkPasswordStrength(value);
-    }
+    if (name === "password") checkPasswordStrength(value);
   };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!formData.email.includes("@")) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (passwordStrength !== "strong") {
-      setError("Password must be strong (all requirements met)");
-      return;
-    }
+    // --- Validation ---
+    if (!formData.email.includes("@"))
+      return setError("Please enter a valid email address");
+    if (formData.password !== formData.confirmPassword)
+      return setError("Passwords do not match");
+    if (passwordStrength !== "strong")
+      return setError("Password must be strong");
 
     const required = ["firstName", "lastName", "email", "password", "phone"];
     for (const field of required) {
-      if (!formData[field]) {
-        setError("Please fill in all required fields");
-        return;
-      }
+      if (!formData[field])
+        return setError("Please fill in all required fields");
     }
 
     setIsSendingOtp(true);
-    // Simulate sending OTP
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSendingOtp(false);
 
-    onOtpSent(formData.email); // Move to OTP screen
+    try {
+      // 🚀 API CALL: Create Account
+      const res = await fetch("/api/accounts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone: formData.phone,
+          address: formData.address,
+          primary_org_id: 1, // Defaulting to 1 as per your test
+          account_type: "parent",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create account");
+      }
+
+      // Success! Pass email AND the new parentProfileId to the next step
+      onOtpSent(formData.email, data.parentProfileId);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "An unexpected error occurred");
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
   return (
     <form className="mt-8 space-y-6" onSubmit={handleSendOtp}>
+      {/* ... (Same JSX for inputs as before) ... */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -101,7 +118,6 @@ function ParentSignupForm({
             onChange={handleChange}
           />
         </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Last Name
@@ -190,7 +206,7 @@ function ParentSignupForm({
         />
       </div>
 
-      {/* Password Requirements */}
+      {/* Password Requirements UI (Same as before) */}
       <div className="bg-gray-50 p-4 rounded-lg text-xs space-y-2">
         <p className="font-medium text-gray-700">Password must contain:</p>
         {(
@@ -200,7 +216,8 @@ function ParentSignupForm({
             key={key}
             className={`flex items-center ${
               requirements[key] ? "text-green-600" : "text-gray-500"
-            }`}>
+            }`}
+          >
             <span
               className={`w-2 h-2 rounded-full mr-2 ${
                 requirements[key] ? "bg-green-600" : "bg-gray-300"
@@ -219,7 +236,8 @@ function ParentSignupForm({
               : passwordStrength === "medium"
               ? "text-yellow-600"
               : "text-red-600"
-          }`}>
+          }`}
+        >
           Strength: {passwordStrength}
         </p>
       </div>
@@ -229,36 +247,15 @@ function ParentSignupForm({
       <button
         type="submit"
         disabled={isSendingOtp}
-        className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition">
-        {isSendingOtp ? (
-          <>
-            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8z"
-              />
-            </svg>
-            Sending OTP...
-          </>
-        ) : (
-          "Send OTP & Continue"
-        )}
+        className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition"
+      >
+        {isSendingOtp ? "Sending OTP..." : "Send OTP & Continue"}
       </button>
     </form>
   );
 }
 
-// Step 2: OTP Verification Screen
+// --- Sub-Component: OTP Verification ---
 function OtpVerificationStep({
   email,
   onVerified,
@@ -282,16 +279,36 @@ function OtpVerificationStep({
     setIsVerifying(true);
     setError("");
 
-    // Mock verification
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      // 🚀 API CALL: Verify Email
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+          code: otp,
+        }),
+      });
 
-    // Success
-    onVerified();
-    setIsVerifying(false);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid OTP");
+      }
+
+      // Success
+      onVerified();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Verification failed");
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (
     <div className="max-w-md mx-auto text-center">
+      {/* ... (Same JSX as before) ... */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900">Check Your Email</h2>
         <p className="mt-2 text-sm text-gray-600">
@@ -321,41 +338,19 @@ function OtpVerificationStep({
           <button
             type="submit"
             disabled={isVerifying || otp.length !== 6}
-            className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2">
-            {isVerifying ? (
-              <>
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8z"
-                  />
-                </svg>
-                Verifying...
-              </>
-            ) : (
-              "Verify & Complete Signup"
-            )}
+            className="w-full py-3 px-4 bg-[#f79771] text-white font-medium rounded-md hover:bg-[#f58667] disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+          >
+            {isVerifying ? "Verifying..." : "Verify & Complete Signup"}
           </button>
-
           <button
             type="button"
             onClick={onBack}
-            className="text-sm text-gray-600 hover:text-gray-800 underline">
+            className="text-sm text-gray-600 hover:text-gray-800 underline"
+          >
             ← Back to edit details
           </button>
         </div>
       </form>
-
       <p className="mt-6 text-xs text-gray-500">
         Didn't receive the code?{" "}
         <button className="text-[#f79771] font-medium">Resend OTP</button>
@@ -364,14 +359,17 @@ function OtpVerificationStep({
   );
 }
 
-// Main Parent Component with Step Control
+// --- Main Export ---
 export default function ParentSignupFlow({
   onComplete,
 }: {
-  onComplete: () => void;
+  // Pass the parentProfileId up to the Page component
+  onComplete: (parentProfileId: number) => void;
 }) {
   const [step, setStep] = useState<"form" | "otp">("form");
   const [emailForOtp, setEmailForOtp] = useState("");
+  // New State to hold the ID from the backend
+  const [parentProfileId, setParentProfileId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -383,21 +381,18 @@ export default function ParentSignupFlow({
     address: "",
   });
 
-  const handleOtpSent = (email: string) => {
+  const handleOtpSent = (email: string, id: number) => {
     setEmailForOtp(email);
+    setParentProfileId(id); // Store ID
     setStep("otp");
   };
 
   const handleVerified = () => {
-    console.log("Parent signup completed:", {
-      ...formData,
-      confirmPassword: undefined,
-    });
-    onComplete();
-  };
-
-  const handleBack = () => {
-    setStep("form");
+    if (parentProfileId) {
+      onComplete(parentProfileId); // Finish flow, passing ID
+    } else {
+      console.error("Missing Parent Profile ID");
+    }
   };
 
   return (
@@ -422,7 +417,7 @@ export default function ParentSignupFlow({
             <OtpVerificationStep
               email={emailForOtp}
               onVerified={handleVerified}
-              onBack={handleBack}
+              onBack={() => setStep("form")}
             />
           </div>
         )}
