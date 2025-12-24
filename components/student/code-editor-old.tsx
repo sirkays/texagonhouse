@@ -88,7 +88,7 @@ type UploadedFile = {
 
 type Submission = {
   id: number;
-  title?: string | null;
+  title?: string | null; // ✅ add
   lesson: number;
   student: number;
   language: string;
@@ -131,10 +131,7 @@ export function CodeEditor() {
     css: {name: "CSS", judgeId: null, template: `body { color: red; }`},
   } as const;
 
-  // Session and authentication
   const {data: session, status} = useSession();
-
-  // State variables
   const [submissionTitle, setSubmissionTitle] = useState("");
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
     null
@@ -154,6 +151,7 @@ export function CodeEditor() {
   const [fileLoading, setFileLoading] = useState<number | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<number | null>(null);
   const [syntaxError, setSyntaxError] = useState<string | null>(null);
+  // [ADD THIS NEW STATE]
   const [codeBuffers, setCodeBuffers] = useState<Record<string, string>>({
     javascript: languages.javascript.template,
     python: languages.python.template,
@@ -166,17 +164,25 @@ export function CodeEditor() {
   const [saveFileName, setSaveFileName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [activeSnippetId, setActiveSnippetId] = useState<number | null>(null);
+
+  // New File Modal states
   const [showNewFileModal, setShowNewFileModal] = useState(false);
   const [newFileTitle, setNewFileTitle] = useState("");
   const [newFileLesson, setNewFileLesson] = useState("");
+
+  // Pre-populated save data from new file modal
   const [prepopulatedSaveData, setPrepopulatedSaveData] = useState<{
     title: string;
     lesson: string;
   } | null>(null);
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLesson, setSelectedLesson] = useState("");
   const [activeTab, setActiveTab] = useState("editor");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lessons, setLessons] = useState<{id: string; title: string}[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
@@ -185,35 +191,8 @@ export function CodeEditor() {
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState<
     string | null
   >(null);
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState("");
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState("");
-  const [onConfirmCallback, setOnConfirmCallback] = useState<
-    (() => Promise<void>) | null
-  >(null);
 
-  // Refs
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const itemsPerPage = 10;
   const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
-
-  // Helper functions
-  const showCustomAlert = (message: string) => {
-    setAlertMessage(message);
-    setShowAlert(true);
-  };
-
-  const showCustomConfirm = (
-    message: string,
-    callback: () => Promise<void>
-  ) => {
-    setConfirmMessage(message);
-    setOnConfirmCallback(() => callback);
-    setShowConfirm(true);
-  };
 
   const fetchSnippets = async (lessonId?: string) => {
     const u = new URL("/api/code-ide/snippets", window.location.origin);
@@ -238,19 +217,22 @@ export function CodeEditor() {
       setLessons(
         lessonList.map((l: any) => ({
           id: String(l.id),
+          // Check multiple common property names before falling back to ID
           title: l.title || l.name || l.topic || l.label || `Lesson ${l.id}`,
         }))
       );
     } catch (err) {
-      showCustomAlert("Failed to load lessons");
+      console.error("Failed to load lessons:", err);
     }
   };
 
   const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
       return;
+
     setIsSaving(true);
     try {
+      // [UPDATED] Construct body with ID if we are editing an existing snippet
       const body: any = {
         title: saveFileName.trim(),
         language: selectedLanguage,
@@ -262,9 +244,12 @@ export function CodeEditor() {
             : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
+
+      // If we have an active ID, add it to the body to trigger an UPDATE on the backend
       if (activeSnippetId) {
         body.id = activeSnippetId;
       }
+
       const res = await fetch("/api/code-ide/snippets", {
         method: "POST",
         headers: {
@@ -272,62 +257,76 @@ export function CodeEditor() {
         },
         body: JSON.stringify(body),
       });
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Save failed");
       }
+
       const savedSnippet: Snippet = await res.json();
+
+      // [UPDATED] Update the list based on whether it was a Create or Update
       if (activeSnippetId) {
+        // We updated an existing one
         setMySnippets((prev) =>
           prev.map((s) => (s.id === savedSnippet.id ? savedSnippet : s))
         );
-        showCustomAlert("Snippet updated successfully!");
+        alert("Snippet updated successfully!");
       } else {
+        // We created a new one
         setMySnippets((prev) => [savedSnippet, ...prev]);
-        setActiveSnippetId(savedSnippet.id);
-        showCustomAlert("Snippet saved successfully!");
+        setActiveSnippetId(savedSnippet.id); // Set as active so next save is an update
+        alert("Snippet saved successfully!");
       }
+
       setShowSaveModal(false);
+      // We do NOT clear saveFileName here anymore, so the user stays in "edit mode"
       setPrepopulatedSaveData(null);
     } catch (error) {
-      showCustomAlert(`Save failed: ${(error as Error).message}`);
+      alert(`Save failed: ${(error as Error).message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const deleteSnippet = (id: number) => {
-    showCustomConfirm(
-      "Are you sure you want to delete this snippet?",
-      async () => {
-        try {
-          const res = await fetch(`/api/code-ide/snippets/${id}`, {
-            method: "DELETE",
-            headers: {"Content-Type": "application/json"},
-          });
-          if (!res.ok) throw new Error("Delete failed");
-          setMySnippets((prev) => prev.filter((s) => s.id !== id));
-        } catch {
-          showCustomAlert("Delete failed: Endpoint not available");
-        }
-      }
-    );
+  const deleteSnippet = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this snippet?")) return;
+    try {
+      const res = await fetch(`/api/code-ide/snippets/${id}`, {
+        method: "DELETE",
+        headers: {"Content-Type": "application/json"},
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setMySnippets((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      alert("Delete failed: Endpoint not available");
+    }
   };
 
   const fetchFileContent = async (file: UploadedFile) => {
     try {
+      console.log(`Fetching content for file ${file.id} via API`);
       const apiRes = await fetch(`/api/code-ide/uploads/${file.id}/content`, {
         headers: {
           "Cache-Control": "no-cache",
         },
       });
+
       if (!apiRes.ok) {
         const errorText = await apiRes.text();
+        console.error(
+          `API content fetch failed: ${apiRes.status} - ${errorText}`
+        );
         throw new Error(`Failed to fetch file content: ${apiRes.status}`);
       }
+
       const content = await apiRes.text();
+      console.log(
+        `Successfully fetched ${content.length} characters for file ${file.id}`
+      );
       return content;
     } catch (error) {
+      console.error("fetchFileContent error:", error);
       throw new Error(
         "File content unavailable. The file may be private or the server may be experiencing issues."
       );
@@ -336,16 +335,20 @@ export function CodeEditor() {
 
   const uploadFile = async (file: File, lesson?: string, label?: string) => {
     if (!session?.user?.sessionToken) return;
+
     if (file.size > MAX_FILE_SIZE) {
-      showCustomAlert("File size exceeds 25MB limit");
+      alert("File size exceeds 25MB limit");
       return;
     }
+
     const formData = new FormData();
     formData.append("file", file);
     if (lesson) formData.append("lesson", lesson);
     if (label) formData.append("label", label);
+
     setUploading(true);
     setUploadProgress(0);
+
     try {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress", (event) => {
@@ -354,6 +357,7 @@ export function CodeEditor() {
           setUploadProgress(percent);
         }
       });
+
       const res = await new Promise<UploadedFile>((resolve, reject) => {
         xhr.open("POST", "/api/code-ide/uploads");
         xhr.setRequestHeader(
@@ -370,13 +374,14 @@ export function CodeEditor() {
         xhr.onerror = () => reject(new Error("Upload failed"));
         xhr.send(formData);
       });
+
       setUploadedFiles((prev) => [res, ...prev]);
-      setActiveTab("files");
-      setUploadSuccessMessage("File uploaded successfully!");
-      setTimeout(() => setUploadSuccessMessage(null), 3000);
+      setActiveTab("files"); // Switch to Files tab
+      setUploadSuccessMessage("File uploaded successfully!"); // Set success message
+      setTimeout(() => setUploadSuccessMessage(null), 3000); // Clear after 3s
       return res;
     } catch (error) {
-      showCustomAlert(`Upload failed: ${(error as Error).message}`);
+      alert(`Upload failed: ${(error as Error).message}`);
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -387,6 +392,7 @@ export function CodeEditor() {
     if (!editingSubmissionId)
       throw new Error("No submission selected to update");
     if (!selectedLesson) throw new Error("No lesson selected");
+
     const body = {
       title: submissionTitle.trim() || null,
       language: selectedLanguage,
@@ -397,6 +403,7 @@ export function CodeEditor() {
           ? cssCode
           : code,
     };
+
     const res = await fetch(
       `/api/code-ide/submissions/${editingSubmissionId}`,
       {
@@ -405,22 +412,35 @@ export function CodeEditor() {
         body: JSON.stringify(body),
       }
     );
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || "Update failed");
     }
+
     const updated: Submission = await res.json();
+
+    // update list so it reflects revised status/title immediately
     setMySubmissions((prev) =>
       prev.map((s) => (s.id === updated.id ? updated : s))
     );
+
     return updated;
   };
 
   const loadSubmissionIntoEditor = (sub: Submission) => {
+    // set editing mode
     setEditingSubmissionId(sub.id);
+
+    // title in submission form
     setSubmissionTitle(sub.title ?? "");
+
+    // lesson
     setSelectedLesson(String(sub.lesson));
+
+    // language + code
     setSelectedLanguage(sub.language);
+
     if (sub.language === "html") {
       setHtmlCode(sub.code_text || "");
     } else if (sub.language === "css") {
@@ -428,49 +448,54 @@ export function CodeEditor() {
     } else {
       setCode(sub.code_text || "");
     }
+
+    // reset output UI
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
     setSyntaxError(null);
     setIsImagePreview(false);
     setImagePreviewUrl("");
+
+    // go to editor tab
     setActiveTab("editor");
   };
 
-  const deleteUploadedFile = (id: number) => {
-    showCustomConfirm(
-      "Are you sure you want to delete this file?",
-      async () => {
-        setDeletingFileId(id);
-        try {
-          const res = await fetch(`/api/code-ide/uploads/${id}`, {
-            method: "DELETE",
-          });
-          if (!res.ok) {
-            const error = await res
-              .json()
-              .catch(() => ({error: "Delete failed"}));
-            throw new Error(error.error || "Delete failed");
-          }
-          setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
-        } catch (error) {
-          showCustomAlert(`Delete failed: ${(error as Error).message}`);
-        } finally {
-          setDeletingFileId(null);
-        }
+  const deleteUploadedFile = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
+    setDeletingFileId(id);
+    try {
+      const res = await fetch(`/api/code-ide/uploads/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({error: "Delete failed"}));
+        throw new Error(error.error || "Delete failed");
       }
-    );
+
+      setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
+    } catch (error) {
+      alert(`Delete failed: ${(error as Error).message}`);
+    } finally {
+      setDeletingFileId(null);
+    }
   };
 
   const loadFile = async (file: UploadedFile) => {
     try {
       setFileLoading(file.id);
       setLoading(true);
+      console.log(`Loading file ${file.id}: ${file.original_name}`);
+
       const contentType = file.content_type;
       const extension = file.original_name.split(".").pop()?.toLowerCase();
+
       const isImage =
         contentType.includes("image/") ||
         ["png", "jpg", "jpeg"].includes(extension || "");
+
       if (isImage) {
         setIsImagePreview(true);
         setImagePreviewUrl(file.url);
@@ -480,10 +505,13 @@ export function CodeEditor() {
         );
         if (file.lesson) setSelectedLesson(String(file.lesson));
         setActiveTab("editor");
+        console.log(`Loaded image file ${file.id} for preview`);
         return;
       }
+
       setIsImagePreview(false);
       const content = await fetchFileContent(file);
+
       const languageMap: {[key: string]: string} = {
         "text/x-python": "python",
         "application/javascript": "javascript",
@@ -503,10 +531,13 @@ export function CodeEditor() {
             ? "css"
             : "javascript",
       };
+
       let language = languageMap[contentType] || "javascript";
+
       if (contentType === "text/plain" && extension && languageMap[extension]) {
         language = languageMap[extension];
       }
+
       if (language === "html") {
         setHtmlCode(content);
       } else if (language === "css") {
@@ -514,13 +545,15 @@ export function CodeEditor() {
       } else {
         setCode(content);
       }
+
       setSelectedLanguage(language);
       if (file.lesson) setSelectedLesson(String(file.lesson));
       setActiveTab("editor");
+
+      console.log(`Loaded file ${file.id} as ${language}`);
     } catch (error) {
-      showCustomAlert(
-        `Failed to load file content: ${(error as Error).message}`
-      );
+      console.error("Load file error:", error);
+      alert(`Failed to load file content: ${(error as Error).message}`);
     } finally {
       setFileLoading(null);
       setLoading(false);
@@ -531,10 +564,10 @@ export function CodeEditor() {
     navigator.clipboard
       .writeText(file.url)
       .then(() => {
-        showCustomAlert("File URL copied to clipboard");
+        alert("File URL copied to clipboard");
       })
       .catch(() => {
-        showCustomAlert("Failed to copy URL");
+        alert("Failed to copy URL");
       });
   };
 
@@ -568,9 +601,14 @@ export function CodeEditor() {
   };
 
   const createSubmission = async () => {
+    console.log(
+      `[FE] createSubmission called. Lang: ${selectedLanguage}, Code len: ${code?.length}`
+    );
+
     if (!selectedLesson) throw new Error("No lesson selected");
+
     const body = {
-      title: submissionTitle.trim() || null,
+      title: submissionTitle.trim() || null, // ✅ added
       lesson: parseInt(selectedLesson),
       language: selectedLanguage,
       code_text:
@@ -580,18 +618,24 @@ export function CodeEditor() {
           ? cssCode
           : code,
     };
+
     const res = await fetch("/api/code-ide/submissions", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(body),
     });
+
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || "Submission failed");
     }
+
     const created: Submission = await res.json();
     setMySubmissions((prev) => [created, ...prev]);
+
+    // optional: clear title after successful submit
     setSubmissionTitle("");
+
     return created;
   };
 
@@ -621,6 +665,75 @@ export function CodeEditor() {
     document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
     window.location.href = "/login";
   };
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      setError("Not authenticated");
+      setLoading(false);
+    } else {
+      setError(null);
+      setLoading(false);
+
+      // Only set the default template if the editor is completely empty (Initial Load)
+      // This prevents overwriting code when loadSnippet() or loadFile() is called
+      if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
+        setCode(languages[selectedLanguage as keyof typeof languages].template);
+      }
+      if (selectedLanguage === "html" && !htmlCode.includes("Hello")) {
+        setHtmlCode(languages.html.template);
+      }
+      if (selectedLanguage === "css" && !cssCode.includes("color: red")) {
+        setCssCode(languages.css.template);
+      }
+    }
+  }, [session, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    Promise.all([
+      fetchLessons(),
+      fetchSnippets().then((snips) => {
+        setMySnippets(snips);
+      }),
+      fetchSubmissions()
+        .then(setMySubmissions)
+        .catch(() => {}),
+      fetch("/api/code-ide/uploads")
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setUploadedFiles)
+        .catch(() => setUploadedFiles([])),
+    ]).catch(() => {});
+  }, [status]);
+
+  // Auto-save current work to localStorage
+  useEffect(() => {
+    if (!session || isImagePreview) return;
+
+    const draft = {
+      language: selectedLanguage,
+      code:
+        selectedLanguage === "html"
+          ? htmlCode
+          : selectedLanguage === "css"
+          ? cssCode
+          : code,
+      htmlCode: selectedLanguage === "html" ? code : htmlCode,
+      cssCode: selectedLanguage === "css" ? code : cssCode,
+      lesson: selectedLesson,
+      timestamp: new Date().toISOString(),
+    };
+
+    localStorage.setItem("code-ide-draft", JSON.stringify(draft));
+  }, [
+    code,
+    htmlCode,
+    cssCode,
+    selectedLanguage,
+    selectedLesson,
+    session,
+    isImagePreview,
+  ]);
 
   const copyCode = () => {
     const text =
@@ -678,20 +791,28 @@ export function CodeEditor() {
 
   const handleLanguageChange = (lang: string) => {
     const languageKey = lang as keyof typeof languages;
+
     if (selectedLanguage !== "html" && selectedLanguage !== "css") {
       setCodeBuffers((prev) => ({
         ...prev,
         [selectedLanguage]: code,
       }));
     }
+
     setSelectedLanguage(languageKey);
+
+    // 2. Load the code for the NEW language
     if (languageKey === "html") {
-      // HTML state persists
+      // Do nothing: HTML has its own dedicated state (htmlCode) which persists automatically
     } else if (languageKey === "css") {
-      // CSS state persists
+      // Do nothing: CSS has its own dedicated state (cssCode) which persists automatically
     } else {
+      // For JS/Python/Java/CPP, load from the buffer
+      // If the buffer has code, use it. Otherwise, use the default template.
       setCode(codeBuffers[languageKey] || languages[languageKey].template);
     }
+
+    // 3. Reset UI states (Outputs, errors, etc)
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
@@ -702,6 +823,7 @@ export function CodeEditor() {
   };
 
   const handleCodeChange = (value: string) => {
+    // console.log(`[FE] Code changed. Len: ${value.length}`);
     if (isImagePreview) return;
     if (selectedLanguage === "html") {
       setHtmlCode(value);
@@ -711,6 +833,7 @@ export function CodeEditor() {
       setCode(value);
     }
     setSyntaxError(null);
+
     if (selectedLanguage === "javascript") {
       try {
         new Function(value);
@@ -728,6 +851,7 @@ export function CodeEditor() {
         setSyntaxError(htmlErrors);
       }
     }
+
     if (selectedLanguage === "html" || selectedLanguage === "css") {
       setHtmlPreview(`
         <!DOCTYPE html>
@@ -779,9 +903,13 @@ export function CodeEditor() {
   const loadSnippet = async (snippet: Snippet) => {
     try {
       const detailedSnippet = await fetchSnippetDetail(snippet.id);
+
+      // ... existing reset logic ...
       setHtmlCode(languages.html.template);
       setCssCode(languages.css.template);
       setCode(languages.javascript.template);
+
+      // ... existing loading logic ...
       if (detailedSnippet.language === "html") {
         setHtmlCode(detailedSnippet.code_text);
       } else if (detailedSnippet.language === "css") {
@@ -789,30 +917,34 @@ export function CodeEditor() {
       } else {
         setCode(detailedSnippet.code_text);
       }
+
+      // [ADD THIS] Store the ID and Title
       setActiveSnippetId(detailedSnippet.id);
-      setSaveFileName(detailedSnippet.title);
+      setSaveFileName(detailedSnippet.title); // Pre-fill the save name
+
       setSelectedLanguage(detailedSnippet.language);
       if (detailedSnippet.lesson)
         setSelectedLesson(String(detailedSnippet.lesson));
+
       setActiveTab("editor");
       setSyntaxError(null);
       setIsImagePreview(false);
     } catch (err) {
-      showCustomAlert("Failed to load snippet");
+      alert("Failed to load snippet");
     }
   };
 
   const copySnippetUrl = (id: number) => {
     const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
     navigator.clipboard.writeText(url);
-    showCustomAlert("Snippet URL copied to clipboard");
+    alert("Snippet URL copied to clipboard");
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && fileInputRef.current) {
       if (file.size > MAX_FILE_SIZE) {
-        showCustomAlert("File size exceeds 25MB limit");
+        alert("File size exceeds 25MB limit");
         return;
       }
       fileInputRef.current.value = "";
@@ -824,6 +956,26 @@ export function CodeEditor() {
     }
   };
 
+  const filteredSnippets = mySnippets.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredUploads = uploadedFiles.filter((f) =>
+    (f.label || f.original_name)
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
+
+  const paginatedSnippets = filteredSnippets.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const paginatedUploads = filteredUploads.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
+  const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
+
   const runCode = async () => {
     if (isImagePreview) {
       setOutput("Image preview mode: No code to execute");
@@ -833,7 +985,7 @@ export function CodeEditor() {
     setIsRunning(true);
     setOutput("");
     setExecutionError("");
-    setSuccessMessage(null);
+    setSuccessMessage(null); // Clear any previous success message
     try {
       if (error === "Session expired" || error === "Not authenticated") {
         setOutput("Session expired. Please log in again.");
@@ -849,7 +1001,7 @@ export function CodeEditor() {
           setOutput(
             logs.join("\n") || "Code executed successfully (no output)"
           );
-          setSuccessMessage("Code executed successfully!");
+          setSuccessMessage("Code executed successfully!"); // Set success message
         } catch (e: any) {
           setOutput(`Error: ${e.message}`);
         } finally {
@@ -857,35 +1009,38 @@ export function CodeEditor() {
         }
       } else if (selectedLanguage === "html" || selectedLanguage === "css") {
         setHtmlPreview(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <style>${cssCode}</style>
-            </head>
-            <body>
-              ${htmlCode}
-            </body>
-          </html>
-        `);
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>${cssCode}</style>
+          </head>
+          <body>
+            ${htmlCode}
+          </body>
+        </html>
+      `);
         setOutput("HTML/CSS rendered in preview tab");
-        setSuccessMessage("HTML/CSS rendered successfully!");
+        setSuccessMessage("HTML/CSS rendered successfully!"); // Set success message
       } else {
         const cfg = languages[selectedLanguage as keyof typeof languages];
         if (cfg.judgeId) {
           try {
             let codeToRun = code;
+
+            // Auto-wrap Java/C++ execution
             if (
               selectedLanguage === "java" &&
               !code.includes("class Main") &&
               !code.includes("class ")
             ) {
-              codeToRun = `public class Main {\n public static void main(String[] args) {\n ${code}\n }\n}`;
+              codeToRun = `public class Main {\n    public static void main(String[] args) {\n        ${code}\n    }\n}`;
             } else if (
               selectedLanguage === "cpp" &&
               !code.includes("int main")
             ) {
-              codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n ${code}\n return 0;\n}`;
+              codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n    ${code}\n    return 0;\n}`;
             }
+
             const res = await fetch(
               "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
               {
@@ -904,12 +1059,14 @@ export function CodeEditor() {
               }
             );
             if (!res.ok) {
+              const errorText = await res.text();
+              console.error("Judge0 API error:", res.status, errorText);
               throw new Error(`API Error: ${res.status}`);
             }
             const result = await res.json();
             if (result.status?.id === 3) {
               setOutput(result.stdout || "Success (no output)");
-              setSuccessMessage("Code executed successfully!");
+              setSuccessMessage("Code executed successfully!"); // Set success message
             } else if (result.status?.id === 6) {
               setOutput(
                 `Compilation Error:\n${result.compile_output || result.stderr}`
@@ -922,6 +1079,7 @@ export function CodeEditor() {
               setOutput(result.stderr || result.stdout || "Unknown error");
             }
           } catch (e: any) {
+            console.error("Judge0 execution failed:", e);
             setExecutionError(
               "Online execution unavailable. Using local simulation."
             );
@@ -936,6 +1094,7 @@ export function CodeEditor() {
     } finally {
       setIsRunning(false);
       setActiveTab("output");
+      // Clear success message after 3 seconds
       if (successMessage) {
         setTimeout(() => setSuccessMessage(null), 3000);
       }
@@ -943,17 +1102,18 @@ export function CodeEditor() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedLesson) return showCustomAlert("Please select a lesson");
+    if (!selectedLesson) return alert("Please select a lesson");
+
     try {
       if (editingSubmissionId) {
         await updateSubmission();
-        showCustomAlert("Submission updated successfully");
+        alert("Submission updated successfully");
       } else {
         await createSubmission();
-        showCustomAlert("Submitted successfully");
+        alert("Submitted successfully");
       }
     } catch (error) {
-      showCustomAlert(
+      alert(
         `${editingSubmissionId ? "Update" : "Submission"} failed: ${
           (error as Error).message
         }`
@@ -961,19 +1121,33 @@ export function CodeEditor() {
     }
   };
 
+  // Handle New File Modal Create - Close modal, go to editor, then open save modal
   const handleNewFileCreate = () => {
-    if (!newFileTitle.trim()) return showCustomAlert("Title required");
+    if (!newFileTitle.trim()) return alert("Title required");
+
     setActiveSnippetId(null);
+
+    // Close the new file modal immediately
     setShowNewFileModal(false);
+
+    // Close save modal first (if open)
     setShowSaveModal(false);
+
+    // Reset new file form
     setNewFileTitle("");
     setNewFileLesson("");
+
+    // Reset editor to default state and switch to editor tab
     resetCode();
     setActiveTab("editor");
+
+    // Store prepopulated data
     setPrepopulatedSaveData({
       title: newFileTitle,
       lesson: newFileLesson || "",
     });
+
+    // Pre-populate save modal fields after a brief delay
     setTimeout(() => {
       setSaveFileName(newFileTitle);
       setSelectedLesson(newFileLesson || "");
@@ -981,93 +1155,7 @@ export function CodeEditor() {
     }, 150);
   };
 
-  const filteredSnippets = mySnippets.filter((s) =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredUploads = uploadedFiles.filter((f) =>
-    (f.label || f.original_name)
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
-
-  const paginatedSnippets = filteredSnippets.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const paginatedUploads = filteredUploads.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
-  const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
-
-  // Effects
-  useEffect(() => {
-    if (status === "loading") return;
-    if (status !== "authenticated" || !session?.user?.sessionToken) {
-      setError("Not authenticated");
-      setLoading(false);
-    } else {
-      setError(null);
-      setLoading(false);
-      if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
-        setCode(languages[selectedLanguage as keyof typeof languages].template);
-      }
-      if (selectedLanguage === "html" && !htmlCode.includes("Hello")) {
-        setHtmlCode(languages.html.template);
-      }
-      if (selectedLanguage === "css" && !cssCode.includes("color: red")) {
-        setCssCode(languages.css.template);
-      }
-    }
-  }, [session, status]);
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    Promise.all([
-      fetchLessons(),
-      fetchSnippets().then((snips) => {
-        setMySnippets(snips);
-      }),
-      fetchSubmissions()
-        .then(setMySubmissions)
-        .catch(() => {}),
-      fetch("/api/code-ide/uploads")
-        .then((res) => (res.ok ? res.json() : []))
-        .then(setUploadedFiles)
-        .catch(() => setUploadedFiles([])),
-    ]).catch(() => {});
-  }, [status]);
-
-  useEffect(() => {
-    if (!session || isImagePreview) return;
-    const draft = {
-      language: selectedLanguage,
-      code:
-        selectedLanguage === "html"
-          ? htmlCode
-          : selectedLanguage === "css"
-          ? cssCode
-          : code,
-      htmlCode: selectedLanguage === "html" ? code : htmlCode,
-      cssCode: selectedLanguage === "css" ? code : cssCode,
-      lesson: selectedLesson,
-      timestamp: new Date().toISOString(),
-    };
-    localStorage.setItem("code-ide-draft", JSON.stringify(draft));
-  }, [
-    code,
-    htmlCode,
-    cssCode,
-    selectedLanguage,
-    selectedLesson,
-    session,
-    isImagePreview,
-  ]);
-
+  // Effect to prepopulate save modal when new file data is set
   useEffect(() => {
     if (prepopulatedSaveData) {
       setSaveFileName(prepopulatedSaveData.title);
@@ -1109,6 +1197,7 @@ export function CodeEditor() {
 
   return (
     <>
+      {/* Save Modal - POST to snippets */}
       <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1176,6 +1265,8 @@ export function CodeEditor() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* New File Modal - Pre-populates Save modal */}
       <Dialog open={showNewFileModal} onOpenChange={setShowNewFileModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1237,37 +1328,7 @@ export function CodeEditor() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={showAlert} onOpenChange={setShowAlert}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Alert</DialogTitle>
-            <DialogDescription>{alertMessage}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setShowAlert(false)}>OK</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm</DialogTitle>
-            <DialogDescription>{confirmMessage}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirm(false)}>
-              No
-            </Button>
-            <Button
-              onClick={async () => {
-                if (onConfirmCallback) await onConfirmCallback();
-                setShowConfirm(false);
-              }}>
-              Yes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
       <style jsx>{`
         .code-editor-textarea {
           background: #2b2b2b;
@@ -1470,6 +1531,7 @@ export function CodeEditor() {
           font-size: 0.875rem;
         }
       `}</style>
+
       <div className="space-y-4 px-4 sm:px-6 lg:px-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Code IDE</h1>
@@ -1478,12 +1540,14 @@ export function CodeEditor() {
             with real-time execution
           </p>
         </div>
+
         {executionError && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{executionError}</AlertDescription>
           </Alert>
         )}
+
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
@@ -1510,6 +1574,7 @@ export function CodeEditor() {
               Submission
             </TabsTrigger>
           </TabsList>
+
           <TabsContent value="editor" className="tab-content">
             <Card className="flex flex-col w-full">
               <CardHeader>
@@ -1603,6 +1668,7 @@ export function CodeEditor() {
                     disabled={!selectedLesson || loading || isImagePreview}>
                     {editingSubmissionId ? "Update Submission" : "Submit"}
                   </Button>
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -1633,6 +1699,7 @@ export function CodeEditor() {
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="output" className="tab-content">
             <Card className="flex flex-col w-full">
               <CardHeader>
@@ -1682,6 +1749,7 @@ export function CodeEditor() {
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="files" className="tab-content">
             <Card className="flex flex-col w-full">
               <CardHeader>
@@ -1932,13 +2000,14 @@ export function CodeEditor() {
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="submission" className="tab-content">
             <SubmissionTab
               lessons={lessons}
               selectedLesson={selectedLesson}
               setSelectedLesson={setSelectedLesson}
-              submissionTitle={submissionTitle}
-              setSubmissionTitle={setSubmissionTitle}
+              submissionTitle={submissionTitle} // ✅ add
+              setSubmissionTitle={setSubmissionTitle} // ✅ add
               onSubmit={handleSubmit}
               role={session?.user?.role || undefined}
               submissions={mySubmissions}
@@ -1950,7 +2019,6 @@ export function CodeEditor() {
               }}
               fetchSubmissionDetail={fetchSubmissionDetail}
               onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
-              showCustomAlert={showCustomAlert}
             />
           </TabsContent>
         </Tabs>
@@ -1971,22 +2039,22 @@ function SubmissionTab({
   onGrade,
   onComment,
   fetchSubmissionDetail,
-  onLoadToEditor,
-  showCustomAlert,
+  onLoadToEditor, // ✅ ADD THIS
 }: {
   lessons: {id: string; title: string}[];
   selectedLesson: string;
   setSelectedLesson: (v: string) => void;
+
   submissionTitle: string;
   setSubmissionTitle: (v: string) => void;
+
   onSubmit: () => Promise<void>;
   role?: string;
   submissions: Submission[];
   onGrade: (id: number, upd: any) => Promise<void>;
   onComment: (id: number, msg: string) => Promise<void>;
   fetchSubmissionDetail: (id: number) => Promise<Submission>;
-  onLoadToEditor: (sub: Submission) => void;
-  showCustomAlert: (message: string) => void;
+  onLoadToEditor: (sub: Submission) => void; // ✅ ADD THIS TYPE
 }) {
   const [viewing, setViewing] = useState<Submission | null>(null);
   const [comment, setComment] = useState("");
@@ -2005,15 +2073,18 @@ function SubmissionTab({
   };
 
   const itemsPerPage = 10;
+
   const filteredSubmissions = submissions.filter((s) =>
     `${s.id} ${s.title ?? ""} ${s.status} ${s.language}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
+
   const paginatedSubmissions = filteredSubmissions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
   const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
 
   const viewDetail = async (s: Submission) => {
@@ -2022,7 +2093,7 @@ function SubmissionTab({
       const full = await fetchSubmissionDetail(s.id);
       setViewing(full);
     } catch {
-      showCustomAlert("Could not load details");
+      alert("Could not load details");
     } finally {
       setLoading(false);
     }
@@ -2036,7 +2107,7 @@ function SubmissionTab({
       const fresh = await fetchSubmissionDetail(viewing.id);
       setViewing(fresh);
     } catch {
-      showCustomAlert("Comment failed");
+      alert("Comment failed");
     }
   };
 
@@ -2045,6 +2116,7 @@ function SubmissionTab({
       <CardHeader>
         <CardTitle className="text-lg sm:text-xl">Code Submission</CardTitle>
       </CardHeader>
+
       <CardContent className="flex-1 flex flex-col gap-4">
         <div className="select-trigger">
           <Select value={selectedLesson} onValueChange={setSelectedLesson}>
@@ -2060,17 +2132,21 @@ function SubmissionTab({
             </SelectContent>
           </Select>
         </div>
+
+        {/* ✅ Title input */}
         <Input
           placeholder="Submission title (optional)"
           value={submissionTitle}
           onChange={(e) => setSubmissionTitle(e.target.value)}
         />
+
         <Button
           onClick={handleSubmitClick}
           disabled={!selectedLesson || isSubmitting}>
           {isSubmitting && <Spinner size="sm" className="mr-2" />}
           {isSubmitting ? "Submitting..." : "Submit Code"}
         </Button>
+
         {submissions.length > 0 && (
           <div className="space-y-4">
             <Input
@@ -2081,10 +2157,12 @@ function SubmissionTab({
                 setCurrentPage(1);
               }}
             />
+
             <div className="border rounded-md p-3 space-y-2">
               <p className="text-sm font-medium">
                 {role === "teacher" ? "All submissions" : "My submissions"}
               </p>
+
               {paginatedSubmissions.map((s) => (
                 <div
                   key={s.id}
@@ -2098,8 +2176,10 @@ function SubmissionTab({
                       {s.language})
                     </span>
                   </div>
+
                   <div className="flex items-center gap-2">
                     <span className="text-xs">{s.score ?? "-"} pts</span>
+
                     <Button
                       size="sm"
                       variant="outline"
@@ -2113,6 +2193,7 @@ function SubmissionTab({
                 </div>
               ))}
             </div>
+
             <div className="flex justify-between mt-4 flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -2133,6 +2214,7 @@ function SubmissionTab({
             </div>
           </div>
         )}
+
         {viewing && (
           <Card className="border rounded-md p-3 space-y-3">
             <CardHeader className="flex items-center justify-between">
@@ -2146,12 +2228,14 @@ function SubmissionTab({
                 Close
               </Button>
             </CardHeader>
+
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="col-span-2">
                   <span className="font-medium">Title:</span>{" "}
                   {viewing.title || "N/A"}
                 </div>
+
                 <div>
                   <span className="font-medium">Status:</span> {viewing.status}
                 </div>
@@ -2178,12 +2262,14 @@ function SubmissionTab({
                   {new Date(viewing.created_at).toLocaleString()}
                 </div>
               </div>
+
               <div>
                 <span className="font-medium block mb-1">Code:</span>
                 <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto">
                   {viewing.code_text}
                 </pre>
               </div>
+
               {viewing.feedback && (
                 <div>
                   <span className="font-medium block mb-1">Feedback:</span>
@@ -2192,6 +2278,7 @@ function SubmissionTab({
                   </p>
                 </div>
               )}
+
               {viewing.correction_code && (
                 <div>
                   <span className="font-medium block mb-1">Correction:</span>
@@ -2200,11 +2287,13 @@ function SubmissionTab({
                   </pre>
                 </div>
               )}
+
               <div className="space-y-2">
                 <p className="text-xs font-medium flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
                   Comments
                 </p>
+
                 {viewing.comments.map((c) => (
                   <div key={c.id} className="text-xs bg-muted p-2 rounded">
                     <span className="font-semibold">{c.author_name}</span> (
@@ -2215,6 +2304,7 @@ function SubmissionTab({
                     </div>
                   </div>
                 ))}
+
                 <div className="flex gap-2 flex-col sm:flex-row">
                   <Input
                     placeholder="Write a comment…"
@@ -2233,6 +2323,7 @@ function SubmissionTab({
             </CardContent>
           </Card>
         )}
+
         {loading && <Spinner size="sm" />}
       </CardContent>
     </Card>
