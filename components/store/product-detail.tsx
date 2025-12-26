@@ -68,7 +68,7 @@ import {useCart} from "@/providers/CartProvider";
 import {useRouter} from "next/navigation";
 
 export function ProductDetail({product}: {product: any}) {
-  const {addToCart, setBuyNowProduct, cart} = useCart();
+  const {addToCart, setBuyNowProduct} = useCart();
   const router = useRouter();
 
   const handleAddToCart = () => {
@@ -143,7 +143,7 @@ export function ProductDetail({product}: {product: any}) {
           onClick={() => router.push("/store?tab=cart")}
           className="rounded-full shadow-lg"
           size="lg">
-          Cart {cart?.length > 0 ? `(${cart.length})` : ""}
+          Cart
         </Button>
       </div>
     </>
