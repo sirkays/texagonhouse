@@ -17,7 +17,11 @@ export function ProductCatalog() {
   const router = useRouter();
   const { addToCart } = useCart();
 
+  // ✅ UI input value (typing does NOT trigger search)
+  const [searchInput, setSearchInput] = useState("");
+  // ✅ Actual query used for fetching (only updates on button click)
   const [searchQuery, setSearchQuery] = useState("");
+
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
   const [products, setProducts] = useState<any[]>([]);
@@ -59,11 +63,19 @@ export function ProductCatalog() {
       cancelled = true;
     };
   }, [router]);
+
   const formatCurrency = (amount: any) =>
     amount.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-  });
+    });
+
+  // ✅ Trigger search ONLY when the button is clicked
+  const handleSearch = () => {
+    // if user is already on page > 1 and searching, reset pagination via effect
+    setSearchQuery(searchInput.trim());
+  };
+
   // Reset product list when filters/search/sort change
   useEffect(() => {
     setProducts([]);
@@ -187,16 +199,15 @@ export function ProductCatalog() {
               </div>
 
               <div className="text-xs text-gray-600">
-                or 4 payments of ₦{formatCurrency(parseFloat(product.price) / 4)}
+                or 4 payments of ₦
+                {formatCurrency(parseFloat(product.price) / 4)}
               </div>
             </div>
-
           </div>
         </div>
       </div>
     );
   };
-
 
   const isInitialLoading =
     (loadingCategories && categories.length === 0) ||
@@ -205,24 +216,43 @@ export function ProductCatalog() {
   return (
     <div className="space-y-6 mt-8 mx-auto" style={{ width: "90%" }}>
       <div>
-        <h1 className="text-3xl font-bold">Educational Store</h1>
+        <h1 className="text-3xl font-bold">Texagon Store</h1>
         <p className="text-muted-foreground">
-          Discover courses, books, and tools to accelerate your learning
+          Purchase premium gadgets and accessories.
         </p>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 mt-4 mb-6 w-full">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none"
+        {/* ✅ Search input + Search button */}
+        <div className="relative flex-1 flex items-stretch gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none"
+              disabled={loadingProducts}
+            />
+          </div>
+
+          <Button
+            type="button"
+            className="bg-orange-500 text-white hover:bg-orange-600"
+            onClick={handleSearch}
             disabled={loadingProducts}
-          />
+          >
+            {loadingProducts ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Searching…
+              </>
+            ) : (
+              "Search"
+            )}
+          </Button>
         </div>
 
         <select
