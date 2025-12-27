@@ -1,10 +1,11 @@
 // app/api/store/cart/add/route.ts
-export const runtime = "nodejs"; // <--- Add this line to force Node.js runtime
+export const runtime = "nodejs";
 
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
+//const BASE_URL = "http://127.0.0.1:9098/store/api"
 const BASE_URL = "https://texagonbackend.onrender.com/store/api";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
@@ -22,7 +23,6 @@ export async function POST(req: Request) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-
     const response = await fetch(`${BASE_URL}/cart/add/`, {
       method: "POST",
       headers: headers(sessionToken ? sessionToken : undefined),

@@ -5,6 +5,7 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {unstable_noStore as noStore} from "next/cache";
 
+//const BASE_URL = "http://127.0.0.1:9098/store/api";
 const BASE_URL = "https://texagonbackend.onrender.com/store/api";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
-    const response = await fetch(fullUrl, {
+    const response = await fetch(`${fullUrl}/`, {
       method: "GET",
       headers: headers(sessionToken ? sessionToken : undefined),
     });

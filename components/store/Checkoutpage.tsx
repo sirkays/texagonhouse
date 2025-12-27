@@ -352,73 +352,7 @@ export default function CheckoutPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment Information
-              </CardTitle>
-              <CardDescription>
-                Enter your payment details securely
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cardNumber">Card Number</Label>
-                  <Input
-                    id="cardNumber"
-                    placeholder="1234 5678 9012 3456"
-                    value={formData.cardNumber}
-                    onChange={(e) =>
-                      setFormData({...formData, cardNumber: e.target.value})
-                    }
-                    required
-                  />
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cardName">Cardholder Name</Label>
-                  <Input
-                    id="cardName"
-                    placeholder="Name on card"
-                    value={formData.cardName}
-                    onChange={(e) =>
-                      setFormData({...formData, cardName: e.target.value})
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiryDate">Expiry Date</Label>
-                    <Input
-                      id="expiryDate"
-                      placeholder="MM/YY"
-                      value={formData.expiryDate}
-                      onChange={(e) =>
-                        setFormData({...formData, expiryDate: e.target.value})
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input
-                      id="cvv"
-                      placeholder="123"
-                      value={formData.cvv}
-                      onChange={(e) =>
-                        setFormData({...formData, cvv: e.target.value})
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="lg:col-span-1">

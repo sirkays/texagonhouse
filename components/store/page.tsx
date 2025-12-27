@@ -1,8 +1,8 @@
 // app/store/checkout/page.tsx
 "use client";
 
-import {useEffect, useState} from "react";
-import {useRouter} from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -10,14 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Separator} from "@/components/ui/separator";
-import {Badge} from "@/components/ui/badge";
-import {ArrowLeft, CreditCard, Trash2, ShoppingBag} from "lucide-react";
-import {useToast} from "@/hooks/use-toast";
-import {useCart} from "@/providers/CartProvider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Trash2, ShoppingBag, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/providers/CartProvider";
 import {
   Select,
   SelectContent,
@@ -28,23 +28,26 @@ import {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const {toast} = useToast();
+  const { toast } = useToast();
+
   const {
     cartItems,
     updateQuantity,
     removeFromCart,
     buyNowProduct,
     setBuyNowProduct,
+    isCartMutating, // ✅ from CartProvider
   } = useCart();
+
   const displayItems = buyNowProduct ? [buyNowProduct] : cartItems;
 
+  // ✅ Contact info (phone only) + address + dummy card fields
   const [formData, setFormData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
+    phoneNumber: "",
     address: "",
     city: "",
     state: "",
+    area: "",
     zipCode: "",
     country: "US",
     cardNumber: "",
@@ -61,12 +64,18 @@ export default function CheckoutPage() {
     string | null
   >(null);
 
+  // ✅ Place Order loading
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  // ✅ Disable cart editing while mutating or placing order
+  const uiLocked = isCartMutating || isPlacingOrder;
+
   useEffect(() => {
     const fetchAddresses = async () => {
       const res = await fetch("/api/store/addresses");
       if (res.ok) {
         const data = await res.json();
-        setAddresses(data.results);
+        setAddresses(data.results || []);
       } else if (res.status === 401) {
         router.push("/login");
       }
@@ -74,83 +83,120 @@ export default function CheckoutPage() {
     fetchAddresses();
   }, [router]);
 
+  // ✅ Example options (replace with your real list)
+  const STATES = useMemo(() => ["Lagos", "Abuja (FCT)", "Rivers", "Kano"], []);
+
+  const AREAS_BY_STATE = useMemo(
+    () => ({
+      Lagos: ["Ikeja", "Lekki", "Yaba", "Surulere"],
+      "Abuja (FCT)": ["Garki", "Wuse", "Maitama", "Gwarinpa"],
+      Rivers: ["Port Harcourt", "Obio-Akpor"],
+      Kano: ["Nassarawa", "Fagge"],
+    }),
+    []
+  );
+
+  const areasForSelectedState = (AREAS_BY_STATE as any)[formData.state] ?? [];
+
+  // Totals
   const subtotal = displayItems.reduce(
-    (sum: any, item: any) => sum + item.price * item.quantity,
+    (sum: number, item: any) => sum + Number(item.price) * Number(item.quantity),
     0
   );
-  const shipping = displayItems.some((item) => item.type === "physical")
+  const shipping = displayItems.some((item: any) => item.type === "physical")
     ? 9.99
     : 0;
   const tax = subtotal * 0.08;
   const total = subtotal + shipping + tax;
 
-  const handleRemoveItem = (id: number) => {
-    if (buyNowProduct && buyNowProduct.id === id) {
+  const handleRemoveItem = (id: any) => {
+    if (uiLocked) return;
+
+    if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
       setBuyNowProduct(null);
     } else {
-      removeFromCart(id);
+      removeFromCart(String(id) as any);
     }
-    toast({title: "Item Removed", description: "Item removed from cart"});
+    toast({ title: "Item Removed", description: "Item removed from cart" });
   };
 
-  const handleQuantityChange = (id: number, newQuantity: number) => {
+  const handleQuantityChange = (id: any, newQuantity: number) => {
+    if (uiLocked) return;
     if (newQuantity < 1) return;
-    if (buyNowProduct && buyNowProduct.id === id) {
-      setBuyNowProduct({...buyNowProduct, quantity: newQuantity});
+
+    if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
+      setBuyNowProduct({ ...buyNowProduct, quantity: newQuantity });
     } else {
-      updateQuantity(id, newQuantity);
+      updateQuantity(String(id) as any, newQuantity);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let billingId = selectedBillingAddress;
-    let shippingId = selectedShippingAddress;
 
-    if (!billingId) {
-      const res = await fetch("/api/store/addresses", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          full_name: `${formData.firstName} ${formData.lastName}`,
-          line1: formData.address,
-          city: formData.city,
-          state: formData.state,
-          postal_code: formData.zipCode,
-          country: formData.country,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        billingId = data.id;
-      } else {
-        toast({variant: "destructive", title: "Error creating address"});
-        return;
+    // ✅ prevent double submit / submitting while cart mutation is running
+    if (isPlacingOrder || isCartMutating) return;
+
+    setIsPlacingOrder(true);
+    try {
+      let billingId = selectedBillingAddress;
+      let shippingId = selectedShippingAddress;
+
+      // Create billing address if not selected
+      if (!billingId) {
+        const res = await fetch("/api/store/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            full_name: "Customer",
+            line1: formData.address,
+            city: formData.city,
+            state: formData.state,
+            postal_code: formData.zipCode,
+            country: formData.country,
+
+            // optional fields
+            phone_number: formData.phoneNumber,
+            area: formData.area,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          billingId = String(data.id);
+        } else {
+          toast({ variant: "destructive", title: "Error creating address" });
+          return;
+        }
       }
-    }
 
-    if (!shippingId) shippingId = billingId;
+      if (!shippingId) shippingId = billingId;
 
-    const body = {
-      billing_address_id: billingId,
-      shipping_address_id: shippingId,
-    };
+      const body = {
+        billing_address_id: billingId,
+        shipping_address_id: shippingId,
+      };
 
-    const res = await fetch("/api/store/checkout/create-order", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(body),
-    });
-
-    if (res.ok) {
-      toast({
-        title: "Order Placed Successfully!",
-        description: `Your order of $${total.toFixed(2)} has been confirmed.`,
+      const res = await fetch("/api/store/checkout/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
-      setBuyNowProduct(null);
-      setTimeout(() => router.push("/store"), 2000);
-    } else {
-      toast({variant: "destructive", title: "Failed to create order"});
+
+      if (res.ok) {
+        toast({
+          title: "Order Placed Successfully!",
+          description: `Your order of $${total.toFixed(2)} has been confirmed.`,
+        });
+        setBuyNowProduct(null);
+        setTimeout(() => router.push("/store"), 2000);
+      } else {
+        toast({ variant: "destructive", title: "Failed to create order" });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Something went wrong" });
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -172,32 +218,35 @@ export default function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-2 space-y-4 md:space-y-6">
+          {/* Contact info */}
           <Card>
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>
               <CardDescription>
-                We'll use this to send order confirmations
+                We'll use this to contact you about delivery
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
+                    id="phoneNumber"
+                    type="tel"
+                    placeholder="e.g. 08012345678"
+                    value={formData.phoneNumber}
                     onChange={(e) =>
-                      setFormData({...formData, email: e.target.value})
+                      setFormData({ ...formData, phoneNumber: e.target.value })
                     }
                     required
+                    disabled={uiLocked}
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Shipping information */}
           <Card>
             <CardHeader>
               <CardTitle>Shipping Information</CardTitle>
@@ -211,7 +260,9 @@ export default function CheckoutPage() {
                   value={selectedShippingAddress || ""}
                   onValueChange={(val) =>
                     setSelectedShippingAddress(val === "new" ? null : val)
-                  }>
+                  }
+                  disabled={uiLocked}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select shipping address" />
                   </SelectTrigger>
@@ -221,130 +272,116 @@ export default function CheckoutPage() {
                         {addr.full_name} - {addr.line1}, {addr.city}
                       </SelectItem>
                     ))}
-                    {/* Keep UI identical, only change value internally */}
                     <SelectItem value="new">Create new address</SelectItem>
                   </SelectContent>
                 </Select>
 
                 {!selectedShippingAddress && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <>
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
+                      <Label htmlFor="address">Street Address</Label>
                       <Input
-                        id="firstName"
-                        value={formData.firstName}
+                        id="address"
+                        value={formData.address}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            firstName: e.target.value,
-                          })
+                          setFormData({ ...formData, address: e.target.value })
                         }
                         required
+                        disabled={uiLocked}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        value={formData.lastName}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            lastName: e.target.value,
-                          })
-                        }
-                        required
-                      />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          value={formData.city}
+                          onChange={(e) =>
+                            setFormData({ ...formData, city: e.target.value })
+                          }
+                          required
+                          disabled={uiLocked}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>State</Label>
+                        <Select
+                          value={formData.state}
+                          onValueChange={(val) =>
+                            setFormData({
+                              ...formData,
+                              state: val,
+                              area: "",
+                            })
+                          }
+                          disabled={uiLocked}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Area</Label>
+                        <Select
+                          value={formData.area}
+                          onValueChange={(val) =>
+                            setFormData({ ...formData, area: val })
+                          }
+                          disabled={uiLocked || !formData.state}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                formData.state
+                                  ? "Select area"
+                                  : "Select state first"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {areasForSelectedState.map((a: string) => (
+                              <SelectItem key={a} value={a}>
+                                {a}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">Zip / Postal Code</Label>
+                        <Input
+                          id="zipCode"
+                          value={formData.zipCode}
+                          onChange={(e) =>
+                            setFormData({ ...formData, zipCode: e.target.value })
+                          }
+                          required
+                          disabled={uiLocked}
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
-
-                {!selectedShippingAddress && (
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Street Address</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData({...formData, address: e.target.value})
-                      }
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment Information
-              </CardTitle>
-              <CardDescription>
-                Enter your payment details securely
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cardNumber">Card Number</Label>
-                  <Input
-                    id="cardNumber"
-                    placeholder="1234 5678 9012 3456"
-                    value={formData.cardNumber}
-                    onChange={(e) =>
-                      setFormData({...formData, cardNumber: e.target.value})
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cardName">Cardholder Name</Label>
-                  <Input
-                    id="cardName"
-                    placeholder="Name on card"
-                    value={formData.cardName}
-                    onChange={(e) =>
-                      setFormData({...formData, cardName: e.target.value})
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiryDate">Expiry Date</Label>
-                    <Input
-                      id="expiryDate"
-                      placeholder="MM/YY"
-                      value={formData.expiryDate}
-                      onChange={(e) =>
-                        setFormData({...formData, expiryDate: e.target.value})
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input
-                      id="cvv"
-                      placeholder="123"
-                      value={formData.cvv}
-                      onChange={(e) =>
-                        setFormData({...formData, cvv: e.target.value})
-                      }
-                      required
-                    />
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Order Summary */}
         <div className="lg:col-span-1">
           <Card className="sticky top-4">
             <CardHeader>
@@ -355,65 +392,73 @@ export default function CheckoutPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                {displayItems.map((item) => (
-                  <div
-                    key={item.cartItemId || item.id}
-                    className="flex gap-3 p-3 border rounded-lg">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 rounded object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm line-clamp-2">
-                        {item.name}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-1">
+                {displayItems.map((item: any) => {
+                  const key = item.cartItemId || item.id;
+                  const id = item.cartItemId || item.id;
+
+                  return (
+                    <div key={key} className="flex gap-3 p-3 border rounded-lg">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 rounded object-cover flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm line-clamp-2">
+                          {item.name}
+                        </h4>
+
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-6 w-6 bg-transparent"
+                              disabled={uiLocked}
+                              onClick={() =>
+                                handleQuantityChange(id, item.quantity - 1)
+                              }
+                            >
+                              -
+                            </Button>
+
+                            <span className="text-sm w-8 text-center">
+                              {item.quantity}
+                            </span>
+
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-6 w-6 bg-transparent"
+                              disabled={uiLocked}
+                              onClick={() =>
+                                handleQuantityChange(id, item.quantity + 1)
+                              }
+                            >
+                              +
+                            </Button>
+                          </div>
+
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="h-6 w-6 bg-transparent"
-                            onClick={() =>
-                              handleQuantityChange(
-                                item.cartItemId || item.id,
-                                item.quantity - 1
-                              )
-                            }>
-                            -
-                          </Button>
-                          <span className="text-sm w-8 text-center">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6 bg-transparent"
-                            onClick={() =>
-                              handleQuantityChange(
-                                item.cartItemId || item.id,
-                                item.quantity + 1
-                              )
-                            }>
-                            +
+                            className="h-6 w-6 ml-auto"
+                            disabled={uiLocked}
+                            onClick={() => handleRemoveItem(id)}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 ml-auto"
-                          onClick={() =>
-                            handleRemoveItem(item.cartItemId || item.id)
-                          }>
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
+
+                        <p className="text-sm font-semibold mt-1">
+                          ${(Number(item.price) * Number(item.quantity)).toFixed(
+                            2
+                          )}
+                        </p>
                       </div>
-                      <p className="text-sm font-semibold mt-1">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </p>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <Separator />
@@ -446,8 +491,21 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handleSubmit}>
-                Place Order - ${total.toFixed(2)}
+              {/* ✅ Loading on button when placing order OR cart is updating */}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSubmit}
+                disabled={uiLocked}
+              >
+                {uiLocked ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isPlacingOrder ? "Placing Order..." : "Updating Cart..."}
+                  </>
+                ) : (
+                  <>Place Order - ${total.toFixed(2)}</>
+                )}
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">

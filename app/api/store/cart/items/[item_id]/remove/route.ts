@@ -32,7 +32,7 @@ export async function DELETE(
   req: Request,
   {params}: {params: {item_id: string}}
 ) {
-  const fullUrl = `${BASE_URL}/cart/items/${params.item_id}/remove`;
+  const fullUrl = `${BASE_URL}/cart/items/${params.item_id}/remove/`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {

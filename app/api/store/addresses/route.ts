@@ -4,6 +4,7 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {unstable_noStore as noStore} from "next/cache";
 
+//const BASE_URL = "http://127.0.0.1:9098/store/api";
 const BASE_URL = "https://texagonbackend.onrender.com/store/api";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
@@ -32,7 +33,7 @@ interface AddressesResponse {
 
 export async function GET(req: Request) {
   noStore();
-  const fullUrl = `${BASE_URL}/addresses`;
+  const fullUrl = `${BASE_URL}/addresses/`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
@@ -89,9 +90,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const fullUrl = `${BASE_URL}/addresses`;
+  const fullUrl = `${BASE_URL}/addresses/`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
+  console.log(body, " body.... ")
   try {
     const response = await fetch(fullUrl, {
       method: "POST",
