@@ -1,8 +1,8 @@
 // app/store/checkout/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useRouter,useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -38,7 +38,7 @@ export default function CheckoutPage() {
     setBuyNowProduct,
     isCartMutating, // ✅ from CartProvider
   } = useCart();
-
+  const hasConfirmedRef = useRef(false);
   const displayItems = buyNowProduct ? [buyNowProduct] : cartItems;
 
   // ✅ Contact info (phone only) + address + dummy card fields
@@ -69,7 +69,20 @@ export default function CheckoutPage() {
 
   // ✅ Disable cart editing while mutating or placing order
   const uiLocked = isCartMutating || isPlacingOrder;
+  const searchParams = useSearchParams();
 
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const tx_ref = searchParams.get("tx_ref");
+    const transaction_id = searchParams.get("transaction_id");
+
+    if (status === "completed" && tx_ref && transaction_id) {
+      const invoice_id = localStorage.getItem("checkout_invoice_id");
+      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
+    }
+  }, [searchParams]);
+
+  
   useEffect(() => {
     const fetchAddresses = async () => {
       const res = await fetch("/api/store/addresses");
@@ -109,6 +122,39 @@ export default function CheckoutPage() {
   const tax = subtotal * 0.08;
   const total = subtotal + shipping + tax;
 
+
+  const validateCheckout = () => {
+    // must have phone
+    if (!formData.phoneNumber?.trim()) {
+      return { ok: false, message: "Phone number is required." };
+    }
+
+    // must have a shipping address selected OR new address fields filled
+    const usingSavedShipping = !!selectedShippingAddress;
+
+    if (!usingSavedShipping) {
+      if (!formData.address?.trim()) return { ok: false, message: "Street address is required." };
+      if (!formData.city?.trim()) return { ok: false, message: "City is required." };
+      if (!formData.state?.trim()) return { ok: false, message: "State is required." };
+      if (!formData.area?.trim()) return { ok: false, message: "Area is required." };
+      if (!formData.zipCode?.trim()) return { ok: false, message: "Postal code is required." };
+    }
+
+    // must have cart items
+    if (!displayItems?.length) {
+      return { ok: false, message: "Your cart is empty." };
+    }
+
+    return { ok: true as const };
+  };
+
+  const canPlaceOrder = useMemo(() => {
+    const v = validateCheckout();
+    return v.ok;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, selectedShippingAddress, displayItems.length]);
+
+
   const handleRemoveItem = (id: any) => {
     if (uiLocked) return;
 
@@ -131,18 +177,26 @@ export default function CheckoutPage() {
     }
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // ✅ prevent double submit / submitting while cart mutation is running
     if (isPlacingOrder || isCartMutating) return;
 
+    const v = validateCheckout();
+    if (!v.ok) {
+      toast({ variant: "destructive", title: "Incomplete checkout", description: v.message });
+      return;
+    }
+
     setIsPlacingOrder(true);
+
     try {
+      // -------------------------
+      // A) Ensure addresses exist
+      // -------------------------
       let billingId = selectedBillingAddress;
       let shippingId = selectedShippingAddress;
 
-      // Create billing address if not selected
       if (!billingId) {
         const res = await fetch("/api/store/addresses", {
           method: "POST",
@@ -154,51 +208,197 @@ export default function CheckoutPage() {
             state: formData.state,
             postal_code: formData.zipCode,
             country: formData.country,
-
-            // optional fields
             phone_number: formData.phoneNumber,
             area: formData.area,
           }),
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          billingId = String(data.id);
-        } else {
-          toast({ variant: "destructive", title: "Error creating address" });
+        const addrData = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast({
+            variant: "destructive",
+            title: "Error creating address",
+            description: addrData?.detail || addrData?.error || "Could not create address",
+          });
           return;
         }
+        billingId = String(addrData.id);
       }
 
       if (!shippingId) shippingId = billingId;
 
-      const body = {
+      // -------------------------
+      // B) Create order FIRST
+      // -------------------------
+      const createOrderPayload = {
         billing_address_id: billingId,
         shipping_address_id: shippingId,
+        phone_number: formData.phoneNumber,
+
       };
 
-      const res = await fetch("/api/store/checkout/create-order", {
+      const orderRes = await fetch("/api/store/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(createOrderPayload),
       });
 
-      if (res.ok) {
+      const orderData = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok) {
         toast({
-          title: "Order Placed Successfully!",
-          description: `Your order of $${total.toFixed(2)} has been confirmed.`,
+          variant: "destructive",
+          title: "Failed to create order",
+          description: orderData?.detail || orderData?.error || "Order creation failed",
         });
-        setBuyNowProduct(null);
-        setTimeout(() => router.push("/store"), 2000);
-      } else {
-        toast({ variant: "destructive", title: "Failed to create order" });
+        return;
       }
-    } catch {
-      toast({ variant: "destructive", title: "Something went wrong" });
+
+      // You MUST have order id from backend
+      
+      const orderId = orderData?.id || orderData?.order_id;
+      if (!orderId) {
+        toast({
+          variant: "destructive",
+          title: "Order created but missing order_id",
+          description: "Backend did not return order id",
+        });
+        return;
+      }
+
+      // amount: use backend total if returned, else fallback to frontend computed total
+      const amountToPay = orderData?.total_amount ?? orderData?.amount ?? total;
+
+      // -------------------------
+      // C) Create payment link (billing)
+      // -------------------------
+      const redirect_url = `${window.location.origin}/store/checkout`;
+
+      const paymentPayload = {
+        redirect_url,
+        is_store_payment: true,
+
+        amount: amountToPay.toFixed(2),
+        order_id: orderId,
+
+        // still needed because your Django code does `.split(",")`
+        item_list: displayItems.map((i: any) => i.id).join(","),
+
+        payment_title: "Store Checkout",
+      };
+
+      // IMPORTANT: use /api/billing (your unified route), NOT /api/store/payments
+      const payRes = await fetch("/api/billing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentPayload),
+      });
+
+      const payData = await payRes.json().catch(() => ({}));
+      if (!payRes.ok) {
+        toast({
+          variant: "destructive",
+          title: "Payment initialization failed",
+          description: payData?.detail || payData?.error || "Unable to create payment link",
+        });
+        return;
+      }
+
+      const link = payData?.payment_link;
+      const invoiceId = payData?.invoice_id;
+
+      if (invoiceId) {
+        localStorage.setItem("checkout_invoice_id", String(invoiceId));
+      }
+      
+
+      if (!link) {
+        toast({
+          variant: "destructive",
+          title: "Payment link missing",
+          description: "Backend did not return payment_link",
+        });
+        return;
+      }
+
+      // Redirect to gateway
+      window.location.href = link;
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: err?.message || "Could not start checkout",
+      });
     } finally {
       setIsPlacingOrder(false);
     }
   };
+
+
+
+  const confirmPayment = async (
+    tx_ref: string,
+    transaction_id: string,
+    invoice_id?: string
+    
+  ) => {
+    if (hasConfirmedRef.current) return;
+    hasConfirmedRef.current = true;
+
+    setIsPlacingOrder(true);
+    try {
+        const payload: any = {
+          status: "completed",
+          tx_ref,
+          transaction_id,
+        };
+
+      if (invoice_id) payload.invoice_id = invoice_id;
+
+      const res = await fetch("/api/billing?action=confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        hasConfirmedRef.current = false;
+        toast({
+          variant: "destructive",
+          title: "Payment confirmation failed",
+          description: data?.detail || data?.error || "Could not confirm payment",
+        });
+        return;
+      }
+
+      toast({
+        title: "Payment Confirmed!",
+        description: "Your order has been confirmed successfully.",
+      });
+
+      localStorage.removeItem("checkout_invoice_id");
+
+      setBuyNowProduct(null);
+
+      // Optional: remove params so refresh doesn't run again
+      router.replace("/store/checkout");
+      setTimeout(() => router.push("/store"), 1200);
+    } catch (err: any) {
+      hasConfirmedRef.current = false;
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: err?.message || "Could not confirm payment",
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto py-5">
@@ -496,8 +696,9 @@ export default function CheckoutPage() {
                 className="w-full"
                 size="lg"
                 onClick={handleSubmit}
-                disabled={uiLocked}
+                disabled={uiLocked || !canPlaceOrder}
               >
+
                 {uiLocked ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
