@@ -16,6 +16,8 @@ export function ShoppingCart() {
   const { toast } = useToast();
   const {
     cartItems,
+    cartSummary,
+    refreshCart, // ✅ ADD THIS
     updateQuantity,
     removeFromCart,
     getTotalItems,
@@ -27,13 +29,14 @@ export function ShoppingCart() {
   const [isCheckoutPending, startCheckoutTransition] = useTransition();
 
   // --- Calculations ---
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + parseFloat(item.price || "0") * item.quantity,
-    0
-  );
-  const shipping = cartItems.some((i) => i.type === "physical") ? 9.99 : 0;
-  const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+  const subtotal = Number(cartSummary?.subtotal || 0);
+  const discount = Number(cartSummary?.discount_total || 0);
+  const discountedSubtotal = Number(cartSummary?.grand_total || 0);
+
+  const shipping = Number(cartSummary?.shipping_total || 0);
+  const tax = Number(cartSummary?.tax_total || 0);
+  const total = Number(cartSummary?.payable_total || 0);
+
 
   // --- Handlers ---
   const handleQuantityChange = (id: string, delta: number) => {
@@ -67,7 +70,9 @@ export function ShoppingCart() {
       if (res.ok) {
         toast({ title: "Success", description: "Coupon applied!" });
         setCoupon("");
-      } else {
+        await refreshCart();
+      }
+      else {
         toast({ variant: "destructive", title: "Invalid coupon" });
       }
     } catch {
@@ -206,6 +211,14 @@ export function ShoppingCart() {
           <span>Subtotal</span>
           <span className="font-medium">₦{formatCurrency(subtotal)}</span>
         </div>
+        {discount > 0 && (
+          <div className="flex justify-between">
+            <span>
+              Discount {cartSummary?.coupon ? `(${cartSummary.coupon})` : ""}
+            </span>
+            <span className="font-medium">-₦{formatCurrency(discount)}</span>
+          </div>
+        )}
 
         <div className="flex justify-between">
           <span>Shipping</span>

@@ -1,4 +1,4 @@
-// app/store/checkout/page.tsx
+// app/store/checkout/CheckoutClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
@@ -32,6 +32,7 @@ export default function CheckoutPage() {
 
   const {
     cartItems,
+    cartSummary,
     updateQuantity,
     removeFromCart,
     buyNowProduct,
@@ -71,6 +72,7 @@ export default function CheckoutPage() {
   const uiLocked = isCartMutating || isPlacingOrder;
   const searchParams = useSearchParams();
 
+  
   useEffect(() => {
     const status = searchParams.get("status");
     const tx_ref = searchParams.get("tx_ref");
@@ -112,15 +114,24 @@ export default function CheckoutPage() {
   const areasForSelectedState = (AREAS_BY_STATE as any)[formData.state] ?? [];
 
   // Totals
-  const subtotal = displayItems.reduce(
+  const isBuyNow = !!buyNowProduct;
+
+  // 1) what items cost (fallback / buy-now)
+  const itemsSubtotal = displayItems.reduce(
     (sum: number, item: any) => sum + Number(item.price) * Number(item.quantity),
     0
   );
-  const shipping = displayItems.some((item: any) => item.type === "physical")
-    ? 9.99
-    : 0;
-  const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+
+  // 2) backend totals (cart mode)
+  const subtotal = Number(cartSummary?.subtotal || 0);
+  const discount = Number(cartSummary?.discount_total || 0);
+  const discountedSubtotal = Number(cartSummary?.grand_total || 0);
+
+  const shipping = Number(cartSummary?.shipping_total || 0);
+  const tax = Number(cartSummary?.tax_total || 0);
+  const total = Number(cartSummary?.payable_total || 0);
+
+
 
 
   const validateCheckout = () => {
@@ -197,7 +208,7 @@ export default function CheckoutPage() {
       let billingId = selectedBillingAddress;
       let shippingId = selectedShippingAddress;
 
-      if (!billingId) {
+      if (!billingId && !shippingId) {
         const res = await fetch("/api/store/addresses", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -225,8 +236,11 @@ export default function CheckoutPage() {
         billingId = String(addrData.id);
       }
 
-      if (!shippingId) shippingId = billingId;
 
+      if (!billingId) billingId = shippingId;
+
+      if (!shippingId) shippingId = billingId;
+      
       // -------------------------
       // B) Create order FIRST
       // -------------------------
@@ -253,7 +267,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // You MUST have order id from backend
       
       const orderId = orderData?.id || orderData?.order_id;
       if (!orderId) {
@@ -266,7 +279,13 @@ export default function CheckoutPage() {
       }
 
       // amount: use backend total if returned, else fallback to frontend computed total
-      const amountToPay = orderData?.total_amount ?? orderData?.amount ?? total;
+      const totalToPayFromCart = Number(cartSummary?.payable_total || 0);
+
+      const amountToPay =
+        orderData?.total_amount ??
+        orderData?.amount ??
+        (buyNowProduct ? total : totalToPayFromCart);
+
 
       // -------------------------
       // C) Create payment link (billing)
@@ -668,6 +687,15 @@ export default function CheckoutPage() {
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-medium">${subtotal.toFixed(2)}</span>
                 </div>
+                {!buyNowProduct && discount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Discount {cartSummary?.coupon ? `(${cartSummary.coupon})` : ""}
+                    </span>
+                    <span className="font-medium">- ${discount.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className="font-medium">

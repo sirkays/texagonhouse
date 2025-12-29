@@ -93,7 +93,6 @@ export async function POST(req: Request) {
   const fullUrl = `${BASE_URL}/addresses/`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
-  console.log(body, " body.... ")
   try {
     const response = await fetch(fullUrl, {
       method: "POST",
