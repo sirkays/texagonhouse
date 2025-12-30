@@ -15,14 +15,18 @@ const headers = (sessionToken: string | undefined) => ({
 });
 
 interface CreateOrderRequest {
-  billing_address_id?: string;
-  shipping_address_id?: string;
+  billing_address_id?: string | null;
+  shipping_address_id?: string | null;
+  phone_number?: string | null;
+
+  // ✅ BNPL additions
+  is_bnpl?: boolean;
+  bnpl_plan_id?: string | null;
+  product_id?: string | null;
+  quantity?: number | null;
 }
 
-interface CreateOrderResponse {
-  order_id: string;
-  grand_total: string;
-}
+type AnyJson = Record<string, any>;
 
 export async function POST(req: Request) {
   noStore();
@@ -44,18 +48,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const fullUrl = `${BASE_URL}/checkout/create-order/`; // ✅ trailing slash
+  const fullUrl = `${BASE_URL}/checkout/create-order/`; // keep trailing slash
 
   try {
     const response = await fetch(fullUrl, {
       method: "POST",
       headers: headers(sessionToken),
-      body: JSON.stringify(body),
+      body: JSON.stringify(body), // ✅ forwards BNPL product_id + qty
     });
 
     const rawResponse = await response.text();
 
     if (!response.ok) {
+      // pass through backend message if possible
+      let backend: AnyJson = {};
+      try {
+        backend = JSON.parse(rawResponse);
+      } catch {}
+
       if (response.status === 401) {
         return NextResponse.json(
           { error: "Session expired", redirect: "/login" },
@@ -64,21 +74,24 @@ export async function POST(req: Request) {
       }
       if (response.status === 400) {
         return NextResponse.json(
-          { error: "Cart is empty or invalid addresses" },
+          { error: backend?.detail || backend?.error || "Invalid request" },
           { status: 400 }
         );
       }
       if (response.status === 403) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json(
+          { error: backend?.detail || backend?.error || "Forbidden" },
+          { status: 403 }
+        );
       }
 
       return NextResponse.json(
-        { error: "Failed to create order" },
+        { error: backend?.detail || backend?.error || "Failed to create order" },
         { status: response.status }
       );
     }
 
-    let data: CreateOrderResponse;
+    let data: AnyJson;
     try {
       data = JSON.parse(rawResponse);
     } catch {
@@ -88,16 +101,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const normalized: CreateOrderResponse = {
-      order_id: data.order_id || "",
-      grand_total: data.grand_total || "0",
+    // ✅ Normalize to match your CheckoutClient usage:
+    // it checks: orderData?.id || orderData?.order_id
+    const normalized = {
+      id: data?.id || data?.order_id || data?.orderId || "",
+      order_id: data?.order_id || data?.id || "",
+      grand_total: data?.grand_total || data?.grandTotal || data?.total_amount || "0.00",
+      total_amount: data?.total_amount || data?.grand_total || "0.00",
     };
 
     return NextResponse.json(normalized, { status: 201 });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to create order" },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }
