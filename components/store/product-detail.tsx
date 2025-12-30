@@ -208,7 +208,18 @@ export function ProductDetail({ product }: { product: any }) {
                 onClick={() => {
                   setBnplOpen(false);
                   setBuyNowProduct({ ...product, quantity: 1, payMethod: "bnpl" });
-                  router.push("/store/checkout?pay=bnpl");
+                  const pid = product.id;
+                  const qty = 1;
+
+                  try {
+                    localStorage.setItem("bnpl_last_product_id", String(pid));
+                    localStorage.setItem("bnpl_last_qty", String(qty));
+                  } catch {}
+
+                  setBuyNowProduct(null); // ✅ important: stop old item from winning
+
+                  router.push(`/store/checkout?pay=bnpl&product_id=${encodeURIComponent(pid)}&qty=${qty}`);
+
                 }}
                 disabled={!bnplData.eligible}
               >
