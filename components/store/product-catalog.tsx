@@ -154,11 +154,19 @@ export function ProductCatalog() {
             <button
               type="button"
               className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
+              onMouseDown={(e) => e.preventDefault()} // ✅ prevents focus shift (and scroll)
               onClick={async (e) => {
+                e.preventDefault();
                 e.stopPropagation();
+
+                const y = window.scrollY;          // ✅ remember scroll
                 await addToCart(product);
+                requestAnimationFrame(() => window.scrollTo(0, y)); // ✅ restore
+
                 toast.success(`${product.title} has been added to your cart.`);
               }}
+
+
             >
               <ShoppingCartIcon className="h-5 w-5 text-black" />
             </button>
