@@ -1,8 +1,8 @@
+//texagon_academy\texagonui\app\admin\store\page.tsx
 "use client";
 
-import {useState} from "react";
-import {useRouter} from "next/navigation";
-import DashboardLayout from "@/app/admin/layout";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -10,322 +10,418 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Input} from "@/components/ui/input";
-import {Plus, Search, ShoppingCart, Edit, Eye, Star} from "lucide-react";
-import {ProductModal} from "@/components/admin/modals/product-modal";
-import {OrderDetailsModal} from "@/components/admin/modals/order-details-modal";
-import {useToast} from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { Eye, PackagePlus, Plus, Search, Truck } from "lucide-react";
+
+// Modals (below)
+import { CreateShipmentModal } from "@/components/admin/modals/create-shipment-modal";
+import { SetTrackingModal } from "@/components/admin/modals/set-tracking-modal";
+import { AddTrackingEventModal } from "@/components/admin/modals/add-tracking-event-modal";
+import { OrderDetailsModal } from "@/components/admin/modals/order-details-modal";
+
+/**
+ * NOTE:
+ * - Products CRUD: NOT implemented now (just placeholder tab).
+ * - Orders: We'll load PAID orders and allow Shipment creation.
+ * - Shipments: We'll show shipments created (simple list).
+ */
+
+type OrderStatus = "pending" | "paid" | "fulfilled" | "cancelled";
+
+type OrderItem = {
+  id: string;
+  title: string;
+  sku?: string;
+  quantity: number;
+};
+
+type Address = {
+  full_name?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  phone?: string;
+};
+
+type Customer = {
+  id?: string | null;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+};
+
+type Order = {
+  id: string;
+  orderNumber: string;
+  customer: string; // keep for display
+  customerObj?: Customer; // ✅ add
+  shipping_address?: Address | null; // ✅ add
+  billing_address?: Address | null; // ✅ add
+  itemsCount: number;
+  total: number;
+  status: OrderStatus;
+  date: string;
+  items?: OrderItem[];
+};
+
+
+type ShipmentStatus =
+  | "pending"
+  | "ready"
+  | "in_transit"
+  | "out_for_delivery"
+  | "delivered"
+  | "exception"
+  | "returned"
+  | "cancelled";
+
+type Shipment = {
+  id: string;
+  order_id: string;
+  status: ShipmentStatus;
+  carrier_code: string;
+  tracking_number?: string;
+  tracking_url?: string;
+  label_url?: string;
+  shipped_at?: string;
+  delivered_at?: string;
+};
 
 export default function StorePage() {
   const router = useRouter();
-  const {toast} = useToast();
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      title: "Complete React Development Course",
-      description: "Master React from basics to advanced concepts",
-      sku: "COURSE-001",
-      category: "Courses",
-      price: 89.99,
-      salePrice: null,
-      stock: 999,
-      rating: 4.8,
-      reviews: 2847,
-      isDigital: true,
-      isActive: true,
-      image: "/.jpg?height=300&width=300&query=react course",
-    },
-    {
-      id: 2,
-      title: "Scientific Calculator Pro",
-      description: "Advanced scientific calculator for students",
-      sku: "CALC-001",
-      category: "Electronics",
-      price: 29.99,
-      salePrice: null,
-      stock: 45,
-      rating: 4.5,
-      reviews: 1234,
-      isDigital: false,
-      isActive: true,
-      image: "/.jpg?height=300&width=300&query=calculator",
-    },
-    {
-      id: 3,
-      title: "Chemistry Lab Kit Premium",
-      description: "Complete chemistry lab equipment set",
-      sku: "LAB-002",
-      category: "Lab Equipment",
-      price: 149.99,
-      salePrice: 129.99,
-      stock: 12,
-      rating: 4.9,
-      reviews: 567,
-      isDigital: false,
-      isActive: true,
-      image: "/.jpg?height=300&width=300&query=chemistry lab",
-    },
-    {
-      id: 4,
-      title: "Digital Textbook Bundle",
-      description: "Complete digital textbook collection",
-      sku: "BOOK-003",
-      category: "Books",
-      price: 99.99,
-      salePrice: null,
-      stock: 999,
-      rating: 4.7,
-      reviews: 3421,
-      isDigital: true,
-      isActive: true,
-      image: "/.jpg?height=300&width=300&query=textbooks",
-    },
-    {
-      id: 5,
-      title: "Professional Geometry Set",
-      description: "High-quality geometry tools for students",
-      sku: "GEO-004",
-      category: "Stationery",
-      price: 15.99,
-      salePrice: null,
-      stock: 78,
-      rating: 4.6,
-      reviews: 892,
-      isDigital: false,
-      isActive: true,
-      image: "/.jpg?height=300&width=300&query=geometry set",
-    },
-    {
-      id: 6,
-      title: "Premium School Uniform Set",
-      description: "Complete school uniform package",
-      sku: "UNI-006",
-      category: "Apparel",
-      price: 79.99,
-      salePrice: 69.99,
-      stock: 23,
-      rating: 4.4,
-      reviews: 456,
-      isDigital: false,
-      isActive: true,
-      image: "/.jpg?height=300&width=300&query=school uniform",
-    },
-  ]);
+  const { toast } = useToast();
 
-  const [recentOrders, setRecentOrders] = useState([
-    {
-      id: 1,
-      orderNumber: "ORD-2024-001",
-      customer: "John Doe",
-      items: 3,
-      total: 245.97,
-      status: "fulfilled",
-      date: "2024-03-15",
-    },
-    {
-      id: 2,
-      orderNumber: "ORD-2024-002",
-      customer: "Sarah Smith",
-      items: 1,
-      total: 29.99,
-      status: "paid",
-      date: "2024-03-16",
-    },
-    {
-      id: 3,
-      orderNumber: "ORD-2024-003",
-      customer: "Mike Johnson",
-      items: 2,
-      total: 179.98,
-      status: "pending",
-      date: "2024-03-17",
-    },
-  ]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [viewingOrder, setViewingOrder] = useState<any>(null);
-  const [cart, setCart] = useState<any[]>([]);
-
-  const filteredProducts = products.filter(
-    (product) =>
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "shipments">(
+    "orders"
   );
 
-  const handleSaveProduct = (product: any) => {
-    if (editingProduct) {
-      setProducts(products.map((p) => (p.id === product.id ? product : p)));
-      toast({title: "Success", description: "Product updated successfully"});
-    } else {
-      setProducts([...products, product]);
-      toast({title: "Success", description: "Product added successfully"});
-    }
-    setEditingProduct(null);
-  };
+  // Placeholder products list (keep your UI if you want, but CRUD not now)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [products] = useState<any[]>([]);
 
-  const handleAddToCart = (product: any) => {
-    setCart([...cart, product]);
-    toast({
-      title: "Added to Cart",
-      description: `${product.title} added to cart`,
-    });
-  };
+  // Paid orders + shipments
+  const [orders, setOrders] = useState<any[]>([]);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingShipments, setLoadingShipments] = useState(false);
 
-  const handleGoToCheckout = () => {
-    if (cart.length === 0) {
+  // Modals state
+  const [createShipmentOpen, setCreateShipmentOpen] = useState(false);
+  const [trackingOpen, setTrackingOpen] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
+
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+
+  const [viewingOrder, setViewingOrder] = useState<any>(null);
+
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        String(p.title || "").toLowerCase().includes(q) ||
+        String(p.category || "").toLowerCase().includes(q) ||
+        String(p.sku || "").toLowerCase().includes(q)
+    );
+  }, [products, searchQuery]);
+
+  async function loadPaidOrders() {
+    setLoadingOrders(true);
+    try {
+      const res = await fetch("/api/store/orders?status=paid", { cache: "no-store" });
+      const raw = await res.text();
+
+      if (!res.ok) throw new Error(raw || "Failed to load orders");
+
+      let json: any;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new Error("Orders API returned invalid JSON");
+      }
+
+      const results = Array.isArray(json?.results) ? json.results : [];
+
+      // ✅ Map backend fields -> UI fields
+      const mapped = results.map((o: any, idx: number) => {
+        const itemsArr = Array.isArray(o.items) ? o.items : [];
+        const totalNum = Number(o.grand_total ?? 0);
+
+        const customerFullName =
+          (o.customer?.full_name || "").trim() ||
+          (o.customer?.email || "").trim() ||
+          "—";
+
+        return {
+          id: String(o.id || ""),
+          orderNumber: `ORD-${String(o.created_at || "").slice(0, 10)}-${idx + 1}`,
+          customer: customerFullName,
+          customerObj: o.customer || null, // ✅
+          shipping_address: o.shipping_address || null, // ✅
+          billing_address: o.billing_address || null, // ✅
+          itemsCount: itemsArr.reduce((sum: number, it: any) => sum + Number(it.qty || 0), 0),
+          total: Number.isFinite(totalNum) ? totalNum : 0,
+          status: String(o.status || ""),
+          date: String(o.created_at || "").slice(0, 10),
+          items: itemsArr.map((it: any) => ({
+            id: String(it.id || ""),        // ✅ now should exist
+            title: String(it.title || ""),
+            sku: String(it.sku || ""),
+            quantity: Number(it.qty || 0),
+          })),
+        };
+      });
+
+
+      setOrders(mapped);
+    } catch (e: any) {
+      setOrders([]);
       toast({
-        title: "Cart Empty",
-        description: "Please add items to cart first",
+        title: "Orders",
+        description: e?.message || "Failed to load paid orders",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoadingOrders(false);
     }
-    router.push("/admin/store/checkout");
-  };
+  }
 
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`h-4 w-4 ${
-              star <= Math.floor(rating)
-                ? "fill-yellow-400 text-yellow-400"
-                : star - 0.5 <= rating
-                ? "fill-yellow-400/50 text-yellow-400"
-                : "fill-none text-gray-300"
-            }`}
-          />
-        ))}
-      </div>
-    );
-  };
 
-  const getStatusColor = (status: string) => {
+
+  async function loadShipments() {
+    setLoadingShipments(true);
+    try {
+      // OPTIONAL:
+      // If you have a list endpoint for shipments, hook it here.
+      // If not, you can omit this tab until you add a GET list endpoint.
+      const res = await fetch("/api/store/shipments", { cache: "no-store" });
+      if (res.status === 404) {
+        setShipments([]);
+        return;
+      }
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw || "Failed to load shipments");
+      setShipments(JSON.parse(raw) as Shipment[]);
+    } catch {
+      // keep quiet; shipments list might not exist yet
+      setShipments([]);
+    } finally {
+      setLoadingShipments(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "orders") loadPaidOrders();
+    if (activeTab === "shipments") loadShipments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const getOrderStatusVariant = (status: OrderStatus) => {
     switch (status) {
-      case "fulfilled":
-        return "default";
       case "paid":
         return "secondary";
+      case "fulfilled":
+        return "default";
       case "pending":
         return "outline";
       default:
-        return "secondary";
+        return "destructive";
     }
   };
 
+  const getShipmentStatusVariant = (status: ShipmentStatus) => {
+    switch (status) {
+      case "delivered":
+        return "default";
+      case "in_transit":
+      case "out_for_delivery":
+        return "secondary";
+      case "exception":
+      case "returned":
+      case "cancelled":
+        return "destructive";
+      default:
+        return "outline";
+    }
+  };
+
+  async function handleCreateShipment(payload: {
+    orderId: string;
+    carrier_code: string;
+    method_id?: string;
+    to: any;
+    items: { order_item_id: string; quantity: number }[];
+  }) {
+    try {
+      const res = await fetch(`/api/store/orders/${payload.orderId}/shipments/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          carrier_code: payload.carrier_code,
+          method_id: payload.method_id,
+          to: payload.to,
+          items: payload.items,
+        }),
+      });
+
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw || "Failed to create shipment");
+
+      const shipment = JSON.parse(raw) as Shipment;
+      toast({ title: "Shipment", description: "Shipment created successfully" });
+
+      setCreateShipmentOpen(false);
+      setSelectedOrder(null);
+
+      // refresh
+      if (activeTab === "orders") loadPaidOrders();
+      setShipments((prev) => [shipment, ...prev]);
+    } catch (e: any) {
+      toast({
+        title: "Shipment",
+        description: e?.message || "Failed to create shipment",
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleSetTracking(payload: {
+    shipmentId: string;
+    tracking_number: string;
+    tracking_url?: string;
+    label_url?: string;
+    label_cost?: string | number;
+    currency?: string;
+  }) {
+    try {
+      const res = await fetch(`/api/store/shipments/${payload.shipmentId}/set-tracking`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tracking_number: payload.tracking_number,
+          tracking_url: payload.tracking_url,
+          label_url: payload.label_url,
+          label_cost: payload.label_cost,
+          currency: payload.currency,
+        }),
+      });
+
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw || "Failed to set tracking");
+
+      const updated = JSON.parse(raw) as Shipment;
+      toast({ title: "Tracking", description: "Tracking updated" });
+
+      setTrackingOpen(false);
+      setSelectedShipment(updated);
+
+      setShipments((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (e: any) {
+      toast({
+        title: "Tracking",
+        description: e?.message || "Failed to set tracking",
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleAddEvent(payload: {
+    shipmentId: string;
+    event_code: string;
+    description?: string;
+    occurred_at?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postal_code?: string;
+    carrier_status?: string;
+  }) {
+    try {
+      const res = await fetch(`/api/store/shipments/${payload.shipmentId}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_code: payload.event_code,
+          description: payload.description,
+          occurred_at: payload.occurred_at,
+          city: payload.city,
+          state: payload.state,
+          country: payload.country,
+          postal_code: payload.postal_code,
+          carrier_status: payload.carrier_status,
+        }),
+      });
+
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw || "Failed to add event");
+
+      toast({ title: "Event", description: "Tracking event added" });
+      setEventOpen(false);
+
+      // If your backend advances shipment status from events, you may want to refresh shipment list
+      if (activeTab === "shipments") loadShipments();
+    } catch (e: any) {
+      toast({
+        title: "Event",
+        description: e?.message || "Failed to add tracking event",
+        variant: "destructive",
+      });
+    }
+  }
+
   return (
-    <>
-      <div className="space-y-4 md:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-              Store
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Manage products and orders
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleGoToCheckout}
-              className="relative bg-transparent">
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              Cart
-              {cart.length > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                  {cart.length}
-                </Badge>
-              )}
-            </Button>
-            <Button
-              onClick={() => {
-                setEditingProduct(null);
-                setIsProductModalOpen(true);
-              }}>
-              <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Add Product</span>
-            </Button>
-          </div>
+    <div className="space-y-4 md:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Store
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
+            Products (soon), Paid Orders → Shipments, Tracking Events
+          </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-                Total Products
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-foreground">
-                234
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-accent">+12</span> this month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-                Total Orders
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-foreground">
-                1,429
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-accent">+89</span> this month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-                Revenue
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-foreground">
-                $34,521
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-accent">+18%</span> from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-                Avg Order
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-foreground">
-                $24.15
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-accent">+5%</span> increase
-              </p>
-            </CardContent>
-          </Card>
+        {/* quick actions */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="bg-transparent"
+            onClick={() => router.push("/admin/store/checkout")}
+          >
+            <Truck className="mr-2 h-4 w-4" />
+            Checkout
+          </Button>
         </div>
+      </div>
 
-        {/* Search */}
-        <Card>
-          <CardContent className="pt-4 md:pt-6">
-            <div className="flex gap-2 md:gap-4">
-              <div className="relative flex-1">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
+        <TabsList className="grid grid-cols-3 w-full sm:w-[520px]">
+          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="orders">Paid Orders</TabsTrigger>
+          <TabsTrigger value="shipments">Shipments</TabsTrigger>
+        </TabsList>
+
+        {/* PRODUCTS (placeholder only) */}
+        <TabsContent value="products" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Products</CardTitle>
+              <CardDescription>
+                CRUD will be added here later (tab only for now).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search products..."
@@ -334,222 +430,242 @@ export default function StorePage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Products Grid - Replicated design from image.png with mobile-first responsive cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-          {filteredProducts.map((product) => (
-            <Card
-              key={product.id}
-              className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <CardContent className="p-0">
-                {/* Product Image */}
-                <div className="relative aspect-square bg-muted overflow-hidden">
-                  <img
-                    src={product.image || "/placeholder.svg"}
-                    alt={product.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {/* Cart Button - positioned like in the image */}
-                  <Button
-                    size="icon"
-                    className="absolute bottom-3 right-3 h-12 w-12 rounded-full shadow-lg bg-white hover:bg-white/90 text-foreground"
-                    onClick={() => handleAddToCart(product)}>
-                    <ShoppingCart className="h-5 w-5" />
-                  </Button>
-                  {/* Edit Button */}
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute top-3 right-3 h-9 w-9 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => {
-                      setEditingProduct(product);
-                      setIsProductModalOpen(true);
-                    }}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
+              <div className="text-sm text-muted-foreground">
+                Products UI/CRUD intentionally not implemented now.
+              </div>
+
+              {/* If you still want your product grid here, keep it,
+                  but remove local dummy state and replace with API later. */}
+              {filteredProducts.length === 0 && (
+                <div className="text-sm text-muted-foreground">
+                  No products loaded.
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                {/* Product Info */}
-                <div className="p-4 space-y-2">
-                  {/* Title */}
-                  <h3 className="font-medium text-sm md:text-base leading-tight line-clamp-2 min-h-[2.5rem]">
-                    {product.title}
-                  </h3>
+        {/* PAID ORDERS */}
+        <TabsContent value="orders" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paid Orders</CardTitle>
+              <CardDescription>
+                Create shipment + items for any paid order (staff-only).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="bg-transparent"
+                  onClick={loadPaidOrders}
+                  disabled={loadingOrders}
+                >
+                  Refresh
+                </Button>
+              </div>
 
-                  {/* Rating */}
-                  <div className="flex items-center gap-2">
-                    {renderStars(product.rating)}
-                  </div>
-
-                  {/* Rating Score and Reviews */}
-                  <div className="flex items-center gap-1 text-sm">
-                    <span className="font-semibold">{product.rating}</span>
-                    <span className="text-muted-foreground">
-                      ({product.reviews.toLocaleString()})
-                    </span>
-                  </div>
-
-                  {/* Price */}
-                  <div className="pt-1">
-                    {product.salePrice ? (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xl md:text-2xl font-bold text-foreground">
-                          ${product.salePrice}
-                        </span>
-                        <span className="text-sm text-muted-foreground line-through">
-                          ${product.price}
-                        </span>
+              {loadingOrders ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : orders.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  No paid orders found.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(Array.isArray(orders) ? orders : []).map((o) => (
+                    <div
+                      key={o.id}
+                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold">{o.orderNumber}</div>
+                          <Badge variant={getOrderStatusVariant(o.status)} className="capitalize">
+                            {o.status}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {o.customer} • {o.itemsCount} items • {o.date}
+                        </div>
+                        <div className="text-sm font-semibold">
+                          ₦{Number(o.total).toFixed(2)}
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-xl md:text-2xl font-bold text-foreground">
-                        ${product.price}
-                      </span>
-                    )}
-                  </div>
 
-                  {/* Payment Option - like in the image */}
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    or 4 payments of ${(product.salePrice || product.price) / 4}
-                  </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="bg-transparent"
+                          onClick={() => setViewingOrder(o)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </Button>
 
-                  {/* Stock Badge */}
-                  <div className="pt-2">
-                    <Badge
-                      variant={
-                        product.stock > 20
-                          ? "default"
-                          : product.stock > 0
-                          ? "secondary"
-                          : "destructive"
-                      }
-                      className="text-xs">
-                      {product.isDigital
-                        ? "Digital"
-                        : `${product.stock} in stock`}
-                    </Badge>
-                  </div>
+                        <Button
+                          onClick={() => {
+                            setSelectedOrder(o);
+                            setCreateShipmentOpen(true);
+                          }}
+                        >
+                          <PackagePlus className="mr-2 h-4 w-4" />
+                          Create Shipment
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* SHIPMENTS */}
+        <TabsContent value="shipments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Shipments</CardTitle>
+              <CardDescription>
+                Set tracking, and add tracking events (staff-only).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="bg-transparent"
+                  onClick={loadShipments}
+                  disabled={loadingShipments}
+                >
+                  Refresh
+                </Button>
+              </div>
+
+              {loadingShipments ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : shipments.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  No shipments loaded yet.
+                  <br />
+                  If you don’t have a list endpoint, you can still manage shipments
+                  from “Paid Orders” right after creation.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {shipments.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold">Shipment #{String(s.id).slice(0, 8)}…</div>
+                          <Badge variant={getShipmentStatusVariant(s.status)} className="capitalize">
+                            {s.status.replaceAll("_", " ")}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Order: {String(s.order_id).slice(0, 8)}… • Carrier: {s.carrier_code}
+                        </div>
+                        <div className="text-sm">
+                          Tracking:{" "}
+                          <span className="font-medium">
+                            {s.tracking_number || "—"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="bg-transparent"
+                          onClick={() => {
+                            setSelectedShipment(s);
+                            setTrackingOpen(true);
+                          }}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Set Tracking
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setSelectedShipment(s);
+                            setEventOpen(true);
+                          }}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Event
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick manage after shipment create if shipments list is empty */}
+          {selectedShipment && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Selected Shipment</CardTitle>
+                <CardDescription>
+                  Manage the shipment you recently created.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  className="bg-transparent"
+                  onClick={() => setTrackingOpen(true)}
+                >
+                  Set Tracking
+                </Button>
+                <Button variant="secondary" onClick={() => setEventOpen(true)}>
+                  Add Event
+                </Button>
               </CardContent>
             </Card>
-          ))}
-        </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
-        {/* Recent Orders - Mobile-first responsive with card view on mobile, table on desktop */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl">Recent Orders</CardTitle>
-            <CardDescription>Latest customer purchases</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Mobile Card View */}
-            <div className="block md:hidden space-y-3">
-              {recentOrders.map((order) => (
-                <Card key={order.id} className="border-border">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-sm">
-                          {order.orderNumber}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {order.customer}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={getStatusColor(order.status)}
-                        className="capitalize text-xs">
-                        {order.status}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Items</p>
-                        <p className="font-medium">{order.items}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total</p>
-                        <p className="font-semibold">
-                          ${order.total.toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Date</p>
-                        <p className="font-medium">{order.date}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full bg-transparent"
-                      onClick={() => setViewingOrder(order)}>
-                      <Eye className="mr-2 h-3 w-3" />
-                      View Details
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block space-y-4">
-              {recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <ShoppingCart className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">
-                        {order.orderNumber}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {order.customer} • {order.items} items • {order.date}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">
-                        ${order.total.toFixed(2)}
-                      </p>
-                      <Badge
-                        variant={getStatusColor(order.status)}
-                        className="mt-1 capitalize">
-                        {order.status}
-                      </Badge>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setViewingOrder(order)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Modals */}
-      <ProductModal
-        open={isProductModalOpen}
-        onOpenChange={setIsProductModalOpen}
-        product={editingProduct}
-        onSave={handleSaveProduct}
+      {/* MODALS */}
+      <CreateShipmentModal
+        open={createShipmentOpen}
+        onOpenChange={(v) => {
+          setCreateShipmentOpen(v);
+          if (!v) setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+        onSubmit={handleCreateShipment}
       />
+
+      <SetTrackingModal
+        open={trackingOpen}
+        onOpenChange={setTrackingOpen}
+        shipment={selectedShipment}
+        onSubmit={handleSetTracking}
+      />
+
+      <AddTrackingEventModal
+        open={eventOpen}
+        onOpenChange={setEventOpen}
+        shipment={selectedShipment}
+        onSubmit={handleAddEvent}
+      />
+
       <OrderDetailsModal
-        open={!!viewingOrder}
-        onOpenChange={(open) => !open && setViewingOrder(null)}
-        order={viewingOrder}
-      />
-    </>
+          open={!!viewingOrder}
+          onOpenChange={(open) => !open && setViewingOrder(null)}
+          order={viewingOrder}
+        />
+
+    </div>
   );
 }

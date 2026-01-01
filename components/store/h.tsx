@@ -1,8 +1,14 @@
-// app/store/checkout/CheckoutClient.tsx
+// texagon_academy\texagonui\components\store\order-management.tsx
 "use client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter,useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -11,739 +17,717 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Trash2, ShoppingBag, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/providers/CartProvider";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Package,
+  Truck,
+  CheckCircle,
+  Clock,
+  Search,
+  MessageSquare,
+  Star,
+  Calendar,
+  Loader2,
+} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function CheckoutPage() {
+interface OrderItem {
+  name: string;
+  price: number;
+  type: string;
+  downloadUrl?: string;
+  tracking?: string;
+  trackingUrl?: string;
+}
+
+interface Order {
+  id: string;
+  date: string;
+  status: string;
+  total: number;
+  items: OrderItem[];
+  paymentMethod: string;
+  nextPayment?: string;
+  remainingPayments?: number;
+  estimatedDelivery?: string;
+  agreementId?: string;
+}
+
+type Installment = {
+  id: string;
+  index: number;
+  due_at: string;
+  amount_due: string;
+  amount_paid: string;
+  status: string;
+};
+
+type BnplAgreementDetail = {
+  id: string;
+  order_id: string;
+  provider: string;
+  status: string;
+  total_amount: string;
+  amount_paid: string;
+  amount_outstanding: string;
+  installments: Installment[];
+};
+
+export function OrderManagement() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [bnplOpen, setBnplOpen] = useState(false);
+  const [bnplLoading, setBnplLoading] = useState(false);
+  const [bnplDetail, setBnplDetail] = useState<BnplAgreementDetail | null>(null);
+  const [bnplError, setBnplError] = useState<string | null>(null);
   const router = useRouter();
-  const { toast } = useToast();
-
-  const {
-    cartItems,
-    cartSummary,
-    updateQuantity,
-    removeFromCart,
-    buyNowProduct,
-    setBuyNowProduct,
-    isCartMutating, // ✅ from CartProvider
-  } = useCart();
-  const hasConfirmedRef = useRef(false);
-  const displayItems = buyNowProduct ? [buyNowProduct] : cartItems;
-
-  // ✅ Contact info (phone only) + address + dummy card fields
-  const [formData, setFormData] = useState({
-    phoneNumber: "",
-    address: "",
-    city: "",
-    state: "",
-    area: "",
-    zipCode: "",
-    country: "US",
-    cardNumber: "",
-    cardName: "",
-    expiryDate: "",
-    cvv: "",
-  });
-
-  const [addresses, setAddresses] = useState<any[]>([]);
-  const [selectedBillingAddress, setSelectedBillingAddress] = useState<
-    string | null
-  >(null);
-  const [selectedShippingAddress, setSelectedShippingAddress] = useState<
-    string | null
-  >(null);
-
-  // ✅ Place Order loading
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-
-  // ✅ Disable cart editing while mutating or placing order
-  const uiLocked = isCartMutating || isPlacingOrder;
   const searchParams = useSearchParams();
+  const hasConfirmedRef = useRef(false);
 
-  
   useEffect(() => {
-    const status = searchParams.get("status");
-    const tx_ref = searchParams.get("tx_ref");
-    const transaction_id = searchParams.get("transaction_id");
+    let cancelled = false;
 
-    if (status === "completed" && tx_ref && transaction_id) {
-      const invoice_id = localStorage.getItem("checkout_invoice_id");
-      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
-    }
-  }, [searchParams]);
+    async function loadData() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/store/orders");
+        if (!res.ok) {
+          console.error("Failed to fetch orders");
+          return;
+        }
+        const { results } = await res.json();
 
-  
-  useEffect(() => {
-    const fetchAddresses = async () => {
-      const res = await fetch("/api/store/addresses");
-      if (res.ok) {
-        const data = await res.json();
-        setAddresses(data.results || []);
-      } else if (res.status === 401) {
-        router.push("/login");
+        const detailedOrders = await Promise.all(
+          (results || []).map(async (order: any) => {
+            const detailRes = await fetch(`/api/store/orders/${order.id}`);
+            let detail;
+            if (detailRes.ok) {
+              detail = await detailRes.json();
+            } else {
+              console.error(`Failed to fetch order details for ${order.id}`);
+              detail = {
+                id: order.id,
+                status: order.status,
+                grand_total: order.grand_total,
+                items: order.items,
+                shipments: [],
+              };
+            }
+
+            const hasShipments = (detail.shipments || []).length > 0;
+            const itemType = hasShipments ? "physical" : "physical";
+
+            const items = (detail.items || []).map((item: any) => ({
+              name: item.title,
+              price: parseFloat(item.price),
+              type: itemType,
+              downloadUrl: !hasShipments ? "#" : undefined,
+              tracking: hasShipments
+                ? detail.shipments[0]?.tracking_number
+                : undefined,
+              trackingUrl: hasShipments
+                ? detail.shipments[0]?.tracking_url
+                : undefined,
+            }));
+
+            let estimatedDelivery: string | undefined;
+            if (hasShipments) {
+              const shipment = detail.shipments[0];
+              if (shipment?.delivered_at) {
+                estimatedDelivery = shipment.delivered_at.split("T")[0];
+              } else if (shipment?.shipped_at) {
+                const shippedDate = new Date(shipment.shipped_at);
+                shippedDate.setDate(shippedDate.getDate() + 7);
+                estimatedDelivery = shippedDate.toISOString().split("T")[0];
+              }
+            }
+
+            return {
+              id: detail.id,
+              date: order.created_at.split("T")[0],
+              status: detail.status,
+              total: parseFloat(detail.grand_total),
+              items,
+
+              // ✅ payment method + bnpl metadata
+              paymentMethod: order.is_bnpl ? "BNPL" : "Credit Card",
+              nextPayment: order.next_payment ? order.next_payment.split("T")[0] : undefined,
+              remainingPayments: typeof order.remaining_payments === "number" ? order.remaining_payments : undefined,
+              agreementId: order.agreement_id || undefined,
+
+              estimatedDelivery,
+            };
+
+          })
+        );
+
+        if (!cancelled) setOrders(detailedOrders);
+      } catch (error) {
+        console.error("Error loading orders:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
     };
-    fetchAddresses();
-  }, [router]);
-
-  // ✅ Example options (replace with your real list)
-  const STATES = useMemo(() => ["Lagos", "Abuja (FCT)", "Rivers", "Kano"], []);
-
-  const AREAS_BY_STATE = useMemo(
-    () => ({
-      Lagos: ["Ikeja", "Lekki", "Yaba", "Surulere"],
-      "Abuja (FCT)": ["Garki", "Wuse", "Maitama", "Gwarinpa"],
-      Rivers: ["Port Harcourt", "Obio-Akpor"],
-      Kano: ["Nassarawa", "Fagge"],
-    }),
-    []
-  );
-
-  const areasForSelectedState = (AREAS_BY_STATE as any)[formData.state] ?? [];
-
-  // Totals
-  const isBuyNow = !!buyNowProduct;
-
-  // 1) what items cost (fallback / buy-now)
-  const itemsSubtotal = displayItems.reduce(
-    (sum: number, item: any) => sum + Number(item.price) * Number(item.quantity),
-    0
-  );
-
-  // 2) backend totals (cart mode)
-  const subtotal = Number(cartSummary?.subtotal || 0);
-  const discount = Number(cartSummary?.discount_total || 0);
-  const discountedSubtotal = Number(cartSummary?.grand_total || 0);
-
-  const shipping = Number(cartSummary?.shipping_total || 0);
-  const tax = Number(cartSummary?.tax_total || 0);
-  const total = Number(cartSummary?.payable_total || 0);
+  }, []);
 
 
+  useEffect(() => {
+    const isBnplReturn = searchParams.get("bnpl_return") === "1";
+    if (!isBnplReturn) return;
 
+    const status = (searchParams.get("status") || "").toLowerCase();
+    const tx_ref = searchParams.get("tx_ref") || "";
+    const transaction_id = searchParams.get("transaction_id") || "";
 
-  const validateCheckout = () => {
-    // must have phone
-    if (!formData.phoneNumber?.trim()) {
-      return { ok: false, message: "Phone number is required." };
-    }
+    if (!tx_ref || !transaction_id) return;
+    if (!["successful", "completed"].includes(status)) return;
+    if (hasConfirmedRef.current) return;
 
-    // must have a shipping address selected OR new address fields filled
-    const usingSavedShipping = !!selectedShippingAddress;
-
-    if (!usingSavedShipping) {
-      if (!formData.address?.trim()) return { ok: false, message: "Street address is required." };
-      if (!formData.city?.trim()) return { ok: false, message: "City is required." };
-      if (!formData.state?.trim()) return { ok: false, message: "State is required." };
-      if (!formData.area?.trim()) return { ok: false, message: "Area is required." };
-      if (!formData.zipCode?.trim()) return { ok: false, message: "Postal code is required." };
-    }
-
-    // must have cart items
-    if (!displayItems?.length) {
-      return { ok: false, message: "Your cart is empty." };
-    }
-
-    return { ok: true as const };
-  };
-
-  const canPlaceOrder = useMemo(() => {
-    const v = validateCheckout();
-    return v.ok;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData, selectedShippingAddress, displayItems.length]);
-
-
-  const handleRemoveItem = (id: any) => {
-    if (uiLocked) return;
-
-    if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
-      setBuyNowProduct(null);
-    } else {
-      removeFromCart(String(id) as any);
-    }
-    toast({ title: "Item Removed", description: "Item removed from cart" });
-  };
-
-  const handleQuantityChange = (id: any, newQuantity: number) => {
-    if (uiLocked) return;
-    if (newQuantity < 1) return;
-
-    if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
-      setBuyNowProduct({ ...buyNowProduct, quantity: newQuantity });
-    } else {
-      updateQuantity(String(id) as any, newQuantity);
-    }
-  };
-
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isPlacingOrder || isCartMutating) return;
-
-    const v = validateCheckout();
-    if (!v.ok) {
-      toast({ variant: "destructive", title: "Incomplete checkout", description: v.message });
+    const invoice_id = localStorage.getItem(`bnpl_invoice_id:${tx_ref}`);
+    if (!invoice_id) {
+      console.error("Missing invoice_id for tx_ref:", tx_ref);
       return;
     }
 
-    setIsPlacingOrder(true);
-
-    try {
-      // -------------------------
-      // A) Ensure addresses exist
-      // -------------------------
-      let billingId = selectedBillingAddress;
-      let shippingId = selectedShippingAddress;
-
-      if (!billingId && !shippingId) {
-        const res = await fetch("/api/store/addresses", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            full_name: "Customer",
-            line1: formData.address,
-            city: formData.city,
-            state: formData.state,
-            postal_code: formData.zipCode,
-            country: formData.country,
-            phone_number: formData.phoneNumber,
-            area: formData.area,
-          }),
-        });
-
-        const addrData = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast({
-            variant: "destructive",
-            title: "Error creating address",
-            description: addrData?.detail || addrData?.error || "Could not create address",
-          });
-          return;
-        }
-        billingId = String(addrData.id);
-      }
-
-
-      if (!billingId) billingId = shippingId;
-
-      if (!shippingId) shippingId = billingId;
-      
-      // -------------------------
-      // B) Create order FIRST
-      // -------------------------
-      const createOrderPayload = {
-        billing_address_id: billingId,
-        shipping_address_id: shippingId,
-        phone_number: formData.phoneNumber,
-
-      };
-
-      const orderRes = await fetch("/api/store/checkout/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createOrderPayload),
-      });
-
-      const orderData = await orderRes.json().catch(() => ({}));
-      if (!orderRes.ok) {
-        toast({
-          variant: "destructive",
-          title: "Failed to create order",
-          description: orderData?.detail || orderData?.error || "Order creation failed",
-        });
-        return;
-      }
-
-      
-      const orderId = orderData?.id || orderData?.order_id;
-      if (!orderId) {
-        toast({
-          variant: "destructive",
-          title: "Order created but missing order_id",
-          description: "Backend did not return order id",
-        });
-        return;
-      }
-
-      // amount: use backend total if returned, else fallback to frontend computed total
-      const totalToPayFromCart = Number(cartSummary?.payable_total || 0);
-
-      const amountToPay =
-        orderData?.total_amount ??
-        orderData?.amount ??
-        (buyNowProduct ? total : totalToPayFromCart);
-
-
-      // -------------------------
-      // C) Create payment link (billing)
-      // -------------------------
-      const redirect_url = `${window.location.origin}/store/checkout`;
-
-      const paymentPayload = {
-        redirect_url,
-        is_store_payment: true,
-
-        amount: amountToPay.toFixed(2),
-        order_id: orderId,
-
-        // still needed because your Django code does `.split(",")`
-        item_list: displayItems.map((i: any) => i.id).join(","),
-
-        payment_title: "Store Checkout",
-      };
-
-      // IMPORTANT: use /api/billing (your unified route), NOT /api/store/payments
-      const payRes = await fetch("/api/billing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(paymentPayload),
-      });
-
-      const payData = await payRes.json().catch(() => ({}));
-      if (!payRes.ok) {
-        toast({
-          variant: "destructive",
-          title: "Payment initialization failed",
-          description: payData?.detail || payData?.error || "Unable to create payment link",
-        });
-        return;
-      }
-
-      const link = payData?.payment_link;
-      const invoiceId = payData?.invoice_id;
-
-      if (invoiceId) {
-        localStorage.setItem("checkout_invoice_id", String(invoiceId));
-      }
-      
-
-      if (!link) {
-        toast({
-          variant: "destructive",
-          title: "Payment link missing",
-          description: "Backend did not return payment_link",
-        });
-        return;
-      }
-
-      // Redirect to gateway
-      window.location.href = link;
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Something went wrong",
-        description: err?.message || "Could not start checkout",
-      });
-    } finally {
-      setIsPlacingOrder(false);
-    }
-  };
-
-
-
-  const confirmPayment = async (
-    tx_ref: string,
-    transaction_id: string,
-    invoice_id?: string
-    
-  ) => {
-    if (hasConfirmedRef.current) return;
     hasConfirmedRef.current = true;
 
-    setIsPlacingOrder(true);
-    try {
-        const payload: any = {
-          status: "completed",
-          tx_ref,
-          transaction_id,
-        };
-
-      if (invoice_id) payload.invoice_id = invoice_id;
-
+    (async () => {
       const res = await fetch("/api/billing?action=confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          status: "completed",
+          tx_ref,
+          transaction_id,
+          invoice_id,
+        }),
       });
-
-      
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         hasConfirmedRef.current = false;
-        toast({
-          variant: "destructive",
-          title: "Payment confirmation failed",
-          description: data?.detail || data?.error || "Could not confirm payment",
-        });
+        console.error("Confirm failed:", data);
         return;
       }
 
-      toast({
-        title: "Payment Confirmed!",
-        description: "Your order has been confirmed successfully.",
-      });
+      // cleanup
+      localStorage.removeItem(`bnpl_invoice_id:${tx_ref}`);
+      localStorage.removeItem(`bnpl_installment_id:${tx_ref}`);
 
-      localStorage.removeItem("checkout_invoice_id");
+      // ✅ stay on same page, clean URL
+      router.replace("/store?tab=orders");
+    })();
+  }, [searchParams, router]);
 
-      setBuyNowProduct(null);
+  
+  const startBnpl = async (_orderId: string) => {
+    alert("Start BNPL (your existing logic stays here)");
+  };
 
-      // Optional: remove params so refresh doesn't run again
-      router.replace("/store/checkout");
-      setTimeout(() => router.push("/store"), 1200);
-    } catch (err: any) {
-      hasConfirmedRef.current = false;
-      toast({
-        variant: "destructive",
-        title: "Something went wrong",
-        description: err?.message || "Could not confirm payment",
-      });
+  const viewSchedule = async (agreementId: string | undefined) => {
+    if (!agreementId) return;
+
+    setBnplOpen(true);
+    setBnplLoading(true);
+    setBnplError(null);
+
+    try {
+      // IMPORTANT:
+      // This assumes you create a Next route like: /api/store/bnpl/agreements/[id]
+      // If you don't have it yet, see section 3 below.
+
+      const res = await fetch(`/api/store/bnpl/agreements/${agreementId}`);
+      if (!res.ok) throw new Error("Failed to load BNPL schedule");
+
+      const data = await res.json();
+      setBnplDetail(data);
+    } catch (e: any) {
+      setBnplError(e?.message || "Failed to load BNPL schedule");
     } finally {
-      setIsPlacingOrder(false);
+      setBnplLoading(false);
     }
   };
 
 
+  const updateMethod = () => {
+    alert("Update payment method not implemented");
+  };
 
-  return (
-    <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto py-5">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Checkout
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-1">
-            Complete your purchase
-          </p>
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "delivered":
+        return "bg-green-100 text-green-700";
+      case "shipped":
+        return "bg-blue-100 text-blue-700";
+      case "processing":
+        return "bg-yellow-100 text-yellow-700";
+      case "cancelled":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "delivered":
+        return <CheckCircle className="h-4 w-4" />;
+      case "shipped":
+        return <Truck className="h-4 w-4" />;
+      case "processing":
+        return <Clock className="h-4 w-4" />;
+      default:
+        return <Package className="h-4 w-4" />;
+    }
+  };
+
+
+  const isSettled = (inst: Installment) => {
+  const status = (inst.status || "").toLowerCase();
+  const paid = parseFloat(inst.amount_paid || "0");
+  const due = parseFloat(inst.amount_due || "0");
+
+  // Backend supports statuses like captured/refunded
+  if (["captured", "refunded"].includes(status)) return true;
+
+  // Safety net if status wasn't updated but amounts are
+  return due > 0 && paid >= due;
+};
+
+const getInstallmentBadge = (inst: Installment) => {
+  const status = (inst.status || "").toLowerCase();
+  const due = new Date(inst.due_at);
+  const now = new Date();
+  const unpaid = ["pending", "authorized", "failed"].includes(status);
+
+  if (isSettled(inst)) {
+    return { label: "Paid", className: "bg-green-100 text-green-700" };
+  }
+
+  if (unpaid && due <= now) {
+    // if you want to distinguish failed vs due
+    if (status === "failed") {
+      return { label: "Payment failed", className: "bg-red-100 text-red-700" };
+    }
+    return { label: "Due now", className: "bg-yellow-100 text-yellow-700" };
+  }
+
+  return { label: "Upcoming", className: "bg-gray-100 text-gray-700" };
+};
+
+
+  const isInstallmentPayableNow = (inst: Installment) => {
+    const due = new Date(inst.due_at);
+    const now = new Date();
+    const status = (inst.status || "").toLowerCase();
+    const unpaid = ["pending", "authorized", "failed"].includes(status);
+    return unpaid && due <= now;
+  };
+
+  const getNextDueInstallment = (detail: BnplAgreementDetail | null) => {
+    if (!detail?.installments?.length) return null;
+    const unpaid = detail.installments.filter((i) =>
+      ["pending", "authorized", "failed"].includes((i.status || "").toLowerCase())
+    );
+    if (!unpaid.length) return null;
+    unpaid.sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
+    return unpaid[0];
+  };
+
+  const getNextPayableInstallment = (detail: BnplAgreementDetail | null) => {
+    if (!detail?.installments?.length) return null;
+
+    const candidates = detail.installments.filter((i) => {
+      if (isSettled(i)) return false;          // ⛔ already paid
+      const status = (i.status || "").toLowerCase();
+      const unpaid = ["pending", "authorized", "failed"].includes(status);
+      if (!unpaid) return false;               // ⛔ not chargeable
+      return new Date(i.due_at) <= new Date(); // ✅ due now
+    });
+
+    candidates.sort(
+      (a, b) =>
+        new Date(a.due_at).getTime() -
+        new Date(b.due_at).getTime()
+    );
+
+    return candidates[0] || null;
+  };
+
+  const payable = getNextPayableInstallment(bnplDetail);
+
+  const makePayment = async (agreementId?: string) => {
+    if (!agreementId) return;
+
+    // ✅ ensure we have a non-null detail object
+    let detail: BnplAgreementDetail | null = bnplDetail;
+
+    if (!detail) {
+      setBnplLoading(true);
+      try {
+        const r = await fetch(`/api/store/bnpl/agreements/${agreementId}`);
+        if (!r.ok) throw new Error("Failed to load BNPL schedule");
+        detail = await r.json();
+        setBnplDetail(detail);
+      } catch (e: any) {
+        setBnplError(e?.message || "Failed to load BNPL schedule");
+        return;
+      } finally {
+        setBnplLoading(false);
+      }
+    }
+
+    // ✅ TS now knows `detail` might still be null, so hard-guard it
+    if (!detail) return;
+
+    // ... now safe:
+    const orderId = detail.order_id;
+    if (!orderId) {
+      alert("BNPL schedule is missing order_id.");
+      return;
+    }
+      // pick the next payable installment (due now + not settled)
+    const next = (detail.installments || [])
+      .filter((i: any) => !["captured", "refunded"].includes(String(i.status || "").toLowerCase()))
+      .filter((i: any) => new Date(i.due_at) <= new Date())
+      .sort((a: any, b: any) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime())[0];
+
+    if (!next) {
+      alert("No installment is due for payment yet.");
+      return;
+    }
+
+        // ✅ Create payment link (your backend expects these keys)
+    const redirect_url =
+      `${window.location.origin}/store?tab=orders&bnpl_return=1`; // SAME page
+
+    const res = await fetch("/api/billing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        redirect_url,
+        is_store_payment: true,
+        is_bnpl: true,
+        order_id: detail.order_id,
+        amount: String(next.amount_due),
+        payment_title: `BNPL Installment #${next.index}`,
+
+        // optional: helps backend pick correct installment later
+        installment_id: next.id,
+        agreement_id: agreementId,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.detail || data?.error || "Payment init failed");
+
+    // ✅ These come from _serialize_payment
+    const link = data?.payment_link;
+    const invoiceId = data?.invoice_id;
+    const reference = data?.reference; // THIS is what provider returns as tx_ref
+
+    if (!link || !invoiceId || !reference) {
+      throw new Error("Missing payment_link / invoice_id / reference from backend");
+    }
+
+    // ✅ store invoice_id by tx_ref(reference)
+    localStorage.setItem(`bnpl_invoice_id:${reference}`, String(invoiceId));
+
+    // (optional) store installment mapping too
+    localStorage.setItem(`bnpl_installment_id:${reference}`, String(next.id));
+
+    window.location.href = link;
+
+  };
+
+  const filteredOrders = orders.filter(
+    (order) =>
+      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.items.some((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading orders…</span>
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <div className="lg:col-span-2 space-y-4 md:space-y-6">
-          {/* Contact info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-              <CardDescription>
-                We'll use this to contact you about delivery
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    placeholder="e.g. 08012345678"
-                    value={formData.phoneNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phoneNumber: e.target.value })
-                    }
-                    required
-                    disabled={uiLocked}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+  return (
+    <div className="p-4 sm:p-6 space-y-6">
+      {/* Header */}
+      <header>
+        <h1 className="text-2xl sm:text-3xl font-bold">Order Management</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Track your orders and manage your purchases
+        </p>
+      </header>
 
-          {/* Shipping information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Shipping Information</CardTitle>
-              <CardDescription>
-                Where should we deliver your order?
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Select
-                  value={selectedShippingAddress || ""}
-                  onValueChange={(val) =>
-                    setSelectedShippingAddress(val === "new" ? null : val)
-                  }
-                  disabled={uiLocked}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select shipping address" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {addresses.map((addr) => (
-                      <SelectItem key={addr.id} value={String(addr.id)}>
-                        {addr.full_name} - {addr.line1}, {addr.city}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="new">Create new address</SelectItem>
-                  </SelectContent>
-                </Select>
+      {/* Search */}
+      <div className="relative max-w-full sm:max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search orders..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
-                {!selectedShippingAddress && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Street Address</Label>
-                      <Input
-                        id="address"
-                        value={formData.address}
-                        onChange={(e) =>
-                          setFormData({ ...formData, address: e.target.value })
-                        }
-                        required
-                        disabled={uiLocked}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city">City</Label>
-                        <Input
-                          id="city"
-                          value={formData.city}
-                          onChange={(e) =>
-                            setFormData({ ...formData, city: e.target.value })
-                          }
-                          required
-                          disabled={uiLocked}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>State</Label>
-                        <Select
-                          value={formData.state}
-                          onValueChange={(val) =>
-                            setFormData({
-                              ...formData,
-                              state: val,
-                              area: "",
-                            })
-                          }
-                          disabled={uiLocked}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select state" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATES.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Area</Label>
-                        <Select
-                          value={formData.area}
-                          onValueChange={(val) =>
-                            setFormData({ ...formData, area: val })
-                          }
-                          disabled={uiLocked || !formData.state}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                formData.state
-                                  ? "Select area"
-                                  : "Select state first"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {areasForSelectedState.map((a: string) => (
-                              <SelectItem key={a} value={a}>
-                                {a}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="zipCode">Zip / Postal Code</Label>
-                        <Input
-                          id="zipCode"
-                          value={formData.zipCode}
-                          onChange={(e) =>
-                            setFormData({ ...formData, zipCode: e.target.value })
-                          }
-                          required
-                          disabled={uiLocked}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      {/* Tabs */}
+      <Tabs defaultValue="all-orders" className="space-y-6">
+        <div className="flex justify-between items-center flex-wrap gap-3">
+          <TabsList className="flex w-full sm:w-auto justify-start sm:justify-center gap-2 overflow-x-auto whitespace-nowrap no-scrollbar bg-muted/50 p-2 rounded-2xl">
+            <TabsTrigger
+              value="all-orders"
+              className="px-4 py-2 rounded-xl text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
+            >
+              All Orders
+            </TabsTrigger>
+            <TabsTrigger
+              value="bnpl"
+              className="px-4 py-2 rounded-xl text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
+            >
+              BNPL Orders
+            </TabsTrigger>
+          </TabsList>
         </div>
 
-        {/* Order Summary */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5" />
-                Order Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                {displayItems.map((item: any) => {
-                  const key = item.cartItemId || item.id;
-                  const id = item.cartItemId || item.id;
+        <TabsContent value="all-orders">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredOrders.map((order) => (
+              <Card
+                key={order.id}
+                className="flex flex-col shadow-sm hover:shadow-md transition-all rounded-2xl"
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+                    <span>Order {order.id}</span>
+                    <Badge className={getStatusColor(order.status)}>
+                      <div className="flex items-center gap-1 capitalize">
+                        {getStatusIcon(order.status)}
+                        {order.status}
+                      </div>
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Placed on {order.date} • Total: ₦{order.total}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    {order.items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="p-3 bg-gray-50 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                      >
+                        <div>
+                          <h4 className="font-medium text-sm sm:text-base">
+                            {item.name}
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                item.type === "digital" ? "secondary" : "outline"
+                              }
+                            >
+                              {item.type}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              ₦{item.price}
+                            </span>
+                          </div>
+                          {item.tracking && (
+                            <p className="text-xs text-muted-foreground">
+                              Tracking: {item.tracking}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t pt-3">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                      <MessageSquare className="mr-2 h-3 w-3" />
+                      Contact Support
+                    </Button>
+
+                    {order.status === "delivered" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      >
+                        <Star className="mr-2 h-3 w-3" />
+                        Leave Review
+                      </Button>
+                    )}
+
+                    {order.paymentMethod === "Credit Card" &&
+                      order.status === "processing" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => startBnpl(order.id)}
+                        >
+                          Set up BNPL
+                        </Button>
+                      )}
+                  </div>
+
+                  {order.estimatedDelivery && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">
+                        Estimated delivery: {order.estimatedDelivery}
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="bnpl">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredOrders
+              .filter((order) => order.paymentMethod === "BNPL")
+              .map((order) => (
+                <Card
+                  key={order.id}
+                  className="shadow-sm hover:shadow-md transition-all rounded-2xl"
+                >
+                  <CardHeader>
+                    <CardTitle>BNPL Order {order.id}</CardTitle>
+                    <CardDescription>Manage your payment schedule</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Next Payment</p>
+                        <p className="font-medium">{order.nextPayment}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Remaining</p>
+                        <p className="font-medium">{order.remainingPayments}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => viewSchedule(order.agreementId)}
+                      >
+                        View Schedule
+                      </Button>
+
+
+                      <Button
+                        className="w-full sm:w-auto"
+                        onClick={() => makePayment(order.agreementId)}
+                        disabled={!bnplDetail || !getNextPayableInstallment(bnplDetail)}
+                      >
+                        Make Payment
+                      </Button>
+
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={bnplOpen} onOpenChange={setBnplOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>BNPL Schedule</DialogTitle>
+            <DialogDescription>
+              {bnplDetail
+                ? `Provider: ${bnplDetail.provider} • Status: ${bnplDetail.status}`
+                : "Loading schedule..."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {bnplLoading && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading…</span>
+            </div>
+          )}
+
+          {bnplError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg">
+              {bnplError}
+            </div>
+          )}
+
+          {!bnplLoading && bnplDetail && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Total</p>
+                  <p className="font-medium">₦{bnplDetail.total_amount}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Outstanding</p>
+                  <p className="font-medium">₦{bnplDetail.amount_outstanding}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {bnplDetail.installments.map((inst) => {
+                  const dueDate = inst.due_at ? inst.due_at.split("T")[0] : "—";
+                  const payable = isInstallmentPayableNow(inst);
 
                   return (
-                    <div key={key} className="flex gap-3 p-3 border rounded-lg">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-16 h-16 rounded object-cover flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm line-clamp-2">
-                          {item.name}
-                        </h4>
-
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 bg-transparent"
-                              disabled={uiLocked}
-                              onClick={() =>
-                                handleQuantityChange(id, item.quantity - 1)
-                              }
-                            >
-                              -
-                            </Button>
-
-                            <span className="text-sm w-8 text-center">
-                              {item.quantity}
-                            </span>
-
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 bg-transparent"
-                              disabled={uiLocked}
-                              onClick={() =>
-                                handleQuantityChange(id, item.quantity + 1)
-                              }
-                            >
-                              +
-                            </Button>
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 ml-auto"
-                            disabled={uiLocked}
-                            onClick={() => handleRemoveItem(id)}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-
-                        <p className="text-sm font-semibold mt-1">
-                          ${(Number(item.price) * Number(item.quantity)).toFixed(
-                            2
-                          )}
+                    <div
+                      key={inst.id}
+                      className="p-3 rounded-lg border flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">
+                          Installment #{inst.index} • ₦{inst.amount_due}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Due: {dueDate} • Status: {inst.status}
                         </p>
                       </div>
+
+                      {(() => {
+                        const b = getInstallmentBadge(inst);
+                        return <Badge className={b.className}>{b.label}</Badge>;
+                      })()}
+
                     </div>
                   );
                 })}
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-              <Separator />
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
-                </div>
-                {!buyNowProduct && discount > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Discount {cartSummary?.coupon ? `(${cartSummary.coupon})` : ""}
-                    </span>
-                    <span className="font-medium">- ${discount.toFixed(2)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span className="font-medium">
-                    {shipping === 0 ? (
-                      <Badge variant="secondary" className="text-xs">
-                        FREE
-                      </Badge>
-                    ) : (
-                      `$${shipping.toFixed(2)}`
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tax (8%)</span>
-                  <span className="font-medium">${tax.toFixed(2)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between text-base font-bold">
-                  <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* ✅ Loading on button when placing order OR cart is updating */}
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleSubmit}
-                disabled={uiLocked || !canPlaceOrder}
-              >
-
-                {uiLocked ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isPlacingOrder ? "Placing Order..." : "Updating Cart..."}
-                  </>
-                ) : (
-                  <>Place Order - ${total.toFixed(2)}</>
-                )}
-              </Button>
-
-              <p className="text-xs text-muted-foreground text-center">
-                By placing your order, you agree to our terms and conditions
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }

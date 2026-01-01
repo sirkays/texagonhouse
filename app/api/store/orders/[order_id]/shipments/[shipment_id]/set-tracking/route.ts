@@ -3,18 +3,17 @@ import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ order_id: string }> }
+  { params }: { params: Promise<{ shipment_id: string }> }
 ) {
-  const { order_id } = await params;
+  const { shipment_id } = await params;
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const { res, text } = await djangoFetch(`/store/api/orders/${order_id}/shipments/create/`, {
+  const { res, text } = await djangoFetch(`/store/api/shipments/${shipment_id}/set-tracking/`, {
     method: "POST",
     body: JSON.stringify(body),
   });
 
-  // pass-through response
   return new NextResponse(text, { status: res.status });
 }

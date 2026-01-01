@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\components\admin\modals\order-details-modal.tsx
 "use client"
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -27,6 +28,10 @@ export function OrderDetailsModal({ open, onOpenChange, order }: OrderDetailsMod
     }
   }
 
+  const email = order?.customerObj?.email || "—";
+  const phone = order?.shipping_address?.phone || order?.customerObj?.phone || "—";
+  const ship = order?.shipping_address;
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -58,16 +63,23 @@ export function OrderDetailsModal({ open, onOpenChange, order }: OrderDetailsMod
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Name</p>
-                <p className="font-medium">{order.customer}</p>
+                <p className="font-medium">{order?.customerObj?.full_name || order.customer || "—"}</p>
               </div>
+
               <div>
                 <p className="text-muted-foreground">Email</p>
-                <p className="font-medium">{order.customer.toLowerCase().replace(" ", ".")}@email.com</p>
+                <p className="font-medium">{order?.customerObj?.email || order?.customer?.email || "—"}</p>
+
               </div>
+
               <div>
                 <p className="text-muted-foreground">Phone</p>
-                <p className="font-medium">+1 (555) 123-4567</p>
+                <p className="font-medium">
+                  {order?.shipping_address?.phone || order?.customerObj?.phone || order?.customer?.phone || "—"}
+                </p>
+
               </div>
+
               <div>
                 <p className="text-muted-foreground">Order Date</p>
                 <p className="font-medium">{order.date}</p>
@@ -83,12 +95,24 @@ export function OrderDetailsModal({ open, onOpenChange, order }: OrderDetailsMod
               <MapPin className="h-4 w-4" />
               Shipping Address
             </h4>
+            
+
             <div className="text-sm">
-              <p className="font-medium">123 Education Street</p>
-              <p className="text-muted-foreground">Suite 456</p>
-              <p className="text-muted-foreground">New York, NY 10001</p>
-              <p className="text-muted-foreground">United States</p>
+              {!ship ? (
+                <p className="text-muted-foreground">—</p>
+              ) : (
+                <>
+                  {ship.full_name ? <p className="font-medium">{ship.full_name}</p> : null}
+                  <p className="text-muted-foreground">{ship.line1}</p>
+                  {ship.line2 ? <p className="text-muted-foreground">{ship.line2}</p> : null}
+                  <p className="text-muted-foreground">
+                    {[ship.city, ship.state, ship.postal_code].filter(Boolean).join(", ")}
+                  </p>
+                  <p className="text-muted-foreground">{ship.country}</p>
+                </>
+              )}
             </div>
+
           </div>
 
           <Separator />
@@ -97,25 +121,21 @@ export function OrderDetailsModal({ open, onOpenChange, order }: OrderDetailsMod
           <div className="space-y-3">
             <h4 className="font-semibold flex items-center gap-2">
               <Package className="h-4 w-4" />
-              Order Items ({order.items})
+              Order Items ({Array.isArray(order?.items) ? order.items.length : 0})
             </h4>
+
             <div className="space-y-2">
-              {[
-                { name: "Scientific Calculator", qty: 1, price: 29.99 },
-                { name: "Chemistry Lab Kit", qty: 1, price: 129.99 },
-                { name: "Geometry Set", qty: 1, price: 15.99 },
-              ]
-                .slice(0, order.items)
-                .map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">Quantity: {item.qty}</p>
-                    </div>
-                    <p className="font-semibold">${item.price.toFixed(2)}</p>
+              {(Array.isArray(order?.items) ? order.items : []).map((it: any, idx: number) => (
+                <div key={it.id || idx} className="flex items-center justify-between border rounded-md p-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{it.title}</div>
+                    {it.sku ? <div className="text-xs text-muted-foreground">SKU: {it.sku}</div> : null}
                   </div>
-                ))}
+                  <div className="text-sm font-semibold">x{Number(it.quantity || it.qty || 0)}</div>
+                </div>
+              ))}
             </div>
+
           </div>
 
           <Separator />
@@ -129,20 +149,20 @@ export function OrderDetailsModal({ open, onOpenChange, order }: OrderDetailsMod
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">${(order.total * 0.9).toFixed(2)}</span>
+                <span className="font-medium">₦{(order.total * 0.9).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
-                <span className="font-medium">${(order.total * 0.05).toFixed(2)}</span>
+                <span className="font-medium">₦{(order.total * 0.05).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax</span>
-                <span className="font-medium">${(order.total * 0.05).toFixed(2)}</span>
+                <span className="font-medium">₦{(order.total * 0.05).toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-base">
                 <span className="font-semibold">Total</span>
-                <span className="font-bold">${order.total.toFixed(2)}</span>
+                <span className="font-bold">₦{order.total.toFixed(2)}</span>
               </div>
             </div>
           </div>

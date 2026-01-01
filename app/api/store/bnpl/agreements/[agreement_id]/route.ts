@@ -1,15 +1,16 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+// texagon_academy\texagonui\app\api\store\bnpl\agreements\[agreement_id]
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { unstable_noStore as noStore } from "next/cache";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
+const BASE_URL = "http://127.0.0.1:9098/store/api";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
 interface Installment {
@@ -34,21 +35,22 @@ interface BnplAgreementResponse {
 
 export async function GET(
   req: Request,
-  {params}: {params: {agreement_id: string}}
+  { params }: { params: Promise<{ agreement_id: string }> } // 👈 params is async
 ) {
   noStore();
-  const session = await getServerSession(authOptions);
 
+  const session = await getServerSession(authOptions);
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
+      { error: "Not authenticated", redirect: "/login" },
+      { status: 401 }
     );
   }
 
+  const { agreement_id } = await params; // 👈 await before using
   const sessionToken = session.user.sessionToken;
 
-  const fullUrl = `${BASE_URL}/bnpl/agreements/${params.agreement_id}`;
+  const fullUrl = `${BASE_URL}/bnpl/agreements/${agreement_id}/`;
   console.log("[StoreBnplAgreementAPI] Initiating fetch for:", fullUrl);
 
   try {
@@ -62,27 +64,25 @@ export async function GET(
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
       if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       if (response.status === 404)
-        return NextResponse.json({error: "Agreement not found"}, {status: 404});
+        return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
+
       return NextResponse.json(
-        {error: "Failed to fetch BNPL agreement"},
-        {status: response.status}
+        { error: "Failed to fetch BNPL agreement" },
+        { status: response.status }
       );
     }
 
     let data: BnplAgreementResponse;
     try {
       data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
-      );
+    } catch {
+      return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
     }
 
     const normalizedData: BnplAgreementResponse = {
@@ -93,7 +93,7 @@ export async function GET(
       total_amount: data.total_amount || "0",
       amount_paid: data.amount_paid || "0",
       amount_outstanding: data.amount_outstanding || "0",
-      installments: data.installments.map((item) => ({
+      installments: (data.installments ?? []).map((item) => ({
         id: item.id || "",
         index: item.index || 0,
         due_at: item.due_at || "",
@@ -105,12 +105,9 @@ export async function GET(
 
     return NextResponse.json(normalizedData, {
       status: 200,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    return NextResponse.json(
-      {error: "Failed to fetch BNPL agreement"},
-      {status: 500}
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch BNPL agreement" }, { status: 500 });
   }
 }
