@@ -76,6 +76,31 @@ type BnplAgreementDetail = {
   installments: Installment[];
 };
 
+// -----------------------------
+// SHIPMENT TRACKING (simple)
+// -----------------------------
+type TrackingEvent = {
+  id: string;
+  code: string;      // ✅ was event_code
+  desc?: string;     // ✅ was description
+  occurred_at: string;
+  city?: string;
+  state?: string;
+  country?: string;
+};
+
+
+type Shipment = {
+  id: string;
+  status: string;
+  tracking_number?: string;
+  tracking_url?: string;
+  shipped_at?: string;
+  delivered_at?: string;
+  events?: TrackingEvent[];
+};
+
+
 function safeParseNum(v: any, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -107,6 +132,11 @@ export function OrderManagement() {
   const ordersTabParam = (searchParams.get("ordersTab") || "").toLowerCase();
   const defaultOrdersTab = ordersTabParam === "bnpl" ? "bnpl" : "all-orders";
 
+  const [trackOpen, setTrackOpen] = useState(false);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
+  const [trackOrderId, setTrackOrderId] = useState<string | null>(null);
+  const [trackShipments, setTrackShipments] = useState<Shipment[]>([]);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -188,6 +218,33 @@ export function OrderManagement() {
       console.error("Error loading orders:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const openTracking = async (order_id: string) => {
+    setTrackOrderId(order_id);
+    setTrackOpen(true);
+    setTrackLoading(true);
+    setTrackError(null);
+    setTrackShipments([]);
+
+    try {
+      const res = await fetch(`/api/store/orders/${order_id}/shipments`, {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      
+      console.log(data, " tracking data...")
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || "Failed to load shipments");
+      }
+
+      setTrackShipments(Array.isArray(data?.results) ? data.results : []);
+    } catch (e: any) {
+      setTrackError(e?.message || "Failed to load shipments");
+    } finally {
+      setTrackLoading(false);
     }
   };
 
@@ -299,7 +356,7 @@ export function OrderManagement() {
         await loadOrders();
         router.replace("/store?tab=orders&ordersTab=bnpl");
 
-        
+
       } catch (e) {
         hasConfirmedRef.current = false;
         console.error("Confirm error:", e);
@@ -307,7 +364,7 @@ export function OrderManagement() {
     })();
   }, [searchParams, router]);
 
-  
+
   // -----------------------------
   // UI HELPERS
   // -----------------------------
@@ -556,11 +613,11 @@ export function OrderManagement() {
 
   const [ordersTab, setOrdersTab] = useState<string>(defaultOrdersTab);
 
-    useEffect(() => {
-      if (ordersTabParam === "bnpl") {
-        setOrdersTab("bnpl");
-      }
-    }, [ordersTabParam]);
+  useEffect(() => {
+    if (ordersTabParam === "bnpl") {
+      setOrdersTab("bnpl");
+    }
+  }, [ordersTabParam]);
 
 
   // -----------------------------
@@ -599,11 +656,11 @@ export function OrderManagement() {
       </div>
 
       {/* Tabs */}
-        <Tabs
-          value={ordersTab}
-          onValueChange={setOrdersTab}
-          className="space-y-6"
-        >
+      <Tabs
+        value={ordersTab}
+        onValueChange={setOrdersTab}
+        className="space-y-6"
+      >
 
         <div className="flex justify-between items-center flex-wrap gap-3">
           <TabsList className="flex w-full sm:w-auto justify-start sm:justify-center gap-2 overflow-x-auto whitespace-nowrap no-scrollbar bg-muted/50 p-2 rounded-2xl">
@@ -679,6 +736,15 @@ export function OrderManagement() {
                     <Button variant="outline" size="sm" className="w-full sm:w-auto">
                       <MessageSquare className="mr-2 h-3 w-3" />
                       Contact Support
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      onClick={() => openTracking(order.id)}
+                    >
+                      <Truck className="mr-2 h-3 w-3" />
+                      Track
                     </Button>
 
                     {order.status === "delivered" && (
@@ -775,10 +841,10 @@ export function OrderManagement() {
                             !order.agreementId
                               ? "Missing agreement id"
                               : loadingThis
-                              ? "Loading schedule..."
-                              : detail && !nextPayable
-                              ? "No installment is due yet"
-                              : ""
+                                ? "Loading schedule..."
+                                : detail && !nextPayable
+                                  ? "No installment is due yet"
+                                  : ""
                           }
                         >
                           {loadingThis ? (
@@ -821,8 +887,8 @@ export function OrderManagement() {
               {dialogDetail
                 ? `Provider: ${dialogDetail.provider} • Status: ${dialogDetail.status}`
                 : dialogLoading
-                ? "Loading schedule..."
-                : "Schedule not loaded"}
+                  ? "Loading schedule..."
+                  : "Schedule not loaded"}
             </DialogDescription>
           </DialogHeader>
 
@@ -898,6 +964,108 @@ export function OrderManagement() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Shipment Tracking Dialog */}
+      <Dialog
+        open={trackOpen}
+        onOpenChange={(open) => {
+          setTrackOpen(open);
+          if (!open) {
+            setTrackOrderId(null);
+            setTrackShipments([]);
+            setTrackError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Order Tracking</DialogTitle>
+            <DialogDescription>
+              {trackOrderId ? `Order: ${trackOrderId}` : "Tracking"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {trackLoading && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading shipment…</span>
+            </div>
+          )}
+
+          {trackError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg">
+              {trackError}
+            </div>
+          )}
+
+          {!trackLoading && !trackError && trackShipments.length === 0 && (
+            <div className="text-sm text-muted-foreground">
+              No shipments yet for this order.
+            </div>
+          )}
+
+          {!trackLoading && !trackError && trackShipments.length > 0 && (
+            <div className="space-y-4">
+              {trackShipments.map((s) => (
+                <div key={s.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">Shipment {String(s.id).slice(0, 8)}…</div>
+                    <Badge className="capitalize">
+                      {String(s.status || "").replaceAll("_", " ")}
+                    </Badge>
+                  </div>
+
+                  <div className="text-sm">
+                    Tracking:{" "}
+                    <span className="font-semibold">
+                      {s.tracking_number || "—"}
+                    </span>
+                  </div>
+
+                  {s.tracking_url ? (
+                    <a
+                      className="text-sm underline text-primary"
+                      href={s.tracking_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open carrier tracking
+                    </a>
+                  ) : null}
+
+                  {Array.isArray(s.events) && s.events.length > 0 ? (
+                    <div className="space-y-2 pt-2">
+                      {s.events.map((ev) => (
+                        <div key={ev.id} className="text-sm flex justify-between gap-3">
+                          <span className="text-muted-foreground">
+                            {String(ev.code || "").replaceAll("_", " ")}
+                            {ev.desc ? ` — ${ev.desc}` : ""}
+
+                          </span>
+                          <span className="text-muted-foreground whitespace-nowrap">
+                            {ev.occurred_at ? new Date(ev.occurred_at).toLocaleString() : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground pt-2">
+                      No tracking events yet.
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pt-2 flex justify-end">
+            <Button variant="outline" onClick={() => setTrackOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

@@ -1,70 +1,77 @@
-// app/api/store/shipments/[shipment_id]/events/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// texagonui/app/api/store/shipments/[shipment_id]/events/route.ts
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
-
-interface AddEventResponse {
-  id: string;
-}
-
-export async function POST(
-  req: Request,
-  {params}: {params: {shipment_id: string}}
+/* =========================
+   GET – list tracking events
+   ========================= */
+export async function GET(
+  _req: Request,
+  { params }: { params: { shipment_id: string } }
 ) {
-  const body = await req.json();
-  const fullUrl = `${BASE_URL}/shipments/${params.shipment_id}/events/`;
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
-  try {
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(sessionToken ? sessionToken : undefined),
-      body: JSON.stringify(body),
-    });
-    const rawResponse = await response.text();
-    if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
-        );
-      if (response.status === 400)
-        return NextResponse.json({error: "Invalid request"}, {status: 400});
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json({error: "Shipment not found"}, {status: 404});
-      return NextResponse.json(
-        {error: "Failed to add shipment event"},
-        {status: response.status}
-      );
-    }
-    let data: AddEventResponse;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
-      );
-    }
-    const normalizedData: AddEventResponse = {
-      id: data.id || "",
-    };
-    return NextResponse.json(normalizedData, {status: 201});
-  } catch (error) {
+  const shipmentId = params.shipment_id;
+
+  if (!shipmentId || shipmentId === "undefined") {
     return NextResponse.json(
-      {error: "Failed to add shipment event"},
-      {status: 500}
+      { detail: "Missing shipment_id in route params", params },
+      { status: 400 }
     );
   }
+
+  const { res, text } = await djangoFetch(
+    `/store/api/shipments/${shipmentId}/events/`,
+    { method: "GET" }
+  );
+
+  return new NextResponse(text, { status: res.status });
+}
+
+/* =========================
+   POST – add tracking event
+   ========================= */
+export async function POST(
+  req: Request,
+  { params }: { params: { shipment_id: string } }
+) {
+  const shipmentId = params.shipment_id;
+
+  if (!shipmentId || shipmentId === "undefined") {
+    return NextResponse.json(
+      { detail: "Missing shipment_id in route params", params },
+      { status: 400 }
+    );
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { detail: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+
+  // Forward payload exactly as Django expects
+  const { res, text } = await djangoFetch(
+    `/store/api/shipments/${shipmentId}/events/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        event_code: body.event_code,
+        description: body.description,
+        occurred_at: body.occurred_at,
+        city: body.city,
+        state: body.state,
+        country: body.country,
+        postal_code: body.postal_code,
+        carrier_status: body.carrier_status,
+      }),
+    }
+  );
+
+  return new NextResponse(text, { status: res.status });
 }

@@ -22,6 +22,7 @@ import { CreateShipmentModal } from "@/components/admin/modals/create-shipment-m
 import { SetTrackingModal } from "@/components/admin/modals/set-tracking-modal";
 import { AddTrackingEventModal } from "@/components/admin/modals/add-tracking-event-modal";
 import { OrderDetailsModal } from "@/components/admin/modals/order-details-modal";
+import { ShipmentDetailsModal } from "@/components/admin/modals/shipment-details-modal";
 
 /**
  * NOTE:
@@ -69,6 +70,8 @@ type Order = {
   status: OrderStatus;
   date: string;
   items?: OrderItem[];
+  shipmentsCount?: number;
+  hasShipment?: boolean;
 };
 
 
@@ -97,10 +100,15 @@ type Shipment = {
 export default function StorePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsShipment, setDetailsShipment] = useState<Shipment | null>(null);
 
   const [activeTab, setActiveTab] = useState<"products" | "orders" | "shipments">(
     "orders"
   );
+  const [creatingShipment, setCreatingShipment] = useState(false);
+  const [settingTracking, setSettingTracking] = useState(false);
+  const [addingEvent, setAddingEvent] = useState(false);
 
   // Placeholder products list (keep your UI if you want, but CRUD not now)
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,25 +167,29 @@ export default function StorePage() {
           (o.customer?.full_name || "").trim() ||
           (o.customer?.email || "").trim() ||
           "—";
+          return {
+            id: String(o.id || ""),
+            orderNumber: `ORD-${String(o.created_at || "").slice(0, 10)}-${idx + 1}`,
+            customer: customerFullName,
+            customerObj: o.customer || null,
+            shipping_address: o.shipping_address || null,
+            billing_address: o.billing_address || null,
+            itemsCount: itemsArr.reduce((sum: number, it: any) => sum + Number(it.qty || 0), 0),
+            total: Number.isFinite(totalNum) ? totalNum : 0,
+            status: String(o.status || ""),
+            date: String(o.created_at || "").slice(0, 10),
+            items: itemsArr.map((it: any) => ({
+              id: String(it.id || ""),
+              title: String(it.title || ""),
+              sku: String(it.sku || ""),
+              quantity: Number(it.qty || 0),
+            })),
 
-        return {
-          id: String(o.id || ""),
-          orderNumber: `ORD-${String(o.created_at || "").slice(0, 10)}-${idx + 1}`,
-          customer: customerFullName,
-          customerObj: o.customer || null, // ✅
-          shipping_address: o.shipping_address || null, // ✅
-          billing_address: o.billing_address || null, // ✅
-          itemsCount: itemsArr.reduce((sum: number, it: any) => sum + Number(it.qty || 0), 0),
-          total: Number.isFinite(totalNum) ? totalNum : 0,
-          status: String(o.status || ""),
-          date: String(o.created_at || "").slice(0, 10),
-          items: itemsArr.map((it: any) => ({
-            id: String(it.id || ""),        // ✅ now should exist
-            title: String(it.title || ""),
-            sku: String(it.sku || ""),
-            quantity: Number(it.qty || 0),
-          })),
-        };
+            // ✅ FIX: map snake_case -> camelCase
+            shipmentsCount: Number(o.shipments_count ?? 0),
+            hasShipment: Boolean(o.has_shipment),
+          };
+
       });
 
 
@@ -198,25 +210,62 @@ export default function StorePage() {
 
   async function loadShipments() {
     setLoadingShipments(true);
+
     try {
-      // OPTIONAL:
-      // If you have a list endpoint for shipments, hook it here.
-      // If not, you can omit this tab until you add a GET list endpoint.
       const res = await fetch("/api/store/shipments", { cache: "no-store" });
+
+      // If you haven't implemented the list endpoint yet, keep UI empty quietly
       if (res.status === 404) {
         setShipments([]);
         return;
       }
+
       const raw = await res.text();
       if (!res.ok) throw new Error(raw || "Failed to load shipments");
-      setShipments(JSON.parse(raw) as Shipment[]);
-    } catch {
-      // keep quiet; shipments list might not exist yet
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        throw new Error("Shipments API returned invalid JSON");
+      }
+
+      // Support both shapes: [] OR { results: [] }
+      const arr = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.results)
+          ? parsed.results
+          : [];
+
+      // Normalize + coerce fields safely
+      const normalized: Shipment[] = arr.map((x: any) => ({
+        id: String(x?.id ?? ""),
+        order_id: String(x?.order_id ?? ""),
+        status: (String(x?.status ?? "pending") as ShipmentStatus),
+        carrier_code: String(x?.carrier_code ?? ""),
+        tracking_number: x?.tracking_number ?? null,
+        tracking_url: x?.tracking_url ?? null,
+        label_url: x?.label_url ?? null,
+        shipped_at: x?.shipped_at ?? null,
+        delivered_at: x?.delivered_at ?? null,
+      }));
+
+      // Filter out invalid ids (prevents "undefined" hitting backend)
+      const cleaned = normalized.filter(
+        (s) => !!s.id && s.id !== "undefined" && s.id !== "null"
+      );
+
+      setShipments(cleaned);
+    } catch (e) {
+      // keep quiet; shipments list might not exist yet or may fail
       setShipments([]);
+      // optional: uncomment if you want to show errors
+      // toast({ title: "Shipments", description: (e as any)?.message || "Failed to load shipments", variant: "destructive" });
     } finally {
       setLoadingShipments(false);
     }
   }
+
 
   useEffect(() => {
     if (activeTab === "orders") loadPaidOrders();
@@ -260,6 +309,7 @@ export default function StorePage() {
     to: any;
     items: { order_item_id: string; quantity: number }[];
   }) {
+    setCreatingShipment(true);
     try {
       const res = await fetch(`/api/store/orders/${payload.orderId}/shipments/create`, {
         method: "POST",
@@ -290,6 +340,8 @@ export default function StorePage() {
         description: e?.message || "Failed to create shipment",
         variant: "destructive",
       });
+    } finally {
+      setCreatingShipment(false);
     }
   }
 
@@ -301,6 +353,7 @@ export default function StorePage() {
     label_cost?: string | number;
     currency?: string;
   }) {
+    setSettingTracking(true);
     try {
       const res = await fetch(`/api/store/shipments/${payload.shipmentId}/set-tracking`, {
         method: "POST",
@@ -330,6 +383,8 @@ export default function StorePage() {
         description: e?.message || "Failed to set tracking",
         variant: "destructive",
       });
+    } finally {
+      setSettingTracking(false);
     }
   }
 
@@ -344,6 +399,7 @@ export default function StorePage() {
     postal_code?: string;
     carrier_status?: string;
   }) {
+    setAddingEvent(true);
     try {
       const res = await fetch(`/api/store/shipments/${payload.shipmentId}/events`, {
         method: "POST",
@@ -374,8 +430,12 @@ export default function StorePage() {
         description: e?.message || "Failed to add tracking event",
         variant: "destructive",
       });
+    } finally {
+      setAddingEvent(false);
     }
   }
+
+  
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -475,7 +535,12 @@ export default function StorePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {(Array.isArray(orders) ? orders : []).map((o) => (
+                    {(Array.isArray(orders) ? orders : []).map((o) => {
+                      const alreadyHasShipment = Boolean(
+                        o?.hasShipment || (o?.shipmentsCount ?? 0) > 0
+                      );
+                      
+                      return (
                     <div
                       key={o.id}
                       className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border"
@@ -510,13 +575,21 @@ export default function StorePage() {
                             setSelectedOrder(o);
                             setCreateShipmentOpen(true);
                           }}
+                          disabled={alreadyHasShipment}
+                          className={
+                            alreadyHasShipment
+                              ? "opacity-50 blur-[0.6px] pointer-events-none select-none"
+                              : ""
+                          }
+                          title={alreadyHasShipment ? "Shipment already created for this order" : "Create Shipment"}
                         >
                           <PackagePlus className="mr-2 h-4 w-4" />
-                          Create Shipment
+                          {alreadyHasShipment ? "Shipment Created" : "Create Shipment"}
                         </Button>
                       </div>
                     </div>
-                  ))}
+                      );
+                 })}
                 </div>
               )}
             </CardContent>
@@ -583,6 +656,27 @@ export default function StorePage() {
                           variant="outline"
                           className="bg-transparent"
                           onClick={() => {
+                            if (!s?.id || s.id === "undefined") {
+                              toast({
+                                title: "Shipment",
+                                description: "Invalid shipment id. Check shipments payload mapping.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setDetailsShipment(s);
+                            setDetailsOpen(true);
+                          }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </Button>
+
+
+                        <Button
+                          variant="outline"
+                          className="bg-transparent"
+                          onClick={() => {
                             setSelectedShipment(s);
                             setTrackingOpen(true);
                           }}
@@ -636,6 +730,8 @@ export default function StorePage() {
       </Tabs>
 
       {/* MODALS */}
+
+
       <CreateShipmentModal
         open={createShipmentOpen}
         onOpenChange={(v) => {
@@ -644,6 +740,7 @@ export default function StorePage() {
         }}
         order={selectedOrder}
         onSubmit={handleCreateShipment}
+        submitting={creatingShipment}
       />
 
       <SetTrackingModal
@@ -651,6 +748,7 @@ export default function StorePage() {
         onOpenChange={setTrackingOpen}
         shipment={selectedShipment}
         onSubmit={handleSetTracking}
+        submitting={settingTracking}
       />
 
       <AddTrackingEventModal
@@ -658,13 +756,30 @@ export default function StorePage() {
         onOpenChange={setEventOpen}
         shipment={selectedShipment}
         onSubmit={handleAddEvent}
+        submitting={addingEvent}
       />
 
       <OrderDetailsModal
-          open={!!viewingOrder}
-          onOpenChange={(open) => !open && setViewingOrder(null)}
-          order={viewingOrder}
-        />
+        open={!!viewingOrder}
+        onOpenChange={(open) => !open && setViewingOrder(null)}
+        order={viewingOrder}
+      />
+
+      <ShipmentDetailsModal
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        shipment={detailsShipment}
+        onClickSetTracking={() => {
+          if (!detailsShipment) return;
+          setSelectedShipment(detailsShipment);
+          setTrackingOpen(true);
+        }}
+        onClickAddEvent={() => {
+          if (!detailsShipment) return;
+          setSelectedShipment(detailsShipment);
+          setEventOpen(true);
+        }}
+      />
 
     </div>
   );

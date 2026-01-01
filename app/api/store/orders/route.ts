@@ -95,7 +95,6 @@ export async function GET(req: Request) {
     ? `${BASE_URL}/orders/?status=${encodeURIComponent(status)}`
     : `${BASE_URL}/orders/`;
 
-  console.log("[StoreOrdersAPI] Initiating fetch for:", fullUrl);
 
   try {
     const response = await fetch(fullUrl, {
@@ -127,13 +126,15 @@ export async function GET(req: Request) {
     } catch {
       return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
     }
-    
     const normalizedData: OrdersResponse = {
       results: (data.results || []).map((item: any) => ({
         id: item.id || "",
         status: item.status || "",
         grand_total: item.grand_total || "0",
         created_at: item.created_at || "",
+
+        shipments_count:item.shipments_count || "0",
+        has_shipment:item.has_shipment || false,
 
         // ✅ pass through customer + addresses
         customer: item.customer
