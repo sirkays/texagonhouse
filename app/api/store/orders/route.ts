@@ -185,7 +185,6 @@ export async function GET(req: Request) {
         remaining_payments: item.remaining_payments ?? null,
       })),
     };
-    console.log(normalizedData, " This is the data... ")
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {"Cache-Control": "no-store"},

@@ -108,8 +108,6 @@ export async function GET(
     };
 
 
-    console.log(normalizedProduct, " app llllll .... ")
-
     return NextResponse.json(normalizedProduct, {
       status: 200,
       headers: { "Cache-Control": "no-store" },

@@ -149,7 +149,7 @@ else if (res.status === 401) {
         fetch("/api/store/cart/add", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product_id: product.id, quantity: 1 }),
+          body: JSON.stringify({ product_id: product.product_id ?? product.id, quantity: 1 }),
         })
       );
     },
