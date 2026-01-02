@@ -1,8 +1,8 @@
 // app/store/checkout/CheckoutClient.tsx
 "use client";
 
-import {useEffect, useMemo, useState, useRef} from "react";
-import {useRouter, useSearchParams} from "next/navigation";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -10,14 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Separator} from "@/components/ui/separator";
-import {Badge} from "@/components/ui/badge";
-import {ArrowLeft, Trash2, ShoppingBag, Loader2} from "lucide-react";
-import {useToast} from "@/hooks/use-toast";
-import {useCart} from "@/providers/CartProvider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Trash2, ShoppingBag, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/providers/CartProvider";
 import {
   Select,
   SelectContent,
@@ -28,6 +28,9 @@ import {
 
 const LS_BNPL_PID = "bnpl_last_product_id";
 const LS_BNPL_QTY = "bnpl_last_qty";
+
+const LS_BUYNOW_PID = "buynow_last_product_id";
+const LS_BUYNOW_QTY = "buynow_last_qty";
 
 function safeNum(v: any, fallback = 0) {
   const n = Number(v);
@@ -45,7 +48,7 @@ function uniq(arr: (string | undefined | null)[]) {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const {toast} = useToast();
+  const { toast } = useToast();
 
   const {
     cartItems,
@@ -94,6 +97,29 @@ export default function CheckoutPage() {
   const urlProductId = (searchParams.get("product_id") || "").trim();
   const urlQty = safeNum(searchParams.get("qty") || "1", 1);
 
+  const modeParam = (searchParams.get("mode") || "").toLowerCase();
+  const isBuyNowCheckout = modeParam === "buynow";
+
+
+  const resolveBuyNowPayload = () => {
+    if (urlProductId) return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
+
+    const lsPid = (typeof window !== "undefined" && localStorage.getItem(LS_BUYNOW_PID)) || "";
+    const lsQty = safeNum(
+      (typeof window !== "undefined" && localStorage.getItem(LS_BUYNOW_QTY)) || "1",
+      1
+    );
+
+    if (lsPid) return { product_id: lsPid, quantity: Math.max(1, lsQty) };
+
+    // fallback: buyNowProduct in context
+    if (buyNowProduct?.product_id) {
+      return { product_id: buyNowProduct.product_id, quantity: Math.max(1, safeNum(buyNowProduct.quantity || 1, 1)) };
+    }
+
+    return null;
+  };
+
   // Helper
   const formatNGN = (amount: number) =>
     new Intl.NumberFormat("en-NG", {
@@ -124,7 +150,7 @@ export default function CheckoutPage() {
     !!(displayItems || []).find((i: any) => i.bnplAvailable || i.bnpl_enabled);
 
   // ✅ When BNPL is on, hide cart items + totals UI
-  const showCartItemsUI = !isBnplCheckout;
+  const showCartItemsUI = !isBnplCheckout && !isBuyNowCheckout;
 
   // ✅ Confirm payment callback
   useEffect(() => {
@@ -177,7 +203,7 @@ export default function CheckoutPage() {
   const resolveBnplPayload = () => {
     // 1) URL
     if (urlProductId)
-      return {product_id: urlProductId, quantity: Math.max(1, urlQty)};
+      return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
 
     // 2) localStorage
     const lsPid =
@@ -185,10 +211,10 @@ export default function CheckoutPage() {
       "";
     const lsQty = safeNum(
       (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_QTY)) ||
-        "1",
+      "1",
       1
     );
-    if (lsPid) return {product_id: lsPid, quantity: Math.max(1, lsQty)};
+    if (lsPid) return { product_id: lsPid, quantity: Math.max(1, lsQty) };
 
     // 3) from bnplItem (ONLY if it looks like product id)
     if (bnplItem) {
@@ -218,7 +244,7 @@ export default function CheckoutPage() {
     try {
       localStorage.setItem(LS_BNPL_PID, String(payload.product_id));
       localStorage.setItem(LS_BNPL_QTY, String(payload.quantity || 1));
-    } catch {}
+    } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBnplCheckout, bnplItem?.id, bnplItem?.quantity, urlProductId, urlQty]);
 
@@ -252,7 +278,7 @@ export default function CheckoutPage() {
         const pid = candidates[attempt];
         const res = await fetch("/api/store/bnpl/breakdown", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             product_id: pid,
             quantity,
@@ -268,12 +294,12 @@ export default function CheckoutPage() {
           try {
             localStorage.setItem(LS_BNPL_PID, String(pid));
             localStorage.setItem(LS_BNPL_QTY, String(quantity));
-          } catch {}
+          } catch { }
 
           return;
         }
 
-        lastErr = {status: res.status, data};
+        lastErr = { status: res.status, data };
         // if 404, try the next candidate once
         if (res.status !== 404) break;
       }
@@ -298,26 +324,26 @@ export default function CheckoutPage() {
 
   const validateCheckout = () => {
     if (!formData.phoneNumber?.trim()) {
-      return {ok: false, message: "Phone number is required."};
+      return { ok: false, message: "Phone number is required." };
     }
 
     const usingSavedShipping = !!selectedShippingAddress;
     if (!usingSavedShipping) {
       if (!formData.address?.trim())
-        return {ok: false, message: "Street address is required."};
+        return { ok: false, message: "Street address is required." };
       if (!formData.city?.trim())
-        return {ok: false, message: "City is required."};
+        return { ok: false, message: "City is required." };
       if (!formData.state?.trim())
-        return {ok: false, message: "State is required."};
+        return { ok: false, message: "State is required." };
       if (!formData.area?.trim())
-        return {ok: false, message: "Area is required."};
+        return { ok: false, message: "Area is required." };
       if (!formData.zipCode?.trim())
-        return {ok: false, message: "Postal code is required."};
+        return { ok: false, message: "Postal code is required." };
     }
 
     // ✅ Only normal checkout needs cart items
     if (!isBnplCheckout && !displayItems?.length) {
-      return {ok: false, message: "Your cart is empty."};
+      return { ok: false, message: "Your cart is empty." };
     }
 
     // ✅ BNPL can proceed without cart items (uses URL/localStorage)
@@ -331,9 +357,9 @@ export default function CheckoutPage() {
         };
       }
 
-      if (bnplLoading) return {ok: false, message: "Loading BNPL breakdown…"};
+      if (bnplLoading) return { ok: false, message: "Loading BNPL breakdown…" };
       if (!bnplBreakdown)
-        return {ok: false, message: "BNPL breakdown unavailable."};
+        return { ok: false, message: "BNPL breakdown unavailable." };
 
       if (!bnplBreakdown?.eligible) {
         return {
@@ -345,10 +371,11 @@ export default function CheckoutPage() {
 
       const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
       if (!payNow || payNow <= 0)
-        return {ok: false, message: "Invalid BNPL downpayment amount."};
+        return { ok: false, message: "Invalid BNPL downpayment amount." };
     }
 
-    return {ok: true as const};
+
+    return { ok: true as const };
   };
 
   const canRequestOrPlace = useMemo(
@@ -371,7 +398,7 @@ export default function CheckoutPage() {
     } else {
       removeFromCart(String(id) as any);
     }
-    toast({title: "Item Removed", description: "Item removed from cart"});
+    toast({ title: "Item Removed", description: "Item removed from cart" });
   };
 
   const handleQuantityChange = (id: any, newQuantity: number) => {
@@ -379,7 +406,7 @@ export default function CheckoutPage() {
     if (newQuantity < 1) return;
 
     if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
-      setBuyNowProduct({...buyNowProduct, quantity: newQuantity});
+      setBuyNowProduct({ ...buyNowProduct, quantity: newQuantity });
     } else {
       updateQuantity(String(id) as any, newQuantity);
     }
@@ -408,7 +435,7 @@ export default function CheckoutPage() {
       if (!billingId && !shippingId) {
         const res = await fetch("/api/store/addresses", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             full_name: "Customer",
             line1: formData.address,
@@ -434,8 +461,6 @@ export default function CheckoutPage() {
         billingId = String(addrData.id);
       }
 
-      console.log(billingId, " d,lc,dlv,fvl,;flv,;fl");
-
       if (!billingId) billingId = shippingId;
       if (!shippingId) shippingId = billingId;
 
@@ -445,13 +470,22 @@ export default function CheckoutPage() {
         phone_number: formData.phoneNumber,
       };
 
+      // ✅ Make modes exclusive (BNPL wins if both appear)
       if (isBnplCheckout) {
         const bnplPayload: any = resolveBnplPayload?.();
+
+        if (!bnplPayload?.product_id && !bnplBreakdown?.product_details?.product_id) {
+          toast({
+            variant: "destructive",
+            title: "BNPL item missing",
+            description: "No BNPL product selected. Please go back and try again.",
+          });
+          return;
+        }
 
         createOrderPayload.is_bnpl = true;
         createOrderPayload.bnpl_plan_id = bnplBreakdown?.plan?.id || null;
 
-        // ✅ PASS PRODUCT ID + QTY TO BACKEND
         createOrderPayload.product_id =
           bnplPayload?.product_id ||
           bnplBreakdown?.product_details?.product_id ||
@@ -461,11 +495,26 @@ export default function CheckoutPage() {
           1,
           safeNum(bnplPayload?.quantity || 1, 1)
         );
+      } else if (isBuyNowCheckout) {
+        const p = resolveBuyNowPayload();
+
+        if (!p?.product_id) {
+          toast({
+            variant: "destructive",
+            title: "Buy now item missing",
+            description: "No product selected. Please go back and try again.",
+          });
+          return;
+        }
+
+        createOrderPayload.product_id = p.product_id;
+        createOrderPayload.quantity = Math.max(1, safeNum(p.quantity || 1, 1));
+        // IMPORTANT: do NOT set is_bnpl
       }
 
       const orderRes = await fetch("/api/store/checkout/create-order", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createOrderPayload),
       });
 
@@ -492,26 +541,37 @@ export default function CheckoutPage() {
 
       const redirect_url = `${window.location.origin}/store/checkout`;
 
-      const totalToPayFromCart = Number(cartSummary?.payable_total || 0);
-      const normalAmountToPay =
-        orderData?.total_amount ??
+      const normalAmountToPay = safeNum(
+        orderData?.grand_total ??
+        orderData?.payable_total ??
         orderData?.amount ??
-        (buyNowProduct ? total : totalToPayFromCart);
+        orderData?.total_amount,
+        0
+      );
 
       const bnplPayNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
-      const amountToPay = isBnplCheckout
-        ? bnplPayNow
-        : safeNum(normalAmountToPay, 0);
+      const amountToPay = isBnplCheckout ? bnplPayNow : normalAmountToPay;
+
+      if (!amountToPay || amountToPay <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Invalid amount",
+          description: "Payment amount is invalid. Please refresh and try again.",
+        });
+        return;
+      }
 
       const bnplPayload: any = isBnplCheckout ? resolveBnplPayload?.() : null;
 
       const itemList = isBnplCheckout
         ? String(
-            bnplPayload?.product_id ||
-              bnplBreakdown?.product_details?.product_id ||
-              ""
-          )
-        : displayItems.map((i: any) => i.id).join(",");
+          bnplPayload?.product_id ||
+          bnplBreakdown?.product_details?.product_id ||
+          ""
+        )
+        : isBuyNowCheckout
+          ? String(resolveBuyNowPayload()?.product_id || "")
+          : displayItems.map((i: any) => i.id).join(",");
 
       const paymentPayload: any = {
         redirect_url,
@@ -531,7 +591,7 @@ export default function CheckoutPage() {
 
       const payRes = await fetch("/api/billing", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentPayload),
       });
 
@@ -541,9 +601,7 @@ export default function CheckoutPage() {
           variant: "destructive",
           title: "Payment initialization failed",
           description:
-            payData?.detail ||
-            payData?.error ||
-            "Unable to create payment link",
+            payData?.detail || payData?.error || "Unable to create payment link",
         });
         return;
       }
@@ -551,8 +609,7 @@ export default function CheckoutPage() {
       const link = payData?.payment_link;
       const invoiceId = payData?.invoice_id;
 
-      if (invoiceId)
-        localStorage.setItem("checkout_invoice_id", String(invoiceId));
+      if (invoiceId) localStorage.setItem("checkout_invoice_id", String(invoiceId));
 
       if (!link) {
         toast({
@@ -575,6 +632,7 @@ export default function CheckoutPage() {
     }
   };
 
+
   const confirmPayment = async (
     tx_ref: string,
     transaction_id: string,
@@ -585,12 +643,12 @@ export default function CheckoutPage() {
 
     setIsPlacingOrder(true);
     try {
-      const payload: any = {status: "completed", tx_ref, transaction_id};
+      const payload: any = { status: "completed", tx_ref, transaction_id };
       if (invoice_id) payload.invoice_id = invoice_id;
 
       const res = await fetch("/api/billing?action=confirm", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -669,7 +727,7 @@ export default function CheckoutPage() {
                     placeholder="e.g. 08012345678"
                     value={formData.phoneNumber}
                     onChange={(e) =>
-                      setFormData({...formData, phoneNumber: e.target.value})
+                      setFormData({ ...formData, phoneNumber: e.target.value })
                     }
                     required
                     disabled={uiLocked}
@@ -715,7 +773,7 @@ export default function CheckoutPage() {
                         id="address"
                         value={formData.address}
                         onChange={(e) =>
-                          setFormData({...formData, address: e.target.value})
+                          setFormData({ ...formData, address: e.target.value })
                         }
                         required
                         disabled={uiLocked}
@@ -729,7 +787,7 @@ export default function CheckoutPage() {
                           id="city"
                           value={formData.city}
                           onChange={(e) =>
-                            setFormData({...formData, city: e.target.value})
+                            setFormData({ ...formData, city: e.target.value })
                           }
                           required
                           disabled={uiLocked}
@@ -741,7 +799,7 @@ export default function CheckoutPage() {
                         <Select
                           value={formData.state}
                           onValueChange={(val) =>
-                            setFormData({...formData, state: val, area: ""})
+                            setFormData({ ...formData, state: val, area: "" })
                           }
                           disabled={uiLocked}>
                           <SelectTrigger>
@@ -764,7 +822,7 @@ export default function CheckoutPage() {
                         <Select
                           value={formData.area}
                           onValueChange={(val) =>
-                            setFormData({...formData, area: val})
+                            setFormData({ ...formData, area: val })
                           }
                           disabled={uiLocked || !formData.state}>
                           <SelectTrigger>
@@ -792,7 +850,7 @@ export default function CheckoutPage() {
                           id="zipCode"
                           value={formData.zipCode}
                           onChange={(e) =>
-                            setFormData({...formData, zipCode: e.target.value})
+                            setFormData({ ...formData, zipCode: e.target.value })
                           }
                           required
                           disabled={uiLocked}

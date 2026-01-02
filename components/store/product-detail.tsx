@@ -110,10 +110,23 @@ export function ProductDetail({ product }: { product: Product }) {
   };
 
   const handleBuyNow = () => {
-    // ✅ Buy-now expects CartItem too (based on your error)
+    // optional for UI (so summary can show immediately)
     setBuyNowProduct(toCartItem(product, 1));
-    router.push("/store/checkout");
+
+    const pid = product.id;
+    const qty = 1;
+
+    // persist fallback for refresh
+    try {
+      localStorage.setItem("buynow_last_product_id", String(pid));
+      localStorage.setItem("buynow_last_qty", String(qty));
+    } catch {}
+
+    router.push(
+      `/store/checkout?mode=buynow&product_id=${encodeURIComponent(pid)}&qty=${qty}`
+    );
   };
+
 
   const fetchBnpl = async () => {
     try {
