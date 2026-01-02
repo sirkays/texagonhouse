@@ -30,18 +30,23 @@ export default function ProductDetailPage() {
           throw new Error("Failed to fetch product");
         }
         const data = await res.json();
-        setProduct({
-          id: data.id,
-          name: data.title,
-          description: data.description,
-          price: parseFloat(data.price),
-          type: data.type,
-          category: data.category,
-          rating: data.rating,
-          reviews: data.rating_count,
-          image: data.image,
-          bnplAvailable: data.bnpl_enabled,
-        });
+      // texagon_academy\texagonui\app\store\product\page.tsx
+
+      setProduct({
+        id: data.id,
+        name: data.title,
+        description: data.description,
+        price: parseFloat(data.price),
+        type: data.type,
+        category: data.category,
+        rating: data.rating,
+        ratingCount: data.rating_count,     // ✅ keep count separately
+        image: data.image,
+        images: data.images || [],          // ✅ include gallery images
+        reviews: data.reviews || [],        // ✅ include reviews array
+        bnplAvailable: data.bnpl_enabled,
+      });
+
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -66,7 +71,7 @@ export default function ProductDetailPage() {
   return (
     <div className="container mx-auto p-4">
       <Link href="/store" className="text-blue-600 underline mb-4 inline-block">
-        &larr; Back to Store
+        &larr; Back to Store ...
       </Link>
       <ProductDetail product={product} />
     </div>

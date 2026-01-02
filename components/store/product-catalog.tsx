@@ -139,7 +139,7 @@ export function ProductCatalog() {
 
     return (
       <div
-        onClick={() => router.push(`/store/${product.slug}`)}
+        onClick={() => router.push(`/store/product/${product.slug}`)}
         className="block cursor-pointer h-full"
       >
         {/* ✅ fixed height card */}

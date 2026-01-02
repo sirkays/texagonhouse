@@ -35,6 +35,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface OrderItem {
+  productSlug?: string;
   name: string;
   price: number;
   type: string;
@@ -138,6 +139,20 @@ export function OrderManagement() {
   const [trackOrderId, setTrackOrderId] = useState<string | null>(null);
   const [trackShipments, setTrackShipments] = useState<Shipment[]>([]);
 
+  // -----------------------------
+  // REVIEW DIALOG STATE
+  // -----------------------------
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const [reviewProductSlug, setReviewProductSlug] = useState<string | null>(null);
+  const [reviewProductName, setReviewProductName] = useState<string>("");
+
+  const [rating, setRating] = useState<number>(5);
+  const [reviewTitle, setReviewTitle] = useState<string>("");
+  const [reviewBody, setReviewBody] = useState<string>("");
+
   const loadOrders = async () => {
     setLoading(true);
     setBnplError(null);
@@ -171,8 +186,8 @@ export function OrderManagement() {
 
           const hasShipments = (detail.shipments || []).length > 0;
           const itemType = hasShipments ? "physical" : "physical";
-
           const items = (detail.items || []).map((item: any) => ({
+            productSlug: String(item.product_slug || item.slug || ""), // your backend must expose this
             name: item.title,
             price: parseFloat(item.price),
             type: itemType,
@@ -180,6 +195,7 @@ export function OrderManagement() {
             tracking: hasShipments ? detail.shipments[0]?.tracking_number : undefined,
             trackingUrl: hasShipments ? detail.shipments[0]?.tracking_url : undefined,
           }));
+
 
           let estimatedDelivery: string | undefined;
           if (hasShipments) {
@@ -221,6 +237,79 @@ export function OrderManagement() {
     }
   };
 
+  const openReview = async (slug?: string, productName?: string) => {
+    if (!slug) return;
+
+    setReviewOpen(true);
+    setReviewLoading(true);
+    setReviewError(null);
+
+    setReviewProductSlug(slug);
+    setReviewProductName(productName || "");
+
+    // reset form defaults
+    setRating(5);
+    setReviewTitle("");
+    setReviewBody("");
+
+    try {
+      // 👇 THIS IS WHERE IT GOES
+      const res = await fetch(
+        `/api/store/products/${slug}/reviews/my-review`,
+        { cache: "no-store" }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        setRating(Number(data.rating || 5));
+        setReviewTitle(data.title || "");
+        setReviewBody(data.body || "");
+      }
+      // if 404 → user has not reviewed yet (this is OK)
+    } catch (e) {
+      // silent fail – user can still write a new review
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+
+  const submitReview = async () => {
+    if (!reviewProductSlug) return;
+
+    setReviewLoading(true);
+    setReviewError(null);
+
+    try {
+      const res = await fetch(`/api/store/products/${reviewProductSlug}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          rating,
+          title: reviewTitle,
+          body: reviewBody,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || "Failed to submit review");
+      }
+
+      toast({
+        title: "Review saved ✅",
+        description: "Thanks for your feedback!",
+      });
+
+      setReviewOpen(false);
+    } catch (e: any) {
+      setReviewError(e?.message || "Failed to submit review");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
 
   const openTracking = async (order_id: string) => {
     setTrackOrderId(order_id);
@@ -234,7 +323,7 @@ export function OrderManagement() {
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
-      
+
       console.log(data, " tracking data...")
       if (!res.ok) {
         throw new Error(data?.detail || data?.error || "Failed to load shipments");
@@ -727,6 +816,22 @@ export function OrderManagement() {
                               Tracking: {item.tracking}
                             </p>
                           )}
+                          {order.status === "fulfilled" && (
+                            <div className="pt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openReview(item.productSlug, item.name)}
+                                disabled={!item.productSlug}
+                                title={!item.productSlug ? "Missing product slug on order item" : ""}
+                                className="w-full sm:w-auto"
+                              >
+                                <Star className="mr-2 h-3 w-3" />
+                                Leave Review
+                              </Button>
+                            </div>
+                          )}
+
                         </div>
                       </div>
                     ))}
@@ -748,7 +853,14 @@ export function OrderManagement() {
                     </Button>
 
                     {order.status === "delivered" && (
-                      <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => openReview(order.items?.[0]?.productSlug, order.items?.[0]?.name)}
+                        disabled={!order.items?.[0]?.productSlug}
+                        title={!order.items?.[0]?.productSlug ? "Missing product slug on order item" : ""}
+                      >
                         <Star className="mr-2 h-3 w-3" />
                         Leave Review
                       </Button>
@@ -1062,6 +1174,77 @@ export function OrderManagement() {
             <Button variant="outline" onClick={() => setTrackOpen(false)}>
               Close
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Review Dialog */}
+      <Dialog
+        open={reviewOpen}
+        onOpenChange={(open) => {
+          setReviewOpen(open);
+          if (!open) {
+            setReviewProductSlug(null);
+            setReviewProductName("");
+            setReviewError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Leave a Review</DialogTitle>
+            <DialogDescription>
+              {reviewProductName ? `Product: ${reviewProductName}` : "Share your experience"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {reviewError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg">
+              {reviewError}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Rating (1–5)</p>
+              <Input
+                type="number"
+                min={1}
+                max={5}
+                value={rating}
+                onChange={(e) => setRating(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Title (optional)</p>
+              <Input value={reviewTitle} onChange={(e) => setReviewTitle(e.target.value)} />
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Review (optional)</p>
+              <textarea
+                className="w-full min-h-[110px] rounded-md border p-2 text-sm"
+                value={reviewBody}
+                onChange={(e) => setReviewBody(e.target.value)}
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setReviewOpen(false)}>
+                Cancel
+              </Button>
+
+              <Button onClick={submitReview} disabled={reviewLoading || !reviewProductSlug}>
+                {reviewLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Submit Review"
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
