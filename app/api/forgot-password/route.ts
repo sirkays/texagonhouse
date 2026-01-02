@@ -43,16 +43,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     );
 
-    console.log(
-      "[ForgotPasswordRoute] Reset request API response status:",
-      response.status
-    );
-
     const rawResponse: string = await response.text();
-    console.log(
-      "[ForgotPasswordRoute] Raw response from reset request API:",
-      rawResponse || "Empty response"
-    );
 
     let data: ForgotPasswordResponseData = {};
     if (rawResponse) {
@@ -66,9 +57,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         data = {detail: "Invalid response format"};
       }
     } else {
-      console.log(
-        "[ForgotPasswordRoute] Empty response from reset request API, assuming success"
-      );
       data = {detail: "If an account exists, a reset link has been sent."};
     }
 
@@ -84,7 +72,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    console.log("[ForgotPasswordRoute] Reset request successful:", data);
     return NextResponse.json(
       {message: "Reset email sent successfully", detail: data.detail},
       {status: 200}

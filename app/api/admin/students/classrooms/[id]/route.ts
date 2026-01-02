@@ -14,14 +14,9 @@ export async function GET(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received GET request to /api/classrooms/[id]");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
@@ -35,10 +30,6 @@ export async function GET(
       );
     }
 
-    console.log(
-      "[Route] Fetching classroom from",
-      `${BASE_URL}/api/classrooms/${id}/`
-    );
     const res = await fetch(`${BASE_URL}/api/classrooms/${id}/`, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -46,12 +37,9 @@ export async function GET(
       },
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to fetch classroom"},
         {status: res.status}
@@ -69,20 +57,15 @@ export async function PATCH(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received PATCH request to /api/classrooms/[id]");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
     const body = await request.json();
-    console.log("[Route] Request body:", body);
+
     const {id} = params;
 
     if (!id) {
@@ -92,10 +75,6 @@ export async function PATCH(
       );
     }
 
-    console.log(
-      "[Route] Updating classroom from",
-      `${BASE_URL}/api/classrooms/${id}/`
-    );
     const res = await fetch(`${BASE_URL}/api/classrooms/${id}/`, {
       method: "PATCH",
       headers: {
@@ -106,12 +85,9 @@ export async function PATCH(
       body: JSON.stringify(body),
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API patch failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to update classroom"},
         {status: res.status}
@@ -129,14 +105,9 @@ export async function DELETE(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received DELETE request to /api/classrooms/[id]");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
@@ -150,10 +121,6 @@ export async function DELETE(
       );
     }
 
-    console.log(
-      "[Route] Deleting classroom from",
-      `${BASE_URL}/api/classrooms/${id}/`
-    );
     const res = await fetch(`${BASE_URL}/api/classrooms/${id}/`, {
       method: "DELETE",
       headers: {
@@ -162,11 +129,9 @@ export async function DELETE(
       },
     });
 
-    console.log("[Route] API response status:", res.status);
-
     if (!res.ok) {
       const data = await res.json();
-      console.log("[Route] API delete failed:", data);
+
       return NextResponse.json(
         {error: data.detail || "Failed to delete classroom"},
         {status: res.status}

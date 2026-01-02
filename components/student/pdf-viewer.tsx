@@ -49,12 +49,10 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
       setError(null);
     }
     if (!isOpen && pdfUrl && pdfUrl.startsWith("blob:")) {
-      console.log("[PDFViewer] Revoking object URL:", pdfUrl);
       URL.revokeObjectURL(pdfUrl);
     }
     return () => {
       if (pdfUrl && pdfUrl.startsWith("blob:")) {
-        console.log("[PDFViewer] Cleanup: Revoking object URL:", pdfUrl);
         URL.revokeObjectURL(pdfUrl);
       }
     };

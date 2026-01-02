@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 //const BASE_URL = "http://127.0.0.1:9098";
@@ -51,32 +51,27 @@ function normalizeBookmark(b: any) {
 }
 
 const headers = (sessionToken) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 export async function GET(req) {
   noStore();
   const endpoint = "/learning/api/materials/mine/";
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[Materials API] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[Materials API] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Materials API] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
+      {error: "Not authenticated"},
       {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
@@ -85,25 +80,23 @@ export async function GET(req) {
   }
 
   try {
-    console.log("[Materials API] Fetching from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[Materials API] Fetch response status:", response.status);
-    console.log("[Materials API] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[Materials API] Fetch response content-type:", response.headers.get("content-type"));
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[Materials API] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[Materials API] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[Materials API] Fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired" },
+          {error: "Session expired"},
           {
             status: 401,
             headers: {
@@ -115,7 +108,7 @@ export async function GET(req) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Materials endpoint not found" },
+          {error: "Materials endpoint not found"},
           {
             status: 404,
             headers: {
@@ -126,7 +119,7 @@ export async function GET(req) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch materials" },
+        {error: "Failed to fetch materials"},
         {
           status: response.status,
           headers: {
@@ -140,7 +133,7 @@ export async function GET(req) {
     if (!contentType.includes("application/json")) {
       console.error("[Materials API] Non-JSON response received:", contentType);
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -157,7 +150,7 @@ export async function GET(req) {
     } catch (parseError) {
       console.error("[Materials API] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -174,7 +167,9 @@ export async function GET(req) {
         ...data.saved,
         videos: data.saved.videos.map((video) => ({
           ...video,
-          thumbnail: normalizeMedia(video.thumbnail) || "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
+          thumbnail:
+            normalizeMedia(video.thumbnail) ||
+            "/placeholder.svg?height=120&width=200&text=Video+Thumbnail",
           videoUrl: normalizeMedia(video.videoUrl) || "/sample-video.mp4",
         })),
         pdfs: data.saved.pdfs.map((pdf) => ({
@@ -187,17 +182,17 @@ export async function GET(req) {
         })),
       },
 
-    // NEW: normalize notes and bookmarks to snake_case & correct types
-    notes: (data.notes ?? []).map(normalizeNote),
-    bookmarks: (data.bookmarks ?? []).map(normalizeBookmark),
+      // NEW: normalize notes and bookmarks to snake_case & correct types
+      notes: (data.notes ?? []).map(normalizeNote),
+      bookmarks: (data.bookmarks ?? []).map(normalizeBookmark),
     };
 
-    console.log("[Materials API] Fetch successful, normalized data:", normalizedData);
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -205,7 +200,7 @@ export async function GET(req) {
   } catch (error) {
     console.error("[Materials API] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch materials", details: error.message },
+      {error: "Failed to fetch materials", details: error.message},
       {
         status: 500,
         headers: {
@@ -217,26 +212,16 @@ export async function GET(req) {
   }
 }
 
-
-
 export async function DELETE(req: Request) {
   noStore();
-  const { id } = await req.json();
+  const {id} = await req.json();
   const fullUrl = `${BASE_URL}${deleteEndpoint}`;
-  console.log("[Notes API] Initiating DELETE to:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[Notes API] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user
-      ? { id: session.user.id, role: session.user.role }
-      : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Notes API] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
+      {error: "Not authenticated"},
       {
         status: 401,
         headers: {
@@ -253,12 +238,7 @@ export async function DELETE(req: Request) {
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[Notes API] DELETE response status:", response.status);
     const rawResponse = await response.text();
-    console.log(
-      "[Notes API] Raw response:",
-      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
-    );
 
     if (!response.ok) {
       console.error(
@@ -270,10 +250,10 @@ export async function DELETE(req: Request) {
       try {
         errorData = JSON.parse(rawResponse);
       } catch {
-        errorData = { error: "Invalid response format" };
+        errorData = {error: "Invalid response format"};
       }
       return NextResponse.json(
-        { error: "Failed to delete note", details: errorData },
+        {error: "Failed to delete note", details: errorData},
         {
           status: response.status,
           headers: {
@@ -284,9 +264,8 @@ export async function DELETE(req: Request) {
       );
     }
 
-    console.log("[Notes API] DELETE successful");
     return NextResponse.json(
-      { message: "Note deleted" },
+      {message: "Note deleted"},
       {
         status: 200,
         headers: {
@@ -298,7 +277,7 @@ export async function DELETE(req: Request) {
   } catch (error) {
     console.error("[Notes API] DELETE error:", error);
     return NextResponse.json(
-      { error: "Failed to delete note", details: error.message },
+      {error: "Failed to delete note", details: error.message},
       {
         status: 500,
         headers: {

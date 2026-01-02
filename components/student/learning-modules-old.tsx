@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -42,10 +42,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { VideoModal } from "@/components/student/video-modal";
-import { AudioPlayer } from "@/components/student/audio-player";
-import { useSession } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
+import {VideoModal} from "@/components/student/video-modal";
+import {AudioPlayer} from "@/components/student/audio-player";
+import {useSession} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
 import toast from "react-hot-toast";
 import AntiInspect from "@/components/AntiInspect";
 
@@ -95,7 +95,7 @@ interface ActiveModule {
   courseName: string;
 }
 
-const StarRating = ({ popularity }: { popularity: number | null }) => {
+const StarRating = ({popularity}: {popularity: number | null}) => {
   if (!popularity || popularity <= 0) return null;
   const maxStars = 5;
   const filledStars = Math.min(Math.max(popularity, 0), maxStars);
@@ -116,7 +116,7 @@ const StarRating = ({ popularity }: { popularity: number | null }) => {
 };
 
 export function LearningModules() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [currentPage, setCurrentPage] = useState({
     videos: 1,
     audio: 1,
@@ -139,10 +139,10 @@ export function LearningModules() {
     open: boolean;
     title: string;
     message: string;
-  }>({ open: false, title: "", message: "" });
+  }>({open: false, title: "", message: ""});
 
   const showAlert = (title: string, message: string) => {
-    setAlertModal({ open: true, title, message });
+    setAlertModal({open: true, title, message});
   };
 
   const sessionToken = useMemo(
@@ -154,43 +154,25 @@ export function LearningModules() {
 
   // Fallback data for UI stability
   const fallbackData: ModulesData = {
-    videos: [
-
-    ],
-    audio: [
-
-    ],
-    pdfs: [
-
-    ],
+    videos: [],
+    audio: [],
+    pdfs: [],
     docs: [],
     links: [],
-    tutorials: [
-
-    ],
+    tutorials: [],
   };
 
   const handleLogout = async () => {
-    console.log(
-      "[LearningModules] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
-      console.log(
-        "[LearningModules] Logout API response status:",
-        response.status
-      );
       const data = await response.json();
-      console.log("[LearningModules] Logout API response:", data);
       if (!response.ok) {
         console.error("[LearningModules] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log("[LearningModules] Logout successful, redirecting to /login");
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -204,17 +186,7 @@ export function LearningModules() {
 
   useEffect(() => {
     const fetchModules = async () => {
-      console.log(
-        "[LearningModules] Session status:",
-        status,
-        "Session token:",
-        session?.user?.sessionToken
-      );
       if (status !== "authenticated" || !sessionToken) {
-        console.log(
-          "[LearningModules] Session not authenticated, status:",
-          status
-        );
         setError("Not authenticated");
         setModules(fallbackData);
         setLoading(false);
@@ -226,20 +198,12 @@ export function LearningModules() {
       }
 
       try {
-        console.log(
-          "[LearningModules] Fetching from /api/student/learning-modules with token:",
-          session.user.sessionToken
-        );
         const response = await fetch("/api/student/learning-modules", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
           },
         });
-        console.log(
-          "[LearningModules] Fetch response status:",
-          response.status
-        );
         if (!response.ok) {
           console.error(
             "[LearningModules] Fetch failed with status:",
@@ -264,7 +228,6 @@ export function LearningModules() {
           throw new Error("Fetch failed");
         }
         const data = await response.json();
-        console.log("[LearningModules] Fetch response data:", data);
         setModules(data);
         setError(null);
       } catch (e) {
@@ -284,35 +247,18 @@ export function LearningModules() {
 
   useEffect(() => {
     const fetchActiveModules = async () => {
-      console.log(
-        "[LearningModules] Session status for active modules:",
-        status,
-        "Session token:",
-        session?.user?.sessionToken
-      );
       if (status !== "authenticated" || !sessionToken) {
-        console.log(
-          "[LearningModules] Skipping active modules fetch, not authenticated"
-        );
         setActiveModules([]);
         return;
       }
 
       try {
-        console.log(
-          "[LearningModules] Fetching from /api/student/modules/active with token:",
-          session.user.sessionToken
-        );
         const response = await fetch("/api/student/modules/active", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
           },
         });
-        console.log(
-          "[LearningModules] Active modules fetch response status:",
-          response.status
-        );
         if (!response.ok) {
           console.error(
             "[LearningModules] Active modules fetch failed with status:",
@@ -330,10 +276,6 @@ export function LearningModules() {
           throw new Error("Failed to fetch active modules");
         }
         const data = await response.json();
-        console.log(
-          "[LearningModules] Active modules fetch response data:",
-          data
-        );
         setActiveModules(data);
         setError(null);
       } catch (e) {
@@ -365,7 +307,6 @@ export function LearningModules() {
     }
 
     try {
-      console.log("[LearningModules] Saving lesson:", module.id, module.title);
       const response = await fetch(`/api/student/save/lesson/${module.id}`, {
         method: "POST",
         headers: {
@@ -375,7 +316,6 @@ export function LearningModules() {
         body: JSON.stringify({}),
       });
 
-      console.log("[LearningModules] Save response status:", response.status);
       if (!response.ok) {
         const errorData = await response.json();
         console.error(
@@ -404,7 +344,6 @@ export function LearningModules() {
       }
 
       const data = await response.json();
-      console.log("[LearningModules] Save successful:", data);
       setSavedLessons((prev) => new Set([...prev, module.id]));
       // ✅ show success modal
       showAlert("Saved", `"${module.title}" has been saved successfully.`);
@@ -424,22 +363,22 @@ export function LearningModules() {
     return modulesToUse.sort((a, b) => a.name.localeCompare(b.name));
   }, [activeModules]);
 
-const filteredModules = useMemo(() => {
-  const data = modules || fallbackData;
-  if (selectedModuleId === "all") return data;
+  const filteredModules = useMemo(() => {
+    const data = modules || fallbackData;
+    if (selectedModuleId === "all") return data;
 
-  const mid = Number(selectedModuleId);
-  if (!Number.isFinite(mid)) return data;
+    const mid = Number(selectedModuleId);
+    if (!Number.isFinite(mid)) return data;
 
-  return {
-    videos: data.videos.filter((x) => x.module_id === mid),
-    audio: data.audio.filter((x) => x.module_id === mid),
-    pdfs: data.pdfs.filter((x) => x.module_id === mid),
-    docs: data.docs.filter((x) => x.module_id === mid),
-    links: data.links.filter((x) => x.module_id === mid),
-    tutorials: data.tutorials.filter((x) => x.module_id === mid),
-  };
-}, [modules, selectedModuleId]);
+    return {
+      videos: data.videos.filter((x) => x.module_id === mid),
+      audio: data.audio.filter((x) => x.module_id === mid),
+      pdfs: data.pdfs.filter((x) => x.module_id === mid),
+      docs: data.docs.filter((x) => x.module_id === mid),
+      links: data.links.filter((x) => x.module_id === mid),
+      tutorials: data.tutorials.filter((x) => x.module_id === mid),
+    };
+  }, [modules, selectedModuleId]);
 
   const getPaginatedItems = (items: any[], page: number) => {
     if (!items) return [];
@@ -472,10 +411,7 @@ const filteredModules = useMemo(() => {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() =>
-                  setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))
-                }
-              >
+                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
                 1
               </PaginationLink>
             </PaginationItem>
@@ -485,16 +421,15 @@ const filteredModules = useMemo(() => {
               <PaginationEllipsis />
             </PaginationItem>
           )}
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
+          {Array.from({length: totalPages}, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
                   onClick={() =>
-                    setCurrentPage((prev) => ({ ...prev, [tab]: page }))
-                  }
-                >
+                    setCurrentPage((prev) => ({...prev, [tab]: page}))
+                  }>
                   {page}
                 </PaginationLink>
               </PaginationItem>
@@ -508,9 +443,8 @@ const filteredModules = useMemo(() => {
             <PaginationItem>
               <PaginationLink
                 onClick={() =>
-                  setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))
-                }
-              >
+                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
+                }>
                 {totalPages}
               </PaginationLink>
             </PaginationItem>
@@ -565,7 +499,6 @@ const filteredModules = useMemo(() => {
       );
       return;
     }
-    console.log("[LearningModules] Opening PDF in new tab:", pdf.url);
     const url = new URL(pdf.url);
     if (session?.user?.sessionToken) {
       url.searchParams.append("sessionToken", session.user.sessionToken);
@@ -639,8 +572,7 @@ const filteredModules = useMemo(() => {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <Play className="h-4 w-4" />
               Retry
             </Button>
@@ -665,48 +597,43 @@ const filteredModules = useMemo(() => {
           <label htmlFor="module-name-filter" className="text-sm font-medium">
             Filter by Module:
           </label>
-            <Select
-              value={selectedModuleId}
-              onValueChange={(value) => {
-                setSelectedModuleId(value);
-                setCurrentPage({ videos: 1, audio: 1, pdfs: 1, tutorials: 1 });
-              }}
-            >
-              <SelectTrigger id="module-name-filter" className="w-[180px]">
-                <SelectValue placeholder="Select module" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Modules</SelectItem>
-                {moduleNameOptions.map((m) => (
-                  <SelectItem key={m.id} value={String(m.id)}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
+          <Select
+            value={selectedModuleId}
+            onValueChange={(value) => {
+              setSelectedModuleId(value);
+              setCurrentPage({videos: 1, audio: 1, pdfs: 1, tutorials: 1});
+            }}>
+            <SelectTrigger id="module-name-filter" className="w-[180px]">
+              <SelectValue placeholder="Select module" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Modules</SelectItem>
+              {moduleNameOptions.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Tabs defaultValue="videos" className="w-full">
           <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
             <TabsTrigger
               value="videos"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
               <Video className="h-4 w-4" />
               Video
             </TabsTrigger>
             <TabsTrigger
               value="audio"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
               <Headphones className="h-4 w-4" />
               Audio
             </TabsTrigger>
             <TabsTrigger
               value="pdfs"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
               <FileText className="h-4 w-4" />
               PDFs
             </TabsTrigger>
@@ -721,8 +648,7 @@ const filteredModules = useMemo(() => {
               ).map((video) => (
                 <Card
                   key={video.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                >
+                  className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader className="p-0">
                     <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative overflow-hidden">
                       {video.cover_image ? (
@@ -795,8 +721,7 @@ const filteredModules = useMemo(() => {
                       <Button
                         className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                         onClick={() => handlePlayVideo(video)}
-                        disabled={!video.url}
-                      >
+                        disabled={!video.url}>
                         {video.progress === 100 ? (
                           <>
                             <CheckCircle className="mr-2 h-4 w-4" />
@@ -816,21 +741,26 @@ const filteredModules = useMemo(() => {
                       </Button>
 
                       <Button
-                        variant={savedLessons.has(video.id) ? "default" : "outline"}
+                        variant={
+                          savedLessons.has(video.id) ? "default" : "outline"
+                        }
                         className={`flex-1 w-full h-10 shadow-md ${
                           savedLessons.has(video.id)
                             ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90" // saved look
                             : "bg-transparent" // unsaved look
                         }`}
                         onClick={() => handleSaveLesson(video)}
-                        disabled={!session?.user?.sessionToken || savedLessons.has(video.id)}
-                      >
+                        disabled={
+                          !session?.user?.sessionToken ||
+                          savedLessons.has(video.id)
+                        }>
                         <Bookmark
-                          className={`mr-2 h-4 w-4 ${savedLessons.has(video.id) ? "fill-current" : ""}`}
+                          className={`mr-2 h-4 w-4 ${
+                            savedLessons.has(video.id) ? "fill-current" : ""
+                          }`}
                         />
                         {savedLessons.has(video.id) ? "Saved" : "Save"}
                       </Button>
-
                     </div>
                   </CardContent>
                 </Card>
@@ -846,8 +776,7 @@ const filteredModules = useMemo(() => {
                 (audio) => (
                   <Card
                     key={audio.id}
-                    className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow"
-                  >
+                    className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex items-center gap-4">
                         <div className="w-16 h-16 bg-[#f797712f] rounded-lg flex items-center justify-center">
@@ -882,8 +811,7 @@ const filteredModules = useMemo(() => {
                         <Button
                           className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                           onClick={() => handlePlayAudio(audio)}
-                          disabled={!audio.url}
-                        >
+                          disabled={!audio.url}>
                           <Headphones className="mr-2 h-4 w-4" />
                           {audio.progress > 0
                             ? "Continue Listening"
@@ -898,8 +826,7 @@ const filteredModules = useMemo(() => {
                           disabled={
                             !session?.user?.sessionToken ||
                             savedLessons.has(audio.id)
-                          }
-                        >
+                          }>
                           <Bookmark
                             className={`mr-2 h-4 w-4 ${
                               savedLessons.has(audio.id) ? "fill-current" : ""
@@ -923,8 +850,7 @@ const filteredModules = useMemo(() => {
                 (pdf) => (
                   <Card
                     key={pdf.id}
-                    className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto"
-                  >
+                    className="hover:shadow-lg transition-shadow flex flex-col min-h-[400px] max-h-auto">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
@@ -953,8 +879,7 @@ const filteredModules = useMemo(() => {
                         <Button
                           className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
                           onClick={() => handlePreviewPdf(pdf)}
-                          disabled={!pdf.url}
-                        >
+                          disabled={!pdf.url}>
                           <Eye className="mr-2 h-3 w-3" />
                           Preview
                         </Button>
@@ -978,8 +903,7 @@ const filteredModules = useMemo(() => {
                           disabled={
                             !session?.user?.sessionToken ||
                             savedLessons.has(pdf.id)
-                          }
-                        >
+                          }>
                           <Bookmark
                             className={`mr-2 h-3 w-3 ${
                               savedLessons.has(pdf.id) ? "fill-current" : ""
@@ -1005,8 +929,7 @@ const filteredModules = useMemo(() => {
               ).map((tutorial) => (
                 <Card
                   key={tutorial.id}
-                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow"
-                >
+                  className="flex flex-col min-h-[250px] max-h-auto hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -1041,8 +964,7 @@ const filteredModules = useMemo(() => {
                     </div>
                     <Button
                       className="w-full mt-auto"
-                      disabled={!tutorial.isActiveNow}
-                    >
+                      disabled={!tutorial.isActiveNow}>
                       Join Session
                     </Button>
                   </CardContent>
@@ -1070,10 +992,7 @@ const filteredModules = useMemo(() => {
         {/* GLOBAL ALERT MODAL */}
         <Dialog
           open={alertModal.open}
-          onOpenChange={(open) =>
-            setAlertModal((prev) => ({ ...prev, open }))
-          }
-        >
+          onOpenChange={(open) => setAlertModal((prev) => ({...prev, open}))}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{alertModal.title}</DialogTitle>
@@ -1082,9 +1001,8 @@ const filteredModules = useMemo(() => {
             <DialogFooter>
               <Button
                 onClick={() =>
-                  setAlertModal((prev) => ({ ...prev, open: false }))
-                }
-              >
+                  setAlertModal((prev) => ({...prev, open: false}))
+                }>
                 OK
               </Button>
             </DialogFooter>

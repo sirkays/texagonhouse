@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
-const BASE_URL = "https://texagonbackend.onrender.com/gamification/api/leaderboard";
+const BASE_URL =
+  "https://texagonbackend.onrender.com/gamification/api/leaderboard";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
@@ -22,16 +23,15 @@ async function fetchWithTimeout(url: string, options: any) {
 }
 
 export async function GET(request: Request) {
-  console.log("[Route] Received GET request to /api/student/leaderboard");
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
     console.error("[Route] No session token found, session:", session);
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
-    const { searchParams } = new URL(request.url);
+    const {searchParams} = new URL(request.url);
     const topGlobal = searchParams.get("top_global") || "10";
     const topSchool = searchParams.get("top_school") || "10";
     const topWeekly = searchParams.get("top_weekly") || "10";
@@ -41,7 +41,6 @@ export async function GET(request: Request) {
     if (debug === "1" || debug === "true") {
       url += "&debug=1";
     }
-    console.log("[Route] Fetching leaderboard from:", url);
 
     const res = await fetchWithTimeout(url, {
       headers: {
@@ -52,24 +51,29 @@ export async function GET(request: Request) {
       timeout: 8000,
     });
 
-    console.log("[Route] External API response status:", res.status);
     if (!res.ok) {
       const errorData = await res.json();
       console.error("[Route] External API error response:", errorData);
       return NextResponse.json(
-        { error: "Failed to fetch leaderboard", details: errorData.detail || errorData.error },
-        { status: res.status }
+        {
+          error: "Failed to fetch leaderboard",
+          details: errorData.detail || errorData.error,
+        },
+        {status: res.status}
       );
     }
 
     const data = await res.json();
-    console.log("[Route] External API response data:", data);
-    return NextResponse.json(data, { status: 200 });
+
+    return NextResponse.json(data, {status: 200});
   } catch (error) {
-    console.error("[Route] Error fetching leaderboard:", (error as Error).message);
+    console.error(
+      "[Route] Error fetching leaderboard:",
+      (error as Error).message
+    );
     return NextResponse.json(
-      { error: "Internal server error", details: (error as Error).message },
-      { status: 500 }
+      {error: "Internal server error", details: (error as Error).message},
+      {status: 500}
     );
   }
 }

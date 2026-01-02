@@ -1,15 +1,15 @@
 // app/teacher/submissions/CodeRunner.ts
-import { useState, useEffect } from "react";
+import {useState, useEffect} from "react";
 
 export type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
 
 const languages = {
-  javascript: { judgeId: 63 },
-  python: { judgeId: 71 },
-  java: { judgeId: 62 },
-  cpp: { judgeId: 54 },
-  html: { judgeId: null },
-  css: { judgeId: null },
+  javascript: {judgeId: 63},
+  python: {judgeId: 71},
+  java: {judgeId: 62},
+  cpp: {judgeId: 54},
+  html: {judgeId: null},
+  css: {judgeId: null},
 } as const;
 
 export function useCodeRunner(initialFiles: Record<Lang, string>) {
@@ -17,17 +17,14 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [activeLang, setActiveLang] = useState<Lang>("javascript");
-  const [ready] = useState({ pyodide: true, cheerpj: true, emception: true });
+  const [ready] = useState({pyodide: true, cheerpj: true, emception: true});
 
   const run = async () => {
     setIsRunning(true);
     setOutput("");
 
-    console.log(`[CodeRunner] Run called. Lang: ${activeLang}`);
     const code = files[activeLang];
-    console.log(`[CodeRunner] Code len: ${code?.length}`);
     if (!code.trim()) {
-      console.log("[CodeRunner] Code is empty.");
       setOutput("No code to run.");
       setIsRunning(false);
       return;
@@ -78,8 +75,6 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n    ${code}\n    return 0;\n}`;
     }
 
-    console.log("[CodeRunner] Sending to Judge0:", { lang: activeLang, len: codeToRun.length });
-
     try {
       const res = await fetch(
         "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
@@ -87,7 +82,8 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+            "X-RapidAPI-Key":
+              "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
             "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
           },
           body: JSON.stringify({
@@ -99,7 +95,6 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       );
 
       const result = await res.json();
-      console.log("[CodeRunner] Judge0 Result:", result);
 
       if (result.status?.id === 3) {
         setOutput(result.stdout || "Success (no output)");
@@ -123,13 +118,14 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
   `;
 
   const download = () => {
-    console.log("[CodeRunner] Download called");
-    console.log("[CodeRunner] Active language:", activeLang);
-    console.log("[CodeRunner] Files state:", files);
-    console.log("[CodeRunner] Code to download:", files[activeLang]);
-    console.log("[CodeRunner] Code length:", files[activeLang]?.length);
-
-    const ext = { javascript: "js", python: "py", java: "java", cpp: "cpp", html: "html", css: "css" };
+    const ext = {
+      javascript: "js",
+      python: "py",
+      java: "java",
+      cpp: "cpp",
+      html: "html",
+      css: "css",
+    };
     const code = files[activeLang];
 
     if (!code || code.trim() === "") {
@@ -137,12 +133,11 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       return;
     }
 
-    const blob = new Blob([code], { type: "text/plain" });
+    const blob = new Blob([code], {type: "text/plain"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `code.${ext[activeLang]}`;
-    console.log("[CodeRunner] Downloading file:", a.download);
     a.click();
     URL.revokeObjectURL(url);
   };

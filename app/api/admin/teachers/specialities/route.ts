@@ -11,20 +11,15 @@ async function getSession() {
 }
 
 export async function GET(request: NextRequest) {
-  console.log("[Route] Received GET request to /api/specialties");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
     const url = `${BASE_URL}/api/subjects/`;
-    console.log("[Route] Fetching data from", url);
+
     const res = await fetch(url, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -32,12 +27,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to fetch data"},
         {status: res.status}

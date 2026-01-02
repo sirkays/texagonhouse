@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import {useState, useEffect} from "react";
 import {
   Card,
   CardContent,
@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import {Label} from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,8 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Textarea} from "@/components/ui/textarea";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   CalendarIcon,
   Clock,
@@ -45,12 +45,12 @@ import {
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ButtonProps, buttonVariants } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {cn} from "@/lib/utils";
+import {ButtonProps, buttonVariants} from "@/components/ui/button";
+import {Checkbox} from "@/components/ui/checkbox";
 
 // Pagination Components
-const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
+const Pagination = ({className, ...props}: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
     aria-label="pagination"
@@ -63,7 +63,7 @@ Pagination.displayName = "Pagination";
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
   React.ComponentProps<"ul">
->(({ className, ...props }, ref) => (
+>(({className, ...props}, ref) => (
   <ul
     ref={ref}
     className={cn("flex flex-row items-center gap-1", className)}
@@ -75,7 +75,7 @@ PaginationContent.displayName = "PaginationContent";
 const PaginationItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
->(({ className, ...props }, ref) => (
+>(({className, ...props}, ref) => (
   <li ref={ref} className={cn("", className)} {...props} />
 ));
 PaginationItem.displayName = "PaginationItem";
@@ -113,8 +113,7 @@ const PaginationPrevious = ({
     aria-label="Go to previous page"
     size="default"
     className={cn("gap-1 pl-2.5", className)}
-    {...props}
-  >
+    {...props}>
     <ChevronLeft className="h-4 w-4" />
     <span>Previous</span>
   </PaginationLink>
@@ -129,8 +128,7 @@ const PaginationNext = ({
     aria-label="Go to next page"
     size="default"
     className={cn("gap-1 pr-2.5", className)}
-    {...props}
-  >
+    {...props}>
     <span>Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
@@ -144,8 +142,7 @@ const PaginationEllipsis = ({
   <span
     aria-hidden
     className={cn("flex h-9 w-9 items-center justify-center", className)}
-    {...props}
-  >
+    {...props}>
     <MoreHorizontal className="h-4 w-4" />
     <span className="sr-only">More pages</span>
   </span>
@@ -199,7 +196,9 @@ export function TutoringBooking() {
 
   // Fetch functions
   const fetchUpcoming = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`);
+    const res = await fetch(
+      `/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`
+    );
     if (res.ok) {
       const data = await res.json();
       setUpcomingSessions(data.results);
@@ -207,10 +206,11 @@ export function TutoringBooking() {
     }
   };
 
-
-  console.log(upcomingSessions, 'upcoming sessions')
+  console.log(upcomingSessions, "upcoming sessions");
   const fetchPast = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`);
+    const res = await fetch(
+      `/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`
+    );
     if (res.ok) {
       const data = await res.json();
       setPastSessions(data.results);
@@ -219,15 +219,15 @@ export function TutoringBooking() {
   };
 
   const fetchTutors = async (page: number) => {
-    const res = await fetch(`/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`);
+    const res = await fetch(
+      `/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`
+    );
     if (res.ok) {
       const data = await res.json();
       setAvailableTutors(data.results);
       setTutorsTotalPages(data.total_pages);
     }
   };
-
-  console.log("Available Tutors:", availableTutors);
 
   const fetchChildren = async () => {
     const res = await fetch(`/api/tutor/tutoring/children`);
@@ -331,7 +331,7 @@ export function TutoringBooking() {
   };
 
   const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
+    return Array.from({length: 5}, (_, i) => (
       <Star
         key={i}
         className={`h-3 w-3 ${
@@ -342,15 +342,7 @@ export function TutoringBooking() {
   };
 
   // Days for preferred_days
-  const dayOptions = [
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-    "Sun",
-  ];
+  const dayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const toggleDay = (day: string, checked: boolean | string) => {
     setPreferredDays((prev) => {
@@ -366,11 +358,13 @@ export function TutoringBooking() {
       student_id: parseInt(child),
       private_tutoring_id: bookingTutorId,
       duration_hours: parseInt(duration),
-      notes: `Learning objectives: ${learningObjectives}\nPreferred days: ${preferredDays.join(', ')}\nPreferred time: ${preferredTime}\n${notes}`,
+      notes: `Learning objectives: ${learningObjectives}\nPreferred days: ${preferredDays.join(
+        ", "
+      )}\nPreferred time: ${preferredTime}\n${notes}`,
     };
     const res = await fetch("/api/tutor/tutoring/book", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload),
     });
     if (res.ok) {
@@ -393,25 +387,21 @@ export function TutoringBooking() {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="space-y-4 xs:space-y-6"
-      >
+        className="space-y-4 xs:space-y-6">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="upcoming"
-          >
+            value="upcoming">
             Current Tutoring
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="past"
-          >
+            value="past">
             Past Tutoring
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="tutors"
-          >
+            value="tutors">
             Find Tutors
           </TabsTrigger>
         </TabsList>
@@ -432,8 +422,7 @@ export function TutoringBooking() {
                 {upcomingSessions.map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex flex-col gap-3 sm:gap-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
@@ -515,8 +504,7 @@ export function TutoringBooking() {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={upcomingPage === page}
-                              onClick={() => setUpcomingPage(page)}
-                            >
+                              onClick={() => setUpcomingPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
@@ -568,8 +556,7 @@ export function TutoringBooking() {
                 {pastSessions.map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
+                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex flex-col gap-3 sm:gap-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
@@ -640,16 +627,14 @@ export function TutoringBooking() {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={pastPage === page}
-                              onClick={() => setPastPage(page)}
-                            >
+                              onClick={() => setPastPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         );
                       } else if (
                         (page === pastPage - 2 && pastPage > 3) ||
-                        (page === pastPage + 2 &&
-                          pastPage < pastTotalPages - 2)
+                        (page === pastPage + 2 && pastPage < pastTotalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
@@ -693,8 +678,7 @@ export function TutoringBooking() {
                 {availableTutors.map((tutor) => (
                   <div
                     key={tutor.id}
-                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]"
-                  >
+                    className="flex flex-col p-3 sm:p-4 rounded-lg space-y-3 sm:space-y-4 hover:shadow-md transition-shadow w-full min-h-[400px]">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
                         <AvatarImage src={tutor.avatar || "/placeholder.svg"} />
@@ -740,7 +724,10 @@ export function TutoringBooking() {
                           <span className="font-medium">Modules:</span>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {tutor.modules.map((mod: string, index: number) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="text-xs">
                                 {mod}
                               </Badge>
                             ))}
@@ -785,8 +772,7 @@ export function TutoringBooking() {
                         onClick={() => {
                           setBookingTutorId(tutor.id);
                           setIsCardBookingOpen(true);
-                        }}
-                      >
+                        }}>
                         <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Book Tutoring
                       </Button>
@@ -822,8 +808,7 @@ export function TutoringBooking() {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={tutorsPage === page}
-                              onClick={() => setTutorsPage(page)}
-                            >
+                              onClick={() => setTutorsPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
@@ -867,8 +852,7 @@ export function TutoringBooking() {
                 setBookingTutorId(null);
                 resetBookingForm();
               }
-            }}
-          >
+            }}>
             <DialogContent className="w-[95vw] max-w-[700px] max-h-[85vh] p-0 overflow-scroll rounded-none sm:rounded-lg">
               <DialogHeader className="p-4 sm:p-6 sticky top-0 bg-background z-10 border-b">
                 <DialogTitle>
@@ -914,8 +898,7 @@ export function TutoringBooking() {
                               checked
                                 ? "border-[#EF7B55] bg-[#f797712e]"
                                 : "border-muted"
-                            )}
-                          >
+                            )}>
                             <Checkbox
                               checked={checked}
                               onCheckedChange={(val) => toggleDay(d, val)}
@@ -1008,14 +991,12 @@ export function TutoringBooking() {
                     setIsCardBookingOpen(false);
                     resetBookingForm();
                   }}
-                  className="w-full sm:w-auto"
-                >
+                  className="w-full sm:w-auto">
                   Cancel
                 </Button>
                 <Button
                   onClick={handleBookSubmit}
-                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                >
+                  className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
                   <Video className="h-4 w-4 mr-2" />
                   Book Tutoring
                 </Button>
@@ -1034,9 +1015,7 @@ export function TutoringBooking() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.total_tutoring}
-            </div>
+            <div className="text-2xl font-bold">{stats.total_tutoring}</div>
             <p className="text-xs text-muted-foreground">
               {stats.upcoming_count} upcoming tutoring
             </p>
@@ -1050,9 +1029,7 @@ export function TutoringBooking() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.hours_completed}h
-            </div>
+            <div className="text-2xl font-bold">{stats.hours_completed}h</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -1067,9 +1044,7 @@ export function TutoringBooking() {
             <div className="text-2xl font-bold">
               {stats.average_rating.toFixed(1)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              From past tutoring
-            </p>
+            <p className="text-xs text-muted-foreground">From past tutoring</p>
           </CardContent>
         </Card>
         <Card>

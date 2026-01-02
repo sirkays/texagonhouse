@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -16,7 +16,7 @@ function normalizeMedia(media: string | null): string | null {
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/octet-stream",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 export async function GET(req: Request) {
@@ -27,34 +27,37 @@ export async function GET(req: Request) {
   if (!normalizedUrl) {
     console.error("[ProxyVideo] Invalid media URL:", url);
     return NextResponse.json(
-      { error: "Invalid media URL" },
-      { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      {error: "Invalid media URL"},
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 
   const session = await getServerSession(authOptions);
-  console.log("[ProxyVideo] Session:", { sessionToken: session?.user?.sessionToken });
 
   if (!session?.user?.sessionToken) {
     console.error("[ProxyVideo] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      {error: "Not authenticated"},
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 
   try {
-    console.log("[ProxyVideo] Fetching:", normalizedUrl, "with token:", session.user.sessionToken);
     const response = await fetch(normalizedUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
-    });
-
-    console.log("[ProxyVideo] Response:", {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      url: normalizedUrl,
     });
 
     if (!response.ok) {
@@ -68,18 +71,34 @@ export async function GET(req: Request) {
         url: normalizedUrl,
       });
       return NextResponse.json(
-        { error: `Failed to fetch media: ${response.status} ${response.statusText}`, details: rawResponse },
-        { status: response.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+        {
+          error: `Failed to fetch media: ${response.status} ${response.statusText}`,
+          details: rawResponse,
+        },
+        {
+          status: response.status,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
-    const contentType = response.headers.get("content-type") || "application/octet-stream";
+    const contentType =
+      response.headers.get("content-type") || "application/octet-stream";
     const stream = response.body;
     if (!stream) {
       console.error("[ProxyVideo] No response body:", normalizedUrl);
       return NextResponse.json(
-        { error: "No response body" },
-        { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+        {error: "No response body"},
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
@@ -95,8 +114,14 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("[ProxyVideo] Fetch error:", normalizedUrl, error);
     return NextResponse.json(
-      { error: "Failed to fetch media", details: String(error) },
-      { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      {error: "Failed to fetch media", details: String(error)},
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }
@@ -109,8 +134,14 @@ export async function HEAD(req: Request) {
   if (!normalizedUrl) {
     console.error("[ProxyVideo] Invalid media URL for HEAD:", url);
     return NextResponse.json(
-      { error: "Invalid media URL" },
-      { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      {error: "Invalid media URL"},
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 
@@ -118,23 +149,21 @@ export async function HEAD(req: Request) {
   if (!session?.user?.sessionToken) {
     console.error("[ProxyVideo] No session token found for HEAD");
     return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      {error: "Not authenticated"},
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 
   try {
-    console.log("[ProxyVideo] HEAD request:", normalizedUrl, "with token:", session.user.sessionToken);
     const response = await fetch(normalizedUrl, {
       method: "HEAD",
       headers: headers(session.user.sessionToken),
-    });
-
-    console.log("[ProxyVideo] HEAD response:", {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      url: normalizedUrl,
     });
 
     if (!response.ok) {
@@ -147,15 +176,25 @@ export async function HEAD(req: Request) {
         url: normalizedUrl,
       });
       return NextResponse.json(
-        { error: `HEAD request failed: ${response.status} ${response.statusText}`, details: rawResponse },
-        { status: response.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+        {
+          error: `HEAD request failed: ${response.status} ${response.statusText}`,
+          details: rawResponse,
+        },
+        {
+          status: response.status,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
     return new NextResponse(null, {
       status: 200,
       headers: {
-        "Content-Type": response.headers.get("content-type") || "application/octet-stream",
+        "Content-Type":
+          response.headers.get("content-type") || "application/octet-stream",
         "Cache-Control": "no-store",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, HEAD",
@@ -164,8 +203,14 @@ export async function HEAD(req: Request) {
   } catch (error) {
     console.error("[ProxyVideo] HEAD error:", normalizedUrl, error);
     return NextResponse.json(
-      { error: "Failed to perform HEAD request", details: String(error) },
-      { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      {error: "Failed to perform HEAD request", details: String(error)},
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }

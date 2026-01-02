@@ -402,7 +402,6 @@ export function TeacherResourceManager() {
       });
     }
 
-    console.log("Adding new resource:", resourceData);
     // Here you would typically upload to your backend
 
     setIsAddResourceOpen(false);
@@ -427,7 +426,6 @@ export function TeacherResourceManager() {
   };
 
   const handleSaveEdit = () => {
-    console.log("Saving edited resource:", editingResource);
     setIsEditDialogOpen(false);
     setEditingResource(null);
   };

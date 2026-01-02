@@ -46,7 +46,6 @@ const MyRoomPage = () => {
 
     try {
       const personalCall = client.call("default", meetingId);
-      console.log("[MyRoomPage] Creating call with ID:", meetingId);
       await personalCall.getOrCreate({
         data: {
           starts_at: new Date().toISOString(),
@@ -60,12 +59,7 @@ const MyRoomPage = () => {
           },
         },
       });
-      console.log("[MyRoomPage] Call created, checking state...");
       const callData = await personalCall.get();
-      console.log("[MyRoomPage] Call state:", {
-        createdAt: callData.call.created_at,
-        endedAt: callData.call.ended_at,
-      });
 
       if (callData.call.ended_at) {
         toast.error("Meeting already ended, creating a new one", {

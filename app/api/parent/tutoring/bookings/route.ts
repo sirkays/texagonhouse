@@ -1,31 +1,34 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 //const BASE_URL = "http://127.0.0.1:9098";
 const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY =
+  process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
-async function handler(req, { params }) {
+async function handler(req, {params}) {
   noStore();
   const session = await getServerSession(authOptions);
   if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "Not authenticated" }, {
-      status: 401,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    return NextResponse.json(
+      {error: "Not authenticated"},
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   }
-
-  console.log(params, " params....");
 
   const pathSegments = params.path || [];
   const path = pathSegments.join("/");
-  console.log(path, " path....");
+
   let backendPath = "/api/tutor/tutoring/" + path; // Align with docs prefix
   if (path === "children" || path === "children/") {
     backendPath = "/api/tutor/tutoring/children/"; // Use docs endpoint
@@ -33,10 +36,9 @@ async function handler(req, { params }) {
     backendPath = "/accounts/api/parent/reset-child-password/"; // Keep for POST
   }
   const fullUrl = `${BASE_URL}${backendPath}${req.nextUrl.search}`;
-  console.log("[ParentAPI] Initiating fetch for:", fullUrl);
 
   const fetchHeaders = {
-    "Authorization": `Session ${session.user.sessionToken}`,
+    Authorization: `Session ${session.user.sessionToken}`,
     "X-API-Key": API_KEY,
     "Content-Type": "application/json",
   };
@@ -52,13 +54,16 @@ async function handler(req, { params }) {
       body = await req.json();
       fetchOptions.body = JSON.stringify(body);
     } catch (e) {
-      return NextResponse.json({ error: "Invalid request body" }, {
-        status: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
+      return NextResponse.json(
+        {error: "Invalid request body"},
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
     }
   }
 
@@ -78,43 +83,53 @@ async function handler(req, { params }) {
       } else if (response.status === 404) {
         errorMsg = "Resource not found";
       }
-      return NextResponse.json({ error: errorMsg }, {
-        status: response.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
+      return NextResponse.json(
+        {error: errorMsg},
+        {
+          status: response.status,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
     }
 
     if (!contentType.includes("application/json")) {
-      return NextResponse.json({ error: "Invalid response format, expected JSON" }, {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
+      return NextResponse.json(
+        {error: "Invalid response format, expected JSON"},
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
     }
 
     let data;
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
-      return NextResponse.json({ error: "Invalid response format" }, {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
+      return NextResponse.json(
+        {error: "Invalid response format"},
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
+      );
     }
 
     return NextResponse.json(data, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -122,7 +137,7 @@ async function handler(req, { params }) {
   } catch (error) {
     console.error("[ParentAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to process request", details: error.message },
+      {error: "Failed to process request", details: error.message},
       {
         status: 500,
         headers: {
@@ -134,4 +149,4 @@ async function handler(req, { params }) {
   }
 }
 
-export { handler as GET, handler as POST };
+export {handler as GET, handler as POST};

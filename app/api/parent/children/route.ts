@@ -9,10 +9,8 @@ const API_KEY =
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const session = await getServerSession(authOptions);
-  console.log("[Route] Received GET request to", url.pathname);
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json(
       {detail: "Invalid or missing session token."},
       {status: 401}
@@ -32,18 +30,17 @@ export async function GET(request: Request) {
         const childId = url.searchParams.get("child_id") || "all";
         const timePeriod = url.searchParams.get("time_period") || "week";
         apiUrl = `${BASE_URL}/accounts/api/parent/children-progress/?child_id=${childId}&time_period=${timePeriod}`;
-        console.log("[Route] Fetching progress data from", apiUrl);
+
         break;
       case "/api/parent/children-list":
         apiUrl = `${BASE_URL}/accounts/api/parent/children-list/`;
-        console.log("[Route] Fetching children list from", apiUrl);
+
         break;
       case "/api/parent/time-periods":
         apiUrl = `${BASE_URL}/accounts/api/parent/time-periods/`;
-        console.log("[Route] Fetching time periods from", apiUrl);
+
         break;
       default:
-        console.log("[Route] Invalid endpoint:", url.pathname);
         return NextResponse.json({detail: "Endpoint not found"}, {status: 404});
     }
 
@@ -53,7 +50,6 @@ export async function GET(request: Request) {
     });
 
     const text = await res.text();
-    console.log("[Route] API response status:", res.status, "text:", text);
 
     let data;
     try {
@@ -67,7 +63,6 @@ export async function GET(request: Request) {
     }
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
       if (res.status === 403) {
         return NextResponse.json(
           {detail: "Unauthorized: Invalid session token or API key"},

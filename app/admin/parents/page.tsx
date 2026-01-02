@@ -402,14 +402,12 @@ export default function ParentsPage() {
       const url = searchQuery
         ? `/api/admin/parents?q=${encodeURIComponent(searchQuery)}`
         : "/api/admin/parents";
-      console.log("[ParentsPage] Fetching parents from", url);
       const res = await fetch(url);
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to fetch parents");
       }
       const data = await res.json();
-      console.log("[ParentsPage] Received data:", data);
       // Handle both plain array and paginated response
       const parentList = Array.isArray(data) ? data : data.results || [];
       setParents(parentList);

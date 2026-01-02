@@ -60,11 +60,6 @@ function TeacherSignupForm({
 
     await new Promise((resolve) => setTimeout(resolve, 1800));
 
-    console.log("Simulated account creation:", {
-      email: formData.email.trim().toLowerCase(),
-      name: `${formData.firstName} ${formData.lastName}`,
-    });
-
     setIsSendingOtp(false);
     onOtpRequested();
   };

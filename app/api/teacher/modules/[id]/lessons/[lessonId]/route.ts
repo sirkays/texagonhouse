@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextRequest, NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 import formidable from "formidable-serverless";
 import fs from "fs/promises";
 //const BASE_URL = "http://127.0.0.1:9098";
@@ -12,12 +12,12 @@ const COVER_IMAGE_FIELD_NAME = "cover_image";
 
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ id: string; lessonId: string }> }
+  context: {params: Promise<{id: string; lessonId: string}>}
 ) {
   noStore();
   const params = await context.params;
@@ -26,23 +26,18 @@ export async function PATCH(
   const endpoint = `/learning/api/teacher/modules/${moduleId}/lessons/${lessonId}/`;
 
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[LessonUpdateAPI] Initiating PATCH request for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[LessonUpdateAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken ? "[REDACTED]" : null,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[LessonUpdateAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated", redirect: "/auth/signin" },
+      {error: "Not authenticated", redirect: "/auth/signin"},
       {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
@@ -50,49 +45,59 @@ export async function PATCH(
     );
   }
 
-  let file: { path: string; name: string | null; type: string | null } | null = null;
-  let coverImageFile: { path: string; name: string | null; type: string | null } | null = null;
+  let file: {path: string; name: string | null; type: string | null} | null =
+    null;
+  let coverImageFile: {
+    path: string;
+    name: string | null;
+    type: string | null;
+  } | null = null;
 
   try {
     const contentType = req.headers.get("content-type") || "";
-    console.log("[LessonUpdateAPI] Content-Type received:", contentType);
 
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
       console.error("[LessonUpdateAPI] Unsupported Content-Type:", contentType);
       return NextResponse.json(
-        { error: `Unsupported Content-Type: ${contentType}, expected multipart/form-data` },
-        { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+        {
+          error: `Unsupported Content-Type: ${contentType}, expected multipart/form-data`,
+        },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
-    console.log("[LessonUpdateAPI] Processing multipart/form-data");
-    const form = formidable({ multiples: false, keepExtensions: true });
-    const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>(
-      (resolve, reject) => {
-        req.arrayBuffer()
-          .then(async (buffer) => {
-            console.log("[LessonUpdateAPI] Request body length:", buffer.byteLength);
-            const readableStream = new ReadableStream({
-              start(controller) {
-                controller.enqueue(new Uint8Array(buffer));
-                controller.close();
-              },
-            });
-            const nodeStream = require("stream").Readable.fromWeb(readableStream);
-            nodeStream.headers = {
-              "content-type": contentType,
-              "content-length": req.headers.get("content-length") || buffer.byteLength.toString(),
-            };
-            form.parse(nodeStream, (err, fields, files) => {
-              if (err) reject(err);
-              console.log("[LessonUpdateAPI] Formidable parsed fields:", fields);
-              console.log("[LessonUpdateAPI] Formidable parsed files:", files);
-              resolve([fields, files]);
-            });
-          })
-          .catch(reject);
-      }
-    );
+    const form = formidable({multiples: false, keepExtensions: true});
+    const [fields, files] = await new Promise<
+      [formidable.Fields, formidable.Files]
+    >((resolve, reject) => {
+      req
+        .arrayBuffer()
+        .then(async (buffer) => {
+          const readableStream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(new Uint8Array(buffer));
+              controller.close();
+            },
+          });
+          const nodeStream = require("stream").Readable.fromWeb(readableStream);
+          nodeStream.headers = {
+            "content-type": contentType,
+            "content-length":
+              req.headers.get("content-length") || buffer.byteLength.toString(),
+          };
+          form.parse(nodeStream, (err, fields, files) => {
+            if (err) reject(err);
+            resolve([fields, files]);
+          });
+        })
+        .catch(reject);
+    });
 
     // Convert formidable fields to payload
     const payload: any = {};
@@ -109,8 +114,17 @@ export async function PATCH(
         duration: !!payload.duration,
       });
       return NextResponse.json(
-        { error: "Missing required fields: title, type, and duration are required" },
-        { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+        {
+          error:
+            "Missing required fields: title, type, and duration are required",
+        },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
@@ -118,8 +132,14 @@ export async function PATCH(
     if (payload.duration === "0" || isNaN(parseInt(payload.duration))) {
       console.error("[LessonUpdateAPI] Invalid duration:", payload.duration);
       return NextResponse.json(
-        { error: "Duration must be a valid non-zero number" },
-        { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+        {error: "Duration must be a valid non-zero number"},
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
@@ -130,8 +150,14 @@ export async function PATCH(
       } catch (e) {
         console.error("[LessonUpdateAPI] Invalid meta JSON:", payload.meta);
         return NextResponse.json(
-          { error: "Invalid meta JSON format" },
-          { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+          {error: "Invalid meta JSON format"},
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
+          }
         );
       }
     }
@@ -146,11 +172,6 @@ export async function PATCH(
         name: uploadedFile.name,
         type: uploadedFile.type,
       };
-      console.log("[LessonUpdateAPI] Main file detected:", {
-        filename: file.name,
-        contentType: file.type,
-        size: uploadedFile.size,
-      });
       delete payload.remove_file; // Clear remove_file if new file is uploaded
     }
 
@@ -161,11 +182,23 @@ export async function PATCH(
         : files[COVER_IMAGE_FIELD_NAME];
       const validImageTypes = ["image/jpeg", "image/png", "image/gif"];
       if (!validImageTypes.includes(uploadedCover.type || "")) {
-        console.error("[LessonUpdateAPI] Invalid cover image type:", uploadedCover.type);
+        console.error(
+          "[LessonUpdateAPI] Invalid cover image type:",
+          uploadedCover.type
+        );
         await fs.unlink(uploadedCover.path).catch(console.error);
         return NextResponse.json(
-          { error: "Invalid cover image type. Only JPEG, PNG, or GIF are allowed." },
-          { status: 400, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+          {
+            error:
+              "Invalid cover image type. Only JPEG, PNG, or GIF are allowed.",
+          },
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
+          }
         );
       }
       coverImageFile = {
@@ -173,11 +206,6 @@ export async function PATCH(
         name: uploadedCover.name,
         type: uploadedCover.type,
       };
-      console.log("[LessonUpdateAPI] Cover image detected:", {
-        filename: coverImageFile.name,
-        contentType: coverImageFile.type,
-        size: uploadedCover.size,
-      });
       delete payload.remove_cover; // Clear remove_cover if new cover image is uploaded
     } else if (payload.remove_cover === "true") {
       console.log("[LessonUpdateAPI] Remove cover flag set");
@@ -186,7 +214,12 @@ export async function PATCH(
     // Create FormData for upstream API
     const formData = new FormData();
     for (const key in payload) {
-      formData.append(key, typeof payload[key] === "object" ? JSON.stringify(payload[key]) : payload[key]);
+      formData.append(
+        key,
+        typeof payload[key] === "object"
+          ? JSON.stringify(payload[key])
+          : payload[key]
+      );
     }
 
     if (file) {
@@ -202,11 +235,14 @@ export async function PATCH(
       const coverBlob = new Blob([coverBuffer], {
         type: coverImageFile.type || "image/jpeg",
       });
-      formData.append(COVER_IMAGE_FIELD_NAME, coverBlob, coverImageFile.name || "cover_image.jpg");
+      formData.append(
+        COVER_IMAGE_FIELD_NAME,
+        coverBlob,
+        coverImageFile.name || "cover_image.jpg"
+      );
     }
 
     // Log FormData contents
-    console.log("[LessonUpdateAPI] FormData contents for upstream API:");
     for (const [key, value] of formData.entries()) {
       console.log(
         `[LessonUpdateAPI] ${key}:`,
@@ -215,41 +251,47 @@ export async function PATCH(
     }
 
     // Send request to upstream API
-    console.log("[LessonUpdateAPI] Sending PATCH to", fullUrl);
     const response = await fetch(fullUrl, {
       method: "PATCH",
       headers: headers(session.user.sessionToken),
       body: formData,
     });
 
-    console.log("[LessonUpdateAPI] Upstream response status:", response.status);
-    console.log("[LessonUpdateAPI] Upstream response headers:", Object.fromEntries(response.headers));
-
     const responseContentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[LessonUpdateAPI] Upstream raw response:", rawResponse);
 
     // Clean up temp files
     if (file) await fs.unlink(file.path).catch(console.error);
-    if (coverImageFile) await fs.unlink(coverImageFile.path).catch(console.error);
+    if (coverImageFile)
+      await fs.unlink(coverImageFile.path).catch(console.error);
 
     if (!response.ok) {
-      console.error("[LessonUpdateAPI] Upstream fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[LessonUpdateAPI] Upstream fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired", redirect: "/auth/signin" },
+          {error: "Session expired", redirect: "/auth/signin"},
           {
             status: 401,
-            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
           }
         );
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: `Lesson with ID ${lessonId} not found in module ${moduleId}` },
+          {error: `Lesson with ID ${lessonId} not found in module ${moduleId}`},
           {
             status: 404,
-            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
           }
         );
       }
@@ -257,24 +299,39 @@ export async function PATCH(
       try {
         errorData = JSON.parse(rawResponse);
       } catch (e) {
-        console.error("[LessonUpdateAPI] Failed to parse error response:", rawResponse.slice(0, 100));
+        console.error(
+          "[LessonUpdateAPI] Failed to parse error response:",
+          rawResponse.slice(0, 100)
+        );
       }
       return NextResponse.json(
-        { error: "Failed to update lesson", details: errorData || rawResponse.slice(0, 100) },
+        {
+          error: "Failed to update lesson",
+          details: errorData || rawResponse.slice(0, 100),
+        },
         {
           status: response.status,
-          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
         }
       );
     }
 
     if (!responseContentType.includes("application/json")) {
-      console.error("[LessonUpdateAPI] Non-JSON response received:", responseContentType);
+      console.error(
+        "[LessonUpdateAPI] Non-JSON response received:",
+        responseContentType
+      );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
-          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
         }
       );
     }
@@ -283,54 +340,80 @@ export async function PATCH(
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
-      console.error("[LessonUpdateAPI] Failed to parse JSON response:", parseError);
+      console.error(
+        "[LessonUpdateAPI] Failed to parse JSON response:",
+        parseError
+      );
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
-          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
         }
       );
     }
 
     // Normalize cover_image path
     let normalizedCoverImage = data.lesson.cover_image;
-    if (data.lesson.cover_image && !data.lesson.cover_image.startsWith("/media/covers/")) {
-      console.warn("[LessonUpdateAPI] Normalizing cover_image path from:", data.lesson.cover_image);
-      normalizedCoverImage = data.lesson.cover_image.replace("/media/", "/media/covers/");
-      console.log("[LessonUpdateAPI] Normalized cover_image path to:", normalizedCoverImage);
+    if (
+      data.lesson.cover_image &&
+      !data.lesson.cover_image.startsWith("/media/covers/")
+    ) {
+      console.warn(
+        "[LessonUpdateAPI] Normalizing cover_image path from:",
+        data.lesson.cover_image
+      );
+      normalizedCoverImage = data.lesson.cover_image.replace(
+        "/media/",
+        "/media/covers/"
+      );
       data.lesson.cover_image = normalizedCoverImage;
     }
 
     // Verify cover_image in response
     if (coverImageFile && !data.lesson.cover_image) {
-      console.warn("[LessonUpdateAPI] Cover image uploaded but not returned in response:", data.lesson);
+      console.warn(
+        "[LessonUpdateAPI] Cover image uploaded but not returned in response:",
+        data.lesson
+      );
     } else if (payload.remove_cover === "true" && data.lesson.cover_image) {
-      console.warn("[LessonUpdateAPI] Remove cover requested but cover_image still present:", data.lesson.cover_image);
+      console.warn(
+        "[LessonUpdateAPI] Remove cover requested but cover_image still present:",
+        data.lesson.cover_image
+      );
     }
 
     // Follow-up GET to verify upstream state
     const moduleEndpoint = `/learning/api/teacher/modules/${moduleId}/`;
     const moduleFullUrl = `${BASE_URL}${moduleEndpoint}?t=${Date.now()}`;
-    console.log("[LessonUpdateAPI] Verifying state with GET to:", moduleFullUrl);
     const getResponse = await fetch(moduleFullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
     const getRawResponse = await getResponse.text();
-    console.log("[LessonUpdateAPI] Upstream GET response status:", getResponse.status);
-    console.log("[LessonUpdateAPI] Upstream GET raw response:", getRawResponse);
 
     let getData;
     try {
       getData = JSON.parse(getRawResponse);
     } catch (e) {
-      console.error("[LessonUpdateAPI] Failed to parse GET response:", getRawResponse.slice(0, 100));
+      console.error(
+        "[LessonUpdateAPI] Failed to parse GET response:",
+        getRawResponse.slice(0, 100)
+      );
     }
 
     if (getData?.module?.lessons) {
-      const updatedLesson = getData.module.lessons.find((lesson: any) => lesson.id === parseInt(lessonId));
-      if (updatedLesson && coverImageFile && updatedLesson.cover_image !== normalizedCoverImage) {
+      const updatedLesson = getData.module.lessons.find(
+        (lesson: any) => lesson.id === parseInt(lessonId)
+      );
+      if (
+        updatedLesson &&
+        coverImageFile &&
+        updatedLesson.cover_image !== normalizedCoverImage
+      ) {
         console.warn(
           "[LessonUpdateAPI] Mismatch in GET response cover_image:",
           updatedLesson.cover_image,
@@ -340,12 +423,12 @@ export async function PATCH(
       }
     }
 
-    console.log("[LessonUpdateAPI] Update successful, data:", data);
     return NextResponse.json(data, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -353,12 +436,16 @@ export async function PATCH(
   } catch (error) {
     console.error("[LessonUpdateAPI] Fetch error:", error);
     if (file) await fs.unlink(file.path).catch(console.error);
-    if (coverImageFile) await fs.unlink(coverImageFile.path).catch(console.error);
+    if (coverImageFile)
+      await fs.unlink(coverImageFile.path).catch(console.error);
     return NextResponse.json(
-      { error: "Failed to update lesson", details: (error as Error).message },
+      {error: "Failed to update lesson", details: (error as Error).message},
       {
         status: 500,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
       }
     );
   }

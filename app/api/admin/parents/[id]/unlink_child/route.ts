@@ -17,19 +17,14 @@ export async function POST(
     "[Route] Received POST request to /api/admin/parents/[id]/unlink_child"
   );
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
     const {id} = params;
     const body = await request.json();
-    console.log("[Route] Request body:", body);
 
     if (!body.student_id) {
       return NextResponse.json(
@@ -38,10 +33,6 @@ export async function POST(
       );
     }
 
-    console.log(
-      "[Route] Unlinking child at",
-      `${BASE_URL}/api/parents/${id}/unlink_child/`
-    );
     const res = await fetch(`${BASE_URL}/api/parents/${id}/unlink_child/`, {
       method: "POST",
       headers: {
@@ -52,12 +43,9 @@ export async function POST(
       body: JSON.stringify(body),
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API post failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to unlink child"},
         {status: res.status}

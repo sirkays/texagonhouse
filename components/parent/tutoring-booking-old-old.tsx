@@ -495,7 +495,6 @@ export function TutoringBooking() {
       notes,
     };
     // eslint-disable-next-line no-console
-    console.log("BOOK TUTORING PAYLOAD", payload);
     setIsCardBookingOpen(false);
     resetBookingForm();
   };

@@ -68,7 +68,6 @@ export async function GET(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Subjects Route] GET /api/admin/subjects/[id]");
   const session = await getSession();
 
   if (!session?.user?.sessionToken) {
@@ -93,7 +92,6 @@ export async function PATCH(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Subjects Route] PATCH /api/admin/subjects/[id]");
   const session = await getSession();
 
   if (!session?.user?.sessionToken) {
@@ -118,7 +116,6 @@ export async function DELETE(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Subjects Route] DELETE /api/admin/subjects/[id]");
   const session = await getSession();
 
   if (!session?.user?.sessionToken) {

@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { useState, useRef, useEffect } from "react";
+import {useState, useRef, useEffect} from "react";
 import {
   Card,
   CardContent,
@@ -18,10 +18,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Textarea} from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,8 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -56,16 +56,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getSession } from "next-auth/react";
-import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import { Spinner } from "../ui/spinner";
+import {getSession} from "next-auth/react";
+import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import {Spinner} from "../ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react";
+import {MoreVertical} from "lucide-react";
 
 // Interfaces
 interface Course {
@@ -92,7 +92,7 @@ interface Lesson {
   order?: number;
   active?: boolean;
   remove_cover: boolean; // NEW: Flag to indicate cover removal
-  meta?: { description: string; tags: string[] };
+  meta?: {description: string; tags: string[]};
 }
 
 interface Module {
@@ -111,7 +111,7 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: { id?: string; name: string };
+  course: {id?: string; name: string};
 }
 
 interface APIModule {
@@ -119,12 +119,12 @@ interface APIModule {
   title: string;
   description: string;
   difficulty: string;
-  category: { id: string | number; name: string } | null;
+  category: {id: string | number; name: string} | null;
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: { id: string | number; name: string } | null;
+  course: {id: string | number; name: string} | null;
   createdAt: string | null;
   updatedAt: string | null;
   lessons: any[];
@@ -137,8 +137,6 @@ interface APIModule {
   type?: Module["type"] | string;
 }
 
-
-
 interface APIError {
   error: string;
   redirect?: string;
@@ -150,14 +148,13 @@ const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 // Utilities
 const durationToMinutes = (duration: string): number => {
   if (!duration) return 0;
   duration = String(duration);
-  console.log("dat ", duration);
   const parts = duration.match(/(\d+)h\s*(\d+)m/);
   if (!parts) return parseInt(duration) || 0;
   const hours = parseInt(parts[1]) || 0;
@@ -165,7 +162,9 @@ const durationToMinutes = (duration: string): number => {
   return hours * 60 + minutes;
 };
 
-const minutesToDuration = (minutes: number | string | null | undefined): string => {
+const minutesToDuration = (
+  minutes: number | string | null | undefined
+): string => {
   const total = Number(minutes);
 
   if (!total || isNaN(total)) return "0m";
@@ -176,7 +175,6 @@ const minutesToDuration = (minutes: number | string | null | undefined): string 
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
-
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -184,11 +182,8 @@ const formatDate = (dateString: string | undefined): string => {
 };
 const shortenText = (text: string, maxLength: number) => {
   if (!text) return "";
-  return text.length > maxLength
-    ? text.slice(0, maxLength).trim() + "…"
-    : text;
+  return text.length > maxLength ? text.slice(0, maxLength).trim() + "…" : text;
 };
-
 
 const normalizeDifficulty = (difficulty: string): Module["difficulty"] => {
   const v = (difficulty || "").toLowerCase();
@@ -235,7 +230,7 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: { id: undefined, name: "" },
+    course: {id: undefined, name: ""},
   };
   const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -257,7 +252,7 @@ export function TeacherLearningModules() {
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
   const [loadingModuleId, setLoadingModuleId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<{
-    aggregates: { total_enrollments: number; completion_rate: number };
+    aggregates: {total_enrollments: number; completion_rate: number};
     pagination: {
       total_count: number;
       total_pages: number;
@@ -337,7 +332,7 @@ export function TeacherLearningModules() {
         }
         let data: Course[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({ ...c, id: String(c.id) }));
+        data = data.map((c) => ({...c, id: String(c.id)}));
         setCourses(data);
       } catch (err) {
         setError(
@@ -366,7 +361,7 @@ export function TeacherLearningModules() {
         }
         let data: Category[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({ ...c, id: String(c.id) }));
+        data = data.map((c) => ({...c, id: String(c.id)}));
         setCategories(data);
       } catch (err) {
         setError(
@@ -385,88 +380,92 @@ export function TeacherLearningModules() {
   }, [sessionToken]);
 
   // Fetch modules
-useEffect(() => {
-  if ((activeTab === "manage" || activeTab === "analytics") && sessionToken) {
-    const fetchModules = async () => {
-      setIsLoadingModules(true);
-      setError(null);
-      try {
-        const query = new URLSearchParams();
+  useEffect(() => {
+    if ((activeTab === "manage" || activeTab === "analytics") && sessionToken) {
+      const fetchModules = async () => {
+        setIsLoadingModules(true);
+        setError(null);
+        try {
+          const query = new URLSearchParams();
 
-        if (search) query.set("search", search);
-        if (difficultyFilter)
-          query.set("difficulty", difficultyFilter.toLowerCase());
+          if (search) query.set("search", search);
+          if (difficultyFilter)
+            query.set("difficulty", difficultyFilter.toLowerCase());
 
-        // You were forcing active=true here; keep or change as needed
-        query.set("active", "true");
+          // You were forcing active=true here; keep or change as needed
+          query.set("active", "true");
 
-        // NEW: course filter (send course id as backend expects)
-        if (courseFilter && courseFilter !== "all") {
-          query.set("course", courseFilter);
-        }
-
-        // NEW: category filter (send category id)
-        if (categoryFilter && categoryFilter !== "all") {
-          query.set("category", categoryFilter);
-        }
-
-        const response = await fetch(
-          `${BASE_URL}/modules/?${query.toString()}`,
-          {
-            method: "GET",
-            headers: headers(sessionToken),
+          // NEW: course filter (send course id as backend expects)
+          if (courseFilter && courseFilter !== "all") {
+            query.set("course", courseFilter);
           }
-        );
-        if (!response.ok) {
-          const errorData: APIError = await response.json();
-          if (response.status === 401 && errorData.redirect) {
-            window.location.href = errorData.redirect;
-            return;
+
+          // NEW: category filter (send category id)
+          if (categoryFilter && categoryFilter !== "all") {
+            query.set("category", categoryFilter);
           }
-          throw new Error(errorData.error || "Failed to fetch modules");
+
+          const response = await fetch(
+            `${BASE_URL}/modules/?${query.toString()}`,
+            {
+              method: "GET",
+              headers: headers(sessionToken),
+            }
+          );
+          if (!response.ok) {
+            const errorData: APIError = await response.json();
+            if (response.status === 401 && errorData.redirect) {
+              window.location.href = errorData.redirect;
+              return;
+            }
+            throw new Error(errorData.error || "Failed to fetch modules");
+          }
+
+          let data: APIModule[] = await response.json();
+
+          const sanitizedModules: Module[] = data.map(
+            (module: APIModule): Module => ({
+              id: String(module.id),
+              title: module.title,
+              description: module.description,
+              type: normalizeModuleType(module.type),
+              duration: Number(module.estimatedDuration || 0), // ✅ FIX
+              difficulty: normalizeDifficulty(module.difficulty),
+              category: module.category?.name || "Uncategorized",
+              enrollments: module.enrollments ?? 0,
+              rating: module.rating ?? 0,
+              isPublished: module.isPublished,
+              createdDate: formatDate(module.createdAt || undefined),
+              course: {
+                id: module.course?.id ? String(module.course.id) : undefined,
+                name: module.course?.name || "",
+              },
+              lessons: module.lessons || [],
+              lessonCount: module.lessonCount || 0,
+              order: module.order,
+              active: module.active,
+            })
+          );
+
+          setModules(sanitizedModules);
+        } catch (err) {
+          setError(
+            (err as Error).message || "An error occurred while fetching modules"
+          );
+        } finally {
+          setIsLoadingModules(false);
         }
-
-        let data: APIModule[] = await response.json();
-
-        const sanitizedModules: Module[] = data.map(
-          (module: APIModule): Module => ({
-            id: String(module.id),
-            title: module.title,
-            description: module.description,
-            type: normalizeModuleType(module.type),
-            duration: Number(module.estimatedDuration || 0), // ✅ FIX
-            difficulty: normalizeDifficulty(module.difficulty),
-            category: module.category?.name || "Uncategorized",
-            enrollments: module.enrollments ?? 0,
-            rating: module.rating ?? 0,
-            isPublished: module.isPublished,
-            createdDate: formatDate(module.createdAt || undefined),
-            course: {
-              id: module.course?.id ? String(module.course.id) : undefined,
-              name: module.course?.name || "",
-            },
-            lessons: module.lessons || [],
-            lessonCount: module.lessonCount || 0,
-            order: module.order,
-            active: module.active,
-          })
-        );
-
-
-
-
-        setModules(sanitizedModules);
-      } catch (err) {
-        setError(
-          (err as Error).message || "An error occurred while fetching modules"
-        );
-      } finally {
-        setIsLoadingModules(false);
-      }
-    };
-    fetchModules();
-  }
-}, [activeTab, search, difficultyFilter, courseFilter, categoryFilter, sessionToken]);
+      };
+      fetchModules();
+    }
+  }, [
+    activeTab,
+    search,
+    difficultyFilter,
+    courseFilter,
+    categoryFilter,
+    sessionToken,
+  ]);
 
   // NEW: Fetch analytics separately
   useEffect(() => {
@@ -522,7 +521,7 @@ useEffect(() => {
           currentModule.course.id,
           sessionToken
         );
-        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
+        setCurrentModule((prev) => ({...prev, order: nextOrder}));
       }
     };
     autoSetOrder();
@@ -540,61 +539,59 @@ useEffect(() => {
     return `${BASE_URL}/media/covers/${cleaned}`;
   }
 
-const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/modules/${moduleId}?t=${Date.now()}`,
-      {
-        method: "GET",
-        headers: headers(sessionToken),
+  const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
+    try {
+      const response = await fetch(
+        `${BASE_URL}/modules/${moduleId}?t=${Date.now()}`,
+        {
+          method: "GET",
+          headers: headers(sessionToken),
+        }
+      );
+      if (!response.ok) {
+        const errorData: APIError = await response.json();
+        throw new Error(errorData.error || "Failed to fetch module details");
       }
-    );
-    if (!response.ok) {
-      const errorData: APIError = await response.json();
-      throw new Error(errorData.error || "Failed to fetch module details");
+      const module: APIModule = await response.json();
+
+      const lessonsWithCover =
+        module.lessons?.map((lesson: any) => ({
+          ...lesson,
+          id: String(lesson.id),
+          coverImageUrl: lesson.cover_image
+            ? normalizeMedia(lesson.cover_image)
+            : null,
+        })) || [];
+
+      return {
+        id: String(module.id),
+        title: module.title,
+        description: module.description,
+        type: normalizeModuleType(module.type),
+        duration: module.estimatedDuration,
+        difficulty: normalizeDifficulty(module.difficulty),
+        category: module.category?.name || undefined,
+        enrollments: module.enrollments ?? 0,
+        rating: module.rating ?? 0,
+        isPublished: module.isPublished,
+        createdDate: formatDate(module.createdAt || undefined),
+        course: {
+          id: module.course?.id ? String(module.course.id) : undefined,
+          name: module.course?.name || "",
+        },
+        lessons: lessonsWithCover,
+        lessonCount: module.lessonCount || 0,
+        order: module.order,
+        active: module.active,
+      };
+    } catch (err) {
+      setError(
+        (err as Error).message ||
+          "An error occurred while fetching module details"
+      );
+      return null;
     }
-    const module: APIModule = await response.json();
-
-    const lessonsWithCover =
-      module.lessons?.map((lesson: any) => ({
-        ...lesson,
-        id: String(lesson.id),
-        coverImageUrl: lesson.cover_image
-          ? normalizeMedia(lesson.cover_image)
-          : null,
-      })) || [];
-
-    return {
-      id: String(module.id),
-      title: module.title,
-      description: module.description,
-      type: normalizeModuleType(module.type),
-      duration: module.estimatedDuration,
-      difficulty: normalizeDifficulty(module.difficulty),
-      category: module.category?.name || undefined,
-      enrollments: module.enrollments ?? 0,
-      rating: module.rating ?? 0,
-      isPublished: module.isPublished,
-      createdDate: formatDate(module.createdAt || undefined),
-      course: {
-        id: module.course?.id ? String(module.course.id) : undefined,
-        name: module.course?.name || "",
-      },
-      lessons: lessonsWithCover,
-      lessonCount: module.lessonCount || 0,
-      order: module.order,
-      active: module.active,
-    };
-
-  } catch (err) {
-    setError(
-      (err as Error).message ||
-        "An error occurred while fetching module details"
-    );
-    return null;
-  }
-};
-
+  };
 
   // Pagination
   const getPaginatedModules = (modules: Module[], currentPage: number) => {
@@ -633,11 +630,11 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? { ...lesson, ...updates } : lesson
+        lesson.id === lessonId ? {...lesson, ...updates} : lesson
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
+      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
     }
   };
 
@@ -702,7 +699,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({ active }),
+        body: JSON.stringify({active}),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -715,10 +712,10 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m))
+        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m))
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
+        setCurrentModule((prev) => ({...prev, isPublished: active}));
       }
       openFeedback(
         `Module ${active ? "published" : "unpublished"}`,
@@ -765,14 +762,13 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     }
   };
 
-
   const getNextOrder = async (
     courseId: string,
     sessionToken: string | null
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({ course_id: courseId });
+      const query = new URLSearchParams({course_id: courseId});
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -970,7 +966,10 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           name: data.course?.name || "",
         },
         lessons: [],
-        lessonCount: data.lessonCount || currentModule.lessonCount || currentModule.lessons.length,
+        lessonCount:
+          data.lessonCount ||
+          currentModule.lessonCount ||
+          currentModule.lessons.length,
         order: data.order,
         active: data.active,
       };
@@ -1007,7 +1006,6 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
       setCurrentModule(initialModule);
       setEditingLesson(null);
       setActiveTab("manage");
-
     } catch (err) {
       setError(
         (err as Error).message ||
@@ -1018,144 +1016,141 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     }
   };
 
-
   const updateModule = async () => {
-  if (!sessionToken) {
-    setError("No session token available. Please log in again.");
-    return;
-  }
-  if (!currentModule.id) {
-    setError("No module ID provided for update.");
-    return;
-  }
-  if (!currentModule.title) {
-    setError("Module title is required.");
-    return;
-  }
-  if (!currentModule.course.id) {
-    setError("Please select a course.");
-    return;
-  }
-  if (!currentModule.category) {
-    setError("Please select a category.");
-    return;
-  }
-
-  try {
-    setIsSaving(true);
-
-    const payload: any = {
-      title: currentModule.title,
-      description: currentModule.description,
-      difficulty: currentModule.difficulty.toLowerCase(),
-      estimatedDuration: Number(currentModule.duration) || 0,
-      order: currentModule.order,
-    };
-
-    // 🔹 Send course_id (int) for backend
-    if (currentModule.course.id) {
-      payload.course_id = parseInt(currentModule.course.id, 10);
+    if (!sessionToken) {
+      setError("No session token available. Please log in again.");
+      return;
+    }
+    if (!currentModule.id) {
+      setError("No module ID provided for update.");
+      return;
+    }
+    if (!currentModule.title) {
+      setError("Module title is required.");
+      return;
+    }
+    if (!currentModule.course.id) {
+      setError("Please select a course.");
+      return;
+    }
+    if (!currentModule.category) {
+      setError("Please select a category.");
+      return;
     }
 
-    // 🔹 Send categoryId (same way you do in createModule)
-    const selectedCategory = categories.find(
-      (c) => c.name === currentModule.category
-    );
-    if (selectedCategory?.id) {
-      payload.categoryId = parseInt(String(selectedCategory.id), 10);
-    } else {
-      // If you want to allow clearing category, send null
-      // payload.categoryId = null;
-    }
+    try {
+      setIsSaving(true);
 
-    console.log("[updateModule] Payload:", payload);
+      const payload: any = {
+        title: currentModule.title,
+        description: currentModule.description,
+        difficulty: currentModule.difficulty.toLowerCase(),
+        estimatedDuration: Number(currentModule.duration) || 0,
+        order: currentModule.order,
+      };
 
-    const response = await fetch(
-      `${BASE_URL}/modules/${currentModule.id}/update/`,
-      {
-        method: "PATCH",
-        headers: headers(sessionToken),
-        body: JSON.stringify(payload),
+      // 🔹 Send course_id (int) for backend
+      if (currentModule.course.id) {
+        payload.course_id = parseInt(currentModule.course.id, 10);
       }
-    );
 
-    let errorData;
-    if (!response.ok) {
-      try {
-        errorData = await response.json();
-      } catch {
-        throw new Error("Server error occurred. Please try again later.");
-      }
-      if (response.status === 401 && errorData.redirect) {
-        window.location.href = errorData.redirect;
-        return;
-      }
-      if (
-        errorData.error?.includes(
-          "IntegrityError: duplicate key value violates unique constraint"
-        )
-      ) {
-        setError(
-          "The specified order already exists for this course. Please choose a different order."
-        );
-        return;
-      }
-      throw new Error(
-        errorData.error ||
-          "Failed to update module. Please check the details and try again."
+      // 🔹 Send categoryId (same way you do in createModule)
+      const selectedCategory = categories.find(
+        (c) => c.name === currentModule.category
       );
+      if (selectedCategory?.id) {
+        payload.categoryId = parseInt(String(selectedCategory.id), 10);
+      } else {
+        // If you want to allow clearing category, send null
+        // payload.categoryId = null;
+      }
+
+      const response = await fetch(
+        `${BASE_URL}/modules/${currentModule.id}/update/`,
+        {
+          method: "PATCH",
+          headers: headers(sessionToken),
+          body: JSON.stringify(payload),
+        }
+      );
+
+      let errorData;
+      if (!response.ok) {
+        try {
+          errorData = await response.json();
+        } catch {
+          throw new Error("Server error occurred. Please try again later.");
+        }
+        if (response.status === 401 && errorData.redirect) {
+          window.location.href = errorData.redirect;
+          return;
+        }
+        if (
+          errorData.error?.includes(
+            "IntegrityError: duplicate key value violates unique constraint"
+          )
+        ) {
+          setError(
+            "The specified order already exists for this course. Please choose a different order."
+          );
+          return;
+        }
+        throw new Error(
+          errorData.error ||
+            "Failed to update module. Please check the details and try again."
+        );
+      }
+
+      const data: {module: APIModule} = await response.json();
+
+      const updatedModule: Module = {
+        id: String(data.module.id),
+        title: data.module.title,
+        description: data.module.description,
+        type: currentModule.type,
+        duration: data.module.estimatedDuration,
+        difficulty: normalizeDifficulty(data.module.difficulty),
+        category: data.module.category?.name || "Uncategorized",
+        enrollments: data.module.enrollments ?? currentModule.enrollments,
+        rating: data.module.rating ?? currentModule.rating,
+        isPublished: data.module.isPublished,
+        createdDate: formatDate(data.module.createdAt || undefined),
+        course: {
+          id: data.module.course?.id
+            ? String(data.module.course.id)
+            : undefined,
+          name: data.module.course?.name || "",
+        },
+        lessons: currentModule.lessons,
+        lessonCount: data.module.lessonCount || currentModule.lessonCount,
+        order: data.module.order || currentModule.order,
+        active: data.module.active,
+      };
+
+      // Update list
+      setModules((prev) =>
+        prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
+      );
+
+      // Refresh to be 100% in sync with backend (including lessons)
+      const moduleData = await getModuleDetails(currentModule.id);
+      if (moduleData) {
+        setCurrentModule(moduleData);
+      }
+
+      openFeedback(
+        "Module updated",
+        `Module "${updatedModule.title}" was updated successfully.`
+      );
+    } catch (err) {
+      setError(
+        (err as Error).message ||
+          "An unexpected error occurred while updating the module. Please try again."
+      );
+    } finally {
+      setIsSaving(false);
     }
-
-    const data: { module: APIModule } = await response.json();
-
-    const updatedModule: Module = {
-      id: String(data.module.id),
-      title: data.module.title,
-      description: data.module.description,
-      type: currentModule.type,
-      duration: data.module.estimatedDuration,
-      difficulty: normalizeDifficulty(data.module.difficulty),
-      category: data.module.category?.name || "Uncategorized",
-      enrollments: data.module.enrollments ?? currentModule.enrollments,
-      rating: data.module.rating ?? currentModule.rating,
-      isPublished: data.module.isPublished,
-      createdDate: formatDate(data.module.createdAt || undefined),
-      course: {
-        id: data.module.course?.id ? String(data.module.course.id) : undefined,
-        name: data.module.course?.name || "",
-      },
-      lessons: currentModule.lessons,
-      lessonCount: data.module.lessonCount || currentModule.lessonCount,
-      order: data.module.order || currentModule.order,
-      active: data.module.active,
-    };
-
-
-    // Update list
-    setModules((prev) =>
-      prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
-    );
-
-    // Refresh to be 100% in sync with backend (including lessons)
-    const moduleData = await getModuleDetails(currentModule.id);
-    if (moduleData) {
-      setCurrentModule(moduleData);
-    }
-
-    openFeedback(
-      "Module updated",
-      `Module "${updatedModule.title}" was updated successfully.`
-    );
-  } catch (err) {
-    setError(
-      (err as Error).message ||
-        "An unexpected error occurred while updating the module. Please try again."
-    );
-  } finally {
-    setIsSaving(false);
-  }
-};
-
+  };
 
   const handleFileUpload = async (file: File, type: "video" | "audio") => {
     if (!sessionToken) {
@@ -1239,21 +1234,12 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           editingLesson.type === "audio" ||
           editingLesson.type === "pdf")
       ) {
-        console.log("[updateLesson] File selected:", {
-          name: editingLesson.file.name,
-          type: editingLesson.file.type,
-          size: editingLesson.file.size,
-        });
         formData.append("file", editingLesson.file, editingLesson.file.name);
       } else if (
         editingLesson.type === "text" &&
         editingLesson.content &&
         !editingLesson.content.startsWith("http")
       ) {
-        console.log(
-          "[saveLesson] Text content provided:",
-          editingLesson.content.slice(0, 200)
-        );
         formData.append("textContent", editingLesson.content); // Updated field name if needed
       } else if (
         (editingLesson.videoUrl || editingLesson.audioUrl) &&
@@ -1261,7 +1247,6 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           editingLesson.audioUrl?.startsWith("http"))
       ) {
         const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        console.log("[saveLesson] External URL provided:", url);
         formData.append("url", url);
       } else {
         console.log("[saveLesson] No file or valid URL provided");
@@ -1269,11 +1254,6 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
 
       // NEW: Cover image handling
       if (editingLesson.coverImage) {
-        console.log("[saveLesson] Cover image selected:", {
-          name: editingLesson.coverImage.name,
-          type: editingLesson.coverImage.type,
-          size: editingLesson.coverImage.size,
-        });
         formData.append(
           "cover_image",
           editingLesson.coverImage,
@@ -1282,7 +1262,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
       }
 
       // Log FormData contents for debugging
-      console.log("[saveLesson] FormData contents:");
+
       for (const [key, value] of formData.entries()) {
         console.log(
           `[saveLesson] ${key}:`,
@@ -1290,10 +1270,6 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
         );
       }
 
-      console.log(
-        "[saveLesson] Sending POST to",
-        `/api/teacher/modules/${currentModule.id}/lessons/`
-      );
       const response = await fetch(
         `/api/teacher/modules/${currentModule.id}/lessons/`,
         {
@@ -1305,9 +1281,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
         }
       );
 
-      console.log(`[saveLesson] Response status: ${response.status}`);
       const responseText = await response.text();
-      console.log("[saveLesson] Raw response:", responseText.slice(0, 200));
 
       // Parse once
       let parsed: any;
@@ -1356,7 +1330,6 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
       setEditingLesson(newLesson);
       openFeedback("Lesson saved", "Lesson saved successfully.");
 
-
       if (!response.ok) {
         let errorData;
         try {
@@ -1376,8 +1349,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
         throw new Error(errorData.error || "Failed to create lesson");
       }
 
-      const data: { lesson: Lesson } = JSON.parse(responseText);
-      console.log("[saveLesson] Lesson created:", data);
+      const data: {lesson: Lesson} = JSON.parse(responseText);
 
       // Refresh module data to sync with server
       const moduleData = await getModuleDetails(currentModule.id);
@@ -1450,21 +1422,12 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           editingLesson.type === "audio" ||
           editingLesson.type === "pdf")
       ) {
-        console.log("[updateLesson] File selected:", {
-          name: editingLesson.file.name,
-          type: editingLesson.file.type,
-          size: editingLesson.file.size,
-        });
         formData.append("file", editingLesson.file, editingLesson.file.name);
       } else if (
         editingLesson.type === "text" &&
         editingLesson.content &&
         !editingLesson.content.startsWith("http")
       ) {
-        console.log(
-          "[updateLesson] Text content provided:",
-          editingLesson.content.slice(0, 200)
-        );
         formData.append("textContent", editingLesson.content);
       } else if (
         (editingLesson.videoUrl || editingLesson.audioUrl) &&
@@ -1472,27 +1435,19 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           editingLesson.audioUrl?.startsWith("http"))
       ) {
         const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        console.log("[updateLesson] External URL provided:", url);
         formData.append("url", url);
       }
 
       if (editingLesson.coverImage) {
-        console.log("[updateLesson] Cover image selected:", {
-          name: editingLesson.coverImage.name,
-          type: editingLesson.coverImage.type,
-          size: editingLesson.coverImage.size,
-        });
         formData.append(
           "cover_image",
           editingLesson.coverImage,
           editingLesson.coverImage.name
         );
       } else if (editingLesson.remove_cover) {
-        console.log("[updateLesson] Remove cover flag set");
         formData.append("remove_cover", "true");
       }
 
-      console.log("[updateLesson] FormData contents:");
       for (const [key, value] of formData.entries()) {
         console.log(
           `[updateLesson] ${key}:`,
@@ -1511,9 +1466,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
         }
       );
 
-      console.log(`[updateLesson] Response status: ${response.status}`);
       const responseText = await response.text();
-      console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
 
       if (!response.ok) {
         let errorData;
@@ -1544,9 +1497,6 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
         );
         throw new Error("Invalid response format from server");
       }
-
-      console.log("[updateLesson] Update successful:", data);
-
       const updatedLesson: Lesson = {
         ...editingLesson,
         id: String(data.lesson.id),
@@ -1582,11 +1532,10 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           }
           return lesson;
         });
-        setCurrentModule({ ...moduleData, lessons: syncedLessons });
+        setCurrentModule({...moduleData, lessons: syncedLessons});
       }
 
       openFeedback("Lesson updated", "Lesson was updated successfully.");
-
     } catch (err) {
       setError(
         (err as Error).message || "An error occurred while updating the lesson"
@@ -1658,25 +1607,21 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           setCurrentPageManage(1);
           setCurrentPageAnalytics(1);
         }}
-        className="w-full"
-      >
+        className="w-full">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Module Analytics
           </TabsTrigger>
         </TabsList>
@@ -1701,8 +1646,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="title"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Module Title
                     </Label>
                     <Input
@@ -1722,8 +1666,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="order"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Order
                     </Label>
                     <Input
@@ -1745,8 +1688,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="description"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Description
                     </Label>
                     <Textarea
@@ -1776,28 +1718,24 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                             ...prev,
                             difficulty: value,
                           }))
-                        }
-                      >
+                        }>
                         <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem
                             value="Beginner"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Beginner
                           </SelectItem>
                           <SelectItem
                             value="Intermediate"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Intermediate
                           </SelectItem>
                           <SelectItem
                             value="Advanced"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Advanced
                           </SelectItem>
                         </SelectContent>
@@ -1820,16 +1758,14 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                               courses.find((c) => c.id === value)?.name || "",
                           },
                         }))
-                      }
-                    >
+                      }>
                       <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base"
-                        >
+                          className="text-xs xs:text-sm sm:text-base">
                           Select course
                         </SelectItem>
                         {courses
@@ -1838,8 +1774,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                             <SelectItem
                               key={course.id}
                               value={course.id}
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               {course.name}
                             </SelectItem>
                           ))}
@@ -1858,16 +1793,14 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                           ...prev,
                           category: value === "none" ? undefined : value,
                         }))
-                      }
-                    >
+                      }>
                       <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base"
-                        >
+                          className="text-xs xs:text-sm sm:text-base">
                           Select category
                         </SelectItem>
                         {categories
@@ -1876,8 +1809,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                             <SelectItem
                               key={category.id}
                               value={category.name}
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               {category.name}
                             </SelectItem>
                           ))}
@@ -1888,8 +1820,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                   <div className="space-y-2">
                     <Label
                       htmlFor="duration"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Estimated Duration (minutes)
                     </Label>
                     <Input
@@ -1928,8 +1859,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
                       className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                      disabled={isSaving}
-                    >
+                      disabled={isSaving}>
                       {isSaving ? (
                         <Spinner
                           size="sm"
@@ -1953,8 +1883,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                       }
                       variant="outline"
                       className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                      disabled={!currentModule.id}
-                    >
+                      disabled={!currentModule.id}>
                       <Upload className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       {currentModule.isPublished
                         ? "Unpublish Module"
@@ -1978,8 +1907,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                     <Button
                       onClick={addLesson}
                       size="sm"
-                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300"
-                    >
+                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300">
                       <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
                     </Button>
                   </div>
@@ -2006,8 +1934,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                               ? "border-primary bg-primary/5"
                               : "hover:bg-muted/50"
                           }`}
-                          onClick={() => setEditingLesson(lesson)}
-                        >
+                          onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-1 xs:gap-2 mb-1">
@@ -2017,8 +1944,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
-                                >
+                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                                   {lesson.type}
                                 </Badge>
                                 {/* NEW: Cover image preview in list */}
@@ -2053,8 +1979,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteLesson(lesson.id);
-                              }}
-                            >
+                              }}>
                               <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-[#DD2701]" />
                             </Button>
                           </div>
@@ -2107,8 +2032,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                   remove_cover: true,
                                   coverImage: null,
                                 })
-                              }
-                            >
+                              }>
                               Remove Cover
                             </Button>
                           </div>
@@ -2128,8 +2052,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                   coverImage: null,
                                   remove_cover: false,
                                 })
-                              }
-                            >
+                              }>
                               Remove
                             </Button>
                           </div>
@@ -2164,8 +2087,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                               className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
                               onClick={() =>
                                 coverImageInputRef.current?.click()
-                              }
-                            >
+                              }>
                               <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                               Upload Cover Image
                             </Button>
@@ -2188,28 +2110,24 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                               file: null,
                               coverImage: null, // Reset cover when changing type
                             })
-                          }
-                        >
+                          }>
                           <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem
                               value="video"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               Video
                             </SelectItem>
                             <SelectItem
                               value="audio"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               Audio
                             </SelectItem>
                             <SelectItem
                               value="pdf"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               PDF
                             </SelectItem>
                           </SelectContent>
@@ -2219,8 +2137,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                       <div className="space-y-2">
                         <Label
                           htmlFor="lesson-title"
-                          className="text-xs xs:text-sm sm:text-base font-medium"
-                        >
+                          className="text-xs xs:text-sm sm:text-base font-medium">
                           {`Lesson ${
                             editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
@@ -2279,8 +2196,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -2312,8 +2228,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Video
                               </Button>
@@ -2346,8 +2261,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -2379,8 +2293,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Audio
                               </Button>
@@ -2413,8 +2326,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -2446,8 +2358,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload PDF
                               </Button>
@@ -2484,8 +2395,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                             : updateLesson(editingLesson.id)
                         }
                         className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                        disabled={isSavingLesson}
-                      >
+                        disabled={isSavingLesson}>
                         {isSavingLesson ? (
                           <Spinner
                             size="sm"
@@ -2547,8 +2457,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                 </div>
                 <Button
                   onClick={() => setSearch(searchQuery)}
-                  className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md whitespace-nowrap"
-                >
+                  className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md whitespace-nowrap">
                   <Search className="h-3 w-3 xs:h-4 xs:w-4" />
                 </Button>
               </div>
@@ -2556,19 +2465,24 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
               {/* Difficulty Filter */}
               <Select
                 value={difficultyFilter}
-                onValueChange={setDifficultyFilter}
-              >
+                onValueChange={setDifficultyFilter}>
                 <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Beginner" className="text-xs xs:text-sm sm:text-base">
+                  <SelectItem
+                    value="Beginner"
+                    className="text-xs xs:text-sm sm:text-base">
                     Beginner
                   </SelectItem>
-                  <SelectItem value="Intermediate" className="text-xs xs:text-sm sm:text-base">
+                  <SelectItem
+                    value="Intermediate"
+                    className="text-xs xs:text-sm sm:text-base">
                     Intermediate
                   </SelectItem>
-                  <SelectItem value="Advanced" className="text-xs xs:text-sm sm:text-base">
+                  <SelectItem
+                    value="Advanced"
+                    className="text-xs xs:text-sm sm:text-base">
                     Advanced
                   </SelectItem>
                 </SelectContent>
@@ -2577,13 +2491,14 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
               {/* NEW: Course Filter */}
               <Select
                 value={courseFilter}
-                onValueChange={(value) => setCourseFilter(value)}
-              >
+                onValueChange={(value) => setCourseFilter(value)}>
                 <SelectTrigger className="w-[160px] text-xs xs:text-sm sm:text-base">
                   <SelectValue placeholder="All Courses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">
+                  <SelectItem
+                    value="all"
+                    className="text-xs xs:text-sm sm:text-base">
                     All Courses
                   </SelectItem>
                   {courses
@@ -2592,8 +2507,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                       <SelectItem
                         key={course.id}
                         value={String(course.id)}
-                        className="text-xs xs:text-sm sm:text-base"
-                      >
+                        className="text-xs xs:text-sm sm:text-base">
                         {course.name}
                       </SelectItem>
                     ))}
@@ -2603,13 +2517,14 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
               {/* NEW: Category Filter */}
               <Select
                 value={categoryFilter}
-                onValueChange={(value) => setCategoryFilter(value)}
-              >
+                onValueChange={(value) => setCategoryFilter(value)}>
                 <SelectTrigger className="w-[160px] text-xs xs:text-sm sm:text-base">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs xs:text-sm sm:text-base">
+                  <SelectItem
+                    value="all"
+                    className="text-xs xs:text-sm sm:text-base">
                     All Categories
                   </SelectItem>
                   {categories
@@ -2618,14 +2533,12 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                       <SelectItem
                         key={category.id}
                         value={String(category.id)}
-                        className="text-xs xs:text-sm sm:text-base"
-                      >
+                        className="text-xs xs:text-sm sm:text-base">
                         {category.name}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
-
 
               {/* Create New Module Button */}
               <Button
@@ -2633,8 +2546,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                   setCurrentModule(initialModule);
                   setActiveTab("create");
                 }}
-                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-              >
+                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                 <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                 Create New
               </Button>
@@ -2670,24 +2582,21 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                   return (
                     <Card
                       key={module.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
-                              <CardTitle
-                                className="text-sm xs:text-base sm:text-lg"
-                                title={module.title}
-                              >
-                                {shortenText(module.title, 45)}
-                              </CardTitle>
+                            <CardTitle
+                              className="text-sm xs:text-base sm:text-lg"
+                              title={module.title}>
+                              {shortenText(module.title, 45)}
+                            </CardTitle>
 
-                              <CardDescription
-                                className="text-xs sm:text-sm"
-                                title={module.description}
-                              >
-                                {shortenText(module.description, 90)}
-                              </CardDescription>
+                            <CardDescription
+                              className="text-xs sm:text-sm"
+                              title={module.description}>
+                              {shortenText(module.description, 90)}
+                            </CardDescription>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -2706,8 +2615,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                     setCurrentModule(moduleData);
                                     setActiveTab("create");
                                   }
-                                }}
-                              >
+                                }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
                               </DropdownMenuItem>
@@ -2720,20 +2628,18 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                     setPreviewModule(moduleData);
                                     setIsPreviewOpen(true);
                                   }
-                                }}
-                              >
+                                }}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 <span>Preview</span>
                               </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteModuleClick(module.id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  <span>Delete</span>
-                                </DropdownMenuItem>
-
-
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleDeleteModuleClick(module.id)
+                                }
+                                className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -2750,26 +2656,22 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                                 module.isPublished
                                   ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
                                   : "bg-gray-500 text-white hover:bg-gray-600"
-                              }
-                            >
+                              }>
                               {module.isPublished ? "Published" : "Draft"}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-[0.85rem] xs:text-xs sm:text-sm"
-                            >
+                              className="text-[0.85rem] xs:text-xs sm:text-sm">
                               {module.difficulty}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-[0.85rem] xs:text-xs sm:text-sm"
-                            >
+                              className="text-[0.85rem] xs:text-xs sm:text-sm">
                               {module.category || "Uncategorized"}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-[0.85rem] xs:text-xs sm:text-sm"
-                            >
+                              className="text-[0.85rem] xs:text-xs sm:text-sm">
                               {module.course.name}
                             </Badge>
                           </div>
@@ -2785,65 +2687,69 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
 
                         {/* 👇 Buttons pushed to bottom */}
                         <div className="flex gap-2 flex-col lg:flex-row mt-auto">
-                        <Button
-                          className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                          disabled={loadingModuleId === module.id}
-                          onClick={async () => {
-                            setLoadingModuleId(module.id);          // 🔹 start loading
-                            try {
-                              const moduleData = await getModuleDetails(module.id);
-                              if (moduleData) {
-                                setCurrentModule(moduleData);
-                                setActiveTab("create");
+                          <Button
+                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                            disabled={loadingModuleId === module.id}
+                            onClick={async () => {
+                              setLoadingModuleId(module.id); // 🔹 start loading
+                              try {
+                                const moduleData = await getModuleDetails(
+                                  module.id
+                                );
+                                if (moduleData) {
+                                  setCurrentModule(moduleData);
+                                  setActiveTab("create");
+                                }
+                              } finally {
+                                setLoadingModuleId(null); // 🔹 stop loading
                               }
-                            } finally {
-                              setLoadingModuleId(null);            // 🔹 stop loading
-                            }
-                          }}
-                        >
-                          {loadingModuleId === module.id ? (
-                            <>
-                              <Spinner size="sm" className="mr-1 xs:mr-2 text-white" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              Edit
-                            </>
-                          )}
-                        </Button>
+                            }}>
+                            {loadingModuleId === module.id ? (
+                              <>
+                                <Spinner
+                                  size="sm"
+                                  className="mr-1 xs:mr-2 text-white"
+                                />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Edit
+                              </>
+                            )}
+                          </Button>
 
-                        <Button
-                          variant="outline"
-                          className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
-                          disabled={loadingModuleId === module.id}
-                          onClick={async () => {
-                            setLoadingModuleId(module.id);
-                            try {
-                              const moduleData = await getModuleDetails(module.id);
-                              if (moduleData) {
-                                setPreviewModule(moduleData);
-                                setIsPreviewOpen(true);
+                          <Button
+                            variant="outline"
+                            className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                            disabled={loadingModuleId === module.id}
+                            onClick={async () => {
+                              setLoadingModuleId(module.id);
+                              try {
+                                const moduleData = await getModuleDetails(
+                                  module.id
+                                );
+                                if (moduleData) {
+                                  setPreviewModule(moduleData);
+                                  setIsPreviewOpen(true);
+                                }
+                              } finally {
+                                setLoadingModuleId(null);
                               }
-                            } finally {
-                              setLoadingModuleId(null);
-                            }
-                          }}
-                        >
-                          {loadingModuleId === module.id ? (
-                            <>
-                              <Spinner size="sm" className="mr-1 xs:mr-2" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              Preview
-                            </>
-                          )}
-                        </Button>
-
+                            }}>
+                            {loadingModuleId === module.id ? (
+                              <>
+                                <Spinner size="sm" className="mr-1 xs:mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Preview
+                              </>
+                            )}
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -2889,8 +2795,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                           onClick={(e) => {
                             e.preventDefault();
                             setCurrentPageManage(page);
-                          }}
-                        >
+                          }}>
                           {page}
                         </PaginationLink>
                       </PaginationItem>
@@ -2992,14 +2897,12 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                       analytics.modules.map((module) => (
                         <div
                           key={module.id}
-                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg"
-                        >
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg">
                           <div className="space-y-1 flex-1">
                             <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                               {module.title}
                             </h4>
                             <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-
                               {/*<div>
                                 Completion: {module.completion.toFixed(1)}%
                               </div>*/}
@@ -3024,13 +2927,12 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
                           }
                         />
                         {Array.from(
-                          { length: analytics.pagination.total_pages },
+                          {length: analytics.pagination.total_pages},
                           (_, i) => (
                             <PaginationItem key={i + 1}>
                               <PaginationLink
                                 isActive={currentPageAnalytics === i + 1}
-                                onClick={() => setCurrentPageAnalytics(i + 1)}
-                              >
+                                onClick={() => setCurrentPageAnalytics(i + 1)}>
                                 {i + 1}
                               </PaginationLink>
                             </PaginationItem>
@@ -3070,10 +2972,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
       {/* Feedback Dialog */}
       <AlertDialog
         open={feedbackDialog.open}
-        onOpenChange={(open) =>
-          setFeedbackDialog((prev) => ({ ...prev, open }))
-        }
-      >
+        onOpenChange={(open) => setFeedbackDialog((prev) => ({...prev, open}))}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{feedbackDialog.title}</AlertDialogTitle>
@@ -3086,9 +2985,8 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
           <AlertDialogFooter>
             <AlertDialogAction
               onClick={() =>
-                setFeedbackDialog((prev) => ({ ...prev, open: false }))
-              }
-            >
+                setFeedbackDialog((prev) => ({...prev, open: false}))
+              }>
               OK
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -3096,10 +2994,7 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
       </AlertDialog>
 
       {/* Confirm Delete Module Dialog */}
-      <AlertDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-      >
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete module?</AlertDialogTitle>
@@ -3113,20 +3008,17 @@ const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
               onClick={() => {
                 setDeleteDialogOpen(false);
                 setModuleToDelete(null);
-              }}
-            >
+              }}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              onClick={handleConfirmDeleteModule}
-            >
+              onClick={handleConfirmDeleteModule}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }

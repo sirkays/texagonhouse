@@ -262,8 +262,6 @@ export function TransactionDetailsModal({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      console.log("[v0] PDF downloaded for", transaction.invoiceNumber);
     } catch (error) {
       console.error("[v0] Error generating PDF:", error);
     } finally {
@@ -273,7 +271,6 @@ export function TransactionDetailsModal({
 
   const handlePreview = () => {
     // In a real app, this would open a preview modal or new tab
-    console.log("[v0] Previewing", transaction.invoiceNumber);
   };
 
   return (

@@ -162,9 +162,6 @@ function SidebarMenuContent() {
 export default function TeacherLayout({children}: {children: React.ReactNode}) {
   const {data: session, status} = useSession();
 
-  console.log("[TeacherLayout] Session status:", status);
-  console.log("[TeacherLayout] Session data:", session);
-
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -174,35 +171,24 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
   }
 
   if (status !== "authenticated" || session?.user?.role !== "teacher") {
-    console.log("[TeacherLayout] Unauthorized, redirecting to /login");
     window.location.href = "/login";
     return null;
   }
 
   const handleLogout = async () => {
-    console.log(
-      "[TeacherLayout] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
 
-      console.log(
-        "[TeacherLayout] Logout API response status:",
-        response.status
-      );
       const data = await response.json();
-      console.log("[TeacherLayout] Logout API response:", data);
 
       if (!response.ok) {
         console.error("[TeacherLayout] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
 
-      console.log("[TeacherLayout] Logout successful, redirecting to /login");
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";

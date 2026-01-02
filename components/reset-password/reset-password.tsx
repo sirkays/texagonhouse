@@ -64,7 +64,6 @@ export default function ResetPasswordContent() {
         throw new Error(result.message || "Failed to reset password");
       }
 
-      console.log("[ResetPassword] Reset successful:", result);
       setSuccess(true);
       setTimeout(() => {
         router.push("/login?reset=success");

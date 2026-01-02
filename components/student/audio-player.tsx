@@ -68,7 +68,6 @@ export function AudioPlayer({
       setIsPlaying(false);
       setCurrentTime(0);
       if (audioUrl && audioUrl.startsWith("blob:")) {
-        console.log("[AudioPlayer] Revoking object URL:", audioUrl);
         URL.revokeObjectURL(audioUrl);
       }
     }
@@ -86,12 +85,10 @@ export function AudioPlayer({
     };
 
     const handleTimeUpdate = () => {
-      console.log("[AudioPlayer] timeupdate fired, currentTime:", audio.currentTime);
       setCurrentTime(audio.currentTime);
     };
 
     const handleLoadedMetadata = () => {
-      console.log("[AudioPlayer] loadedmetadata fired, duration:", audio.duration);
       setTotalDuration(audio.duration);
       setError(null);
     };
@@ -121,7 +118,6 @@ export function AudioPlayer({
         cancelAnimationFrame(animationFrameRef.current);
       }
       if (audioUrl && audioUrl.startsWith("blob:")) {
-        console.log("[AudioPlayer] Cleanup: Revoking object URL:", audioUrl);
         URL.revokeObjectURL(audioUrl);
       }
     };

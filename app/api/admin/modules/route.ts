@@ -1,26 +1,19 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 export async function GET(request: Request) {
-  console.log("[Admin Modules] Received GET request to /api/admin/modules");
-
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
-
-  console.log(
-    "[Admin Modules] Session token:",
-    sessionToken ? "Present" : "Missing"
-  );
 
   if (!sessionToken) {
     console.warn("[Admin Modules] No session token found");
     return NextResponse.json(
-      { detail: "Invalid or missing session token." },
-      { status: 401 }
+      {detail: "Invalid or missing session token."},
+      {status: 401}
     );
   }
 
@@ -34,8 +27,6 @@ export async function GET(request: Request) {
       endpoint += `?${queryString}`;
     }
 
-    console.log("[Admin Modules] Fetching from:", endpoint);
-
     const headers: HeadersInit = {
       Authorization: `Api-Key ${API_KEY}`,
       "Content-Type": "application/json",
@@ -46,29 +37,12 @@ export async function GET(request: Request) {
     headers["Session-Token"] = sessionToken;
     headers["X-Session-Token"] = sessionToken;
 
-    console.log("[Admin Modules] Request headers:", {
-      Authorization: `Api-Key ${API_KEY.substring(0, 10)}...`,
-      "X-Session-Key": sessionToken.substring(0, 10) + "...",
-      "Session-Token": sessionToken.substring(0, 10) + "...",
-      "X-Session-Token": sessionToken.substring(0, 10) + "...",
-    });
-
     const res = await fetchWithRetry(endpoint, {
       method: "GET",
       headers: headers,
     });
 
-    console.log("[Admin Modules] Response status:", res.status);
-    console.log(
-      "[Admin Modules] Response headers:",
-      Object.fromEntries(res.headers.entries())
-    );
-
     const text = await res.text();
-    console.log(
-      "[Admin Modules] Response text:",
-      text.substring(0, 500) + "..."
-    );
 
     let data;
     try {
@@ -76,8 +50,8 @@ export async function GET(request: Request) {
     } catch (err) {
       console.error("[Admin Modules] Non-JSON response:", text);
       return NextResponse.json(
-        { detail: "Invalid response format from backend" },
-        { status: 500 }
+        {detail: "Invalid response format from backend"},
+        {status: 500}
       );
     }
 
@@ -85,21 +59,20 @@ export async function GET(request: Request) {
       console.error("[Admin Modules] Backend error:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          { detail: data.detail || "Authentication failed" },
-          { status: 403 }
+          {detail: data.detail || "Authentication failed"},
+          {status: 403}
         );
       }
       return NextResponse.json(
-        { detail: data.detail || "Failed to fetch modules" },
-        { status: res.status }
+        {detail: data.detail || "Failed to fetch modules"},
+        {status: res.status}
       );
     }
 
-    console.log("[Admin Modules] Successfully fetched modules");
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Admin Modules] Error fetching modules:", error);
-    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
+    return NextResponse.json({detail: "Internal server error"}, {status: 500});
   }
 }
 

@@ -39,11 +39,11 @@ interface Address {
 }
 
 interface OrderItem {
-  id?: string;        // ✅ add
+  id?: string; // ✅ add
   title: string;
   qty: number;
   price: string;
-  sku?: string;       // ✅ add
+  sku?: string; // ✅ add
 }
 
 interface Order {
@@ -52,9 +52,9 @@ interface Order {
   grand_total: string;
   created_at: string;
 
-  customer?: Customer;                 // ✅ add
-  shipping_address?: Address | null;   // ✅ add
-  billing_address?: Address | null;    // ✅ add
+  customer?: Customer; // ✅ add
+  shipping_address?: Address | null; // ✅ add
+  billing_address?: Address | null; // ✅ add
 
   items: OrderItem[];
 
@@ -65,7 +65,6 @@ interface Order {
   next_payment?: string | null;
   remaining_payments?: number | null;
 }
-
 
 interface OrdersResponse {
   results: Order[];
@@ -81,8 +80,8 @@ export async function GET(req: Request) {
 
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
-      { error: "Not authenticated", redirect: "/login" },
-      { status: 401 }
+      {error: "Not authenticated", redirect: "/login"},
+      {status: 401}
     );
   }
 
@@ -95,7 +94,6 @@ export async function GET(req: Request) {
     ? `${BASE_URL}/orders/?status=${encodeURIComponent(status)}`
     : `${BASE_URL}/orders/`;
 
-
   try {
     const response = await fetch(fullUrl, {
       method: "GET",
@@ -107,16 +105,16 @@ export async function GET(req: Request) {
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
-          { status: 401 }
+          {error: "Session expired", redirect: "/login"},
+          {status: 401}
         );
       if (response.status === 403)
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({error: "Forbidden"}, {status: 403});
       if (response.status === 404)
-        return NextResponse.json({ error: "Orders not found" }, { status: 404 });
+        return NextResponse.json({error: "Orders not found"}, {status: 404});
       return NextResponse.json(
-        { error: "Failed to fetch orders" },
-        { status: response.status }
+        {error: "Failed to fetch orders"},
+        {status: response.status}
       );
     }
 
@@ -124,7 +122,10 @@ export async function GET(req: Request) {
     try {
       data = JSON.parse(rawResponse);
     } catch {
-      return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
+      return NextResponse.json(
+        {error: "Invalid response format"},
+        {status: 500}
+      );
     }
     const normalizedData: OrdersResponse = {
       results: (data.results || []).map((item: any) => ({
@@ -133,8 +134,8 @@ export async function GET(req: Request) {
         grand_total: item.grand_total || "0",
         created_at: item.created_at || "",
 
-        shipments_count:item.shipments_count || "0",
-        has_shipment:item.has_shipment || false,
+        shipments_count: item.shipments_count || "0",
+        has_shipment: item.has_shipment || false,
 
         // ✅ pass through customer + addresses
         customer: item.customer
@@ -173,11 +174,11 @@ export async function GET(req: Request) {
           : null,
 
         items: (item.items || []).map((subItem: any) => ({
-          id: String(subItem.id ?? ""),           // ✅ now included
+          id: String(subItem.id ?? ""), // ✅ now included
           title: String(subItem.title ?? ""),
           qty: Number(subItem.qty ?? 0),
           price: String(subItem.price ?? "0"),
-          sku: String(subItem.sku ?? ""),         // ✅ now included
+          sku: String(subItem.sku ?? ""), // ✅ now included
         })),
 
         is_bnpl: !!item.is_bnpl,
@@ -191,13 +192,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json(normalizedData, {
       status: 200,
-      headers: { "Cache-Control": "no-store" },
+      headers: {"Cache-Control": "no-store"},
     });
   } catch {
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return NextResponse.json({error: "Failed to fetch orders"}, {status: 500});
   }
 }
-
 
 export async function POST(req: Request) {
   noStore();
@@ -215,7 +215,6 @@ export async function POST(req: Request) {
   const body = await req.json();
 
   const fullUrl = `${BASE_URL}/orders/`;
-  console.log("[StoreOrdersAPI] Initiating POST to:", fullUrl);
 
   try {
     const response = await fetch(fullUrl, {
@@ -225,7 +224,6 @@ export async function POST(req: Request) {
     });
 
     const rawResponse = await response.text();
-
 
     if (!response.ok) {
       if (response.status === 401)

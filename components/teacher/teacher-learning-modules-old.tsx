@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import {useState, useRef, useEffect} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Textarea} from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -46,16 +46,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getSession } from "next-auth/react";
-import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import { Spinner } from "../ui/spinner";
+import {getSession} from "next-auth/react";
+import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import {Spinner} from "../ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react";
+import {MoreVertical} from "lucide-react";
 
 // Interfaces
 interface Course {
@@ -82,7 +82,7 @@ interface Lesson {
   order?: number;
   active?: boolean;
   remove_cover: boolean; // NEW: Flag to indicate cover removal
-  meta?: { description: string; tags: string[] };
+  meta?: {description: string; tags: string[]};
 }
 
 interface Module {
@@ -101,7 +101,7 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: { id?: string; name: string };
+  course: {id?: string; name: string};
 }
 
 interface APIModule {
@@ -109,12 +109,12 @@ interface APIModule {
   title: string;
   description: string;
   difficulty: string;
-  category: { id: string; name: string };
+  category: {id: string; name: string};
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: { id: string; name: string };
+  course: {id: string; name: string};
   createdAt: string;
   updatedAt: string;
   lessons: any[]; // Backend lessons with cover_image
@@ -132,7 +132,7 @@ const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 // Utilities
@@ -188,7 +188,7 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: { id: undefined, name: "" },
+    course: {id: undefined, name: ""},
   };
   const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -210,7 +210,7 @@ export function TeacherLearningModules() {
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
 
   const [analytics, setAnalytics] = useState<{
-    aggregates: { total_enrollments: number; completion_rate: number };
+    aggregates: {total_enrollments: number; completion_rate: number};
     pagination: {
       total_count: number;
       total_pages: number;
@@ -373,10 +373,9 @@ export function TeacherLearningModules() {
           query.set("page", currentPageAnalytics.toString());
           query.set("page_size", "10");
 
-          const res = await fetch(
-            `/api/teacher/module-analytics`,
-            { headers: headers(sessionToken) }
-          );
+          const res = await fetch(`/api/teacher/module-analytics`, {
+            headers: headers(sessionToken),
+          });
 
           if (!res.ok) {
             const err = await res.json();
@@ -404,7 +403,7 @@ export function TeacherLearningModules() {
           currentModule.course.id,
           sessionToken
         );
-        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
+        setCurrentModule((prev) => ({...prev, order: nextOrder}));
       }
     };
     autoSetOrder();
@@ -513,11 +512,11 @@ export function TeacherLearningModules() {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? { ...lesson, ...updates } : lesson
+        lesson.id === lessonId ? {...lesson, ...updates} : lesson
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
+      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
     }
   };
 
@@ -582,7 +581,7 @@ export function TeacherLearningModules() {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({ active }),
+        body: JSON.stringify({active}),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -595,10 +594,10 @@ export function TeacherLearningModules() {
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m))
+        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m))
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
+        setCurrentModule((prev) => ({...prev, isPublished: active}));
       }
       alert(`Module ${active ? "published" : "unpublished"} successfully!`);
     } catch (err) {
@@ -651,7 +650,7 @@ export function TeacherLearningModules() {
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({ course_id: courseId });
+      const query = new URLSearchParams({course_id: courseId});
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -803,8 +802,6 @@ export function TeacherLearningModules() {
       // Ensure estimatedDuration is a number
       payload.estimatedDuration = Number(payload.estimatedDuration);
 
-      console.log("[updateModule] Payload:", payload);
-
       const response = await fetch(
         `${BASE_URL}/modules/${currentModule.id}/update/`,
         {
@@ -841,7 +838,7 @@ export function TeacherLearningModules() {
         );
       }
 
-      const data: { module: APIModule } = await response.json();
+      const data: {module: APIModule} = await response.json();
       const updatedModule: Module = {
         id: data.module.id,
         title: data.module.title,
@@ -966,21 +963,12 @@ export function TeacherLearningModules() {
           editingLesson.type === "audio" ||
           editingLesson.type === "pdf")
       ) {
-        console.log("[updateLesson] File selected:", {
-          name: editingLesson.file.name,
-          type: editingLesson.file.type,
-          size: editingLesson.file.size,
-        });
         formData.append("file", editingLesson.file, editingLesson.file.name);
       } else if (
         editingLesson.type === "text" &&
         editingLesson.content &&
         !editingLesson.content.startsWith("http")
       ) {
-        console.log(
-          "[saveLesson] Text content provided:",
-          editingLesson.content.slice(0, 200)
-        );
         formData.append("textContent", editingLesson.content); // Updated field name if needed
       } else if (
         (editingLesson.videoUrl || editingLesson.audioUrl) &&
@@ -988,7 +976,6 @@ export function TeacherLearningModules() {
           editingLesson.audioUrl?.startsWith("http"))
       ) {
         const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        console.log("[saveLesson] External URL provided:", url);
         formData.append("url", url);
       } else {
         console.log("[saveLesson] No file or valid URL provided");
@@ -996,11 +983,6 @@ export function TeacherLearningModules() {
 
       // NEW: Cover image handling
       if (editingLesson.coverImage) {
-        console.log("[saveLesson] Cover image selected:", {
-          name: editingLesson.coverImage.name,
-          type: editingLesson.coverImage.type,
-          size: editingLesson.coverImage.size,
-        });
         formData.append(
           "cover_image",
           editingLesson.coverImage,
@@ -1009,7 +991,6 @@ export function TeacherLearningModules() {
       }
 
       // Log FormData contents for debugging
-      console.log("[saveLesson] FormData contents:");
       for (const [key, value] of formData.entries()) {
         console.log(
           `[saveLesson] ${key}:`,
@@ -1017,10 +998,6 @@ export function TeacherLearningModules() {
         );
       }
 
-      console.log(
-        "[saveLesson] Sending POST to",
-        `/api/teacher/modules/${currentModule.id}/lessons/`
-      );
       const response = await fetch(
         `/api/teacher/modules/${currentModule.id}/lessons/`,
         {
@@ -1032,16 +1009,17 @@ export function TeacherLearningModules() {
         }
       );
 
-      console.log(`[saveLesson] Response status: ${response.status}`);
       const responseText = await response.text();
-      console.log("[saveLesson] Raw response:", responseText.slice(0, 200));
 
       // Parse once
       let parsed: any;
       try {
         parsed = responseText ? JSON.parse(responseText) : null;
       } catch (e) {
-        console.error("[saveLesson] Failed to parse JSON:", responseText.slice(0, 200));
+        console.error(
+          "[saveLesson] Failed to parse JSON:",
+          responseText.slice(0, 200)
+        );
         throw new Error("Invalid response format from server");
       }
 
@@ -1099,17 +1077,7 @@ export function TeacherLearningModules() {
         throw new Error(errorData.error || "Failed to create lesson");
       }
 
-      const data: { lesson: Lesson } = JSON.parse(responseText);
-      console.log("[saveLesson] Lesson created:", data);
-
-      // Refresh module details to get updated lessons
-      // const moduleData = await getModuleDetails(currentModule.id);
-      // if (moduleData) {
-      //   setCurrentModule(moduleData);
-      //   setModules((prev) =>
-      //     prev.map((m) => (m.id === currentModule.id ? moduleData : m))
-      //   );
-      // }
+      const data: {lesson: Lesson} = JSON.parse(responseText);
 
       // Refresh module data to sync with server
       const moduleData = await getModuleDetails(currentModule.id);
@@ -1182,21 +1150,12 @@ export function TeacherLearningModules() {
           editingLesson.type === "audio" ||
           editingLesson.type === "pdf")
       ) {
-        console.log("[updateLesson] File selected:", {
-          name: editingLesson.file.name,
-          type: editingLesson.file.type,
-          size: editingLesson.file.size,
-        });
         formData.append("file", editingLesson.file, editingLesson.file.name);
       } else if (
         editingLesson.type === "text" &&
         editingLesson.content &&
         !editingLesson.content.startsWith("http")
       ) {
-        console.log(
-          "[updateLesson] Text content provided:",
-          editingLesson.content.slice(0, 200)
-        );
         formData.append("textContent", editingLesson.content);
       } else if (
         (editingLesson.videoUrl || editingLesson.audioUrl) &&
@@ -1204,27 +1163,19 @@ export function TeacherLearningModules() {
           editingLesson.audioUrl?.startsWith("http"))
       ) {
         const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        console.log("[updateLesson] External URL provided:", url);
         formData.append("url", url);
       }
 
       if (editingLesson.coverImage) {
-        console.log("[updateLesson] Cover image selected:", {
-          name: editingLesson.coverImage.name,
-          type: editingLesson.coverImage.type,
-          size: editingLesson.coverImage.size,
-        });
         formData.append(
           "cover_image",
           editingLesson.coverImage,
           editingLesson.coverImage.name
         );
       } else if (editingLesson.remove_cover) {
-        console.log("[updateLesson] Remove cover flag set");
         formData.append("remove_cover", "true");
       }
 
-      console.log("[updateLesson] FormData contents:");
       for (const [key, value] of formData.entries()) {
         console.log(
           `[updateLesson] ${key}:`,
@@ -1243,9 +1194,7 @@ export function TeacherLearningModules() {
         }
       );
 
-      console.log(`[updateLesson] Response status: ${response.status}`);
       const responseText = await response.text();
-      console.log("[updateLesson] Raw response:", responseText.slice(0, 200));
 
       if (!response.ok) {
         let errorData;
@@ -1276,8 +1225,6 @@ export function TeacherLearningModules() {
         );
         throw new Error("Invalid response format from server");
       }
-
-      console.log("[updateLesson] Update successful:", data);
 
       const updatedLesson: Lesson = {
         ...editingLesson,
@@ -1314,7 +1261,7 @@ export function TeacherLearningModules() {
           }
           return lesson;
         });
-        setCurrentModule({ ...moduleData, lessons: syncedLessons });
+        setCurrentModule({...moduleData, lessons: syncedLessons});
       }
 
       alert("Lesson updated successfully!");
@@ -1349,27 +1296,27 @@ export function TeacherLearningModules() {
     }
   };
 
-function getFileName(input?: string | File | null): string {
-  if (!input) return "";
+  function getFileName(input?: string | File | null): string {
+    if (!input) return "";
 
-  // If it's a File object, just return its name
-  if (typeof File !== "undefined" && input instanceof File) {
-    return input.name;
+    // If it's a File object, just return its name
+    if (typeof File !== "undefined" && input instanceof File) {
+      return input.name;
+    }
+
+    const str = String(input);
+
+    // Try URL first (strips query/hash)
+    try {
+      const u = new URL(str);
+      const name = u.pathname.split("/").filter(Boolean).pop() || "";
+      return decodeURIComponent(name);
+    } catch {
+      // Not a URL — treat as path
+      const name = str.split(/[\\/]/).filter(Boolean).pop() || "";
+      return decodeURIComponent(name);
+    }
   }
-
-  const str = String(input);
-
-  // Try URL first (strips query/hash)
-  try {
-    const u = new URL(str);
-    const name = u.pathname.split("/").filter(Boolean).pop() || "";
-    return decodeURIComponent(name);
-  } catch {
-    // Not a URL — treat as path
-    const name = str.split(/[\\/]/).filter(Boolean).pop() || "";
-    return decodeURIComponent(name);
-  }
-}
 
   return (
     <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
@@ -1389,25 +1336,21 @@ function getFileName(input?: string | File | null): string {
           setCurrentPageManage(1);
           setCurrentPageAnalytics(1);
         }}
-        className="w-full"
-      >
+        className="w-full">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Module Analytics
           </TabsTrigger>
         </TabsList>
@@ -1436,8 +1379,7 @@ function getFileName(input?: string | File | null): string {
                   <div className="space-y-2">
                     <Label
                       htmlFor="title"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Module Title
                     </Label>
                     <Input
@@ -1457,8 +1399,7 @@ function getFileName(input?: string | File | null): string {
                   <div className="space-y-2">
                     <Label
                       htmlFor="order"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Order
                     </Label>
                     <Input
@@ -1480,8 +1421,7 @@ function getFileName(input?: string | File | null): string {
                   <div className="space-y-2">
                     <Label
                       htmlFor="description"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Description
                     </Label>
                     <Textarea
@@ -1511,28 +1451,24 @@ function getFileName(input?: string | File | null): string {
                             ...prev,
                             difficulty: value,
                           }))
-                        }
-                      >
+                        }>
                         <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem
                             value="Beginner"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Beginner
                           </SelectItem>
                           <SelectItem
                             value="Intermediate"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Intermediate
                           </SelectItem>
                           <SelectItem
                             value="Advanced"
-                            className="text-xs xs:text-sm sm:text-base"
-                          >
+                            className="text-xs xs:text-sm sm:text-base">
                             Advanced
                           </SelectItem>
                         </SelectContent>
@@ -1555,16 +1491,14 @@ function getFileName(input?: string | File | null): string {
                               courses.find((c) => c.id === value)?.name || "",
                           },
                         }))
-                      }
-                    >
+                      }>
                       <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base"
-                        >
+                          className="text-xs xs:text-sm sm:text-base">
                           Select course
                         </SelectItem>
                         {courses
@@ -1573,8 +1507,7 @@ function getFileName(input?: string | File | null): string {
                             <SelectItem
                               key={course.id}
                               value={course.id}
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               {course.name}
                             </SelectItem>
                           ))}
@@ -1593,16 +1526,14 @@ function getFileName(input?: string | File | null): string {
                           ...prev,
                           category: value === "none" ? undefined : value,
                         }))
-                      }
-                    >
+                      }>
                       <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base"
-                        >
+                          className="text-xs xs:text-sm sm:text-base">
                           Select category
                         </SelectItem>
                         {categories
@@ -1611,8 +1542,7 @@ function getFileName(input?: string | File | null): string {
                             <SelectItem
                               key={category.id}
                               value={category.name}
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               {category.name}
                             </SelectItem>
                           ))}
@@ -1623,8 +1553,7 @@ function getFileName(input?: string | File | null): string {
                   <div className="space-y-2">
                     <Label
                       htmlFor="duration"
-                      className="text-xs xs:text-sm sm:text-base"
-                    >
+                      className="text-xs xs:text-sm sm:text-base">
                       Estimated Duration (minutes)
                     </Label>
                     <Input
@@ -1657,8 +1586,7 @@ function getFileName(input?: string | File | null): string {
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
                       className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                      disabled={isSaving}
-                    >
+                      disabled={isSaving}>
                       {isSaving ? (
                         <Spinner
                           size="sm"
@@ -1682,8 +1610,7 @@ function getFileName(input?: string | File | null): string {
                       }
                       variant="outline"
                       className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                      disabled={!currentModule.id}
-                    >
+                      disabled={!currentModule.id}>
                       <Upload className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       {currentModule.isPublished
                         ? "Unpublish Module"
@@ -1707,8 +1634,7 @@ function getFileName(input?: string | File | null): string {
                     <Button
                       onClick={addLesson}
                       size="sm"
-                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300"
-                    >
+                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300">
                       <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
                     </Button>
                   </div>
@@ -1735,8 +1661,7 @@ function getFileName(input?: string | File | null): string {
                               ? "border-primary bg-primary/5"
                               : "hover:bg-muted/50"
                           }`}
-                          onClick={() => setEditingLesson(lesson)}
-                        >
+                          onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-1 xs:gap-2 mb-1">
@@ -1746,8 +1671,7 @@ function getFileName(input?: string | File | null): string {
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
-                                >
+                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
                                   {lesson.type}
                                 </Badge>
                                 {/* NEW: Cover image preview in list */}
@@ -1782,8 +1706,7 @@ function getFileName(input?: string | File | null): string {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteLesson(lesson.id);
-                              }}
-                            >
+                              }}>
                               <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-[#DD2701]" />
                             </Button>
                           </div>
@@ -1836,8 +1759,7 @@ function getFileName(input?: string | File | null): string {
                                   remove_cover: true,
                                   coverImage: null,
                                 })
-                              }
-                            >
+                              }>
                               Remove Cover
                             </Button>
                           </div>
@@ -1857,8 +1779,7 @@ function getFileName(input?: string | File | null): string {
                                   coverImage: null,
                                   remove_cover: false,
                                 })
-                              }
-                            >
+                              }>
                               Remove
                             </Button>
                           </div>
@@ -1893,8 +1814,7 @@ function getFileName(input?: string | File | null): string {
                               className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
                               onClick={() =>
                                 coverImageInputRef.current?.click()
-                              }
-                            >
+                              }>
                               <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                               Upload Cover Image
                             </Button>
@@ -1917,28 +1837,24 @@ function getFileName(input?: string | File | null): string {
                               file: null,
                               coverImage: null, // Reset cover when changing type
                             })
-                          }
-                        >
+                          }>
                           <SelectTrigger className="text-xs xs:text-sm sm:text-base">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem
                               value="video"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               Video
                             </SelectItem>
                             <SelectItem
                               value="audio"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               Audio
                             </SelectItem>
                             <SelectItem
                               value="pdf"
-                              className="text-xs xs:text-sm sm:text-base"
-                            >
+                              className="text-xs xs:text-sm sm:text-base">
                               PDF
                             </SelectItem>
                           </SelectContent>
@@ -1948,8 +1864,7 @@ function getFileName(input?: string | File | null): string {
                       <div className="space-y-2">
                         <Label
                           htmlFor="lesson-title"
-                          className="text-xs xs:text-sm sm:text-base font-medium"
-                        >
+                          className="text-xs xs:text-sm sm:text-base font-medium">
                           {`Lesson ${
                             editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
@@ -1994,7 +1909,9 @@ function getFileName(input?: string | File | null): string {
                           {editingLesson.file ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                value={getFileName(editingLesson.file || editingLesson.videoUrl)}
+                                value={getFileName(
+                                  editingLesson.file || editingLesson.videoUrl
+                                )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
                               />
@@ -2006,8 +1923,7 @@ function getFileName(input?: string | File | null): string {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -2039,8 +1955,7 @@ function getFileName(input?: string | File | null): string {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Video
                               </Button>
@@ -2059,7 +1974,9 @@ function getFileName(input?: string | File | null): string {
                           {editingLesson.file ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                value={getFileName(editingLesson.file || editingLesson.videoUrl)}
+                                value={getFileName(
+                                  editingLesson.file || editingLesson.videoUrl
+                                )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
                               />
@@ -2071,8 +1988,7 @@ function getFileName(input?: string | File | null): string {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -2104,8 +2020,7 @@ function getFileName(input?: string | File | null): string {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload Audio
                               </Button>
@@ -2124,7 +2039,9 @@ function getFileName(input?: string | File | null): string {
                           {editingLesson.file ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                value={getFileName(editingLesson.file || editingLesson.videoUrl)}
+                                value={getFileName(
+                                  editingLesson.file || editingLesson.videoUrl
+                                )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
                               />
@@ -2136,8 +2053,7 @@ function getFileName(input?: string | File | null): string {
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
                                   })
-                                }
-                              >
+                                }>
                                 Remove
                               </Button>
                             </div>
@@ -2169,8 +2085,7 @@ function getFileName(input?: string | File | null): string {
                                 variant="outline"
                                 size="sm"
                                 className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
+                                onClick={() => fileInputRef.current?.click()}>
                                 <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 Upload PDF
                               </Button>
@@ -2207,8 +2122,7 @@ function getFileName(input?: string | File | null): string {
                             : updateLesson(editingLesson.id)
                         }
                         className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-                        disabled={isSavingLesson}
-                      >
+                        disabled={isSavingLesson}>
                         {isSavingLesson ? (
                           <Spinner
                             size="sm"
@@ -2265,28 +2179,24 @@ function getFileName(input?: string | File | null): string {
               </div>
               <Select
                 value={difficultyFilter}
-                onValueChange={setDifficultyFilter}
-              >
+                onValueChange={setDifficultyFilter}>
                 <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
                   <SelectValue placeholder="Filter by difficulty" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
                     value="Beginner"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                    className="text-xs xs:text-sm sm:text-base">
                     Beginner
                   </SelectItem>
                   <SelectItem
                     value="Intermediate"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                    className="text-xs xs:text-sm sm:text-base">
                     Intermediate
                   </SelectItem>
                   <SelectItem
                     value="Advanced"
-                    className="text-xs xs:text-sm sm:text-base"
-                  >
+                    className="text-xs xs:text-sm sm:text-base">
                     Advanced
                   </SelectItem>
                 </SelectContent>
@@ -2296,8 +2206,7 @@ function getFileName(input?: string | File | null): string {
                   setCurrentModule(initialModule);
                   setActiveTab("create");
                 }}
-                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
-              >
+                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
                 <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                 Create New Module
               </Button>
@@ -2333,8 +2242,7 @@ function getFileName(input?: string | File | null): string {
                   return (
                     <Card
                       key={module.id}
-                      className="hover:shadow-lg transition-shadow"
-                    >
+                      className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
@@ -2362,8 +2270,7 @@ function getFileName(input?: string | File | null): string {
                                     setCurrentModule(moduleData);
                                     setActiveTab("create");
                                   }
-                                }}
-                              >
+                                }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
                               </DropdownMenuItem>
@@ -2376,15 +2283,13 @@ function getFileName(input?: string | File | null): string {
                                     setPreviewModule(moduleData);
                                     setIsPreviewOpen(true);
                                   }
-                                }}
-                              >
+                                }}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 <span>Preview</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => deleteModule(module.id)}
-                                className="text-red-600"
-                              >
+                                className="text-red-600">
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>Delete</span>
                               </DropdownMenuItem>
@@ -2402,26 +2307,22 @@ function getFileName(input?: string | File | null): string {
                               module.isPublished
                                 ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
                                 : "bg-gray-500 text-white hover:bg-gray-600"
-                            }
-                          >
+                            }>
                             {module.isPublished ? "Published" : "Draft"}
                           </Badge>
                           <Badge
                             variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
+                            className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.difficulty}
                           </Badge>
                           <Badge
                             variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
+                            className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.category || "Uncategorized"}
                           </Badge>
                           <Badge
                             variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm"
-                          >
+                            className="text-[0.85rem] xs:text-xs sm:text-sm">
                             {module.course.name}
                           </Badge>
                         </div>
@@ -2453,8 +2354,7 @@ function getFileName(input?: string | File | null): string {
                                 setCurrentModule(moduleData);
                                 setActiveTab("create");
                               }
-                            }}
-                          >
+                            }}>
                             <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Edit
                           </Button>
@@ -2469,8 +2369,7 @@ function getFileName(input?: string | File | null): string {
                                 setPreviewModule(moduleData);
                                 setIsPreviewOpen(true);
                               }
-                            }}
-                          >
+                            }}>
                             <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
                             Preview
                           </Button>
@@ -2519,8 +2418,7 @@ function getFileName(input?: string | File | null): string {
                           onClick={(e) => {
                             e.preventDefault();
                             setCurrentPageManage(page);
-                          }}
-                        >
+                          }}>
                           {page}
                         </PaginationLink>
                       </PaginationItem>
@@ -2622,8 +2520,7 @@ function getFileName(input?: string | File | null): string {
                       analytics.modules.map((module) => (
                         <div
                           key={module.id}
-                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg"
-                        >
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 xs:p-4 border rounded-lg">
                           <div className="space-y-1 flex-1">
                             <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
                               {module.title}
@@ -2657,13 +2554,12 @@ function getFileName(input?: string | File | null): string {
                           }
                         />
                         {Array.from(
-                          { length: analytics.pagination.total_pages },
+                          {length: analytics.pagination.total_pages},
                           (_, i) => (
                             <PaginationItem key={i + 1}>
                               <PaginationLink
                                 isActive={currentPageAnalytics === i + 1}
-                                onClick={() => setCurrentPageAnalytics(i + 1)}
-                              >
+                                onClick={() => setCurrentPageAnalytics(i + 1)}>
                                 {i + 1}
                               </PaginationLink>
                             </PaginationItem>

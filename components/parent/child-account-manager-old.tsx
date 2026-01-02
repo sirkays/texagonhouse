@@ -120,7 +120,6 @@ export function ChildAccountManager() {
   ];
 
   const handleLinkExistingAccount = () => {
-    console.log("Linking account with code:", linkCode);
     setIsLinkDialogOpen(false);
     setLinkCode("");
   };

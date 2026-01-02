@@ -1,8 +1,8 @@
 // app/store/checkout/CheckoutClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import {useEffect, useMemo, useState, useRef} from "react";
+import {useRouter, useSearchParams} from "next/navigation";
 import {
   Card,
   CardContent,
@@ -10,14 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Trash2, ShoppingBag, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/providers/CartProvider";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Separator} from "@/components/ui/separator";
+import {Badge} from "@/components/ui/badge";
+import {ArrowLeft, Trash2, ShoppingBag, Loader2} from "lucide-react";
+import {useToast} from "@/hooks/use-toast";
+import {useCart} from "@/providers/CartProvider";
 import {
   Select,
   SelectContent,
@@ -45,7 +45,7 @@ function uniq(arr: (string | undefined | null)[]) {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { toast } = useToast();
+  const {toast} = useToast();
 
   const {
     cartItems,
@@ -74,8 +74,12 @@ export default function CheckoutPage() {
   const [bnplLoading, setBnplLoading] = useState(false);
 
   const [addresses, setAddresses] = useState<any[]>([]);
-  const [selectedBillingAddress, setSelectedBillingAddress] = useState<string | null>(null);
-  const [selectedShippingAddress, setSelectedShippingAddress] = useState<string | null>(null);
+  const [selectedBillingAddress, setSelectedBillingAddress] = useState<
+    string | null
+  >(null);
+  const [selectedShippingAddress, setSelectedShippingAddress] = useState<
+    string | null
+  >(null);
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const uiLocked = isCartMutating || isPlacingOrder;
@@ -102,7 +106,9 @@ export default function CheckoutPage() {
   // ✅ Find a BNPL item if cart is loaded
   const bnplItem = useMemo(() => {
     // Prefer explicit BNPL-enabled
-    const explicit = (displayItems || []).find((i: any) => i.bnplAvailable || i.bnpl_enabled);
+    const explicit = (displayItems || []).find(
+      (i: any) => i.bnplAvailable || i.bnpl_enabled
+    );
     if (explicit) return explicit;
 
     // If forced BNPL via URL, fallback to first item (so UI doesn't flip),
@@ -113,7 +119,9 @@ export default function CheckoutPage() {
   }, [displayItems, urlWantsBnpl]);
 
   // ✅ BNPL mode is controlled by URL OR having a BNPL item
-  const isBnplCheckout = urlWantsBnpl || !!((displayItems || []).find((i: any) => i.bnplAvailable || i.bnpl_enabled));
+  const isBnplCheckout =
+    urlWantsBnpl ||
+    !!(displayItems || []).find((i: any) => i.bnplAvailable || i.bnpl_enabled);
 
   // ✅ When BNPL is on, hide cart items + totals UI
   const showCartItemsUI = !isBnplCheckout;
@@ -168,24 +176,25 @@ export default function CheckoutPage() {
   // ✅ Resolve BNPL product_id + qty from URL/localStorage/cart
   const resolveBnplPayload = () => {
     // 1) URL
-    if (urlProductId) return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
+    if (urlProductId)
+      return {product_id: urlProductId, quantity: Math.max(1, urlQty)};
 
     // 2) localStorage
-    const lsPid = (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_PID)) || "";
+    const lsPid =
+      (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_PID)) ||
+      "";
     const lsQty = safeNum(
-      (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_QTY)) || "1",
+      (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_QTY)) ||
+        "1",
       1
     );
-    if (lsPid) return { product_id: lsPid, quantity: Math.max(1, lsQty) };
+    if (lsPid) return {product_id: lsPid, quantity: Math.max(1, lsQty)};
 
     // 3) from bnplItem (ONLY if it looks like product id)
     if (bnplItem) {
       // Your cart shape is inconsistent on reload, so try several candidates.
       // We DO NOT want cartItemId here.
-      const candidates = uniq([
-        bnplItem.product_id,
-        bnplItem.id,
-      ]);
+      const candidates = uniq([bnplItem.product_id, bnplItem.id]);
 
       // choose first candidate
       if (candidates[0]) {
@@ -235,11 +244,15 @@ export default function CheckoutPage() {
     try {
       let lastErr: any = null;
 
-      for (let attempt = 0; attempt < Math.min(2, candidates.length); attempt++) {
+      for (
+        let attempt = 0;
+        attempt < Math.min(2, candidates.length);
+        attempt++
+      ) {
         const pid = candidates[attempt];
         const res = await fetch("/api/store/bnpl/breakdown", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
             product_id: pid,
             quantity,
@@ -260,13 +273,16 @@ export default function CheckoutPage() {
           return;
         }
 
-        lastErr = { status: res.status, data };
+        lastErr = {status: res.status, data};
         // if 404, try the next candidate once
         if (res.status !== 404) break;
       }
 
       setBnplBreakdown(
-        lastErr?.data || { eligible: false, reason: "Unable to fetch BNPL breakdown." }
+        lastErr?.data || {
+          eligible: false,
+          reason: "Unable to fetch BNPL breakdown.",
+        }
       );
     } finally {
       setBnplLoading(false);
@@ -282,53 +298,70 @@ export default function CheckoutPage() {
 
   const validateCheckout = () => {
     if (!formData.phoneNumber?.trim()) {
-      return { ok: false, message: "Phone number is required." };
+      return {ok: false, message: "Phone number is required."};
     }
 
     const usingSavedShipping = !!selectedShippingAddress;
     if (!usingSavedShipping) {
-      if (!formData.address?.trim()) return { ok: false, message: "Street address is required." };
-      if (!formData.city?.trim()) return { ok: false, message: "City is required." };
-      if (!formData.state?.trim()) return { ok: false, message: "State is required." };
-      if (!formData.area?.trim()) return { ok: false, message: "Area is required." };
-      if (!formData.zipCode?.trim()) return { ok: false, message: "Postal code is required." };
+      if (!formData.address?.trim())
+        return {ok: false, message: "Street address is required."};
+      if (!formData.city?.trim())
+        return {ok: false, message: "City is required."};
+      if (!formData.state?.trim())
+        return {ok: false, message: "State is required."};
+      if (!formData.area?.trim())
+        return {ok: false, message: "Area is required."};
+      if (!formData.zipCode?.trim())
+        return {ok: false, message: "Postal code is required."};
     }
 
     // ✅ Only normal checkout needs cart items
     if (!isBnplCheckout && !displayItems?.length) {
-      return { ok: false, message: "Your cart is empty." };
+      return {ok: false, message: "Your cart is empty."};
     }
 
     // ✅ BNPL can proceed without cart items (uses URL/localStorage)
     if (isBnplCheckout) {
       const payload = resolveBnplPayload?.();
       if (!payload?.product_id) {
-        return { ok: false, message: "No BNPL product selected. Please go back and select an item." };
+        return {
+          ok: false,
+          message:
+            "No BNPL product selected. Please go back and select an item.",
+        };
       }
 
-      if (bnplLoading) return { ok: false, message: "Loading BNPL breakdown…" };
-      if (!bnplBreakdown) return { ok: false, message: "BNPL breakdown unavailable." };
+      if (bnplLoading) return {ok: false, message: "Loading BNPL breakdown…"};
+      if (!bnplBreakdown)
+        return {ok: false, message: "BNPL breakdown unavailable."};
 
       if (!bnplBreakdown?.eligible) {
-        return { ok: false, message: bnplBreakdown?.reason || "This request is not eligible for BNPL." };
+        return {
+          ok: false,
+          message:
+            bnplBreakdown?.reason || "This request is not eligible for BNPL.",
+        };
       }
 
       const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
-      if (!payNow || payNow <= 0) return { ok: false, message: "Invalid BNPL downpayment amount." };
+      if (!payNow || payNow <= 0)
+        return {ok: false, message: "Invalid BNPL downpayment amount."};
     }
 
-    return { ok: true as const };
+    return {ok: true as const};
   };
 
-
-  const canRequestOrPlace = useMemo(() => validateCheckout().ok, [
-    formData,
-    selectedShippingAddress,
-    displayItems.length,
-    isBnplCheckout,
-    bnplLoading,
-    bnplBreakdown,
-  ]);
+  const canRequestOrPlace = useMemo(
+    () => validateCheckout().ok,
+    [
+      formData,
+      selectedShippingAddress,
+      displayItems.length,
+      isBnplCheckout,
+      bnplLoading,
+      bnplBreakdown,
+    ]
+  );
 
   const handleRemoveItem = (id: any) => {
     if (uiLocked || isBnplCheckout) return;
@@ -338,7 +371,7 @@ export default function CheckoutPage() {
     } else {
       removeFromCart(String(id) as any);
     }
-    toast({ title: "Item Removed", description: "Item removed from cart" });
+    toast({title: "Item Removed", description: "Item removed from cart"});
   };
 
   const handleQuantityChange = (id: any, newQuantity: number) => {
@@ -346,7 +379,7 @@ export default function CheckoutPage() {
     if (newQuantity < 1) return;
 
     if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
-      setBuyNowProduct({ ...buyNowProduct, quantity: newQuantity });
+      setBuyNowProduct({...buyNowProduct, quantity: newQuantity});
     } else {
       updateQuantity(String(id) as any, newQuantity);
     }
@@ -358,11 +391,13 @@ export default function CheckoutPage() {
 
     const v = validateCheckout();
     if (!v.ok) {
-      toast({ variant: "destructive", title: "Incomplete checkout", description: v.message });
+      toast({
+        variant: "destructive",
+        title: "Incomplete checkout",
+        description: v.message,
+      });
       return;
     }
-
-    console.log(" worth it....")
 
     setIsPlacingOrder(true);
 
@@ -373,7 +408,7 @@ export default function CheckoutPage() {
       if (!billingId && !shippingId) {
         const res = await fetch("/api/store/addresses", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
             full_name: "Customer",
             line1: formData.address,
@@ -391,14 +426,15 @@ export default function CheckoutPage() {
           toast({
             variant: "destructive",
             title: "Error creating address",
-            description: addrData?.detail || addrData?.error || "Could not create address",
+            description:
+              addrData?.detail || addrData?.error || "Could not create address",
           });
           return;
         }
         billingId = String(addrData.id);
       }
 
-      console.log(billingId, " d,lc,dlv,fvl,;flv,;fl")
+      console.log(billingId, " d,lc,dlv,fvl,;flv,;fl");
 
       if (!billingId) billingId = shippingId;
       if (!shippingId) shippingId = billingId;
@@ -417,14 +453,19 @@ export default function CheckoutPage() {
 
         // ✅ PASS PRODUCT ID + QTY TO BACKEND
         createOrderPayload.product_id =
-          bnplPayload?.product_id || bnplBreakdown?.product_details?.product_id || null;
+          bnplPayload?.product_id ||
+          bnplBreakdown?.product_details?.product_id ||
+          null;
 
-        createOrderPayload.quantity = Math.max(1, safeNum(bnplPayload?.quantity || 1, 1));
+        createOrderPayload.quantity = Math.max(
+          1,
+          safeNum(bnplPayload?.quantity || 1, 1)
+        );
       }
 
       const orderRes = await fetch("/api/store/checkout/create-order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(createOrderPayload),
       });
 
@@ -433,7 +474,8 @@ export default function CheckoutPage() {
         toast({
           variant: "destructive",
           title: "Failed to create order",
-          description: orderData?.detail || orderData?.error || "Order creation failed",
+          description:
+            orderData?.detail || orderData?.error || "Order creation failed",
         });
         return;
       }
@@ -452,16 +494,22 @@ export default function CheckoutPage() {
 
       const totalToPayFromCart = Number(cartSummary?.payable_total || 0);
       const normalAmountToPay =
-        orderData?.total_amount ?? orderData?.amount ?? (buyNowProduct ? total : totalToPayFromCart);
+        orderData?.total_amount ??
+        orderData?.amount ??
+        (buyNowProduct ? total : totalToPayFromCart);
 
       const bnplPayNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
-      const amountToPay = isBnplCheckout ? bnplPayNow : safeNum(normalAmountToPay, 0);
+      const amountToPay = isBnplCheckout
+        ? bnplPayNow
+        : safeNum(normalAmountToPay, 0);
 
       const bnplPayload: any = isBnplCheckout ? resolveBnplPayload?.() : null;
 
       const itemList = isBnplCheckout
         ? String(
-            bnplPayload?.product_id || bnplBreakdown?.product_details?.product_id || ""
+            bnplPayload?.product_id ||
+              bnplBreakdown?.product_details?.product_id ||
+              ""
           )
         : displayItems.map((i: any) => i.id).join(",");
 
@@ -471,7 +519,9 @@ export default function CheckoutPage() {
         amount: amountToPay.toFixed(2),
         order_id: orderId,
         item_list: itemList,
-        payment_title: isBnplCheckout ? "BNPL - First Payment" : "Store Checkout",
+        payment_title: isBnplCheckout
+          ? "BNPL - First Payment"
+          : "Store Checkout",
       };
 
       if (isBnplCheckout) {
@@ -479,10 +529,9 @@ export default function CheckoutPage() {
         paymentPayload.bnpl_plan_id = bnplBreakdown?.plan?.id || null;
       }
 
-
       const payRes = await fetch("/api/billing", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(paymentPayload),
       });
 
@@ -491,7 +540,10 @@ export default function CheckoutPage() {
         toast({
           variant: "destructive",
           title: "Payment initialization failed",
-          description: payData?.detail || payData?.error || "Unable to create payment link",
+          description:
+            payData?.detail ||
+            payData?.error ||
+            "Unable to create payment link",
         });
         return;
       }
@@ -499,7 +551,8 @@ export default function CheckoutPage() {
       const link = payData?.payment_link;
       const invoiceId = payData?.invoice_id;
 
-      if (invoiceId) localStorage.setItem("checkout_invoice_id", String(invoiceId));
+      if (invoiceId)
+        localStorage.setItem("checkout_invoice_id", String(invoiceId));
 
       if (!link) {
         toast({
@@ -522,18 +575,22 @@ export default function CheckoutPage() {
     }
   };
 
-  const confirmPayment = async (tx_ref: string, transaction_id: string, invoice_id?: string) => {
+  const confirmPayment = async (
+    tx_ref: string,
+    transaction_id: string,
+    invoice_id?: string
+  ) => {
     if (hasConfirmedRef.current) return;
     hasConfirmedRef.current = true;
 
     setIsPlacingOrder(true);
     try {
-      const payload: any = { status: "completed", tx_ref, transaction_id };
+      const payload: any = {status: "completed", tx_ref, transaction_id};
       if (invoice_id) payload.invoice_id = invoice_id;
 
       const res = await fetch("/api/billing?action=confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload),
       });
 
@@ -544,12 +601,16 @@ export default function CheckoutPage() {
         toast({
           variant: "destructive",
           title: "Payment confirmation failed",
-          description: data?.detail || data?.error || "Could not confirm payment",
+          description:
+            data?.detail || data?.error || "Could not confirm payment",
         });
         return;
       }
 
-      toast({ title: "Payment Confirmed!", description: "Your request has been submitted successfully." });
+      toast({
+        title: "Payment Confirmed!",
+        description: "Your request has been submitted successfully.",
+      });
 
       localStorage.removeItem("checkout_invoice_id");
       setBuyNowProduct(null);
@@ -580,8 +641,12 @@ export default function CheckoutPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Checkout</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-1">Complete your purchase</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Checkout
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
+            Complete your purchase
+          </p>
         </div>
       </div>
 
@@ -590,7 +655,9 @@ export default function CheckoutPage() {
           <Card>
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>
-              <CardDescription>We'll use this to contact you about delivery</CardDescription>
+              <CardDescription>
+                We'll use this to contact you about delivery
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -601,7 +668,9 @@ export default function CheckoutPage() {
                     type="tel"
                     placeholder="e.g. 08012345678"
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({...formData, phoneNumber: e.target.value})
+                    }
                     required
                     disabled={uiLocked}
                   />
@@ -613,15 +682,18 @@ export default function CheckoutPage() {
           <Card>
             <CardHeader>
               <CardTitle>Shipping Information</CardTitle>
-              <CardDescription>Where should we deliver your order?</CardDescription>
+              <CardDescription>
+                Where should we deliver your order?
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <Select
                   value={selectedShippingAddress || ""}
-                  onValueChange={(val) => setSelectedShippingAddress(val === "new" ? null : val)}
-                  disabled={uiLocked}
-                >
+                  onValueChange={(val) =>
+                    setSelectedShippingAddress(val === "new" ? null : val)
+                  }
+                  disabled={uiLocked}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select shipping address" />
                   </SelectTrigger>
@@ -642,7 +714,9 @@ export default function CheckoutPage() {
                       <Input
                         id="address"
                         value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({...formData, address: e.target.value})
+                        }
                         required
                         disabled={uiLocked}
                       />
@@ -654,7 +728,9 @@ export default function CheckoutPage() {
                         <Input
                           id="city"
                           value={formData.city}
-                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({...formData, city: e.target.value})
+                          }
                           required
                           disabled={uiLocked}
                         />
@@ -664,9 +740,10 @@ export default function CheckoutPage() {
                         <Label>State</Label>
                         <Select
                           value={formData.state}
-                          onValueChange={(val) => setFormData({ ...formData, state: val, area: "" })}
-                          disabled={uiLocked}
-                        >
+                          onValueChange={(val) =>
+                            setFormData({...formData, state: val, area: ""})
+                          }
+                          disabled={uiLocked}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
@@ -686,11 +763,18 @@ export default function CheckoutPage() {
                         <Label>Area</Label>
                         <Select
                           value={formData.area}
-                          onValueChange={(val) => setFormData({ ...formData, area: val })}
-                          disabled={uiLocked || !formData.state}
-                        >
+                          onValueChange={(val) =>
+                            setFormData({...formData, area: val})
+                          }
+                          disabled={uiLocked || !formData.state}>
                           <SelectTrigger>
-                            <SelectValue placeholder={formData.state ? "Select area" : "Select state first"} />
+                            <SelectValue
+                              placeholder={
+                                formData.state
+                                  ? "Select area"
+                                  : "Select state first"
+                              }
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {areasForSelectedState.map((a: string) => (
@@ -707,7 +791,9 @@ export default function CheckoutPage() {
                         <Input
                           id="zipCode"
                           value={formData.zipCode}
-                          onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({...formData, zipCode: e.target.value})
+                          }
                           required
                           disabled={uiLocked}
                         />
@@ -729,7 +815,8 @@ export default function CheckoutPage() {
               </CardTitle>
               {isBnplCheckout && (
                 <CardDescription>
-                  Cart items are hidden for BNPL — review the payment schedule below.
+                  Cart items are hidden for BNPL — review the payment schedule
+                  below.
                 </CardDescription>
               )}
             </CardHeader>
@@ -744,14 +831,18 @@ export default function CheckoutPage() {
                       const id = item.cartItemId || item.id;
 
                       return (
-                        <div key={key} className="flex gap-3 p-3 border rounded-lg">
+                        <div
+                          key={key}
+                          className="flex gap-3 p-3 border rounded-lg">
                           <img
                             src={item.image}
                             alt={item.name}
                             className="w-16 h-16 rounded object-cover flex-shrink-0"
                           />
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
+                            <h4 className="font-medium text-sm line-clamp-2">
+                              {item.name}
+                            </h4>
 
                             <div className="flex items-center gap-2 mt-1">
                               <div className="flex items-center gap-1">
@@ -760,20 +851,24 @@ export default function CheckoutPage() {
                                   size="icon"
                                   className="h-6 w-6 bg-transparent"
                                   disabled={uiLocked}
-                                  onClick={() => handleQuantityChange(id, item.quantity - 1)}
-                                >
+                                  onClick={() =>
+                                    handleQuantityChange(id, item.quantity - 1)
+                                  }>
                                   -
                                 </Button>
 
-                                <span className="text-sm w-8 text-center">{item.quantity}</span>
+                                <span className="text-sm w-8 text-center">
+                                  {item.quantity}
+                                </span>
 
                                 <Button
                                   variant="outline"
                                   size="icon"
                                   className="h-6 w-6 bg-transparent"
                                   disabled={uiLocked}
-                                  onClick={() => handleQuantityChange(id, item.quantity + 1)}
-                                >
+                                  onClick={() =>
+                                    handleQuantityChange(id, item.quantity + 1)
+                                  }>
                                   +
                                 </Button>
                               </div>
@@ -783,14 +878,15 @@ export default function CheckoutPage() {
                                 size="icon"
                                 className="h-6 w-6 ml-auto"
                                 disabled={uiLocked}
-                                onClick={() => handleRemoveItem(id)}
-                              >
+                                onClick={() => handleRemoveItem(id)}>
                                 <Trash2 className="h-3 w-3 text-destructive" />
                               </Button>
                             </div>
 
                             <p className="text-sm font-semibold mt-1">
-                              {formatNGN(Number(item.price) * Number(item.quantity))}
+                              {formatNGN(
+                                Number(item.price) * Number(item.quantity)
+                              )}
                             </p>
                           </div>
                         </div>
@@ -809,9 +905,12 @@ export default function CheckoutPage() {
                     {!buyNowProduct && discount > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">
-                          Discount {cartSummary?.coupon ? `(${cartSummary.coupon})` : ""}
+                          Discount{" "}
+                          {cartSummary?.coupon ? `(${cartSummary.coupon})` : ""}
                         </span>
-                        <span className="font-medium">- {formatNGN(discount)}</span>
+                        <span className="font-medium">
+                          - {formatNGN(discount)}
+                        </span>
                       </div>
                     )}
 
@@ -846,20 +945,31 @@ export default function CheckoutPage() {
               {/* ✅ BNPL Breakdown */}
               {isBnplCheckout && (
                 <div className="p-3 rounded-lg border space-y-3">
-                  <div className="text-sm font-semibold">Buy Now, Pay Later</div>
+                  <div className="text-sm font-semibold">
+                    Buy Now, Pay Later
+                  </div>
 
                   {bnplLoading ? (
-                    <div className="text-sm text-muted-foreground">Loading BNPL breakdown…</div>
+                    <div className="text-sm text-muted-foreground">
+                      Loading BNPL breakdown…
+                    </div>
                   ) : !bnplBreakdown ? (
-                    <div className="text-sm text-muted-foreground">BNPL breakdown unavailable.</div>
+                    <div className="text-sm text-muted-foreground">
+                      BNPL breakdown unavailable.
+                    </div>
                   ) : (
                     <>
                       {/* ✅ Product details header */}
                       {bnplBreakdown?.product_details && (
                         <div className="flex gap-3 items-center p-2 rounded-md border bg-muted/30">
                           <img
-                            src={bnplBreakdown.product_details.image_url || "/placeholder.svg"}
-                            alt={bnplBreakdown.product_details.title || "Product"}
+                            src={
+                              bnplBreakdown.product_details.image_url ||
+                              "/placeholder.svg"
+                            }
+                            alt={
+                              bnplBreakdown.product_details.title || "Product"
+                            }
                             className="w-12 h-12 rounded object-cover flex-shrink-0"
                           />
                           <div className="min-w-0">
@@ -867,7 +977,9 @@ export default function CheckoutPage() {
                               {bnplBreakdown.product_details.title}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatNGN(safeNum(bnplBreakdown.product_details.price, 0))}
+                              {formatNGN(
+                                safeNum(bnplBreakdown.product_details.price, 0)
+                              )}
                             </div>
                           </div>
                         </div>
@@ -876,57 +988,75 @@ export default function CheckoutPage() {
                       {!bnplBreakdown.eligible && (
                         <div className="text-sm">
                           <div className="font-semibold">BNPL not eligible</div>
-                          <div className="text-muted-foreground">{bnplBreakdown.reason}</div>
+                          <div className="text-muted-foreground">
+                            {bnplBreakdown.reason}
+                          </div>
                         </div>
                       )}
 
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Plan</span>
                         <span className="font-medium">
-                          {bnplBreakdown.plan?.name} ({bnplBreakdown.plan?.num_installments}x)
+                          {bnplBreakdown.plan?.name} (
+                          {bnplBreakdown.plan?.num_installments}x)
                         </span>
                       </div>
 
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Pay today</span>
                         <span className="font-semibold">
-                          {formatNGN(safeNum(bnplBreakdown.breakdown?.downpayment_now, 0))}
+                          {formatNGN(
+                            safeNum(bnplBreakdown.breakdown?.downpayment_now, 0)
+                          )}
                         </span>
                       </div>
 
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Total (BNPL)</span>
+                        <span className="text-muted-foreground">
+                          Total (BNPL)
+                        </span>
                         <span className="font-semibold">
-                          {formatNGN(safeNum(bnplBreakdown.breakdown?.total_amount, 0))}
+                          {formatNGN(
+                            safeNum(bnplBreakdown.breakdown?.total_amount, 0)
+                          )}
                         </span>
                       </div>
 
                       <Separator />
 
                       <div className="space-y-2 max-h-48 overflow-auto pr-1">
-                        {(bnplBreakdown.breakdown?.installments || []).map((inst: any) => (
-                          <div key={inst.index} className="flex justify-between text-xs p-2 border rounded-md">
-                            <span className="text-muted-foreground">
-                              #{inst.index} • {new Date(inst.due_at).toLocaleDateString()}
-                              {inst.capture_immediately ? " (today)" : ""}
-                            </span>
-                            <span className="font-semibold">{formatNGN(safeNum(inst.amount_due, 0))}</span>
-                          </div>
-                        ))}
+                        {(bnplBreakdown.breakdown?.installments || []).map(
+                          (inst: any) => (
+                            <div
+                              key={inst.index}
+                              className="flex justify-between text-xs p-2 border rounded-md">
+                              <span className="text-muted-foreground">
+                                #{inst.index} •{" "}
+                                {new Date(inst.due_at).toLocaleDateString()}
+                                {inst.capture_immediately ? " (today)" : ""}
+                              </span>
+                              <span className="font-semibold">
+                                {formatNGN(safeNum(inst.amount_due, 0))}
+                              </span>
+                            </div>
+                          )
+                        )}
                       </div>
                     </>
                   )}
                 </div>
               )}
 
-
               {/* ✅ Button: BNPL = Request Item, Non-BNPL = Place Order */}
               <Button
                 className="w-full"
                 size="lg"
                 onClick={handleSubmit as any}
-                disabled={uiLocked || !canRequestOrPlace || (isBnplCheckout && (bnplLoading || !bnplBreakdown?.eligible))}
-              >
+                disabled={
+                  uiLocked ||
+                  !canRequestOrPlace ||
+                  (isBnplCheckout && (bnplLoading || !bnplBreakdown?.eligible))
+                }>
                 {uiLocked ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

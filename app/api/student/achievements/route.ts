@@ -1,39 +1,34 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 //const BASE_URL = "http://127.0.0.1:9098"
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: any) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 export async function GET(req: any) {
   noStore();
   const endpoint = "/academics/api/gamification/achievements/";
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[AchievementsAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[AchievementsAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[AchievementsAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
+      {error: "Not authenticated"},
       {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
@@ -42,25 +37,23 @@ export async function GET(req: any) {
   }
 
   try {
-    console.log("[AchievementsAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[AchievementsAPI] Fetch response status:", response.status);
-    console.log("[AchievementsAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[AchievementsAPI] Fetch response content-type:", response.headers.get("content-type"));
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[AchievementsAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[AchievementsAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[AchievementsAPI] Fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired" },
+          {error: "Session expired"},
           {
             status: 401,
             headers: {
@@ -72,7 +65,7 @@ export async function GET(req: any) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Achievements endpoint not found" },
+          {error: "Achievements endpoint not found"},
           {
             status: 404,
             headers: {
@@ -83,7 +76,7 @@ export async function GET(req: any) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch achievements" },
+        {error: "Failed to fetch achievements"},
         {
           status: response.status,
           headers: {
@@ -95,9 +88,12 @@ export async function GET(req: any) {
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[AchievementsAPI] Non-JSON response received:", contentType);
+      console.error(
+        "[AchievementsAPI] Non-JSON response received:",
+        contentType
+      );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -114,7 +110,7 @@ export async function GET(req: any) {
     } catch (parseError) {
       console.error("[AchievementsAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -125,12 +121,12 @@ export async function GET(req: any) {
       );
     }
 
-    console.log("[AchievementsAPI] Fetch successful, data:", data);
     return NextResponse.json(data, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -138,7 +134,7 @@ export async function GET(req: any) {
   } catch (error) {
     console.error("[AchievementsAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch achievements", details: error },
+      {error: "Failed to fetch achievements", details: error},
       {
         status: 500,
         headers: {

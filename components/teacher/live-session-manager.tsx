@@ -250,7 +250,6 @@ export function LiveSessionManager() {
           videoRef.current.srcObject = stream;
         }
         setIsSessionStarted(true);
-        console.log("[v0] Session started with camera access");
       } catch (error) {
         console.error("[v0] Error accessing camera:", error);
         alert("Could not access camera. Please check permissions.");
@@ -264,7 +263,6 @@ export function LiveSessionManager() {
         setIsScreenSharing(false);
       }
       setIsSessionStarted(false);
-      console.log("[v0] Session ended");
     }
   };
 
@@ -284,8 +282,6 @@ export function LiveSessionManager() {
         screenStream.getVideoTracks()[0].addEventListener("ended", () => {
           setIsScreenSharing(false);
         });
-
-        console.log("[v0] Screen sharing started");
       } catch (error) {
         console.error("[v0] Error sharing screen:", error);
         alert("Could not share screen. Please check permissions.");
@@ -296,7 +292,6 @@ export function LiveSessionManager() {
         stream.getTracks().forEach((track) => track.stop());
       }
       setIsScreenSharing(false);
-      console.log("[v0] Screen sharing stopped");
     }
   };
 

@@ -1,7 +1,7 @@
 // app/api/student/cbt/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 //const BASE_URL = "http://127.0.0.1:9098";
@@ -11,7 +11,7 @@ async function fetchWithTimeout(url: string, options: any) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeout);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, {...options, signal: controller.signal});
     clearTimeout(timeoutId);
     return response;
   } catch (err) {
@@ -21,42 +21,41 @@ async function fetchWithTimeout(url: string, options: any) {
 }
 
 export async function GET(request: Request) {
-  console.log("[Route] Received GET request to /api/student/cbt");
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
     console.error("[Route] No session token found, session:", session);
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   const deviceId = request.headers.get("x-device-id") || undefined;
 
   try {
     // Pass through query params (e.g., page, page_size, status, etc.)
-    const { searchParams } = new URL(request.url);
+    const {searchParams} = new URL(request.url);
     const queryString = searchParams.toString();
     const qp = queryString ? `?${queryString}` : "";
 
     // Available tests
     const testsUrl = `${BASE_URL}/assessments/api/tests/available/`;
-    console.log("[Route] Fetching tests from:", testsUrl);
+
     const testsRes = await fetchWithTimeout(testsUrl, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
-        ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+        ...(deviceId ? {"X-Device-Id": deviceId} : {}),
         cookie: request.headers.get("cookie") ?? "",
       },
-      credentials: "include", 
+      credentials: "include",
       timeout: 40000,
     });
     if (!testsRes.ok) {
       const errorText = await testsRes.text();
       console.error("[Route] External API error response (tests):", errorText);
       return NextResponse.json(
-        { error: `Failed to fetch tests: ${errorText}` },
-        { status: testsRes.status }
+        {error: `Failed to fetch tests: ${errorText}`},
+        {status: testsRes.status}
       );
     }
     const testsData = await testsRes.json();
@@ -64,7 +63,7 @@ export async function GET(request: Request) {
     // Student test attempts (paginated)
     // NOTE: The docs say /assessments + /api/student/test-attempts
     const attemptsUrl = `${BASE_URL}/assessments/api/student/test-attempts/${qp}`;
-    console.log("[Route] Fetching attempts from:", attemptsUrl);
+
     const attemptsRes = await fetchWithTimeout(attemptsUrl, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -72,20 +71,21 @@ export async function GET(request: Request) {
         "X-Session-Token": session.user.sessionToken,
         cookie: request.headers.get("cookie") ?? "",
       },
-      credentials: "include", 
+      credentials: "include",
       timeout: 40000,
     });
     if (!attemptsRes.ok) {
       const errorText = await attemptsRes.text();
-      console.error("[Route] External API error response (attempts):", errorText);
+      console.error(
+        "[Route] External API error response (attempts):",
+        errorText
+      );
       return NextResponse.json(
-        { error: `Failed to fetch attempts: ${errorText}` },
-        { status: attemptsRes.status }
+        {error: `Failed to fetch attempts: ${errorText}`},
+        {status: attemptsRes.status}
       );
     }
     const attemptsData = await attemptsRes.json();
-    console.log(attemptsData, " data....")
-
 
     // 🔹 Normalize tests
     let tests: any[] = [];
@@ -101,7 +101,11 @@ export async function GET(request: Request) {
       tests = testsData.results;
     }
 
-    if (!Array.isArray(testsData) && testsData?.results && !Array.isArray(testsData.results)) {
+    if (
+      !Array.isArray(testsData) &&
+      testsData?.results &&
+      !Array.isArray(testsData.results)
+    ) {
       // results is a dict / stats object
       results = testsData.results;
     }
@@ -120,11 +124,13 @@ export async function GET(request: Request) {
       attempts = {
         count: Number(attemptsData.count ?? attemptsData.results.length ?? 0),
         page: Number(attemptsData.page ?? 1),
-        page_size: Number(attemptsData.page_size ?? attemptsData.results.length ?? 20),
+        page_size: Number(
+          attemptsData.page_size ?? attemptsData.results.length ?? 20
+        ),
         results: attemptsData.results,
       };
     } else {
-      attempts = { count: 0, page: 1, page_size: 20, results: [] };
+      attempts = {count: 0, page: 1, page_size: 20, results: []};
     }
 
     const payload = {
@@ -133,29 +139,22 @@ export async function GET(request: Request) {
       attempts,
     };
 
-    console.log("[Route] Normalized payload:", {
-      tests_len: tests.length,
-      attempts_count: attempts.count,
-    });
-
-    return NextResponse.json(payload, { status: 200 });
-
+    return NextResponse.json(payload, {status: 200});
   } catch (error: any) {
     console.error("[Route] Error fetching data:", error);
     return NextResponse.json(
-      { error: "Internal server error", details: error.message },
-      { status: 500 }
+      {error: "Internal server error", details: error.message},
+      {status: 500}
     );
   }
 }
 
 export async function POST(request: Request) {
-  console.log("[Route] Received POST request to..... /api/student/cbt");
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
     console.error("[Route] No session token found");
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
   const deviceId = request.headers.get("x-device-id") || undefined;
   const maxRetries = 3;
@@ -164,12 +163,11 @@ export async function POST(request: Request) {
 
   try {
     body = await request.json();
-    console.log("[Route] Raw POST body:", body);
   } catch (err: any) {
     console.error("[Route] Error parsing request body:", err);
     return NextResponse.json(
-      { error: "Invalid request body", details: err.message },
-      { status: 400 }
+      {error: "Invalid request body", details: err.message},
+      {status: 400}
     );
   }
 
@@ -177,8 +175,8 @@ export async function POST(request: Request) {
   if (!testId) {
     console.error("[Route] Missing test ID in request body");
     return NextResponse.json(
-      { error: "Missing test ID (test/testPk/currentTest)" },
-      { status: 400 }
+      {error: "Missing test ID (test/testPk/currentTest)"},
+      {status: 400}
     );
   }
 
@@ -187,7 +185,7 @@ export async function POST(request: Request) {
       const questionId = a.question;
       if (!questionId) return null;
 
-      const cleaned: any = { question: Number(questionId) };
+      const cleaned: any = {question: Number(questionId)};
 
       if (Array.isArray(a.choice)) {
         cleaned.choices = a.choice.map(Number);
@@ -211,8 +209,6 @@ export async function POST(request: Request) {
     })
     .filter(Boolean);
 
-
-
   const payload = {
     answers,
     started_at: body.started_at || new Date().toISOString(),
@@ -220,48 +216,43 @@ export async function POST(request: Request) {
     suspicious_activity: body.suspicious_activity || 0,
   };
 
-  console.log("[Route] Final payload for backend:", JSON.stringify(payload, null, 2));
-
   while (attempt < maxRetries) {
     try {
       const submitUrl = `${BASE_URL}/assessments/api/tests/${testId}/submit/`;
-      console.log("[Route] Submitting to:", submitUrl);
 
       const res = await fetchWithTimeout(submitUrl, {
         method: "POST",
         headers: {
           Authorization: `Api-Key ${API_KEY}`,
           "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-        ...(deviceId ? { "X-Device-Id": deviceId } : {}),
-        cookie: request.headers.get("cookie") ?? "",
+          "X-Session-Token": session.user.sessionToken,
+          ...(deviceId ? {"X-Device-Id": deviceId} : {}),
+          cookie: request.headers.get("cookie") ?? "",
         },
         body: JSON.stringify(payload),
-        credentials: "include", 
+        credentials: "include",
         timeout: 20000,
       });
-
-      console.log("[Route] External API response status:", res.status);
 
       if (!res.ok) {
         const errorText = await res.text();
         console.error("[Route] External API error response:", errorText);
         return NextResponse.json(
-          { error: `Failed to submit test: ${errorText}` },
-          { status: res.status }
+          {error: `Failed to submit test: ${errorText}`},
+          {status: res.status}
         );
       }
 
       const data = await res.json();
-      console.log("[Route] External API response data:", data);
-      return NextResponse.json(data, { status: 200 });
+
+      return NextResponse.json(data, {status: 200});
     } catch (err: any) {
       console.error(`[Route] Attempt ${attempt + 1} failed:`, err.message);
       attempt++;
       if (attempt === maxRetries) {
         return NextResponse.json(
-          { error: "Failed after retries", details: err.message },
-          { status: 500 }
+          {error: "Failed after retries", details: err.message},
+          {status: 500}
         );
       }
       await new Promise((resolve) =>

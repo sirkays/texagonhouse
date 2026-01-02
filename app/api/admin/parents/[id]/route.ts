@@ -60,21 +60,15 @@ export async function GET(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received GET request to /api/admin/parents/[id]");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   const {id} = params;
 
   try {
-    console.log("[Route] Fetching parent", id);
     return await handleRequest(request, "GET", id, session.user.sessionToken);
   } catch (error) {
     console.error("[Route] Error fetching parent:", error);
@@ -86,21 +80,15 @@ export async function PATCH(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received PATCH request to /api/admin/parents/[id]");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   const {id} = params;
 
   try {
-    console.log("[Route] Updating parent", id);
     return await handleRequest(request, "PATCH", id, session.user.sessionToken);
   } catch (error) {
     console.error("[Route] Error updating parent:", error);
@@ -112,21 +100,15 @@ export async function DELETE(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received DELETE request to /api/admin/parents/[id]");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   const {id} = params;
 
   try {
-    console.log("[Route] Deleting parent", id);
     return await handleRequest(
       request,
       "DELETE",

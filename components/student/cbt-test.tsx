@@ -2,7 +2,7 @@
 /* Modified for offline support: cache data, queue submissions, sync when online */
 /* ✅ NOW USES TEST ID AS KEY IN pendingCBTSubmissions FOR UNIQUENESS & FAST CHECKS */
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -10,13 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import {Label} from "@/components/ui/label";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Textarea} from "@/components/ui/textarea";
+import {Input} from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -43,9 +43,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
-import { useSession } from "next-auth/react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Spinner} from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -114,8 +114,10 @@ type AttemptsPayload = {
 /* ---------- CBTTest component ---------- */
 
 export function CBTTest() {
-  const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(null);
-  const { data: session, status } = useSession();
+  const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(
+    null
+  );
+  const {data: session, status} = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, any>>({});
@@ -138,12 +140,16 @@ export function CBTTest() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showSubmittedAnswersModal, setShowSubmittedAnswersModal] = useState(false);
-  const [pastAttemptModalId, setPastAttemptModalId] = useState<string | null>(null);
+  const [showSubmittedAnswersModal, setShowSubmittedAnswersModal] =
+    useState(false);
+  const [pastAttemptModalId, setPastAttemptModalId] = useState<string | null>(
+    null
+  );
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">("date");
+  const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">(
+    "date"
+  );
   const [justSyncedTestId, setJustSyncedTestId] = useState<string | null>(null);
-
 
   // NEW: attempts state (from backend)
   const [attempts, setAttempts] = useState<AttemptsPayload>({
@@ -155,7 +161,9 @@ export function CBTTest() {
   const [attemptsPage, setAttemptsPage] = useState(1);
 
   // NEW: offline support
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [isSyncing, setIsSyncing] = useState(false);
 
   const sessionToken = useMemo(
@@ -181,7 +189,6 @@ export function CBTTest() {
       syncPendingSubmissions();
     }
   }, [isOnline, sessionToken]);
-
 
   /* ✅ REWRITTEN: pendingCBTSubmissions is now { [testId: string]: payload } */
   const syncPendingSubmissions = async () => {
@@ -261,7 +268,7 @@ export function CBTTest() {
           ) {
             console.warn(
               "[CBTTest] Pending submission already on server, clearing from queue",
-              { testId, text }
+              {testId, text}
             );
 
             delete pending[testId];
@@ -300,7 +307,6 @@ export function CBTTest() {
     setIsSyncing(false);
   };
 
-
   const queueAsPending = (cleanedBody: any) => {
     if (typeof window === "undefined") return;
 
@@ -320,7 +326,6 @@ export function CBTTest() {
     };
 
     localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
-    console.log("[CBTTest] Queued submission for test", cleanedBody.currentTest);
 
     // If we're online, immediately try to sync (good for temporary network hiccups)
     if (navigator.onLine) {
@@ -362,31 +367,29 @@ export function CBTTest() {
     fetchData();
   }, [sessionToken, status, attemptsPage]);
 
-function getOrCreateDeviceId(userId?: string | number) {
-  if (typeof window === "undefined") return "";
+  function getOrCreateDeviceId(userId?: string | number) {
+    if (typeof window === "undefined") return "";
 
-  const STORAGE_KEY = "cbtDeviceId";
+    const STORAGE_KEY = "cbtDeviceId";
 
-  // ✅ If user is logged in, bind device ID to that user
-  if (userId) {
-    const userBoundId = `cbt-${userId}`;
+    // ✅ If user is logged in, bind device ID to that user
+    if (userId) {
+      const userBoundId = `cbt-${userId}`;
 
-    localStorage.setItem(STORAGE_KEY, userBoundId);
-    return userBoundId;
+      localStorage.setItem(STORAGE_KEY, userBoundId);
+      return userBoundId;
+    }
+
+    // ✅ Fallback: anonymous / pre-login device ID
+    let deviceId = localStorage.getItem(STORAGE_KEY);
+
+    if (!deviceId) {
+      deviceId = `cbt-${crypto.randomUUID()}`;
+      localStorage.setItem(STORAGE_KEY, deviceId);
+    }
+
+    return deviceId;
   }
-
-  // ✅ Fallback: anonymous / pre-login device ID
-  let deviceId = localStorage.getItem(STORAGE_KEY);
-
-  if (!deviceId) {
-    deviceId = `cbt-${crypto.randomUUID()}`;
-    localStorage.setItem(STORAGE_KEY, deviceId);
-  }
-
-  return deviceId;
-}
-
-
 
   const fetchData = async () => {
     setLoading(true);
@@ -409,12 +412,11 @@ function getOrCreateDeviceId(userId?: string | number) {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
-            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+            ...(deviceId ? {"X-Device-Id": deviceId} : {}),
           },
         },
         40000
       );
-
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
@@ -426,7 +428,6 @@ function getOrCreateDeviceId(userId?: string | number) {
       }
 
       const d = await res.json();
-      console.log("CBT /api response", d);
 
       const tests = Array.isArray(d.tests)
         ? d.tests
@@ -448,7 +449,7 @@ function getOrCreateDeviceId(userId?: string | number) {
               page_size: (d as any).page_size ?? 20,
               results: (d as any).results,
             }
-          : { count: 0, page: 1, page_size: 20, results: [] };
+          : {count: 0, page: 1, page_size: 20, results: []};
 
       setAttempts({
         count: Number(rawAttempts.count ?? rawAttempts.results?.length ?? 0),
@@ -486,13 +487,15 @@ function getOrCreateDeviceId(userId?: string | number) {
       const data = JSON.parse(cached);
       setAvailableTests(data.tests || []);
       setTestResults(data.results || {});
-      setAttempts(data.attempts || { count: 0, page: 1, page_size: 20, results: [] });
+      setAttempts(
+        data.attempts || {count: 0, page: 1, page_size: 20, results: []}
+      );
       setError("Offline: Showing cached data");
     } else {
       setError("Offline and no cached data available");
       setAvailableTests([]);
       setTestResults({});
-      setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
+      setAttempts({count: 0, page: 1, page_size: 20, results: []});
     }
   };
 
@@ -535,11 +538,11 @@ function getOrCreateDeviceId(userId?: string | number) {
       options:
         item.type === "true-false"
           ? [
-              { id: "true", text: "True" },
-              { id: "false", text: "False" },
+              {id: "true", text: "True"},
+              {id: "false", text: "False"},
             ]
           : item.choices
-          ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
+          ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
           : [],
       points: item.points,
     }));
@@ -627,7 +630,7 @@ function getOrCreateDeviceId(userId?: string | number) {
 
       if (ans === undefined) continue;
 
-      const entry: any = { question: q.id };
+      const entry: any = {question: q.id};
 
       if (Array.isArray(ans)) {
         entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
@@ -654,30 +657,27 @@ function getOrCreateDeviceId(userId?: string | number) {
       currentTest: currentTest,
     };
 
-    console.log("[CBTTest] Submitting test payload:", cleanedBody);
-
     setTestCompleted(true);
     setIsSecureMode(false);
     // leave suspiciousActivity as-is so we can show it in the completed screen
 
+    const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
 
-  const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
-
-  if (isOnline) {
-    try {
-      const res = await fetchWithTimeout(
-        "/api/student/cbt",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+    if (isOnline) {
+      try {
+        const res = await fetchWithTimeout(
+          "/api/student/cbt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+              ...(deviceId ? {"X-Device-Id": deviceId} : {}),
+            },
+            body: JSON.stringify(cleanedBody),
           },
-          body: JSON.stringify(cleanedBody),
-        },
-        40000
-      );
+          40000
+        );
         if (res.ok) {
           const data = await res.json();
           const test = availableTests.find(
@@ -685,7 +685,7 @@ function getOrCreateDeviceId(userId?: string | number) {
           );
           setTestResults((prev) => ({
             ...prev,
-            [currentTest!]: { ...data, title: test?.title },
+            [currentTest!]: {...data, title: test?.title},
           }));
           setAttemptsPage(1);
           fetchData();
@@ -723,7 +723,7 @@ function getOrCreateDeviceId(userId?: string | number) {
   };
 
   function handleAnswerChangeLocal(value: any) {
-    setAnswers((prev) => ({ ...prev, [currentQuestion]: value }));
+    setAnswers((prev) => ({...prev, [currentQuestion]: value}));
   }
 
   function previousQuestion() {
@@ -759,8 +759,7 @@ function getOrCreateDeviceId(userId?: string | number) {
               onClick={() => {
                 window.location.href = "/login";
               }}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Log In
             </Button>
@@ -785,8 +784,7 @@ function getOrCreateDeviceId(userId?: string | number) {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => (window.location.href = "/login")}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Log In Again
             </Button>
@@ -813,7 +811,9 @@ function getOrCreateDeviceId(userId?: string | number) {
 
     // ✅ new: detect “just synced”
     const isJustSynced =
-      !!currentTest && justSyncedTestId === currentTest && !hasPendingForThisTest;
+      !!currentTest &&
+      justSyncedTestId === currentTest &&
+      !hasPendingForThisTest;
 
     return (
       <div className="space-y-6">
@@ -821,9 +821,7 @@ function getOrCreateDeviceId(userId?: string | number) {
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
             {result
-              ? `Your result: ${
-                  result.result || result.percentage + "%"
-                }`
+              ? `Your result: ${result.result || result.percentage + "%"}`
               : hasPendingForThisTest
               ? "Results pending sync..."
               : isOnline
@@ -890,12 +888,10 @@ function getOrCreateDeviceId(userId?: string | number) {
             <div className="flex gap-4 justify-center">
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={handleResetToList}
-              >
+                onClick={handleResetToList}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Back to Tests
               </Button>
-
             </div>
           </CardContent>
         </Card>
@@ -919,7 +915,9 @@ function getOrCreateDeviceId(userId?: string | number) {
     return (
       <div className="space-y-6">
         {/* Security & Leave dialogs unchanged */}
-        <Dialog open={showSecurityWarning} onOpenChange={setShowSecurityWarning}>
+        <Dialog
+          open={showSecurityWarning}
+          onOpenChange={setShowSecurityWarning}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -927,26 +925,28 @@ function getOrCreateDeviceId(userId?: string | number) {
                 Suspicious Activity Detected
               </DialogTitle>
               <DialogDescription>
-                We detected that you switched tabs, minimized the window, or tried a restricted key
-                combination (like Ctrl+C / Ctrl+V). Repeated violations may cause this test to be
-                automatically submitted.
+                We detected that you switched tabs, minimized the window, or
+                tried a restricted key combination (like Ctrl+C / Ctrl+V).
+                Repeated violations may cause this test to be automatically
+                submitted.
               </DialogDescription>
             </DialogHeader>
 
             <div className="mt-2 text-sm text-muted-foreground">
               <p>
-                Security alerts so far: <span className="font-semibold">{suspiciousActivity}</span>
+                Security alerts so far:{" "}
+                <span className="font-semibold">{suspiciousActivity}</span>
               </p>
               <p className="mt-1">
-                Please keep your focus on this test window and avoid copying or sharing questions.
+                Please keep your focus on this test window and avoid copying or
+                sharing questions.
               </p>
             </div>
 
             <DialogFooter className="mt-4 flex justify-end">
               <Button
                 className="h-9 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setShowSecurityWarning(false)}
-              >
+                onClick={() => setShowSecurityWarning(false)}>
                 I Understand
               </Button>
             </DialogFooter>
@@ -958,23 +958,23 @@ function getOrCreateDeviceId(userId?: string | number) {
             <DialogHeader>
               <DialogTitle>Leave Test?</DialogTitle>
               <DialogDescription>
-                If you leave now without submitting, your current answers will be lost and
-                this attempt may not be recorded. Are you sure you want to quit this test?
+                If you leave now without submitting, your current answers will
+                be lost and this attempt may not be recorded. Are you sure you
+                want to quit this test?
               </DialogDescription>
             </DialogHeader>
 
             <div className="mt-2 text-sm text-muted-foreground">
               <p>
-                We recommend submitting your test instead of leaving if you are close to
-                finishing.
+                We recommend submitting your test instead of leaving if you are
+                close to finishing.
               </p>
             </div>
 
             <DialogFooter className="mt-4 flex justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowLeaveDialog(false)}
-              >
+                onClick={() => setShowLeaveDialog(false)}>
                 Continue Test
               </Button>
 
@@ -983,15 +983,13 @@ function getOrCreateDeviceId(userId?: string | number) {
                 className="bg-transparent border border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
                 onClick={() => {
                   setShowLeaveDialog(false);
-                  handleResetToList();   // 🔥 this is where it's finally called
-                }}
-              >
+                  handleResetToList(); // 🔥 this is where it's finally called
+                }}>
                 Leave Without Submitting
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
 
         <div className="flex items-center sm:flex-row flex-col gap-4 justify-between">
           <div className=" flex sm:self-auto self-start items-start sm:items-center flex-col sm:flex-row gap-2">
@@ -1009,7 +1007,8 @@ function getOrCreateDeviceId(userId?: string | number) {
             )}
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              <span className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
+              <span
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
                 {formatTime(timeLeft)}
               </span>
             </div>
@@ -1032,7 +1031,8 @@ function getOrCreateDeviceId(userId?: string | number) {
                 <p className="text-lg">{currentQ?.question}</p>
 
                 {/* Question types unchanged */}
-                {currentQ?.type === "single-choice" || currentQ?.type === "true-false" ? (
+                {currentQ?.type === "single-choice" ||
+                currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={(val) => {
@@ -1040,21 +1040,18 @@ function getOrCreateDeviceId(userId?: string | number) {
                         ...prev,
                         [currentQuestion]: val,
                       }));
-                    }}
-                  >
+                    }}>
                     {currentQ.options?.map((option: any) => (
                       <div
                         key={option.id}
-                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
-                      >
+                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
                         <RadioGroupItem
                           value={option.id.toString()}
                           id={`option-${option.id}`}
                         />
                         <Label
                           htmlFor={`option-${option.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
+                          className="flex-1 cursor-pointer">
                           {option.text}
                         </Label>
                       </div>
@@ -1088,31 +1085,27 @@ function getOrCreateDeviceId(userId?: string | number) {
                     className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                     variant="outline"
                     onClick={previousQuestion}
-                    disabled={currentQuestion === 0}
-                  >
+                    disabled={currentQuestion === 0}>
                     Previous
                   </Button>
                   <div className="flex gap-2">
                     {currentQuestion === questions.length - 1 ? (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={submitTest}
-                      >
+                        onClick={submitTest}>
                         Submit Test
                       </Button>
                     ) : (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={nextQuestion}
-                      >
+                        onClick={nextQuestion}>
                         Next
                       </Button>
                     )}
                     <Button
                       className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                       variant="destructive"
-                      onClick={() => setShowLeaveDialog(true)}
-                    >
+                      onClick={() => setShowLeaveDialog(true)}>
                       Leave Test
                     </Button>
                   </div>
@@ -1139,8 +1132,7 @@ function getOrCreateDeviceId(userId?: string | number) {
                           : "outline"
                       }
                       size="sm"
-                      onClick={() => setCurrentQuestion(index)}
-                    >
+                      onClick={() => setCurrentQuestion(index)}>
                       {index + 1}
                     </Button>
                   ))}
@@ -1197,13 +1189,20 @@ function getOrCreateDeviceId(userId?: string | number) {
     } else if (pastSortBy === "result") {
       return (b.status || "").localeCompare(a.status || "");
     } else {
-      const da = new Date(a.submitted_at || a.started_at || a.created_at || 0).getTime();
-      const db = new Date(b.submitted_at || b.started_at || b.created_at || 0).getTime();
+      const da = new Date(
+        a.submitted_at || a.started_at || a.created_at || 0
+      ).getTime();
+      const db = new Date(
+        b.submitted_at || b.started_at || b.created_at || 0
+      ).getTime();
       return db - da;
     }
   });
 
-  const pastTotalPages = Math.max(1, Math.ceil((attempts.count || 0) / (attempts.page_size || 20)));
+  const pastTotalPages = Math.max(
+    1,
+    Math.ceil((attempts.count || 0) / (attempts.page_size || 20))
+  );
   const pastCurrentPage = attempts.page || 1;
 
   /* ---------- default tests list ---------- */
@@ -1212,23 +1211,28 @@ function getOrCreateDeviceId(userId?: string | number) {
   const currentTests = Array.isArray(availableTests)
     ? availableTests.slice(indexOfFirstTest, indexOfLastTest)
     : [];
-  const totalPages = Math.max(1, Math.ceil((availableTests?.length || 0) / testsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil((availableTests?.length || 0) / testsPerPage)
+  );
 
-  const hasTests = Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
+  const hasTests =
+    Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
 
   /* ✅ NEW: pending submissions keyed by test ID */
-  const pendingSubmissions: Record<string, any> = typeof window !== "undefined"
-    ? (() => {
-        const raw = localStorage.getItem("pendingCBTSubmissions");
-        if (!raw) return {};
-        try {
-          return JSON.parse(raw);
-        } catch (e) {
-          localStorage.removeItem("pendingCBTSubmissions");
-          return {};
-        }
-      })()
-    : {};
+  const pendingSubmissions: Record<string, any> =
+    typeof window !== "undefined"
+      ? (() => {
+          const raw = localStorage.getItem("pendingCBTSubmissions");
+          if (!raw) return {};
+          try {
+            return JSON.parse(raw);
+          } catch (e) {
+            localStorage.removeItem("pendingCBTSubmissions");
+            return {};
+          }
+        })()
+      : {};
 
   return (
     <div className="space-y-6">
@@ -1265,10 +1269,14 @@ function getOrCreateDeviceId(userId?: string | number) {
 
       <Tabs defaultValue="available" className="space-y-4">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
-          <TabsTrigger value="available" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          <TabsTrigger
+            value="available"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Available Tests
           </TabsTrigger>
-          <TabsTrigger value="past" className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+          <TabsTrigger
+            value="past"
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Past Attempts
           </TabsTrigger>
         </TabsList>
@@ -1300,8 +1308,7 @@ function getOrCreateDeviceId(userId?: string | number) {
                 </p>
                 <Button
                   className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  onClick={() => window.location.reload()}
-                >
+                  onClick={() => window.location.reload()}>
                   Refresh
                 </Button>
               </CardContent>
@@ -1317,11 +1324,12 @@ function getOrCreateDeviceId(userId?: string | number) {
                   return (
                     <Card
                       key={test.pk}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="sm:flex items-center justify-between">
-                          <CardTitle className="text-lg">{test.title}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {test.title}
+                          </CardTitle>
                           <div className="flex gap-2">
                             <Badge
                               variant={
@@ -1330,12 +1338,13 @@ function getOrCreateDeviceId(userId?: string | number) {
                                   : test.difficulty === "Intermediate"
                                   ? "secondary"
                                   : "destructive"
-                              }
-                            >
+                              }>
                               {test.difficulty}
                             </Badge>
                             {test.type === "exam" && (
-                              <Badge variant="outline" className="text-red-600 border-red-200">
+                              <Badge
+                                variant="outline"
+                                className="text-red-600 border-red-200">
                                 <Shield className="h-3 w-3 mr-1" />
                                 Secure Exam
                               </Badge>
@@ -1376,7 +1385,8 @@ function getOrCreateDeviceId(userId?: string | number) {
 
                         {isPending && (
                           <p className="text-sm text-orange-600 font-medium">
-                            Previous attempt pending sync — cannot start new attempt
+                            Previous attempt pending sync — cannot start new
+                            attempt
                           </p>
                         )}
 
@@ -1386,12 +1396,14 @@ function getOrCreateDeviceId(userId?: string | number) {
                             className="w-full h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                             disabled={
                               isPending ||
-                              (test.type === "exam" && examAttempts >= maxAttempts) ||
+                              (test.type === "exam" &&
+                                examAttempts >= maxAttempts) ||
                               (test.requiresSubscription && !isSubscriber)
-                            }
-                          >
+                            }>
                             <Play className="mr-2 h-4 w-4" />
-                            {test.type === "exam" ? "Start Secure Exam" : "Start Quiz"}
+                            {test.type === "exam"
+                              ? "Start Secure Exam"
+                              : "Start Quiz"}
                           </Button>
                         </div>
                       </CardContent>
@@ -1410,7 +1422,11 @@ function getOrCreateDeviceId(userId?: string | number) {
                         e.preventDefault();
                         if (currentPage > 1) setCurrentPage(currentPage - 1);
                       }}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      className={
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
                     />
                   </PaginationItem>
                   {[...Array(totalPages)].map((_, index) => {
@@ -1423,8 +1439,7 @@ function getOrCreateDeviceId(userId?: string | number) {
                           onClick={(e) => {
                             e.preventDefault();
                             setCurrentPage(page);
-                          }}
-                        >
+                          }}>
                           {page}
                         </PaginationLink>
                       </PaginationItem>
@@ -1436,9 +1451,14 @@ function getOrCreateDeviceId(userId?: string | number) {
                       href="#"
                       onClick={(e) => {
                         e.preventDefault();
-                        if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                        if (currentPage < totalPages)
+                          setCurrentPage(currentPage + 1);
                       }}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -1452,7 +1472,9 @@ function getOrCreateDeviceId(userId?: string | number) {
           {/* ... (exactly the same as original) */}
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Past Attempts</h2>
-            <Select value={pastSortBy} onValueChange={(value) => setPastSortBy(value as any)}>
+            <Select
+              value={pastSortBy}
+              onValueChange={(value) => setPastSortBy(value as any)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -1483,7 +1505,9 @@ function getOrCreateDeviceId(userId?: string | number) {
                       <CardTitle className="text-lg">
                         {a.test?.title || `Test #${a.test_id}`}
                       </CardTitle>
-                      <CardDescription>{a.test?.course_name || "—"}</CardDescription>
+                      <CardDescription>
+                        {a.test?.course_name || "—"}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col gap-3">
                       <div className="text-sm flex items-center gap-2">
@@ -1493,7 +1517,9 @@ function getOrCreateDeviceId(userId?: string | number) {
                       <div className="text-sm">
                         <span className="font-medium">Score: </span>
                         {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
-                        {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
+                        {a.score != null && a.test?.total_marks
+                          ? `(${pct}%)`
+                          : ""}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Submitted: {submittedDate || "—"}
@@ -1513,9 +1539,14 @@ function getOrCreateDeviceId(userId?: string | number) {
                     href="#"
                     onClick={(e) => {
                       e.preventDefault();
-                      if (pastCurrentPage > 1) setAttemptsPage(pastCurrentPage - 1);
+                      if (pastCurrentPage > 1)
+                        setAttemptsPage(pastCurrentPage - 1);
                     }}
-                    className={pastCurrentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      pastCurrentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
                 {[...Array(pastTotalPages)].map((_, index) => {
@@ -1528,8 +1559,7 @@ function getOrCreateDeviceId(userId?: string | number) {
                         onClick={(e) => {
                           e.preventDefault();
                           setAttemptsPage(page);
-                        }}
-                      >
+                        }}>
                         {page}
                       </PaginationLink>
                     </PaginationItem>
@@ -1541,9 +1571,14 @@ function getOrCreateDeviceId(userId?: string | number) {
                     href="#"
                     onClick={(e) => {
                       e.preventDefault();
-                      if (pastCurrentPage < pastTotalPages) setAttemptsPage(pastCurrentPage + 1);
+                      if (pastCurrentPage < pastTotalPages)
+                        setAttemptsPage(pastCurrentPage + 1);
                     }}
-                    className={pastCurrentPage === pastTotalPages ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      pastCurrentPage === pastTotalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>

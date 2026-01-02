@@ -166,7 +166,6 @@ export function TransactionDetails({transactionId}: TransactionDetailsProps) {
 
   const handleDownloadPDF = () => {
     // In a real app, this would generate and download a PDF
-    console.log("Downloading PDF for", transaction.invoiceNumber);
   };
 
   const handlePreview = () => {

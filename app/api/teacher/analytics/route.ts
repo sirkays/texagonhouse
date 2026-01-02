@@ -1,36 +1,28 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "http://127.0.0.1:9098";
 //const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: any) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 export async function GET(req: any) {
   noStore();
   const endpoint = "/academics/teacher-analytics/";
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[TeacherAnalyticsAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[TeacherAnalyticsAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user
-      ? { id: session.user.id, role: session.user.role }
-      : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[TeacherAnalyticsAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
+      {error: "Not authenticated"},
       {
         status: 401,
         headers: {
@@ -45,36 +37,13 @@ export async function GET(req: any) {
   }
 
   try {
-    console.log(
-      "[TeacherAnalyticsAPI] Fetching from",
-      fullUrl,
-      "with token:",
-      session.user.sessionToken
-    );
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log(
-      "[TeacherAnalyticsAPI] Fetch response status:",
-      response.status
-    );
-    console.log(
-      "[TeacherAnalyticsAPI] Fetch response headers:",
-      Object.fromEntries(response.headers)
-    );
-    console.log(
-      "[TeacherAnalyticsAPI] Fetch response content-type:",
-      response.headers.get("content-type")
-    );
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log(
-      "[TeacherAnalyticsAPI] Raw response:",
-      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
-    );
 
     if (!response.ok) {
       console.error(
@@ -84,7 +53,7 @@ export async function GET(req: any) {
       );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Authentication credentials were not provided" },
+          {error: "Authentication credentials were not provided"},
           {
             status: 401,
             headers: {
@@ -96,7 +65,7 @@ export async function GET(req: any) {
       }
       if (response.status === 403) {
         return NextResponse.json(
-          { error: "Forbidden" },
+          {error: "Forbidden"},
           {
             status: 403,
             headers: {
@@ -108,7 +77,7 @@ export async function GET(req: any) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Teacher profile not found" },
+          {error: "Teacher profile not found"},
           {
             status: 404,
             headers: {
@@ -119,7 +88,7 @@ export async function GET(req: any) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch teacher analytics" },
+        {error: "Failed to fetch teacher analytics"},
         {
           status: response.status,
           headers: {
@@ -136,7 +105,7 @@ export async function GET(req: any) {
         contentType
       );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -153,7 +122,7 @@ export async function GET(req: any) {
     } catch (parseError) {
       console.error("[TeacherAnalyticsAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -164,7 +133,6 @@ export async function GET(req: any) {
       );
     }
 
-    console.log("[TeacherAnalyticsAPI] Fetch successful, data:", data);
     return NextResponse.json(data, {
       status: 200,
       headers: {
@@ -178,7 +146,7 @@ export async function GET(req: any) {
   } catch (error) {
     console.error("[TeacherAnalyticsAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch teacher analytics", details: "" },
+      {error: "Failed to fetch teacher analytics", details: ""},
       {
         status: 500,
         headers: {

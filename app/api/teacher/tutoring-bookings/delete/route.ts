@@ -30,8 +30,7 @@ export async function DELETE(request: Request) {
       },
     });
 
-    console.log("[Route] Raw DELETE response status:", res.status);
-
+    
     // 204 No Content: Success, no body
     if (res.status === 204) {
       return new Response(null, { status: 204 });

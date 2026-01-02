@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 interface Category {
@@ -21,23 +21,18 @@ export async function GET(req: Request) {
   noStore();
   const endpoint = "/learning/api/teacher/module-categories/";
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[TeacherModuleCategoriesAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[TeacherModuleCategoriesAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[TeacherModuleCategoriesAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated", redirect: "/login" },
+      {error: "Not authenticated", redirect: "/login"},
       {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
@@ -46,25 +41,23 @@ export async function GET(req: Request) {
   }
 
   try {
-    console.log("[TeacherModuleCategoriesAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[TeacherModuleCategoriesAPI] Fetch response status:", response.status);
-    console.log("[TeacherModuleCategoriesAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[TeacherModuleCategoriesAPI] Fetch response content-type:", response.headers.get("content-type"));
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[TeacherModuleCategoriesAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[TeacherModuleCategoriesAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[TeacherModuleCategoriesAPI] Fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
+          {error: "Session expired", redirect: "/login"},
           {
             status: 401,
             headers: {
@@ -76,7 +69,7 @@ export async function GET(req: Request) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Module categories endpoint not found" },
+          {error: "Module categories endpoint not found"},
           {
             status: 404,
             headers: {
@@ -87,7 +80,7 @@ export async function GET(req: Request) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch module categories" },
+        {error: "Failed to fetch module categories"},
         {
           status: response.status,
           headers: {
@@ -99,9 +92,12 @@ export async function GET(req: Request) {
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[TeacherModuleCategoriesAPI] Non-JSON response received:", contentType);
+      console.error(
+        "[TeacherModuleCategoriesAPI] Non-JSON response received:",
+        contentType
+      );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -112,13 +108,16 @@ export async function GET(req: Request) {
       );
     }
 
-    let data: { categories: any[] };
+    let data: {categories: any[]};
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
-      console.error("[TeacherModuleCategoriesAPI] Failed to parse JSON:", parseError);
+      console.error(
+        "[TeacherModuleCategoriesAPI] Failed to parse JSON:",
+        parseError
+      );
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -130,9 +129,12 @@ export async function GET(req: Request) {
     }
 
     if (!Array.isArray(data.categories)) {
-      console.error("[TeacherModuleCategoriesAPI] Response does not contain a categories array:", data);
+      console.error(
+        "[TeacherModuleCategoriesAPI] Response does not contain a categories array:",
+        data
+      );
       return NextResponse.json(
-        { error: "Invalid response format, expected categories array" },
+        {error: "Invalid response format, expected categories array"},
         {
           status: 500,
           headers: {
@@ -148,12 +150,12 @@ export async function GET(req: Request) {
       name: category.name || "",
     }));
 
-    console.log("[TeacherModuleCategoriesAPI] Fetch successful, normalized data:", normalizedData);
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -161,7 +163,10 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("[TeacherModuleCategoriesAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch module categories", details: (error as Error).message },
+      {
+        error: "Failed to fetch module categories",
+        details: (error as Error).message,
+      },
       {
         status: 500,
         headers: {

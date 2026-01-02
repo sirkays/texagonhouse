@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import {NextRequest, NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -10,24 +10,19 @@ async function getSession() {
 }
 
 export async function GET(request: NextRequest) {
-  console.log("[Route] Received GET request to /api/admin/parents");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
-    const { searchParams } = new URL(request.url);
+    const {searchParams} = new URL(request.url);
     const queryString = searchParams.toString();
     const url = queryString
       ? `${BASE_URL}/api/parents/?${queryString}`
       : `${BASE_URL}/api/parents/`;
-    console.log("[Route] Fetching data from", url);
+
     const res = await fetch(url, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -35,35 +30,27 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
-        { error: data.detail || "Failed to fetch parents" },
-        { status: res.status }
+        {error: data.detail || "Failed to fetch parents"},
+        {status: res.status}
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error fetching parents:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[Route] Received POST request to /api/admin/parents");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
@@ -77,41 +64,37 @@ export async function POST(request: NextRequest) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       if (!formData.get("email")) {
-        return NextResponse.json({ error: "Email is required" }, { status: 400 });
+        return NextResponse.json({error: "Email is required"}, {status: 400});
       }
       fetchrena: fetchBody = formData;
     } else {
       const jsonBody = await request.json();
-      console.log("[Route] Request body:", jsonBody);
+
       if (!jsonBody.email) {
-        return NextResponse.json({ error: "Email is required" }, { status: 400 });
+        return NextResponse.json({error: "Email is required"}, {status: 400});
       }
       fetchBody = JSON.stringify(jsonBody);
       headers["Content-Type"] = "application/json";
     }
 
-    console.log("[Route] Creating parent at", `${BASE_URL}/api/parents/`);
     const res = await fetch(`${BASE_URL}/api/parents/`, {
       method: "POST",
       headers,
       body: fetchBody,
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API post failed:", data);
       return NextResponse.json(
-        { error: data.detail || "Failed to create parent" },
-        { status: res.status }
+        {error: data.detail || "Failed to create parent"},
+        {status: res.status}
       );
     }
 
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(data, {status: 201});
   } catch (error) {
     console.error("[Route] Error creating parent:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

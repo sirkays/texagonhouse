@@ -1,9 +1,9 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
 import MenuItemCard from "./MenuItemCard";
-import { Button } from "../ui/button";
+import {Button} from "../ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,17 +12,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { Textarea } from "../ui/textarea";
-import { useEffect, useMemo, useState } from "react";
-import { Input } from "../ui/input";
+import {Textarea} from "../ui/textarea";
+import {useEffect, useMemo, useState} from "react";
+import {Input} from "../ui/input";
 import DatePicker from "react-datepicker";
 import Loading from "./Loading";
-import { useStreamVideoClient } from "@stream-io/video-react-sdk";
-import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import {useStreamVideoClient} from "@stream-io/video-react-sdk";
+import {toast} from "sonner";
+import {Trash2} from "lucide-react";
 import DateAndTime from "./DateAndTime";
 import Image from "next/image";
-import { Spinner } from "../ui/spinner";
+import {Spinner} from "../ui/spinner";
 
 interface Course {
   id: number | string;
@@ -51,7 +51,7 @@ const initialValues = {
 };
 
 const MainMenu = () => {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
   const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,12 +70,10 @@ const MainMenu = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       if (!session?.user?.sessionToken) {
-        console.log("[MainMenu] No session token, skipping fetch");
         return;
       }
 
       try {
-        console.log("[MainMenu] Fetching courses from /api/teacher/courses/");
         const response = await fetch("/api/teacher/courses/", {
           method: "GET",
           headers: {
@@ -84,26 +82,22 @@ const MainMenu = () => {
           },
         });
 
-        console.log("[MainMenu] Fetch response status:", response.status);
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || "Failed to fetch courses");
         }
 
         const data = await response.json();
-        console.log("[MainMenu] Raw response data:", data);
 
         // Handle case where data is an array directly
-        const fetchedCourses = (Array.isArray(data) ? data : data.courses || []).map(
-          (course: any) => ({
-            ...course,
-            id: Number(course.id), // Convert id to number
-          })
-        );
-        console.log("[MainMenu] Normalized courses:", fetchedCourses);
+        const fetchedCourses = (
+          Array.isArray(data) ? data : data.courses || []
+        ).map((course: any) => ({
+          ...course,
+          id: Number(course.id), // Convert id to number
+        }));
 
         setCourses(fetchedCourses);
-        console.log("[MainMenu] Courses state updated:", fetchedCourses);
       } catch (err: any) {
         toast.error(`Failed to fetch courses: ${err.message}`, {
           duration: 4000,
@@ -117,8 +111,6 @@ const MainMenu = () => {
       fetchCourses();
     }
   }, [session?.user]);
-
-  console.log("[MainMenu] Current courses state:", courses);
 
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)
@@ -153,7 +145,7 @@ const MainMenu = () => {
       });
 
       await call.updateCallMembers({
-        update_members: [{ user_id: String(session.user.id) }],
+        update_members: [{user_id: String(session.user.id)}],
       });
 
       // API call to create live session
@@ -187,7 +179,6 @@ const MainMenu = () => {
       }
 
       const data = await response.json();
-      console.log("[MainMenu] Live session created:", data);
 
       if (meetingState === "Instant") {
         router.push(`/main/meeting/${call.id}`);
@@ -389,22 +380,19 @@ const MainMenu = () => {
                   (isTeacher ? (
                     <a
                       href="/main/home/upcoming"
-                      className="text-blue-700 text-sm sm:text-base"
-                    >
+                      className="text-blue-700 text-sm sm:text-base">
                       View More
                     </a>
                   ) : (
                     <a
                       href="/main/home/upcoming"
-                      className="text-blue-700 text-sm sm:text-base"
-                    >
+                      className="text-blue-700 text-sm sm:text-base">
                       Join Meeting
                     </a>
                   ))}
                 <button
                   onClick={handleDeleteMeeting}
-                  className="bg-transparent flex text-destructive items-center gap-2 py-0 text-sm sm:text-base"
-                >
+                  className="bg-transparent flex text-destructive items-center gap-2 py-0 text-sm sm:text-base">
                   <Trash2 size={16} />
                   Delete
                 </button>
@@ -442,7 +430,7 @@ const MainMenu = () => {
                   placeholder="Enter meeting title"
                   value={values.title}
                   onChange={(e) =>
-                    setValues({ ...values, title: e.target.value })
+                    setValues({...values, title: e.target.value})
                   }
                   className="inputs w-full text-sm sm:text-base"
                 />
@@ -450,11 +438,10 @@ const MainMenu = () => {
                 <select
                   value={values.courseId || ""}
                   onChange={(e) =>
-                    setValues({ ...values, courseId: Number(e.target.value) })
+                    setValues({...values, courseId: Number(e.target.value)})
                   }
                   className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                >
+                  required>
                   <option value="" disabled>
                     Select a course
                   </option>
@@ -472,7 +459,7 @@ const MainMenu = () => {
                   rows={4}
                   value={values.description}
                   onChange={(e) =>
-                    setValues({ ...values, description: e.target.value })
+                    setValues({...values, description: e.target.value})
                   }
                 />
                 <span className="text-xs sm:text-sm">Duration (minutes)</span>
@@ -490,8 +477,7 @@ const MainMenu = () => {
                 />
                 <Button
                   className="mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-                  onClick={() => setMeetingState("Instant")}
-                >
+                  onClick={() => setMeetingState("Instant")}>
                   Create Meeting
                 </Button>
               </div>
@@ -523,13 +509,12 @@ const MainMenu = () => {
                 type="text"
                 placeholder="Meeting Link or Meeting ID"
                 value={values.link}
-                onChange={(e) => setValues({ ...values, link: e.target.value })}
+                onChange={(e) => setValues({...values, link: e.target.value})}
                 className="inputs w-full text-sm sm:text-base"
               />
               <Button
                 className="mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-                onClick={joinMeeting}
-              >
+                onClick={joinMeeting}>
                 Join Meeting
               </Button>
             </div>
@@ -563,7 +548,7 @@ const MainMenu = () => {
                   placeholder="Enter meeting title"
                   value={values.title}
                   onChange={(e) =>
-                    setValues({ ...values, title: e.target.value })
+                    setValues({...values, title: e.target.value})
                   }
                   className="inputs w-full text-sm sm:text-base"
                 />
@@ -571,11 +556,10 @@ const MainMenu = () => {
                 <select
                   value={values.courseId || ""}
                   onChange={(e) =>
-                    setValues({ ...values, courseId: Number(e.target.value) })
+                    setValues({...values, courseId: Number(e.target.value)})
                   }
                   className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                >
+                  required>
                   <option value="" disabled>
                     Select a course
                   </option>
@@ -593,7 +577,7 @@ const MainMenu = () => {
                   rows={4}
                   value={values.description}
                   onChange={(e) =>
-                    setValues({ ...values, description: e.target.value })
+                    setValues({...values, description: e.target.value})
                   }
                 />
                 <span className="text-xs sm:text-sm">Duration (minutes)</span>
@@ -613,7 +597,7 @@ const MainMenu = () => {
                 <DatePicker
                   preventOpenOnFocus
                   selected={values.dateTime}
-                  onChange={(date) => setValues({ ...values, dateTime: date! })}
+                  onChange={(date) => setValues({...values, dateTime: date!})}
                   showTimeSelect
                   timeIntervals={15}
                   timeCaption="time"
@@ -622,8 +606,7 @@ const MainMenu = () => {
                 />
                 <Button
                   className="mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer"
-                  onClick={() => setMeetingState("Schedule")}
-                >
+                  onClick={() => setMeetingState("Schedule")}>
                   Submit
                 </Button>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Badge} from "@/components/ui/badge";
+import {Progress} from "@/components/ui/progress";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Trophy,
   Star,
@@ -22,9 +22,9 @@ import {
   Gem,
   LogIn,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
+import {Button} from "@/components/ui/button";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Achievement {
   id: number;
@@ -66,7 +66,7 @@ interface AchievementsData {
   badges: Badge[];
 }
 
-const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
+const iconMap: {[key: string]: React.ComponentType<{className?: string}>} = {
   star: Star,
   trophy: Trophy,
   target: Target,
@@ -78,7 +78,7 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
 };
 
 export function Achievements() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [achievementsData, setAchievementsData] = useState<AchievementsData>({
     stats: {
       total_points: 0,
@@ -100,26 +100,16 @@ export function Achievements() {
   );
 
   const handleLogout = async () => {
-    console.log(
-      "[Achievements] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
-      console.log(
-        "[Achievements] Logout API response status:",
-        response.status
-      );
       const data = await response.json();
-      console.log("[Achievements] Logout API response:", data);
       if (!response.ok) {
         console.error("[Achievements] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log("[Achievements] Logout successful, redirecting to /login");
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -134,10 +124,6 @@ export function Achievements() {
   useEffect(() => {
     const fetchAchievements = async () => {
       if (status !== "authenticated" || !sessionToken) {
-        console.log(
-          "[Achievements] Session not authenticated, status:",
-          status
-        );
         setError("Not authenticated");
         setAchievementsData({
           stats: {
@@ -157,17 +143,12 @@ export function Achievements() {
       }
 
       try {
-        console.log(
-          "[Achievements] Fetching from /api/student/achievements with token:",
-          sessionToken
-        );
         const response = await fetch("/api/student/achievements?debug=true", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
           },
         });
-        console.log("[Achievements] Fetch response status:", response.status);
         if (!response.ok) {
           console.error(
             "[Achievements] Fetch failed with status:",
@@ -193,7 +174,9 @@ export function Achievements() {
             return;
           }
           setError(
-            errorData.detail || errorData.error || "Failed to fetch achievements"
+            errorData.detail ||
+              errorData.error ||
+              "Failed to fetch achievements"
           );
           setAchievementsData({
             stats: {
@@ -211,7 +194,6 @@ export function Achievements() {
           throw new Error("Fetch failed");
         }
         const data = await response.json();
-        console.log("[Achievements] Fetch response data:", data);
         setAchievementsData(data);
         setError(null);
       } catch (e) {
@@ -259,8 +241,8 @@ export function Achievements() {
               Session Expired
             </CardTitle>
             <CardDescription className="text-center">
-              Your session has expired or you are not authenticated. Please log in
-              again to continue.
+              Your session has expired or you are not authenticated. Please log
+              in again to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -287,8 +269,7 @@ export function Achievements() {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <Trophy className="h-4 w-4" />
               Retry
             </Button>
@@ -378,20 +359,17 @@ export function Achievements() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="achievements"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Achievements
           </TabsTrigger>
           <TabsTrigger
             value="badges"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Badges
           </TabsTrigger>
           <TabsTrigger
             value="progress"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             In Progress
           </TabsTrigger>
         </TabsList>
@@ -410,8 +388,7 @@ export function Achievements() {
               return (
                 <Card
                   key={achievement.id}
-                  className="border-green-200 bg-green-50"
-                >
+                  className="border-green-200 bg-green-50">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -429,8 +406,7 @@ export function Achievements() {
                       </div>
                       <Badge
                         variant="secondary"
-                        className="bg-green-100 text-green-700"
-                      >
+                        className="bg-green-100 text-green-700">
                         +{achievement.points} pts
                       </Badge>
                     </div>
@@ -461,20 +437,22 @@ export function Achievements() {
               return (
                 <Card
                   key={badge.id}
-                  className={badge.earned ? "border-yellow-200 bg-yellow-50" : ""}
-                >
+                  className={
+                    badge.earned ? "border-yellow-200 bg-yellow-50" : ""
+                  }>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
                           className={`p-3 rounded-full ${badge.color} ${
                             badge.earned ? "opacity-100" : "opacity-50"
-                          }`}
-                        >
+                          }`}>
                           <IconComponent className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{badge.name}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {badge.name}
+                          </CardTitle>
                           <CardDescription>{badge.description}</CardDescription>
                         </div>
                       </div>
@@ -485,23 +463,25 @@ export function Achievements() {
                       )}
                     </div>
                   </CardHeader>
-                  {!badge.earned && badge.progress !== undefined && badge.total && (
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>
-                            {badge.progress.toLocaleString()} /{" "}
-                            {badge.total.toLocaleString()}
-                          </span>
+                  {!badge.earned &&
+                    badge.progress !== undefined &&
+                    badge.total && (
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Progress</span>
+                            <span>
+                              {badge.progress.toLocaleString()} /{" "}
+                              {badge.total.toLocaleString()}
+                            </span>
+                          </div>
+                          <Progress
+                            value={(badge.progress / badge.total) * 100}
+                            className="h-2"
+                          />
                         </div>
-                        <Progress
-                          value={(badge.progress / badge.total) * 100}
-                          className="h-2"
-                        />
-                      </div>
-                    </CardContent>
-                  )}
+                      </CardContent>
+                    )}
                 </Card>
               );
             })}

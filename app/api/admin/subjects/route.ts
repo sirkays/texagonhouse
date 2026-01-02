@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import {NextRequest, NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -11,14 +11,13 @@ async function getSession() {
 
 // GET: List all subjects
 export async function GET(request: NextRequest) {
-  console.log("[Subjects Route] GET /api/admin/subjects");
   const session = await getSession();
 
   if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
-  const { searchParams } = new URL(request.url);
+  const {searchParams} = new URL(request.url);
   const q = searchParams.get("q") || "";
   const page = searchParams.get("page") || "1";
   const page_size = searchParams.get("page_size") || "20";
@@ -39,20 +38,19 @@ export async function GET(request: NextRequest) {
     });
 
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json(data, {status: res.status});
   } catch (error) {
     console.error("[Subjects Route] Error listing subjects:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }
 
 // POST: Create subject
 export async function POST(request: NextRequest) {
-  console.log("[Subjects Route] POST /api/admin/subjects");
   const session = await getSession();
 
   if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
@@ -69,9 +67,9 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json(data, {status: res.status});
   } catch (error) {
     console.error("[Subjects Route] Error creating subject:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

@@ -32,7 +32,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,15 +41,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMediaQuery } from "react-responsive";
-import { useSession } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
+import {usePathname} from "next/navigation";
+import {useMediaQuery} from "react-responsive";
+import {useSession} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
 
 const menuItems = [
-  { title: "Dashboard", icon: Home, id: "dashboard", path: "/parent" },
+  {title: "Dashboard", icon: Home, id: "dashboard", path: "/parent"},
   {
     title: "Children Progress",
     icon: BarChart3,
@@ -85,8 +85,8 @@ const menuItems = [
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
-  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
+  const isMobile = useMediaQuery({maxWidth: 639});
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -114,13 +114,11 @@ function SidebarMenuContent() {
                 data-[active=true]:text-slate-600
                 transition-colors
                 rounded-md
-              `}
-                >
+              `}>
                   <Link
                     href={item.path}
                     onClick={handleLinkClick}
-                    className="flex items-center gap-2"
-                  >
+                    className="flex items-center gap-2">
                     <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
                     <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                       {item.title}
@@ -136,15 +134,8 @@ function SidebarMenuContent() {
   );
 }
 
-export default function ParentLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { data: session, status } = useSession();
-
-  console.log("[ParentLayout] Session status:", status);
-  console.log("[ParentLayout] Session data:", session);
+export default function ParentLayout({children}: {children: React.ReactNode}) {
+  const {data: session, status} = useSession();
 
   if (status === "loading") {
     return (
@@ -155,35 +146,24 @@ export default function ParentLayout({
   }
 
   if (status !== "authenticated" || session?.user?.role !== "parent") {
-    console.log("[ParentLayout] Unauthorized, redirecting to /login");
     window.location.href = "/login";
     return null;
   }
 
   const handleLogout = async () => {
-    console.log(
-      "[ParentLayout] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
 
-      console.log(
-        "[ParentLayout] Logout API response status:",
-        response.status
-      );
       const data = await response.json();
-      console.log("[ParentLayout] Logout API response:", data);
 
       if (!response.ok) {
         console.error("[ParentLayout] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
 
-      console.log("[ParentLayout] Logout successful, redirecting to /login");
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -228,12 +208,10 @@ export default function ParentLayout({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     side="top"
-                    className="w-[--radix-popper-anchor-width]"
-                  >
+                    className="w-[--radix-popper-anchor-width]">
                     <DropdownMenuItem
                       className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
-                      onClick={handleLogout}
-                    >
+                      onClick={handleLogout}>
                       <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       Log out
                     </DropdownMenuItem>
@@ -272,8 +250,7 @@ export default function ParentLayout({
               <Button
                 variant="ghost"
                 size="icon"
-                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent"
-              >
+                className="p-1 xs:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
                 <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
               </Button>
             </div>

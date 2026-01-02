@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -14,10 +14,10 @@ function normalizeMedia(media) {
 }
 
 const headers = (sessionToken) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*", // Enable CORS
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 export async function GET(req) {
@@ -27,23 +27,18 @@ export async function GET(req) {
 
   const qs = url.searchParams.toString(); // e.g. module_id=12
   const fullUrl = `${BASE_URL}${endpoint}${qs ? `?${qs}` : ""}`;
-  console.log("[LearningModulesAPI] Initiating fetch for:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[LearningModulesAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[LearningModulesAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
+      {error: "Not authenticated"},
       {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
           "Access-Control-Allow-Origin": "*",
@@ -53,23 +48,23 @@ export async function GET(req) {
   }
 
   try {
-    console.log("[LearningModulesAPI] Fetching from", fullUrl, "with token:", session.user.sessionToken);
-    const response = await fetch(fullUrl, { method: "GET", headers: headers(session.user.sessionToken) });
-
-
-    console.log("[LearningModulesAPI] Fetch response status:", response.status);
-    console.log("[LearningModulesAPI] Fetch response headers:", Object.fromEntries(response.headers));
-    console.log("[LearningModulesAPI] Fetch response content-type:", response.headers.get("content-type"));
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: headers(session.user.sessionToken),
+    });
 
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[LearningModulesAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[LearningModulesAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[LearningModulesAPI] Fetch failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired" },
+          {error: "Session expired"},
           {
             status: 401,
             headers: {
@@ -82,7 +77,7 @@ export async function GET(req) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Learning modules endpoint not found" },
+          {error: "Learning modules endpoint not found"},
           {
             status: 404,
             headers: {
@@ -94,7 +89,7 @@ export async function GET(req) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch learning modules" },
+        {error: "Failed to fetch learning modules"},
         {
           status: response.status,
           headers: {
@@ -107,9 +102,12 @@ export async function GET(req) {
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[LearningModulesAPI] Non-JSON response received:", contentType);
+      console.error(
+        "[LearningModulesAPI] Non-JSON response received:",
+        contentType
+      );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -127,7 +125,7 @@ export async function GET(req) {
     } catch (parseError) {
       console.error("[LearningModulesAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -167,12 +165,12 @@ export async function GET(req) {
       })),
     };
 
-    console.log("[LearningModulesAPI] Fetch successful, normalized data:", normalizedData);
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
         "Access-Control-Allow-Origin": "*",
@@ -181,7 +179,7 @@ export async function GET(req) {
   } catch (error) {
     console.error("[LearningModulesAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch learning modules", details: error.message },
+      {error: "Failed to fetch learning modules", details: error.message},
       {
         status: 500,
         headers: {

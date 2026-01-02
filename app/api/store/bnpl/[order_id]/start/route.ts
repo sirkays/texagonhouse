@@ -36,7 +36,6 @@ export async function POST(
   const body = await req.json();
 
   const fullUrl = `${BASE_URL}/bnpl/${params.order_id}/start`;
-  console.log("[StoreBnplStartAPI] Initiating POST to:", fullUrl);
 
   try {
     const response = await fetch(fullUrl, {

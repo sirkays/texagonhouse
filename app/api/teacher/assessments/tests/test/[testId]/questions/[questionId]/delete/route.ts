@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -12,28 +12,26 @@ const headers = (sessionToken: string) => ({
   "X-Session-Token": sessionToken,
 });
 
-export async function DELETE(req: Request, context: { params: Promise<{ testId: string; questionId: string }> }) {
+export async function DELETE(
+  req: Request,
+  context: {params: Promise<{testId: string; questionId: string}>}
+) {
   noStore();
   const params = await context.params;
   const endpoint = `/assessments/api/teacher/tests/${params.testId}/questions/${params.questionId}/delete/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[QuestionDeleteAPI] Initiating DELETE request to:", fullUrl);
 
   const session = await getServerSession(authOptions);
-  console.log("[QuestionDeleteAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[QuestionDeleteAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated" },
+      {error: "Not authenticated"},
       {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
@@ -42,25 +40,23 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
   }
 
   try {
-    console.log("[QuestionDeleteAPI] Sending request to", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "DELETE",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[QuestionDeleteAPI] Response status:", response.status);
-    console.log("[QuestionDeleteAPI] Response headers:", Object.fromEntries(response.headers));
-    console.log("[QuestionDeleteAPI] Response content-type:", response.headers.get("content-type"));
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log("[QuestionDeleteAPI] Raw response:", rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : ""));
 
     if (!response.ok) {
-      console.error("[QuestionDeleteAPI] Request failed:", response.status, rawResponse.slice(0, 100));
+      console.error(
+        "[QuestionDeleteAPI] Request failed:",
+        response.status,
+        rawResponse.slice(0, 100)
+      );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired" },
+          {error: "Session expired"},
           {
             status: 401,
             headers: {
@@ -72,7 +68,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Question not found" },
+          {error: "Question not found"},
           {
             status: 404,
             headers: {
@@ -83,7 +79,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
         );
       }
       return NextResponse.json(
-        { error: "Failed to delete question" },
+        {error: "Failed to delete question"},
         {
           status: response.status,
           headers: {
@@ -95,9 +91,12 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[QuestionDeleteAPI] Non-JSON response received:", contentType);
+      console.error(
+        "[QuestionDeleteAPI] Non-JSON response received:",
+        contentType
+      );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -114,7 +113,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
     } catch (parseError) {
       console.error("[QuestionDeleteAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -130,12 +129,12 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
       message: data.message || "Question deleted successfully.",
     };
 
-    console.log("[QuestionDeleteAPI] Question deleted successfully:", processedData);
     return NextResponse.json(processedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -143,7 +142,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ testId: 
   } catch (error) {
     console.error("[QuestionDeleteAPI] Request error:", error);
     return NextResponse.json(
-      { error: "Failed to delete question", details: (error as Error).message },
+      {error: "Failed to delete question", details: (error as Error).message},
       {
         status: 500,
         headers: {

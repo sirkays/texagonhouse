@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import {useRef} from "react";
 import {useState, useEffect, useMemo} from "react";
 import {
   Card,
@@ -84,10 +84,8 @@ interface ResourcesData {
 }
 
 export function ResourceMaterials() {
-
-
-  const [pageLoading, setPageLoading] = useState(true);   // first load only
-  const [dataLoading, setDataLoading] = useState(false);  // filter/search reload
+  const [pageLoading, setPageLoading] = useState(true); // first load only
+  const [dataLoading, setDataLoading] = useState(false); // filter/search reload
   const didInitialLoadRef = useRef(false);
 
   const {data: session, status} = useSession();
@@ -133,30 +131,17 @@ export function ResourceMaterials() {
     journals: [],
   };
 
-
   const handleLogout = async () => {
-    console.log(
-      "[ResourceMaterials] Initiating logout, sessionToken:",
-      sessionToken
-    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
-      console.log(
-        "[ResourceMaterials] Logout API response status:",
-        response.status
-      );
       const data = await response.json();
-      console.log("[ResourceMaterials] Logout API response:", data);
       if (!response.ok) {
         console.error("[ResourceMaterials] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log(
-        "[ResourceMaterials] Logout successful, redirecting to /login"
-      );
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -168,86 +153,95 @@ export function ResourceMaterials() {
     }
   };
 
-useEffect(() => {
-  const fetchResources = async () => {
-    const isInitial = !didInitialLoadRef.current;
+  useEffect(() => {
+    const fetchResources = async () => {
+      const isInitial = !didInitialLoadRef.current;
 
-    if (isInitial) setPageLoading(true);
-    else setDataLoading(true);
+      if (isInitial) setPageLoading(true);
+      else setDataLoading(true);
 
-    if (status !== "authenticated" || !sessionToken) {
-      setError("Not authenticated");
-      setResourcesData(null);
-      setCategories([]);
-      setPageLoading(false);
-      setDataLoading(false);
-      return;
-    }
-
-
-    try {
-      const queryParams = new URLSearchParams();
-
-      if (appliedSearchQuery) {
-        queryParams.append("q", appliedSearchQuery);
-      } else {
-        if (selectedCourseId) queryParams.append("course_id", selectedCourseId.toString());
-        if (selectedModuleId) queryParams.append("module_id", selectedModuleId.toString());
+      if (status !== "authenticated" || !sessionToken) {
+        setError("Not authenticated");
+        setResourcesData(null);
+        setCategories([]);
+        setPageLoading(false);
+        setDataLoading(false);
+        return;
       }
 
-      const response = await fetch(`/api/student/resources?${queryParams.toString()}`, {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
-      });
+      try {
+        const queryParams = new URLSearchParams();
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError("Resources not found");
-          setResourcesData(EMPTY_RESOURCES);
-          setCategories([]);
-          return;
+        if (appliedSearchQuery) {
+          queryParams.append("q", appliedSearchQuery);
+        } else {
+          if (selectedCourseId)
+            queryParams.append("course_id", selectedCourseId.toString());
+          if (selectedModuleId)
+            queryParams.append("module_id", selectedModuleId.toString());
         }
 
-        if (response.status === 401) {
-          setError("Session expired");
+        const response = await fetch(
+          `/api/student/resources?${queryParams.toString()}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError("Resources not found");
+            setResourcesData(EMPTY_RESOURCES);
+            setCategories([]);
+            return;
+          }
+
+          if (response.status === 401) {
+            setError("Session expired");
+            setResourcesData(null);
+            setCategories([]);
+            return;
+          }
+
+          setError("Failed to fetch resources");
           setResourcesData(null);
           setCategories([]);
           return;
         }
 
+        const data = await response.json();
+        setResourcesData(data);
+        setCategories(data.categories || []);
+        setSelectedCourseId(
+          data.selected_course_id || data.courses?.[0]?.id || null
+        );
+        setSelectedModuleId(data.selected_module_id || null);
+        setError(null);
+
+        // ✅ reset pages when filtering/searching (optional but recommended)
+        setCurrentPage({pdfs: 1, videos: 1, audio: 1, journals: 1});
+      } catch (e) {
         setError("Failed to fetch resources");
         setResourcesData(null);
         setCategories([]);
-        return;
-
+      } finally {
+        didInitialLoadRef.current = true;
+        setPageLoading(false);
+        setDataLoading(false);
       }
+    };
 
-      const data = await response.json();
-      setResourcesData(data);
-      setCategories(data.categories || []);
-      setSelectedCourseId(data.selected_course_id || data.courses?.[0]?.id || null);
-      setSelectedModuleId(data.selected_module_id || null);
-      setError(null);
-
-      // ✅ reset pages when filtering/searching (optional but recommended)
-      setCurrentPage({ pdfs: 1, videos: 1, audio: 1, journals: 1 });
-    } catch (e) {
-      setError("Failed to fetch resources");
-      setResourcesData(null);
-      setCategories([]);
-
-
-    } finally {
-      didInitialLoadRef.current = true;
-      setPageLoading(false);
-      setDataLoading(false);
-    }
-  };
-
-  fetchResources();
-}, [sessionToken, status, appliedSearchQuery, selectedCourseId, selectedModuleId]);
+    fetchResources();
+  }, [
+    sessionToken,
+    status,
+    appliedSearchQuery,
+    selectedCourseId,
+    selectedModuleId,
+  ]);
 
   const handlePreviewPdf = (pdf: Resource) => {
     setSelectedPdf(pdf);
@@ -319,7 +313,8 @@ useEffect(() => {
 
           {current > 2 && (
             <PaginationItem>
-              <PaginationLink onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}>
+              <PaginationLink
+                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
                 1
               </PaginationLink>
             </PaginationItem>
@@ -331,14 +326,15 @@ useEffect(() => {
             </PaginationItem>
           )}
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
+          {Array.from({length: totalPages}, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
-                  onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: page }))}
-                >
+                  onClick={() =>
+                    setCurrentPage((prev) => ({...prev, [tab]: page}))
+                  }>
                   {page}
                 </PaginationLink>
               </PaginationItem>
@@ -352,7 +348,10 @@ useEffect(() => {
 
           {current < totalPages - 1 && (
             <PaginationItem>
-              <PaginationLink onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))}>
+              <PaginationLink
+                onClick={() =>
+                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
+                }>
                 {totalPages}
               </PaginationLink>
             </PaginationItem>
@@ -373,7 +372,6 @@ useEffect(() => {
     );
   };
 
-
   if (pageLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -381,7 +379,6 @@ useEffect(() => {
       </div>
     );
   }
-
 
   if (
     error === "Session expired" ||
@@ -475,15 +472,15 @@ useEffect(() => {
   }
 
   const resources = resourcesData ?? EMPTY_RESOURCES;
-  
+
   const EmptyState = ({
     title,
     subtitle,
     icon,
   }: {
-    title: string
-    subtitle?: string
-    icon: React.ReactNode
+    title: string;
+    subtitle?: string;
+    icon: React.ReactNode;
   }) => (
     <Card className="border-dashed">
       <CardHeader className="flex flex-row items-start gap-3">
@@ -496,12 +493,15 @@ useEffect(() => {
         </div>
       </CardHeader>
     </Card>
-  )
+  );
 
-const pdfItems = getPaginatedItems(resources.pdfs, currentPage.pdfs)
-const videoItems = getPaginatedItems(resources.videos, currentPage.videos)
-const audioItems = getPaginatedItems(resources.audio, currentPage.audio)
-const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
+  const pdfItems = getPaginatedItems(resources.pdfs, currentPage.pdfs);
+  const videoItems = getPaginatedItems(resources.videos, currentPage.videos);
+  const audioItems = getPaginatedItems(resources.audio, currentPage.audio);
+  const journalItems = getPaginatedItems(
+    resources.journals,
+    currentPage.journals
+  );
 
   return (
     <div className="space-y-6">
@@ -539,15 +539,15 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           />
         </div>
         <Button
-          className={`h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white ${appliedSearchQuery ? "bg-[#F79771] text-white" : ""}`}
+          className={`h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white ${
+            appliedSearchQuery ? "bg-[#F79771] text-white" : ""
+          }`}
           variant="outline"
           disabled={dataLoading}
-          onClick={() => setAppliedSearchQuery(searchQuery)}
-        >
+          onClick={() => setAppliedSearchQuery(searchQuery)}>
           <Filter className="mr-2 h-4 w-4" />
           {dataLoading ? "Filtering..." : "Filter"}
         </Button>
-
       </div>
 
       {/* <div className="flex gap-2 flex-wrap">
@@ -595,7 +595,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                {Array.from({length: itemsPerPage}).map((_, i) => (
                   <Card key={`pdf-skel-${i}`} className="flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
@@ -618,7 +618,10 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           ) : (
             <>
               {(() => {
-                const pdfItems = getPaginatedItems(resources.pdfs, currentPage.pdfs);
+                const pdfItems = getPaginatedItems(
+                  resources.pdfs,
+                  currentPage.pdfs
+                );
 
                 return pdfItems.length === 0 ? (
                   <Card className="border-dashed">
@@ -627,7 +630,9 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                         <FileText className="h-5 w-5" />
                       </div>
                       <div className="space-y-1">
-                        <CardTitle className="text-base">No PDFs found</CardTitle>
+                        <CardTitle className="text-base">
+                          No PDFs found
+                        </CardTitle>
                         <CardDescription className="text-sm">
                           Try changing the course/module or search query.
                         </CardDescription>
@@ -640,12 +645,13 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                       {pdfItems.map((pdf, index) => (
                         <Card
                           key={pdf.id || index}
-                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                        >
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full">
                           <CardHeader>
                             <div className="flex flex-wrap gap-2 items-start justify-between">
                               <div className="space-y-1">
-                                <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                                <CardTitle className="text-lg">
+                                  {pdf.title}
+                                </CardTitle>
                                 <CardDescription>
                                   by {pdf.author || "Unknown"}
                                 </CardDescription>
@@ -658,8 +664,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                             <div className="mt-auto w-full pt-4 flex flex-col sm:flex-row gap-2">
                               <Button
                                 className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                                onClick={() => handlePreviewPdf(pdf)}
-                              >
+                                onClick={() => handlePreviewPdf(pdf)}>
                                 <Eye className="mr-2 h-3 w-3" />
                                 Preview
                               </Button>
@@ -667,8 +672,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                               <Button
                                 variant="outline"
                                 onClick={() => handleDownloadPdf(pdf)}
-                                className="flex-1 w-full h-10 bg-transparent shadow-md"
-                              >
+                                className="flex-1 w-full h-10 bg-transparent shadow-md">
                                 <Download className="mr-2 h-3 w-3" />
                                 Download
                               </Button>
@@ -690,8 +694,10 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
-                  <Card key={`video-skel-${i}`} className="flex flex-col h-full">
+                {Array.from({length: itemsPerPage}).map((_, i) => (
+                  <Card
+                    key={`video-skel-${i}`}
+                    className="flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
                         <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
@@ -712,7 +718,10 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           ) : (
             <>
               {(() => {
-                const videoItems = getPaginatedItems(resources.videos, currentPage.videos);
+                const videoItems = getPaginatedItems(
+                  resources.videos,
+                  currentPage.videos
+                );
 
                 return videoItems.length === 0 ? (
                   <Card className="border-dashed">
@@ -721,7 +730,9 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                         <Video className="h-5 w-5" />
                       </div>
                       <div className="space-y-1">
-                        <CardTitle className="text-base">No videos found</CardTitle>
+                        <CardTitle className="text-base">
+                          No videos found
+                        </CardTitle>
                         <CardDescription className="text-sm">
                           Try changing the course/module or search query.
                         </CardDescription>
@@ -734,8 +745,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                       {videoItems.map((video, index) => (
                         <Card
                           key={video.id || index}
-                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                        >
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full">
                           <CardHeader>
                             <div className="aspect-video bg-muted rounded-md mb-2 flex items-center justify-center relative overflow-hidden">
                               {video.thumbnail ? (
@@ -766,12 +776,16 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
 
                             <div className="flex flex-wrap items-start justify-between">
                               <div className="space-y-1">
-                                <CardTitle className="text-lg">{video.title}</CardTitle>
+                                <CardTitle className="text-lg">
+                                  {video.title}
+                                </CardTitle>
                                 <CardDescription>
                                   by {video.instructor || "Unknown"}
                                 </CardDescription>
                               </div>
-                              <Badge variant="secondary">{video.category}</Badge>
+                              <Badge variant="secondary">
+                                {video.category}
+                              </Badge>
                             </div>
                           </CardHeader>
 
@@ -791,8 +805,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                               <Button
                                 size="sm"
                                 className="w-full bg-[#f79771] hover:bg-gray-300 shadow-md"
-                                onClick={() => handleWatchVideo(video)}
-                              >
+                                onClick={() => handleWatchVideo(video)}>
                                 <Video className="mr-2 h-3 w-3" />
                                 Watch Now
                               </Button>
@@ -814,8 +827,10 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
-                  <Card key={`audio-skel-${i}`} className="flex flex-col h-full">
+                {Array.from({length: itemsPerPage}).map((_, i) => (
+                  <Card
+                    key={`audio-skel-${i}`}
+                    className="flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
                         <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
@@ -836,7 +851,10 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           ) : (
             <>
               {(() => {
-                const audioItems = getPaginatedItems(resources.audio, currentPage.audio);
+                const audioItems = getPaginatedItems(
+                  resources.audio,
+                  currentPage.audio
+                );
 
                 return audioItems.length === 0 ? (
                   <Card className="border-dashed">
@@ -845,7 +863,9 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                         <Headphones className="h-5 w-5" />
                       </div>
                       <div className="space-y-1">
-                        <CardTitle className="text-base">No audio found</CardTitle>
+                        <CardTitle className="text-base">
+                          No audio found
+                        </CardTitle>
                         <CardDescription className="text-sm">
                           Try changing the course/module or search query.
                         </CardDescription>
@@ -858,17 +878,20 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                       {audioItems.map((audio, index) => (
                         <Card
                           key={audio.id || index}
-                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                        >
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full">
                           <CardHeader>
                             <div className="flex flex-wrap gap-3 items-start justify-between">
                               <div className="space-y-1">
-                                <CardTitle className="text-lg">{audio.title}</CardTitle>
+                                <CardTitle className="text-lg">
+                                  {audio.title}
+                                </CardTitle>
                                 <CardDescription>
                                   by {audio.speaker || "Unknown"}
                                 </CardDescription>
                               </div>
-                              <Badge variant="secondary">{audio.category}</Badge>
+                              <Badge variant="secondary">
+                                {audio.category}
+                              </Badge>
                             </div>
                           </CardHeader>
 
@@ -888,8 +911,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                               <Button
                                 size="sm"
                                 className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                                onClick={() => handlePlayAudio(audio)}
-                              >
+                                onClick={() => handlePlayAudio(audio)}>
                                 <Headphones className="mr-2 h-3 w-3" />
                                 Listen Now
                               </Button>
@@ -907,13 +929,14 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           )}
         </TabsContent>
 
-
         <TabsContent value="journals" className="space-y-4">
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
-                  <Card key={`journal-skel-${i}`} className="flex flex-col h-full">
+                {Array.from({length: itemsPerPage}).map((_, i) => (
+                  <Card
+                    key={`journal-skel-${i}`}
+                    className="flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
                         <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
@@ -935,7 +958,10 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
           ) : (
             <>
               {(() => {
-                const journalItems = getPaginatedItems(resources.journals, currentPage.journals);
+                const journalItems = getPaginatedItems(
+                  resources.journals,
+                  currentPage.journals
+                );
 
                 return journalItems.length === 0 ? (
                   <Card className="border-dashed">
@@ -944,7 +970,9 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                         <BookOpen className="h-5 w-5" />
                       </div>
                       <div className="space-y-1">
-                        <CardTitle className="text-base">No journals found</CardTitle>
+                        <CardTitle className="text-base">
+                          No journals found
+                        </CardTitle>
                         <CardDescription className="text-sm">
                           Try changing the course/module or search query.
                         </CardDescription>
@@ -957,15 +985,20 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                       {journalItems.map((journal, index) => (
                         <Card
                           key={journal.id || index}
-                          className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                        >
+                          className="hover:shadow-lg transition-shadow flex flex-col h-full">
                           <CardHeader>
                             <div className="flex flex-wrap gap-2 items-start justify-between">
                               <div className="space-y-1">
-                                <CardTitle className="text-lg">{journal.title}</CardTitle>
-                                <CardDescription>{journal.journal || "Unknown"}</CardDescription>
+                                <CardTitle className="text-lg">
+                                  {journal.title}
+                                </CardTitle>
+                                <CardDescription>
+                                  {journal.journal || "Unknown"}
+                                </CardDescription>
                               </div>
-                              <Badge variant="secondary">{journal.category}</Badge>
+                              <Badge variant="secondary">
+                                {journal.category}
+                              </Badge>
                             </div>
                           </CardHeader>
 
@@ -985,8 +1018,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                                 <Button
                                   size="sm"
                                   className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                                  onClick={() => handlePreviewPdf(journal)}
-                                >
+                                  onClick={() => handlePreviewPdf(journal)}>
                                   <BookOpen className="mr-2 h-3 w-3" />
                                   Read
                                 </Button>
@@ -996,8 +1028,7 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleDownloadJournal(journal)}
-                                className="flex-1 w-full h-10 bg-transparent shadow-md"
-                              >
+                                className="flex-1 w-full h-10 bg-transparent shadow-md">
                                 <Download className="mr-2 h-3 w-3" />
                                 Download
                               </Button>
@@ -1014,7 +1045,6 @@ const journalItems = getPaginatedItems(resources.journals, currentPage.journals)
             </>
           )}
         </TabsContent>
-
       </Tabs>
 
       <PDFViewer

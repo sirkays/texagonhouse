@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useContext, useMemo, useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { SubmissionContext } from "../../layout";
+import React, {useContext, useMemo, useState, useEffect} from "react";
+import {useParams, useRouter} from "next/navigation";
+import {SubmissionContext} from "../../layout";
 import dynamic from "next/dynamic";
-import { useCodeRunner, Lang } from "../CodeRunner";
-import { ArrowLeft, Download, Send, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Textarea } from "@/components/ui/textarea";
-import { Spinner } from "@/components/ui/spinner";
-const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+import {useCodeRunner, Lang} from "../CodeRunner";
+import {ArrowLeft, Download, Send, X} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Label} from "@/components/ui/label";
+import {Slider} from "@/components/ui/slider";
+import {Textarea} from "@/components/ui/textarea";
+import {Spinner} from "@/components/ui/spinner";
+const Editor = dynamic(() => import("@monaco-editor/react"), {ssr: false});
 type Tab = Lang | "output";
 const LANG_LABEL: Record<Lang, string> = {
   python: "Python",
@@ -43,10 +43,10 @@ interface SubmissionDetail {
   }>;
 }
 export default function GradePage() {
-  const { submissionId } = useParams();
+  const {submissionId} = useParams();
   const router = useRouter();
   const id = parseInt(submissionId as string, 10);
-  const { submissions, setSubmissions } = useContext(SubmissionContext);
+  const {submissions, setSubmissions} = useContext(SubmissionContext);
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -61,7 +61,6 @@ export default function GradePage() {
         const res = await fetch(`/api/teacher/code/submissions/${id}`);
         if (!res.ok) throw new Error("Failed to fetch submission");
         const data = await res.json();
-        console.log("[GradePage] Fetched submission data:", data);
         setSubmission(data);
       } catch (err) {
         setError("Submission not found");
@@ -83,7 +82,6 @@ export default function GradePage() {
     if (!submission) return empty;
     const key = submission.language as Lang;
     const code = submission.correction_code || submission.code_text;
-    console.log("[GradePage] Building initialFiles. Lang:", key, "Code:", code);
     return {
       ...empty,
       [key]: code,
@@ -104,12 +102,8 @@ export default function GradePage() {
 
   // Sync runner state when submission loads
   useEffect(() => {
-    console.log("[GradePage] useEffect triggered. Submission:", !!submission);
-    console.log("[GradePage] initialFiles:", initialFiles);
     if (submission) {
-      console.log("[GradePage] Setting language to:", submission.language);
       setActiveLang(submission.language as any);
-      console.log("[GradePage] Calling setFiles with initialFiles");
       setFiles(initialFiles);
     }
   }, [submission, initialFiles, setFiles, setActiveLang]);
@@ -122,7 +116,7 @@ export default function GradePage() {
   );
   const [feedback, setFeedback] = useState<string>(submission?.feedback ?? "");
   const [newComment, setNewComment] = useState("");
-  const [errors, setErrors] = useState<{ score?: string }>({});
+  const [errors, setErrors] = useState<{score?: string}>({});
   useEffect(() => {
     if (!isRunning && output) setActiveTab("output");
   }, [isRunning, output]);
@@ -132,7 +126,7 @@ export default function GradePage() {
     }
   }, [submission]);
   const updateFile = (lang: Lang, value: string) => {
-    setFiles((prev) => ({ ...prev, [lang]: value }));
+    setFiles((prev) => ({...prev, [lang]: value}));
     setActiveLang(lang);
   };
   const isLangDisabled = (lang: Lang) =>
@@ -150,20 +144,14 @@ export default function GradePage() {
     setError(null);
     try {
       const body = {
-        score: score , // Scale to 0-1000 as per API
+        score: score, // Scale to 0-1000 as per API
         feedback,
         correction_code: files[submission.language as Lang] ?? "",
       };
 
-      console.log("[GradePage] Submitting grade...");
-      console.log("[GradePage] Score (UI):", score);
-      console.log("[GradePage] Score (scaled for API):", body.score);
-      console.log("[GradePage] Feedback:", feedback);
-      console.log("[GradePage] Correction code length:", body.correction_code.length);
-
       const res = await fetch(`/api/teacher/code/submissions/${id}/grade`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -171,16 +159,15 @@ export default function GradePage() {
         throw new Error(errData.detail || "Failed to submit grade");
       }
       const updatedData = await res.json();
-      console.log("[GradePage] Grade submitted successfully:", updatedData);
       setSubmissions((prev) =>
         prev.map((s) =>
           s.id === id
             ? {
-              ...s,
-              status: updatedData.status,
-              score: updatedData.score,
-              feedback: updatedData.feedback,
-            }
+                ...s,
+                status: updatedData.status,
+                score: updatedData.score,
+                feedback: updatedData.feedback,
+              }
             : s
         )
       );
@@ -198,8 +185,8 @@ export default function GradePage() {
     try {
       const res = await fetch(`/api/teacher/code/submissions/${id}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: newComment }),
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message: newComment}),
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -237,8 +224,7 @@ export default function GradePage() {
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-4 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs h-9"
-        >
+          className="mb-4 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs h-9">
           <ArrowLeft className="w-4 h-4 mr-1.5" />
           Back
         </Button>
@@ -270,8 +256,9 @@ export default function GradePage() {
                     Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
                   )
                 }
-                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 ${errors.score ? "border-red-500" : "border-[#EF7B55]/30"
-                  }`}
+                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 ${
+                  errors.score ? "border-red-500" : "border-[#EF7B55]/30"
+                }`}
                 min="0"
                 max="100"
               />
@@ -304,13 +291,13 @@ export default function GradePage() {
                   type="button"
                   disabled={disabled}
                   onClick={() => setActiveTab(lang)}
-                  className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${activeTab === lang
-                    ? "bg-[#EF7B55] text-white"
-                    : disabled
+                  className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${
+                    activeTab === lang
+                      ? "bg-[#EF7B55] text-white"
+                      : disabled
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                       : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
-                    }`}
-                >
+                  }`}>
                   {l}
                 </button>
               );
@@ -318,11 +305,11 @@ export default function GradePage() {
             <button
               type="button"
               onClick={() => setActiveTab("output")}
-              className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ml-1 ${activeTab === "output"
-                ? "bg-[#EF7B55] text-white"
-                : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
-                }`}
-            >
+              className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ml-1 ${
+                activeTab === "output"
+                  ? "bg-[#EF7B55] text-white"
+                  : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
+              }`}>
               Output
             </button>
           </div>
@@ -330,8 +317,7 @@ export default function GradePage() {
           <select
             className="mb-4 w-full p-2.5 text-sm border border-[#EF7B55]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 md:hidden"
             value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value as Tab)}
-          >
+            onChange={(e) => setActiveTab(e.target.value as Tab)}>
             {Object.entries(LANG_LABEL).map(([k, l]) => (
               <option key={k} value={k} disabled={isLangDisabled(k as Lang)}>
                 {l}
@@ -350,10 +336,10 @@ export default function GradePage() {
                 options={{
                   readOnly: false,
                   theme: "vs-dark",
-                  minimap: { enabled: false },
+                  minimap: {enabled: false},
                   wordWrap: "on",
                   fontSize: 13,
-                  padding: { top: 12, bottom: 12 },
+                  padding: {top: 12, bottom: 12},
                   lineNumbers: "on",
                   scrollBeyondLastLine: false,
                   folding: false,
@@ -388,15 +374,14 @@ export default function GradePage() {
                 disabled={
                   isRunning ||
                   !ready[
-                  activeTab === "python"
-                    ? "pyodide"
-                    : activeTab === "java"
+                    activeTab === "python"
+                      ? "pyodide"
+                      : activeTab === "java"
                       ? "cheerpj"
                       : "emception"
                   ]
                 }
-                className="order-1 w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5"
-              >
+                className="order-1 w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5">
                 {isRunning ? "Running…" : "Run "}
               </Button>
             )}
@@ -404,16 +389,14 @@ export default function GradePage() {
               type="button"
               onClick={download}
               variant="outline"
-              className="w-full sm:w-auto text-sm h-11 px-5"
-            >
+              className="w-full sm:w-auto text-sm h-11 px-5">
               <Download className="w-4 h-4 mr-2" />
               Download
             </Button>
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium text-sm h-11 px-5"
-            >
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium text-sm h-11 px-5">
               <Send className="w-4 h-4 mr-2" />
               {submitting ? "Submitting..." : "Submit Grade"}
             </Button>
@@ -462,8 +445,7 @@ export default function GradePage() {
               type="button"
               onClick={handleAddComment}
               disabled={commenting || !newComment.trim()}
-              className="bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white text-sm h-[80px] px-4"
-            >
+              className="bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white text-sm h-[80px] px-4">
               {commenting ? "Adding..." : "Add Comment"}
             </Button>
           </div>

@@ -15,15 +15,8 @@ export async function GET(request: Request, {params}: RouteParams) {
   // Await the params for Next.js 15
   const {id} = await params;
 
-  console.log(`[Admin Module Lessons] Received GET request for module ${id}`);
-
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
-
-  console.log(
-    "[Admin Module Lessons] Session token:",
-    sessionToken ? "Present" : "Missing"
-  );
 
   if (!sessionToken) {
     console.warn("[Admin Module Lessons] No session token found");
@@ -40,7 +33,6 @@ export async function GET(request: Request, {params}: RouteParams) {
     }
 
     const endpoint = `${BASE_URL}/api/admin/module/lessons/${id}/`;
-    console.log("[Admin Module Lessons] Fetching from:", endpoint);
 
     const headers: HeadersInit = {
       Authorization: `Api-Key ${API_KEY}`,
@@ -52,19 +44,10 @@ export async function GET(request: Request, {params}: RouteParams) {
     headers["Session-Token"] = sessionToken;
     headers["X-Session-Token"] = sessionToken;
 
-    console.log("[Admin Module Lessons] Request headers:", {
-      Authorization: `Api-Key ${API_KEY.substring(0, 10)}...`,
-      "X-Session-Key": sessionToken.substring(0, 10) + "...",
-      "Session-Token": sessionToken.substring(0, 10) + "...",
-      "X-Session-Token": sessionToken.substring(0, 10) + "...",
-    });
-
     const res = await fetchWithRetry(endpoint, {
       method: "GET",
       headers: headers,
     });
-
-    console.log("[Admin Module Lessons] Response status:", res.status);
 
     const text = await res.text();
     let data;
@@ -98,7 +81,6 @@ export async function GET(request: Request, {params}: RouteParams) {
       );
     }
 
-    console.log("[Admin Module Lessons] Successfully fetched module lessons");
     return NextResponse.json(data);
   } catch (error) {
     console.error(

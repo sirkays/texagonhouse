@@ -8,22 +8,13 @@ const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 export async function GET(request: Request) {
-  console.log("[Route] Received GET request to /api/student/dashboard");
   const session = await getServerSession(authOptions);
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
-    console.log(
-      "[Route] Fetching data from",
-      `${BASE_URL}/accounts/api/dashboard/overview/`
-    );
     const res = await fetch(`${BASE_URL}/accounts/api/dashboard/overview/`, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -32,12 +23,9 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
         {error: "Failed to fetch data"},
         {status: res.status}

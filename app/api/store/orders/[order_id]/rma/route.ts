@@ -40,7 +40,6 @@ export async function POST(
   const body = await req.json();
 
   const fullUrl = `${BASE_URL}/orders/${order_id}/rma`;
-  console.log("[StoreRmaAPI] Initiating POST to:", fullUrl);
 
   try {
     const response = await fetch(fullUrl, {

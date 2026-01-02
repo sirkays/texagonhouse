@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useMemo } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import {useState, useEffect, useMemo} from "react";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
 import {
   Card,
   CardContent,
@@ -11,9 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import {Label} from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,8 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Textarea} from "@/components/ui/textarea";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -50,12 +50,12 @@ import {
   Trash2,
   Check,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ButtonProps, buttonVariants } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { se } from "date-fns/locale";
+import {cn} from "@/lib/utils";
+import {ButtonProps, buttonVariants} from "@/components/ui/button";
+import {Spinner} from "@/components/ui/spinner";
+import {se} from "date-fns/locale";
 
-const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
+const Pagination = ({className, ...props}: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
     aria-label="pagination"
@@ -68,7 +68,7 @@ Pagination.displayName = "Pagination";
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
   React.ComponentProps<"ul">
->(({ className, ...props }, ref) => (
+>(({className, ...props}, ref) => (
   <ul
     ref={ref}
     className={cn("flex flex-row items-center gap-1", className)}
@@ -80,7 +80,7 @@ PaginationContent.displayName = "PaginationContent";
 const PaginationItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
->(({ className, ...props }, ref) => (
+>(({className, ...props}, ref) => (
   <li ref={ref} className={cn("", className)} {...props} />
 ));
 PaginationItem.displayName = "PaginationItem";
@@ -118,8 +118,7 @@ const PaginationPrevious = ({
     aria-label="Go to previous page"
     size="default"
     className={cn("gap-1 pl-2.5", className)}
-    {...props}
-  >
+    {...props}>
     <ChevronLeft className="h-4 w-4" />
     <span>Previous</span>
   </PaginationLink>
@@ -134,8 +133,7 @@ const PaginationNext = ({
     aria-label="Go to next page"
     size="default"
     className={cn("gap-1 pr-2.5", className)}
-    {...props}
-  >
+    {...props}>
     <span>Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
@@ -149,8 +147,7 @@ const PaginationEllipsis = ({
   <span
     aria-hidden
     className={cn("flex h-9 w-9 items-center justify-center", className)}
-    {...props}
-  >
+    {...props}>
     <MoreHorizontal className="h-4 w-4" />
     <span className="sr-only">More pages</span>
   </span>
@@ -213,16 +210,14 @@ interface PastSession {
   dateCompleted: string;
 }
 
-
-
 export function TeacherTutoringBooking() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
   const [isDeleteSessionDialogOpen, setIsDeleteSessionDialogOpen] =
     useState(false);
-    // Confirm Complete / Cancel dialogs
+  // Confirm Complete / Cancel dialogs
   const [confirmAction, setConfirmAction] = useState<{
     open: boolean;
     type: "complete" | "cancel" | null;
@@ -281,7 +276,13 @@ export function TeacherTutoringBooking() {
 
       // Refetch fresh data from server (silent = true)
       await Promise.all([
-        fetchSessions("past", pastPage, setPastSessions, setPastTotalPages, true),
+        fetchSessions(
+          "past",
+          pastPage,
+          setPastSessions,
+          setPastTotalPages,
+          true
+        ),
         fetchSessions(
           "upcoming",
           upcomingPage,
@@ -297,10 +298,8 @@ export function TeacherTutoringBooking() {
     }
   };
 
-
-
   const [selectedSession, setSelectedSession] = useState<
-    ({ id: number | string; category: "upcoming" | "private" } & any) | null
+    ({id: number | string; category: "upcoming" | "private"} & any) | null
   >(null);
   const [activeTab, setActiveTab] = useState<"upcoming" | "private" | "past">(
     "upcoming"
@@ -327,83 +326,90 @@ export function TeacherTutoringBooking() {
   );
 
   const handleCompleteSession = async (sessionId: number | string) => {
-  if (!session?.user?.sessionToken) {
-    setError("Not authenticated");
-    return;
-  }
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
+    }
 
-  try {
-    const response = await fetch(
-      `/api/teacher/tutoring-bookings/patch?tab=upcoming`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-        body: JSON.stringify({ id: sessionId, status: "completed" }),
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/patch?tab=upcoming`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+          body: JSON.stringify({id: sessionId, status: "completed"}),
+        }
+      );
+
+      const text = await response.text();
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
       }
-    );
+      const data = JSON.parse(text);
 
-    const text = await response.text();
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(`Backend returned non-JSON response (status: ${response.status})`);
-    }
-    const data = JSON.parse(text);
-
-    if (!response.ok) {
-      throw new Error(data.error || data.detail || "Failed to complete session");
-    }
-
-    // Remove from upcoming UI (it should now show in "past")
-    setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    setError(null);
-  } catch (err: any) {
-    setError(err.message || "Failed to complete session");
-  }
-};
-
-const handleCancelSession = async (sessionId: number | string) => {
-  if (!session?.user?.sessionToken) {
-    setError("Not authenticated");
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      `/api/teacher/tutoring-bookings/patch?tab=upcoming`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-        body: JSON.stringify({ id: sessionId, status: "cancelled" }),
+      if (!response.ok) {
+        throw new Error(
+          data.error || data.detail || "Failed to complete session"
+        );
       }
-    );
 
-    const text = await response.text();
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(`Backend returned non-JSON response (status: ${response.status})`);
+      // Remove from upcoming UI (it should now show in "past")
+      setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to complete session");
     }
-    const data = JSON.parse(text);
+  };
 
-    if (!response.ok) {
-      throw new Error(data.error || data.detail || "Failed to cancel session");
+  const handleCancelSession = async (sessionId: number | string) => {
+    if (!session?.user?.sessionToken) {
+      setError("Not authenticated");
+      return;
     }
 
-    // Remove from upcoming UI (it should now show in "past")
-    setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    setError(null);
-  } catch (err: any) {
-    setError(err.message || "Failed to cancel session");
-  }
-};
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/patch?tab=upcoming`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+          body: JSON.stringify({id: sessionId, status: "cancelled"}),
+        }
+      );
 
+      const text = await response.text();
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          `Backend returned non-JSON response (status: ${response.status})`
+        );
+      }
+      const data = JSON.parse(text);
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || data.detail || "Failed to cancel session"
+        );
+      }
+
+      // Remove from upcoming UI (it should now show in "past")
+      setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to cancel session");
+    }
+  };
 
   const fetchCourses = async () => {
     if (status !== "authenticated" || !session?.user?.sessionToken) {
@@ -420,26 +426,17 @@ const handleCancelSession = async (sessionId: number | string) => {
       console.log(
         "[TeacherTutoringBooking] Fetching courses from /api/teacher/courses"
       );
-      
-      const response = await fetch(
-        "/api/teacher/courses?course_type=private",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-            "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
-          },
-        }
-      );
 
+      const response = await fetch("/api/teacher/courses?course_type=private", {
+        method: "GET",
+        headers: {
+          Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+      });
 
-      console.log(
-        "[TeacherTutoringBooking] Courses fetch response status:",
-        response.status
-      );
       const text = await response.text();
-      console.log("[TeacherTutoringBooking] Courses raw response:", text);
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
@@ -467,10 +464,6 @@ const handleCancelSession = async (sessionId: number | string) => {
         );
       }
 
-      console.log(
-        "[TeacherTutoringBooking] Courses fetch response data:",
-        data
-      );
       setCourses(data);
       setError(null);
       //setCoursesLoading(false);
@@ -529,7 +522,9 @@ const handleCancelSession = async (sessionId: number | string) => {
           return;
         }
         throw new Error(
-          data.error || data.detail || `Failed to fetch sessions (status: ${response.status})`
+          data.error ||
+            data.detail ||
+            `Failed to fetch sessions (status: ${response.status})`
         );
       }
 
@@ -550,7 +545,7 @@ const handleCancelSession = async (sessionId: number | string) => {
               })} - ${new Date(
                 new Date(item.created_at).getTime() +
                   item.duration_hours * 60 * 60 * 1000
-              ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              ).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}`
             : "N/A",
           type: item.private_tutoring ? "One-on-One" : "Group Session",
           status: item.status
@@ -558,7 +553,8 @@ const handleCancelSession = async (sessionId: number | string) => {
             : "Pending",
           meetingLink: item.meeting_link || null,
           cost: `₦${parseFloat(item.price || 0).toFixed(2)}`,
-          studentAvatar: item.student_avatar || "/placeholder.svg?height=40&width=40",
+          studentAvatar:
+            item.student_avatar || "/placeholder.svg?height=40&width=40",
           notes: item.notes || "",
           duration: item.duration_hours * 60 || 60,
         }));
@@ -577,7 +573,7 @@ const handleCancelSession = async (sessionId: number | string) => {
               })} - ${new Date(
                 new Date(item.created_at).getTime() +
                   item.duration_hours * 60 * 60 * 1000
-              ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              ).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}`
             : "N/A",
           type: item.private_tutoring ? "One-on-One" : "Group Session",
           status: item.status
@@ -586,11 +582,13 @@ const handleCancelSession = async (sessionId: number | string) => {
           rating: item.rating || 0,
           feedback: item.feedback || "",
           cost: `₦${parseFloat(item.price || 0).toFixed(2)}`,
-          studentAvatar: item.student_avatar || "/placeholder.svg?height=40&width=40",
+          studentAvatar:
+            item.student_avatar || "/placeholder.svg?height=40&width=40",
           hasRecording: !!item.recording_url,
           recordingUrl: item.recording_url || "",
           duration: item.duration_hours * 60 || 60,
-          actualDuration: item.actual_duration || item.duration_hours * 60 || 60,
+          actualDuration:
+            item.actual_duration || item.duration_hours * 60 || 60,
           dateCompleted: new Date(item.completed_at || item.created_at)
             .toISOString()
             .split("T")[0],
@@ -625,8 +623,6 @@ const handleCancelSession = async (sessionId: number | string) => {
     }
   };
 
-
-
   useEffect(() => {
     if (status !== "authenticated" || !sessionToken) return;
 
@@ -636,9 +632,27 @@ const handleCancelSession = async (sessionId: number | string) => {
       setSessionsLoading(true);
       try {
         await Promise.all([
-          fetchSessions("upcoming", upcomingPage, setUpcomingSessions, setUpcomingTotalPages, true),
-          fetchSessions("past", pastPage, setPastSessions, setPastTotalPages, true),
-          fetchSessions("private", privatePage, setPrivateSessions, setPrivateTotalPages, true),
+          fetchSessions(
+            "upcoming",
+            upcomingPage,
+            setUpcomingSessions,
+            setUpcomingTotalPages,
+            true
+          ),
+          fetchSessions(
+            "past",
+            pastPage,
+            setPastSessions,
+            setPastTotalPages,
+            true
+          ),
+          fetchSessions(
+            "private",
+            privatePage,
+            setPrivateSessions,
+            setPrivateTotalPages,
+            true
+          ),
         ]);
       } finally {
         if (!cancelled) setSessionsLoading(false);
@@ -717,11 +731,12 @@ const handleCancelSession = async (sessionId: number | string) => {
   };
 
   const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
+    return Array.from({length: 5}, (_, i) => (
       <Star
         key={i}
-        className={`h-3 w-3 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-          }`}
+        className={`h-3 w-3 ${
+          i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+        }`}
       />
     ));
   };
@@ -730,7 +745,7 @@ const handleCancelSession = async (sessionId: number | string) => {
     session: any,
     category: "upcoming" | "private"
   ) => {
-    setSelectedSession({ ...session, category });
+    setSelectedSession({...session, category});
     setIsDeleteSessionDialogOpen(true);
   };
 
@@ -758,7 +773,6 @@ const handleCancelSession = async (sessionId: number | string) => {
       );
 
       const text = await response.text();
-      console.log("[TeacherTutoringBooking] PATCH response:", text);
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
@@ -783,9 +797,7 @@ const handleCancelSession = async (sessionId: number | string) => {
       }
 
       setUpcomingSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId ? { ...s, status: "Confirmed" } : s
-        )
+        prev.map((s) => (s.id === sessionId ? {...s, status: "Confirmed"} : s))
       );
       setError(null);
     } catch (err: any) {
@@ -793,8 +805,6 @@ const handleCancelSession = async (sessionId: number | string) => {
       setError(err.message || "Failed to confirm session");
     }
   };
-
-
 
   const handleConfirmDelete = async () => {
     if (!session?.user?.sessionToken) {
@@ -816,8 +826,6 @@ const handleCancelSession = async (sessionId: number | string) => {
         }
       );
 
-      console.log("[TeacherTutoringBooking] DELETE status:", response.status);
-
       // Handle 204 No Content → success, no body
       if (response.status === 204) {
         // Remove from UI
@@ -838,7 +846,6 @@ const handleCancelSession = async (sessionId: number | string) => {
 
       // For all other statuses, try to read body
       const text = await response.text();
-      console.log("[TeacherTutoringBooking] DELETE response:", text);
 
       let data: any = {};
       const contentType = response.headers.get("content-type");
@@ -936,7 +943,7 @@ const handleCancelSession = async (sessionId: number | string) => {
       setPrivateSessions((prev) =>
         prev.map((s) =>
           s.id === sessionId
-            ? { ...s, status: s.status === "Active" ? "Inactive" : "Active" }
+            ? {...s, status: s.status === "Active" ? "Inactive" : "Active"}
             : s
         )
       );
@@ -973,8 +980,7 @@ const handleCancelSession = async (sessionId: number | string) => {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => (window.location.href = "/login")}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               Log In Again
             </Button>
           </CardContent>
@@ -996,8 +1002,7 @@ const handleCancelSession = async (sessionId: number | string) => {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               Retry
             </Button>
           </CardContent>
@@ -1021,8 +1026,7 @@ const handleCancelSession = async (sessionId: number | string) => {
         <div className="flex gap-2">
           <Button
             onClick={() => router.push("/teacher/tutoring/create")}
-            className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-          >
+            className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
             <Plus className="h-4 w-4" />
             Create Private Session
           </Button>
@@ -1033,9 +1037,7 @@ const handleCancelSession = async (sessionId: number | string) => {
         onOpenChange={(open) => {
           if (actionSubmitting) return; // block closing while loading
           if (!open) closeConfirmAction();
-        }}
-      >
-
+        }}>
         <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>
@@ -1046,11 +1048,13 @@ const handleCancelSession = async (sessionId: number | string) => {
             <DialogDescription>
               {confirmAction.type === "complete" ? (
                 <>
-                  This will mark the session as <b>Completed</b> and move it to Past Sessions.
+                  This will mark the session as <b>Completed</b> and move it to
+                  Past Sessions.
                 </>
               ) : (
                 <>
-                  This will mark the session as <b>Cancelled</b> and move it to Past Sessions.
+                  This will mark the session as <b>Cancelled</b> and move it to
+                  Past Sessions.
                 </>
               )}
               <div className="mt-2 text-sm text-muted-foreground">
@@ -1066,52 +1070,48 @@ const handleCancelSession = async (sessionId: number | string) => {
             </DialogDescription>
           </DialogHeader>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-          <Button
-            variant="outline"
-            onClick={closeConfirmAction}
-            className="w-full sm:w-auto"
-            disabled={actionSubmitting}
-          >
-            No, go back
-          </Button>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            <Button
+              variant="outline"
+              onClick={closeConfirmAction}
+              className="w-full sm:w-auto"
+              disabled={actionSubmitting}>
+              No, go back
+            </Button>
 
-          <Button
-            onClick={handleConfirmActionProceed}
-            disabled={actionSubmitting}
-            className={cn(
-              "w-full sm:w-auto",
-              confirmAction.type === "complete"
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-red-600 hover:bg-red-700"
-            )}
-          >
-            {actionSubmitting ? (
-              <>
-                <Spinner size="sm" className="mr-2" />
-                Processing...
-              </>
-            ) : confirmAction.type === "complete" ? (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Yes, Complete
-              </>
-            ) : (
-              <>
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Yes, Cancel
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-
+            <Button
+              onClick={handleConfirmActionProceed}
+              disabled={actionSubmitting}
+              className={cn(
+                "w-full sm:w-auto",
+                confirmAction.type === "complete"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-red-600 hover:bg-red-700"
+              )}>
+              {actionSubmitting ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Processing...
+                </>
+              ) : confirmAction.type === "complete" ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Yes, Complete
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Yes, Cancel
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog
         open={isDeleteSessionDialogOpen}
-        onOpenChange={setIsDeleteSessionDialogOpen}
-      >
+        onOpenChange={setIsDeleteSessionDialogOpen}>
         <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Delete</DialogTitle>
@@ -1124,14 +1124,12 @@ const handleCancelSession = async (sessionId: number | string) => {
             <Button
               variant="outline"
               onClick={() => setIsDeleteSessionDialogOpen(false)}
-              className="w-full sm:w-auto"
-            >
+              className="w-full sm:w-auto">
               Cancel
             </Button>
             <Button
               onClick={handleConfirmDelete}
-              className="w-full sm:w-auto h-10 bg-red-600 text-white hover:bg-red-700"
-            >
+              className="w-full sm:w-auto h-10 bg-red-600 text-white hover:bg-red-700">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
@@ -1142,25 +1140,21 @@ const handleCancelSession = async (sessionId: number | string) => {
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-        className="space-y-4 xs:space-y-6"
-      >
+        className="space-y-4 xs:space-y-6">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="upcoming"
-          >
+            value="upcoming">
             Current Private Session
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="private"
-          >
+            value="private">
             Private Sessions
           </TabsTrigger>
           <TabsTrigger
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="past"
-          >
+            value="past">
             Past Sessions
           </TabsTrigger>
         </TabsList>
@@ -1185,8 +1179,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                   upcomingSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
+                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
                           <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
@@ -1236,8 +1229,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                               size="sm"
                               className="h-8"
                               onClick={() => handleConfirmSession(session.id)}
-                              disabled={session.status === "Confirmed"}
-                            >
+                              disabled={session.status === "Confirmed"}>
                               <Check className="h-3 w-3 mr-1" />
                               {session.status === "Confirmed"
                                 ? "Session Confirmed"
@@ -1246,29 +1238,31 @@ const handleCancelSession = async (sessionId: number | string) => {
                             <Button
                               size="sm"
                               className="h-8 bg-blue-600 hover:bg-blue-700"
-                              onClick={() => openConfirmAction("complete", session)}
+                              onClick={() =>
+                                openConfirmAction("complete", session)
+                              }
                               disabled={
                                 actionSubmitting ||
                                 session.status === "Completed" ||
                                 session.status === "Cancelled"
-                              }
-                            >
+                              }>
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Complete
                             </Button>
 
-
-
                             <Button
                               size="sm"
                               className="h-8 bg-red-600 hover:bg-red-700"
-                              onClick={() => openConfirmAction("cancel", session)}
-                              disabled={session.status === "Completed" || session.status === "Cancelled"}
-                            >
+                              onClick={() =>
+                                openConfirmAction("cancel", session)
+                              }
+                              disabled={
+                                session.status === "Completed" ||
+                                session.status === "Cancelled"
+                              }>
                               <AlertCircle className="h-3 w-3 mr-1" />
                               Cancel
                             </Button>
-
 
                             {/* <Button
                               size="sm"
@@ -1301,7 +1295,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                         }
                       />
                     </PaginationItem>
-                    {Array.from({ length: upcomingTotalPages }).map(
+                    {Array.from({length: upcomingTotalPages}).map(
                       (_, index) => {
                         const page = index + 1;
                         if (
@@ -1313,8 +1307,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                             <PaginationItem key={page}>
                               <PaginationLink
                                 isActive={upcomingPage === page}
-                                onClick={() => setUpcomingPage(page)}
-                              >
+                                onClick={() => setUpcomingPage(page)}>
                                 {page}
                               </PaginationLink>
                             </PaginationItem>
@@ -1374,19 +1367,21 @@ const handleCancelSession = async (sessionId: number | string) => {
                     {privateSessions.map((p) => (
                       <div
                         key={p.id}
-                        className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
+                        className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                           <div className="space-y-2">
-                              <h4 className="font-semibold text-base sm:text-lg">
-                                {p.title}
-                                {(p.courseName || courses.find(c => c.id === p.courseId)?.name) && (
-                                  <>
-                                    {" — "}
-                                    {courses.find(c => c.id === p.courseId)?.name || p.courseName}
-                                  </>
-                                )}
-                              </h4>
+                            <h4 className="font-semibold text-base sm:text-lg">
+                              {p.title}
+                              {(p.courseName ||
+                                courses.find((c) => c.id === p.courseId)
+                                  ?.name) && (
+                                <>
+                                  {" — "}
+                                  {courses.find((c) => c.id === p.courseId)
+                                    ?.name || p.courseName}
+                                </>
+                              )}
+                            </h4>
 
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <span className="font-medium">Rate:</span>
@@ -1405,8 +1400,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                                   <Badge
                                     key={d}
                                     variant="outline"
-                                    className="text-xs capitalize"
-                                  >
+                                    className="text-xs capitalize">
                                     {d}
                                   </Badge>
                                 ))
@@ -1445,8 +1439,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                                 className="h-8 bg-red-600 hover:bg-red-700"
                                 onClick={() =>
                                   handleDeleteSession(p, "private")
-                                }
-                              >
+                                }>
                                 <Trash2 className="h-3 w-3 mr-1" />
                                 Delete
                               </Button>
@@ -1470,7 +1463,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                             }
                           />
                         </PaginationItem>
-                        {Array.from({ length: privateTotalPages }).map(
+                        {Array.from({length: privateTotalPages}).map(
                           (_, index) => {
                             const page = index + 1;
                             if (
@@ -1483,8 +1476,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                                 <PaginationItem key={page}>
                                   <PaginationLink
                                     isActive={privatePage === page}
-                                    onClick={() => setPrivatePage(page)}
-                                  >
+                                    onClick={() => setPrivatePage(page)}>
                                     {page}
                                   </PaginationLink>
                                 </PaginationItem>
@@ -1543,8 +1535,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                   pastSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
+                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                           <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
@@ -1566,13 +1557,13 @@ const handleCancelSession = async (sessionId: number | string) => {
                                   Student: {session.student}
                                 </p>
 
-                                {(session.status === "Completed" || session.status === "Cancelled") && (
+                                {(session.status === "Completed" ||
+                                  session.status === "Cancelled") && (
                                   <div className="flex-shrink-0">
                                     {getStatusBadge(session.status)}
                                   </div>
                                 )}
                               </div>
-
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                               <div className="flex items-center gap-1">
@@ -1611,8 +1602,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                               href={session.recordingUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs sm:text-sm underline text-muted-foreground"
-                            >
+                              className="text-xs sm:text-sm underline text-muted-foreground">
                               View recording
                             </a>
                           )}
@@ -1636,7 +1626,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                         }
                       />
                     </PaginationItem>
-                    {Array.from({ length: pastTotalPages }).map((_, index) => {
+                    {Array.from({length: pastTotalPages}).map((_, index) => {
                       const page = index + 1;
                       if (
                         page === 1 ||
@@ -1647,8 +1637,7 @@ const handleCancelSession = async (sessionId: number | string) => {
                           <PaginationItem key={page}>
                             <PaginationLink
                               isActive={pastPage === page}
-                              onClick={() => setPastPage(page)}
-                            >
+                              onClick={() => setPastPage(page)}>
                               {page}
                             </PaginationLink>
                           </PaginationItem>
@@ -1683,7 +1672,6 @@ const handleCancelSession = async (sessionId: number | string) => {
           </Card>
         </TabsContent>
       </Tabs>
-
     </div>
   );
 }

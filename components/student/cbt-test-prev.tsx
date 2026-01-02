@@ -1,7 +1,7 @@
 /* cbt-test.tsx — online-only version WITH server-backed Past Attempts */
 /* Modified for offline support: cache data, queue submissions, sync when online */
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -9,13 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import {Label} from "@/components/ui/label";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Textarea} from "@/components/ui/textarea";
+import {Input} from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -42,9 +42,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
-import { useSession } from "next-auth/react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Spinner} from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -113,8 +113,10 @@ type AttemptsPayload = {
 /* ---------- CBTTest component ---------- */
 
 export function CBTTest() {
-  const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(null);
-  const { data: session, status } = useSession();
+  const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(
+    null
+  );
+  const {data: session, status} = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, any>>({});
@@ -158,7 +160,9 @@ export function CBTTest() {
   const [attemptsPage, setAttemptsPage] = useState(1);
 
   // NEW: offline support
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [isSyncing, setIsSyncing] = useState(false);
 
   const sessionToken = useMemo(
@@ -184,7 +188,7 @@ export function CBTTest() {
   }, []);
 
   useEffect(() => {
-    console.log(isOnline, " online")
+    console.log(isOnline, " online");
     if (isOnline) {
       syncPendingSubmissions();
     }
@@ -193,7 +197,9 @@ export function CBTTest() {
   const syncPendingSubmissions = async () => {
     if (!isOnline || !sessionToken) return;
 
-    let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
+    let pending = JSON.parse(
+      localStorage.getItem("pendingCBTSubmissions") || "[]"
+    );
     if (!pending.length) return;
 
     setIsSyncing(true);
@@ -203,14 +209,18 @@ export function CBTTest() {
 
     for (let sub of pending) {
       try {
-        const res = await fetchWithTimeout("/api/student/cbt", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
+        const res = await fetchWithTimeout(
+          "/api/student/cbt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+            },
+            body: JSON.stringify(sub),
           },
-          body: JSON.stringify(sub),
-        }, 40000);
+          40000
+        );
         if (res.ok) {
           const data = await res.json();
           // Update testResults if currentTest matches, but since may be delayed, just refresh data
@@ -267,103 +277,98 @@ export function CBTTest() {
     fetchData();
   }, [sessionToken, status, attemptsPage]);
 
-const fetchData = async () => {
-  setLoading(true);
-  if (!isOnline) {
-    loadCachedData();
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const qs = new URLSearchParams();
-    qs.set("page", String(attemptsPage));
-    qs.set("page_size", "20");
-
-    const res = await fetchWithTimeout(
-      `/api/student/cbt?${qs.toString()}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
-      },
-      40000
-    );
-
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        setError("Session expired");
-        setLoading(false);
-        return;
-      }
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    const d = await res.json();
-    console.log("CBT /api response", d);
-
-    // ---- Tests: be defensive about where they live ----
-    const tests = Array.isArray(d.tests)
-      ? d.tests
-      : Array.isArray((d as any).available_tests)
-      ? (d as any).available_tests
-      : [];
-
-    setAvailableTests(tests);
-
-    // per-test result summaries if you have them
-    setTestResults((d as any).results || {});
-
-    // ---- Attempts: support both { attempts: {...} } and top-level { count, results } ----
-    const rawAttempts =
-      (d as any).attempts && typeof (d as any).attempts === "object"
-        ? (d as any).attempts
-        : typeof (d as any).count === "number" &&
-          Array.isArray((d as any).results)
-        ? {
-            count: (d as any).count,
-            page: (d as any).page ?? attemptsPage,
-            page_size: (d as any).page_size ?? 20,
-            results: (d as any).results,
-          }
-        : { count: 0, page: 1, page_size: 20, results: [] };
-
-    setAttempts({
-      count: Number(
-        rawAttempts.count ?? rawAttempts.results?.length ?? 0
-      ),
-      page: Number(rawAttempts.page ?? 1),
-      page_size: Number(rawAttempts.page_size ?? 20),
-      results: Array.isArray(rawAttempts.results)
-        ? rawAttempts.results
-        : [],
-    });
-
-    // cache for offline
-    localStorage.setItem(
-      "cachedCBTData",
-      JSON.stringify({
-        tests,
-        results: (d as any).results || {},
-        attempts: rawAttempts,
-      })
-    );
-
-    setError(null);
-  } catch (err: any) {
+  const fetchData = async () => {
+    setLoading(true);
     if (!isOnline) {
       loadCachedData();
-    } else {
-      console.error("[CBTTest] fetchData error:", err);
-      setError(err.message || "Failed to load assessments");
-      // optional: fall back to cached
-      // loadCachedData();
+      setLoading(false);
+      return;
     }
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      const qs = new URLSearchParams();
+      qs.set("page", String(attemptsPage));
+      qs.set("page_size", "20");
+
+      const res = await fetchWithTimeout(
+        `/api/student/cbt?${qs.toString()}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+          },
+        },
+        40000
+      );
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setError("Session expired");
+          setLoading(false);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const d = await res.json();
+
+      // ---- Tests: be defensive about where they live ----
+      const tests = Array.isArray(d.tests)
+        ? d.tests
+        : Array.isArray((d as any).available_tests)
+        ? (d as any).available_tests
+        : [];
+
+      setAvailableTests(tests);
+
+      // per-test result summaries if you have them
+      setTestResults((d as any).results || {});
+
+      // ---- Attempts: support both { attempts: {...} } and top-level { count, results } ----
+      const rawAttempts =
+        (d as any).attempts && typeof (d as any).attempts === "object"
+          ? (d as any).attempts
+          : typeof (d as any).count === "number" &&
+            Array.isArray((d as any).results)
+          ? {
+              count: (d as any).count,
+              page: (d as any).page ?? attemptsPage,
+              page_size: (d as any).page_size ?? 20,
+              results: (d as any).results,
+            }
+          : {count: 0, page: 1, page_size: 20, results: []};
+
+      setAttempts({
+        count: Number(rawAttempts.count ?? rawAttempts.results?.length ?? 0),
+        page: Number(rawAttempts.page ?? 1),
+        page_size: Number(rawAttempts.page_size ?? 20),
+        results: Array.isArray(rawAttempts.results) ? rawAttempts.results : [],
+      });
+
+      // cache for offline
+      localStorage.setItem(
+        "cachedCBTData",
+        JSON.stringify({
+          tests,
+          results: (d as any).results || {},
+          attempts: rawAttempts,
+        })
+      );
+
+      setError(null);
+    } catch (err: any) {
+      if (!isOnline) {
+        loadCachedData();
+      } else {
+        console.error("[CBTTest] fetchData error:", err);
+        setError(err.message || "Failed to load assessments");
+        // optional: fall back to cached
+        // loadCachedData();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadCachedData = () => {
     const cached = localStorage.getItem("cachedCBTData");
@@ -371,13 +376,15 @@ const fetchData = async () => {
       const data = JSON.parse(cached);
       setAvailableTests(data.tests || []);
       setTestResults(data.results || {});
-      setAttempts(data.attempts || { count: 0, page: 1, page_size: 20, results: [] });
+      setAttempts(
+        data.attempts || {count: 0, page: 1, page_size: 20, results: []}
+      );
       setError("Offline: Showing cached data");
     } else {
       setError("Offline and no cached data available");
       setAvailableTests([]);
       setTestResults({});
-      setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
+      setAttempts({count: 0, page: 1, page_size: 20, results: []});
     }
   };
 
@@ -420,11 +427,11 @@ const fetchData = async () => {
       options:
         item.type === "true-false"
           ? [
-              { id: "true", text: "True" },
-              { id: "false", text: "False" },
+              {id: "true", text: "True"},
+              {id: "false", text: "False"},
             ]
           : item.choices
-          ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
+          ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
           : [],
       points: item.points,
     }));
@@ -512,7 +519,7 @@ const fetchData = async () => {
 
       if (ans === undefined) continue;
 
-      const entry: any = { question: q.id };
+      const entry: any = {question: q.id};
 
       if (Array.isArray(ans)) {
         entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
@@ -539,8 +546,6 @@ const fetchData = async () => {
       currentTest: currentTest, // Note: backend expects 'test' or 'testPk', but code uses 'currentTest'
     };
 
-    console.log("[CBTTest] Submitting test payload:", cleanedBody);
-
     setTestCompleted(true);
     setIsSecureMode(false);
     setSuspiciousActivity(0);
@@ -566,7 +571,7 @@ const fetchData = async () => {
           );
           setTestResults((prev) => ({
             ...prev,
-            [currentTest!]: { ...data, title: test?.title },
+            [currentTest!]: {...data, title: test?.title},
           }));
           // refresh attempts list (resets to first page)
           setAttemptsPage(1);
@@ -586,10 +591,11 @@ const fetchData = async () => {
   };
 
   const queueAsPending = (cleanedBody: any) => {
-    let pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]");
-    pending.push({ ...cleanedBody, queuedAt: new Date().toISOString() });
+    let pending = JSON.parse(
+      localStorage.getItem("pendingCBTSubmissions") || "[]"
+    );
+    pending.push({...cleanedBody, queuedAt: new Date().toISOString()});
     localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
-    console.log("[CBTTest] Queued submission offline");
   };
 
   const handleResetToList = () => {
@@ -613,7 +619,7 @@ const fetchData = async () => {
   };
 
   function handleAnswerChangeLocal(value: any) {
-    setAnswers((prev) => ({ ...prev, [currentQuestion]: value }));
+    setAnswers((prev) => ({...prev, [currentQuestion]: value}));
   }
 
   function previousQuestion() {
@@ -649,8 +655,7 @@ const fetchData = async () => {
               onClick={() => {
                 window.location.href = "/login";
               }}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Log In
             </Button>
@@ -675,8 +680,7 @@ const fetchData = async () => {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => (window.location.href = "/login")}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Log In Again
             </Button>
@@ -697,7 +701,11 @@ const fetchData = async () => {
         <div>
           <h1 className="text-3xl font-bold">Test Submitted</h1>
           <p className="text-muted-foreground">
-            {result ? `Your result: ${result.result}` : isOnline ? "" : " (Offline - results pending sync)"}
+            {result
+              ? `Your result: ${result.result}`
+              : isOnline
+              ? ""
+              : " (Offline - results pending sync)"}
           </p>
         </div>
 
@@ -708,11 +716,11 @@ const fetchData = async () => {
             </div>
             <CardTitle className="text-2xl">Test Completed</CardTitle>
             <CardDescription>
-              {result 
-                ? "Thank you for completing the test." 
-                : isOnline 
-                  ? "Processing results..." 
-                  : "Test submitted offline. Results will be available once synced online."}
+              {result
+                ? "Thank you for completing the test."
+                : isOnline
+                ? "Processing results..."
+                : "Test submitted offline. Results will be available once synced online."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -743,25 +751,22 @@ const fetchData = async () => {
             )}
 
             <div className="flex gap-4 justify-center">
-                <Button
-                  className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                  onClick={() => {
-                    // hard reload ensures we return to the Available Tests tab and refetch everything
-                    if (typeof window !== "undefined") window.location.reload();
-                  }}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Go back to Test
-                </Button>
-
+              <Button
+                className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                onClick={() => {
+                  // hard reload ensures we return to the Available Tests tab and refetch everything
+                  if (typeof window !== "undefined") window.location.reload();
+                }}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Go back to Test
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         <Dialog
           open={showSubmittedAnswersModal}
-          onOpenChange={setShowSubmittedAnswersModal}
-        >
+          onOpenChange={setShowSubmittedAnswersModal}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Submitted Answers</DialogTitle>
@@ -774,8 +779,7 @@ const fetchData = async () => {
             <DialogFooter>
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setShowSubmittedAnswersModal(false)}
-              >
+                onClick={() => setShowSubmittedAnswersModal(false)}>
                 Close
               </Button>
             </DialogFooter>
@@ -799,8 +803,7 @@ const fetchData = async () => {
       <div className="space-y-6">
         <Dialog
           open={showSecurityWarning}
-          onOpenChange={setShowSecurityWarning}
-        >
+          onOpenChange={setShowSecurityWarning}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -817,8 +820,7 @@ const fetchData = async () => {
             <DialogFooter>
               <Button
                 className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setShowSecurityWarning(false)}
-              >
+                onClick={() => setShowSecurityWarning(false)}>
                 I Understand
               </Button>
             </DialogFooter>
@@ -836,8 +838,7 @@ const fetchData = async () => {
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setShowLeaveDialog(false)}
-              >
+                onClick={() => setShowLeaveDialog(false)}>
                 Cancel
               </Button>
               <Button
@@ -845,8 +846,7 @@ const fetchData = async () => {
                 onClick={() => {
                   setShowLeaveDialog(false);
                   handleResetToList();
-                }}
-              >
+                }}>
                 Leave
               </Button>
             </DialogFooter>
@@ -870,8 +870,7 @@ const fetchData = async () => {
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               <span
-                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}
-              >
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""}`}>
                 {formatTime(timeLeft)}
               </span>
             </div>
@@ -902,21 +901,18 @@ const fetchData = async () => {
                         ...prev,
                         [currentQuestion]: val,
                       }));
-                    }}
-                  >
+                    }}>
                     {currentQ.options?.map((option: any) => (
                       <div
                         key={option.id}
-                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
-                      >
+                        className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
                         <RadioGroupItem
                           value={option.id.toString()}
                           id={`option-${option.id}`}
                         />
                         <Label
                           htmlFor={`option-${option.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
+                          className="flex-1 cursor-pointer">
                           {option.text}
                         </Label>
                       </div>
@@ -952,23 +948,20 @@ const fetchData = async () => {
                     className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
                     variant="outline"
                     onClick={previousQuestion}
-                    disabled={currentQuestion === 0}
-                  >
+                    disabled={currentQuestion === 0}>
                     Previous
                   </Button>
                   <div className="flex gap-2">
                     {currentQuestion === questions.length - 1 ? (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={submitTest}
-                      >
+                        onClick={submitTest}>
                         Submit Test
                       </Button>
                     ) : (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={nextQuestion}
-                      >
+                        onClick={nextQuestion}>
                         Next
                       </Button>
                     )}
@@ -977,8 +970,7 @@ const fetchData = async () => {
                       variant="destructive"
                       onClick={() => {
                         setShowLeaveDialog(true);
-                      }}
-                    >
+                      }}>
                       Leave Test
                     </Button>
                   </div>
@@ -1005,8 +997,7 @@ const fetchData = async () => {
                           : "outline"
                       }
                       size="sm"
-                      onClick={() => setCurrentQuestion(index)}
-                    >
+                      onClick={() => setCurrentQuestion(index)}>
                       {index + 1}
                     </Button>
                   ))}
@@ -1065,10 +1056,12 @@ const fetchData = async () => {
       return (b.status || "").localeCompare(a.status || "");
     } else {
       // date: by submitted_at (fallback to started_at/created_at)
-      const da =
-        new Date(a.submitted_at || a.started_at || a.created_at || 0).getTime();
-      const db =
-        new Date(b.submitted_at || b.started_at || b.created_at || 0).getTime();
+      const da = new Date(
+        a.submitted_at || a.started_at || a.created_at || 0
+      ).getTime();
+      const db = new Date(
+        b.submitted_at || b.started_at || b.created_at || 0
+      ).getTime();
       return db - da;
     }
   });
@@ -1098,7 +1091,6 @@ const fetchData = async () => {
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "[]")
       : [];
-
 
   return (
     <div className="space-y-6">
@@ -1137,8 +1129,7 @@ const fetchData = async () => {
               onClick={() => {
                 setShowStartDialog(false);
                 setPendingTestId(null);
-              }}
-            >
+              }}>
               Cancel
             </Button>
             {pendingTestId && (
@@ -1148,8 +1139,7 @@ const fetchData = async () => {
                   startTest(pendingTestId);
                   setShowStartDialog(false);
                   setPendingTestId(null);
-                }}
-              >
+                }}>
                 Start Test
               </Button>
             )}
@@ -1187,14 +1177,12 @@ const fetchData = async () => {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="available"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Available Tests
           </TabsTrigger>
           <TabsTrigger
             value="past"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Past Attempts
           </TabsTrigger>
         </TabsList>
@@ -1206,9 +1194,7 @@ const fetchData = async () => {
             <div className="flex items-center justify-center py-20">
               <div className="flex flex-col items-center gap-3">
                 <Spinner size="md" className="text-orange-500" />
-                <p className="text-sm text-muted-foreground">
-                  Loading tests…
-                </p>
+                <p className="text-sm text-muted-foreground">Loading tests…</p>
               </div>
             </div>
           ) : !hasTests ? (
@@ -1231,8 +1217,7 @@ const fetchData = async () => {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                    onClick={() => window.location.reload()}
-                  >
+                    onClick={() => window.location.reload()}>
                     Refresh
                   </Button>
                 </div>
@@ -1243,16 +1228,19 @@ const fetchData = async () => {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {currentTests.map((test) => {
                   const res = testResults[test.pk?.toString()] ?? null;
-                  const isPending = pending.some((p: any) => p.currentTest === test.pk.toString());
+                  const isPending = pending.some(
+                    (p: any) => p.currentTest === test.pk.toString()
+                  );
                   const disableButton = !isOnline && isPending;
                   return (
                     <Card
                       key={test.pk}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="sm:flex items-center justify-between">
-                          <CardTitle className="text-lg">{test.title}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {test.title}
+                          </CardTitle>
                           <div className="flex gap-2">
                             <Badge
                               variant={
@@ -1261,23 +1249,19 @@ const fetchData = async () => {
                                   : test.difficulty === "Intermediate"
                                   ? "secondary"
                                   : "destructive"
-                              }
-                            >
+                              }>
                               {test.difficulty}
                             </Badge>
                             {test.type === "exam" && (
                               <Badge
                                 variant="outline"
-                                className="text-red-600 border-red-200"
-                              >
+                                className="text-red-600 border-red-200">
                                 <Shield className="h-3 w-3 mr-1" />
                                 Secure Exam
                               </Badge>
                             )}
                             {!isOnline && isPending && (
-                              <Badge variant="secondary">
-                                Pending Sync
-                              </Badge>
+                              <Badge variant="secondary">Pending Sync</Badge>
                             )}
                           </div>
                         </div>
@@ -1325,8 +1309,7 @@ const fetchData = async () => {
                               (test.type === "exam" &&
                                 examAttempts >= maxAttempts) ||
                               (test.requiresSubscription && !isSubscriber)
-                            }
-                          >
+                            }>
                             <Play className="mr-2 h-4 w-4" />
                             {test.type === "exam"
                               ? "Start Secure Exam"
@@ -1349,7 +1332,9 @@ const fetchData = async () => {
                         if (currentPage > 1) setCurrentPage(currentPage - 1);
                       }}
                       className={
-                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
                       }
                     />
                   </PaginationItem>
@@ -1363,8 +1348,7 @@ const fetchData = async () => {
                           onClick={(e) => {
                             e.preventDefault();
                             setCurrentPage(page);
-                          }}
-                        >
+                          }}>
                           {page}
                         </PaginationLink>
                       </PaginationItem>
@@ -1400,8 +1384,7 @@ const fetchData = async () => {
               value={pastSortBy}
               onValueChange={(value) =>
                 setPastSortBy(value as "date" | "score" | "result")
-              }
-            >
+              }>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -1423,8 +1406,7 @@ const fetchData = async () => {
                     .querySelector('button[data-state="available"]')
                     //@ts-ignore
                     ?.click()
-                }
-              >
+                }>
                 Start a test now
               </Button>
             </div>
@@ -1440,8 +1422,7 @@ const fetchData = async () => {
                 return (
                   <Card
                     key={a.id}
-                    className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow"
-                  >
+                    className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <CardTitle className="text-lg">
                         {a.test?.title || `Test #${a.test_id}`}
@@ -1452,18 +1433,20 @@ const fetchData = async () => {
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col gap-3">
                       <div className="text-sm flex items-center gap-2">
-                          <span className="font-medium">Status:</span>
-                          <Badge variant="outline">{a.status || "—"}</Badge>
+                        <span className="font-medium">Status:</span>
+                        <Badge variant="outline">{a.status || "—"}</Badge>
                       </div>
 
                       <div className="text-sm">
-                          <span className="font-medium">Score: </span>
-                          {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
-                          {a.score != null && a.test?.total_marks ? `(${pct}%)` : ""}
+                        <span className="font-medium">Score: </span>
+                        {a.score ?? "—"} / {a.test?.total_marks ?? "—"}{" "}
+                        {a.score != null && a.test?.total_marks
+                          ? `(${pct}%)`
+                          : ""}
                       </div>
-                    <p className="text-sm text-muted-foreground">
-                      Submitted: {submittedDate || "—"}
-                    </p>
+                      <p className="text-sm text-muted-foreground">
+                        Submitted: {submittedDate || "—"}
+                      </p>
                     </CardContent>
                   </Card>
                 );
@@ -1499,8 +1482,7 @@ const fetchData = async () => {
                         onClick={(e) => {
                           e.preventDefault();
                           setAttemptsPage(page);
-                        }}
-                      >
+                        }}>
                         {page}
                       </PaginationLink>
                     </PaginationItem>

@@ -55,7 +55,6 @@ export default function TeacherBiodataForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Teacher biodata submitted:", formData);
     alert("Biodata submitted successfully!");
   };
 

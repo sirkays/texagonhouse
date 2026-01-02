@@ -10,13 +10,9 @@ async function getSession() {
 }
 
 export async function GET(request: NextRequest) {
-  console.log(
-    "[Billing Dashboard Route] Received GET request to /api/admin/billing/dashboard"
-  );
   const session = await getSession();
 
   if (!session?.user?.sessionToken) {
-    console.log("[Billing Dashboard Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
@@ -37,7 +33,6 @@ export async function GET(request: NextRequest) {
     }
 
     const url = `${BASE_URL}/api/admin/billing/dashboard?${queryParams.toString()}`;
-    console.log("[Billing Dashboard Route] Fetching data from", url);
 
     const res = await fetch(url, {
       headers: {
@@ -46,12 +41,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log("[Billing Dashboard Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Billing Dashboard Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Billing Dashboard Route] API fetch failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to fetch billing dashboard"},
         {status: res.status}

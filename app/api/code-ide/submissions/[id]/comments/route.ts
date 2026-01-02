@@ -1,7 +1,7 @@
 // app/api/ide/submissions/[id]/comments/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 //const BASE_URL = "http://127.0.0.1:9098/code-ide/api/ide";
 const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
@@ -23,37 +23,36 @@ async function fetchWithTimeout(url: string, options: any) {
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  console.log(`[Route] Received POST request to /api/ide/submissions/${params.id}/comments`);
+export async function POST(request: Request, {params}: {params: {id: string}}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
     console.error("[Route] No session token found");
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   let body;
 
   try {
     body = await request.json();
-    console.log("[Route] Raw POST body:", body);
   } catch (err) {
-    console.error("[Route] Error parsing request body:", (err as Error).message);
+    console.error(
+      "[Route] Error parsing request body:",
+      (err as Error).message
+    );
     return NextResponse.json(
-      { error: "Invalid request body", details: (err as Error).message },
-      { status: 400 }
+      {error: "Invalid request body", details: (err as Error).message},
+      {status: 400}
     );
   }
 
   if (!body.message) {
     console.error("[Route] Missing required field: message");
-    return NextResponse.json({ error: "Missing message" }, { status: 400 });
+    return NextResponse.json({error: "Missing message"}, {status: 400});
   }
 
   try {
     const url = `${BASE_URL}/submissions/${params.id}/comments/`;
-    console.log("[Route] Adding comment at:", url);
-    console.log("[Route] Payload for backend:", JSON.stringify(body, null, 2));
 
     const res = await fetchWithTimeout(url, {
       method: "POST",
@@ -66,25 +65,23 @@ export async function POST(request: Request, { params }: { params: { id: string 
       timeout: 20000,
     });
 
-    console.log("[Route] External API response status:", res.status);
-
     if (!res.ok) {
       const errorText = await res.text();
       console.error("[Route] External API error response:", errorText);
       return NextResponse.json(
-        { error: `Failed to add comment: ${errorText}` },
-        { status: res.status }
+        {error: `Failed to add comment: ${errorText}`},
+        {status: res.status}
       );
     }
 
     const data = await res.json();
-    console.log("[Route] External API response data:", data);
-    return NextResponse.json(data, { status: 201 });
+
+    return NextResponse.json(data, {status: 201});
   } catch (err) {
     console.error("[Route] Error adding comment:", (err as Error).message);
     return NextResponse.json(
-      { error: "Internal server error", details: (err as Error).message },
-      { status: 500 }
+      {error: "Internal server error", details: (err as Error).message},
+      {status: 500}
     );
   }
 }

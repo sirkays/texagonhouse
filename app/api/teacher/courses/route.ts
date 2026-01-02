@@ -1,16 +1,16 @@
 // app/api/teacher/courses/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 interface Course {
@@ -25,23 +25,20 @@ interface Course {
 export async function GET(req: Request) {
   noStore();
 
-  const { searchParams } = new URL(req.url);
+  const {searchParams} = new URL(req.url);
   const courseType = searchParams.get("course_type"); // "private"
 
   const endpoint = "/learning/api/teacher/courses/";
-  const fullUrl =
-    courseType
-      ? `${BASE_URL}${endpoint}?course_type=${courseType}`
-      : `${BASE_URL}${endpoint}`;
-
-  console.log("[TeacherCoursesAPI] Initiating fetch for:", fullUrl);
+  const fullUrl = courseType
+    ? `${BASE_URL}${endpoint}?course_type=${courseType}`
+    : `${BASE_URL}${endpoint}`;
 
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
-      { error: "Not authenticated", redirect: "/login" },
-      { status: 401 }
+      {error: "Not authenticated", redirect: "/login"},
+      {status: 401}
     );
   }
 
@@ -55,8 +52,8 @@ export async function GET(req: Request) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: "Failed to fetch teacher courses" },
-        { status: response.status }
+        {error: "Failed to fetch teacher courses"},
+        {status: response.status}
       );
     }
 
@@ -71,11 +68,11 @@ export async function GET(req: Request) {
       isActive: course.isActive ?? true,
     }));
 
-    return NextResponse.json(normalizedData, { status: 200 });
+    return NextResponse.json(normalizedData, {status: 200});
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to fetch teacher courses" },
-      { status: 500 }
+      {error: "Failed to fetch teacher courses"},
+      {status: 500}
     );
   }
 }

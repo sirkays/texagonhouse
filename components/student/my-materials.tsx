@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -26,13 +26,13 @@ import {
   Download,
   Trash,
 } from "lucide-react";
-import { VideoModal } from "./video-modal";
-import { NoteEditor } from "./note-editor";
-import { BookmarkManager } from "./bookmark-manager";
-import { AudioPlayer } from "./audio-player";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import {VideoModal} from "./video-modal";
+import {NoteEditor} from "./note-editor";
+import {BookmarkManager} from "./bookmark-manager";
+import {AudioPlayer} from "./audio-player";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Note {
   id: number;
@@ -90,7 +90,7 @@ interface Lesson {
 }
 
 export function MyMaterials() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
@@ -106,8 +106,8 @@ export function MyMaterials() {
     notes: Note[];
     bookmarks: Bookmark[];
   } | null>(null);
-  const [pageLoading, setPageLoading] = useState(true);   // only first load
-  const [dataLoading, setDataLoading] = useState(false);  // search / refetch
+  const [pageLoading, setPageLoading] = useState(true); // only first load
+  const [dataLoading, setDataLoading] = useState(false); // search / refetch
 
   const [error, setError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -125,27 +125,22 @@ export function MyMaterials() {
     "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
 
   const emptyData = {
-    saved: { videos: [], pdfs: [], audio: [] },
+    saved: {videos: [], pdfs: [], audio: []},
     notes: [],
     bookmarks: [],
   };
 
-
   const handleLogout = async () => {
-    console.log("[MyMaterials] Initiating logout, sessionToken:", sessionToken);
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
-      console.log("[MyMaterials] Logout API response status:", response.status);
       const data = await response.json();
-      console.log("[MyMaterials] Logout API response:", data);
       if (!response.ok) {
         console.error("[MyMaterials] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log("[MyMaterials] Logout successful, redirecting to /login");
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -157,82 +152,80 @@ export function MyMaterials() {
     }
   };
 
-const fetchData = async (qOverride?: string, opts?: { initial?: boolean }) => {
-  const q = (qOverride ?? appliedQuery ?? "").trim();
-  const initial = !!opts?.initial;
+  const fetchData = async (qOverride?: string, opts?: {initial?: boolean}) => {
+    const q = (qOverride ?? appliedQuery ?? "").trim();
+    const initial = !!opts?.initial;
 
-  if (initial) setPageLoading(true);
-  else setDataLoading(true);
+    if (initial) setPageLoading(true);
+    else setDataLoading(true);
 
-  if (status !== "authenticated" || !sessionToken) {
-    setError("Not authenticated");
-    setData(null);
-    setPageLoading(false);
-    setDataLoading(false);
-    return;
-  }
-
-  try {
-    const url = q
-      ? `/api/student/materials?q=${encodeURIComponent(q)}`
-      : "/api/student/materials";
-
-    const res = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Token": sessionToken,
-      },
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      if (res.status === 401 || res.status === 403) {
-        setError("Session expired");
-        setData(null);
-        return;
-      }
-
-      setError(
-        res.status === 404
-          ? "Materials endpoint not found"
-          : `Failed to fetch materials: ${JSON.stringify(errorData)}`
-      );
-
-      setData({
-        saved: { videos: [], pdfs: [], audio: [] },
-        notes: [],
-        bookmarks: [],
-      });
+    if (status !== "authenticated" || !sessionToken) {
+      setError("Not authenticated");
+      setData(null);
+      setPageLoading(false);
+      setDataLoading(false);
       return;
     }
 
-    const json = await res.json();
+    try {
+      const url = q
+        ? `/api/student/materials?q=${encodeURIComponent(q)}`
+        : "/api/student/materials";
 
-    setData({
-      saved: {
-        videos: json?.saved?.videos ?? [],
-        pdfs: json?.saved?.pdfs ?? [],
-        audio: json?.saved?.audio ?? [],
-      },
-      notes: json?.notes ?? [],
-      bookmarks: json?.bookmarks ?? [],
-    });
+      const res = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
+      });
 
-    setError(null);
-  } catch (e: any) {
-    setError(e?.message || "Failed to fetch materials");
-    setData({
-      saved: { videos: [], pdfs: [], audio: [] },
-      notes: [],
-      bookmarks: [],
-    });
-  } finally {
-    setPageLoading(false);
-    setDataLoading(false);
-  }
-};
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          setError("Session expired");
+          setData(null);
+          return;
+        }
 
+        setError(
+          res.status === 404
+            ? "Materials endpoint not found"
+            : `Failed to fetch materials: ${JSON.stringify(errorData)}`
+        );
 
+        setData({
+          saved: {videos: [], pdfs: [], audio: []},
+          notes: [],
+          bookmarks: [],
+        });
+        return;
+      }
+
+      const json = await res.json();
+
+      setData({
+        saved: {
+          videos: json?.saved?.videos ?? [],
+          pdfs: json?.saved?.pdfs ?? [],
+          audio: json?.saved?.audio ?? [],
+        },
+        notes: json?.notes ?? [],
+        bookmarks: json?.bookmarks ?? [],
+      });
+
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || "Failed to fetch materials");
+      setData({
+        saved: {videos: [], pdfs: [], audio: []},
+        notes: [],
+        bookmarks: [],
+      });
+    } finally {
+      setPageLoading(false);
+      setDataLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (searchQuery === "" && appliedQuery !== "") {
@@ -240,11 +233,11 @@ const fetchData = async (qOverride?: string, opts?: { initial?: boolean }) => {
       fetchData("");
     }
   }, [searchQuery]);
-useEffect(() => {
-  if (status === "authenticated" && sessionToken) {
-    fetchData("", { initial: true });
-  }
-}, [sessionToken, status]);
+  useEffect(() => {
+    if (status === "authenticated" && sessionToken) {
+      fetchData("", {initial: true});
+    }
+  }, [sessionToken, status]);
   // Extract lessons from videos
   useEffect(() => {
     if (data?.saved?.videos) {
@@ -272,8 +265,6 @@ useEffect(() => {
       created_at: note.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
-    console.log("[MyMaterials] Saving note:", normalizedNote);
 
     try {
       let response;
@@ -345,9 +336,8 @@ useEffect(() => {
           "Content-Type": "application/json",
           "X-Session-Token": sessionToken || "",
         },
-        body: JSON.stringify({ id: noteId }),
+        body: JSON.stringify({id: noteId}),
       });
-      console.log("[MyMaterials] DELETE response status:", response.status);
       if (!response.ok) {
         const errorData = await response.json();
         console.error("[MyMaterials] Delete note error details:", errorData);
@@ -370,73 +360,71 @@ useEffect(() => {
     }
   };
 
-const handleDeleteSavedItem = async (
-  type: "videos" | "pdfs" | "audio",
-  item: any
-) => {
-  // item MUST carry lesson_id (recommended) or material_id
-  const lessonId = item.lesson_id ?? item.lessonId ?? item.lesson ?? null;
-  const materialId = item.material_id ?? item.materialId ?? item.id ?? null;
+  const handleDeleteSavedItem = async (
+    type: "videos" | "pdfs" | "audio",
+    item: any
+  ) => {
+    // item MUST carry lesson_id (recommended) or material_id
+    const lessonId = item.lesson_id ?? item.lessonId ?? item.lesson ?? null;
+    const materialId = item.material_id ?? item.materialId ?? item.id ?? null;
 
-  if (!lessonId && !materialId) {
-    setError("Cannot delete: missing lesson_id/material_id on this item.");
-    return;
-  }
-
-  const key = `${type}-${item.id}`;
-  setDeletingIds((prev) => new Set([...prev, key]));
-
-  try {
-    const response = await fetch(`/api/student/materials`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Token": sessionToken || "",
-      },
-      body: JSON.stringify({
-        lesson_id: lessonId,       // ✅ preferred
-        material_id: materialId,   // ✅ fallback
-        type,
-      }),
-    });
-
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(payload?.error || "Failed to delete material");
+    if (!lessonId && !materialId) {
+      setError("Cannot delete: missing lesson_id/material_id on this item.");
+      return;
     }
 
-    // ✅ update UI locally
-    setData((prev) => {
-      if (!prev) return prev;
+    const key = `${type}-${item.id}`;
+    setDeletingIds((prev) => new Set([...prev, key]));
 
-      const newSaved = { ...prev.saved };
+    try {
+      const response = await fetch(`/api/student/materials`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken || "",
+        },
+        body: JSON.stringify({
+          lesson_id: lessonId, // ✅ preferred
+          material_id: materialId, // ✅ fallback
+          type,
+        }),
+      });
 
-      if (type === "videos") {
-        newSaved.videos = newSaved.videos.filter((x) => x.id !== item.id);
-      } else if (type === "pdfs") {
-        newSaved.pdfs = newSaved.pdfs.filter((x) => x.id !== item.id);
-      } else {
-        newSaved.audio = newSaved.audio.filter((x) => x.id !== item.id);
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to delete material");
       }
 
-      return { ...prev, saved: newSaved };
-    });
+      // ✅ update UI locally
+      setData((prev) => {
+        if (!prev) return prev;
 
+        const newSaved = {...prev.saved};
 
-    setError(null);
-  } catch (err: any) {
-    console.error("[MyMaterials] Material delete error:", err);
-    setError(err.message || "Failed to delete material");
-  } finally {
-    setDeletingIds((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(key);
-      return newSet;
-    });
-  }
-};
+        if (type === "videos") {
+          newSaved.videos = newSaved.videos.filter((x) => x.id !== item.id);
+        } else if (type === "pdfs") {
+          newSaved.pdfs = newSaved.pdfs.filter((x) => x.id !== item.id);
+        } else {
+          newSaved.audio = newSaved.audio.filter((x) => x.id !== item.id);
+        }
 
+        return {...prev, saved: newSaved};
+      });
+
+      setError(null);
+    } catch (err: any) {
+      console.error("[MyMaterials] Material delete error:", err);
+      setError(err.message || "Failed to delete material");
+    } finally {
+      setDeletingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+    }
+  };
 
   if (pageLoading) {
     return (
@@ -486,8 +474,7 @@ const handleDeleteSavedItem = async (
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -514,7 +501,6 @@ const handleDeleteSavedItem = async (
       );
       return;
     }
-    console.log("[MyMaterials] Opening PDF in new tab:", pdf.downloadUrl);
     window.open(pdf.downloadUrl, "_blank");
   };
 
@@ -539,19 +525,31 @@ const handleDeleteSavedItem = async (
 
   // Notes pagination
   const totalPagesNotes = Math.ceil(notes.length / itemsPerPage);
-  const currentNotes = notes.slice((currentPageNotes - 1) * itemsPerPage, currentPageNotes * itemsPerPage);
+  const currentNotes = notes.slice(
+    (currentPageNotes - 1) * itemsPerPage,
+    currentPageNotes * itemsPerPage
+  );
 
   // Videos pagination
   const totalPagesVideos = Math.ceil(savedItems.videos.length / itemsPerPage);
-  const currentVideos = savedItems.videos.slice((currentPageVideos - 1) * itemsPerPage, currentPageVideos * itemsPerPage);
+  const currentVideos = savedItems.videos.slice(
+    (currentPageVideos - 1) * itemsPerPage,
+    currentPageVideos * itemsPerPage
+  );
 
   // PDFs pagination
   const totalPagesPdfs = Math.ceil(savedItems.pdfs.length / itemsPerPage);
-  const currentPdfs = savedItems.pdfs.slice((currentPagePdfs - 1) * itemsPerPage, currentPagePdfs * itemsPerPage);
+  const currentPdfs = savedItems.pdfs.slice(
+    (currentPagePdfs - 1) * itemsPerPage,
+    currentPagePdfs * itemsPerPage
+  );
 
   // Audio pagination
   const totalPagesAudio = Math.ceil(savedItems.audio.length / itemsPerPage);
-  const currentAudio = savedItems.audio.slice((currentPageAudio - 1) * itemsPerPage, currentPageAudio * itemsPerPage);
+  const currentAudio = savedItems.audio.slice(
+    (currentPageAudio - 1) * itemsPerPage,
+    currentPageAudio * itemsPerPage
+  );
 
   return (
     <div className="space-y-6">
@@ -583,34 +581,29 @@ const handleDeleteSavedItem = async (
             }}
             className="pl-8 border focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-gray-300 focus:shadow-none"
           />
-
         </div>
-      <Button
-        className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-        variant="outline"
-        onClick={() => {
-          setAppliedQuery(searchQuery);
-          fetchData(searchQuery);
-        }}
-      >
-        <Filter className="mr-2 h-4 w-4" />
-        Search
-      </Button>
-
+        <Button
+          className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+          variant="outline"
+          onClick={() => {
+            setAppliedQuery(searchQuery);
+            fetchData(searchQuery);
+          }}>
+          <Filter className="mr-2 h-4 w-4" />
+          Search
+        </Button>
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="saved"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Saved Items
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             My Notes
           </TabsTrigger>
         </TabsList>
@@ -625,11 +618,10 @@ const handleDeleteSavedItem = async (
             {dataLoading ? (
               // ✅ Only the data area loads (search bar stays visible)
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({length: 6}).map((_, i) => (
                   <Card
                     key={`video-skel-${i}`}
-                    className="hover:shadow-lg transition-shadow flex flex-col h-full overflow-hidden"
-                  >
+                    className="hover:shadow-lg transition-shadow flex flex-col h-full overflow-hidden">
                     <CardHeader className="p-0">
                       <div className="relative">
                         <div className="w-full h-32 bg-muted animate-pulse rounded-md rounded-bl-none rounded-br-none" />
@@ -652,8 +644,12 @@ const handleDeleteSavedItem = async (
             ) : savedItems.videos.length === 0 ? (
               <div className="text-center py-12">
                 <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No saved videos yet</h3>
-                <p className="text-muted-foreground">Start saving videos from your lessons</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No saved videos yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Start saving videos from your lessons
+                </p>
               </div>
             ) : (
               <>
@@ -661,12 +657,12 @@ const handleDeleteSavedItem = async (
                   {currentVideos.map((video) => (
                     <Card
                       key={video.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader className="p-0">
                         <div className="relative">
                           <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                            {video.thumbnail && video.thumbnail !== defaultThumbnail ? (
+                            {video.thumbnail &&
+                            video.thumbnail !== defaultThumbnail ? (
                               <img
                                 src={
                                   video.thumbnail.startsWith("http")
@@ -693,16 +689,19 @@ const handleDeleteSavedItem = async (
                             <Button
                               size="sm"
                               className="rounded-full bg-transparent h-10 w-10 text-white hover:bg-[#f7977192] hover:text-white"
-                              onClick={() => handleWatchVideo(video)}
-                            >
+                              onClick={() => handleWatchVideo(video)}>
                               <Play className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
 
                         <div className="space-y-1 px-4">
-                          <CardTitle className="text-lg">{video.title}</CardTitle>
-                          <CardDescription>by {video.instructor}</CardDescription>
+                          <CardTitle className="text-lg">
+                            {video.title}
+                          </CardTitle>
+                          <CardDescription>
+                            by {video.instructor}
+                          </CardDescription>
                         </div>
                       </CardHeader>
 
@@ -711,8 +710,7 @@ const handleDeleteSavedItem = async (
                           <Button
                             size="sm"
                             className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                            onClick={() => handleWatchVideo(video)}
-                          >
+                            onClick={() => handleWatchVideo(video)}>
                             <Play className="mr-2 h-3 w-3" />
                             Continue Watching
                           </Button>
@@ -720,10 +718,11 @@ const handleDeleteSavedItem = async (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteSavedItem("videos", video)}
+                            onClick={() =>
+                              handleDeleteSavedItem("videos", video)
+                            }
                             className="flex-1 h-10 shadow-md"
-                            disabled={deletingIds.has(`videos-${video.id}`)}
-                          >
+                            disabled={deletingIds.has(`videos-${video.id}`)}>
                             {deletingIds.has(`videos-${video.id}`) ? (
                               "Deleting..."
                             ) : (
@@ -743,8 +742,7 @@ const handleDeleteSavedItem = async (
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
                       disabled={currentPageVideos === 1}
-                      onClick={() => setCurrentPageVideos((prev) => prev - 1)}
-                    >
+                      onClick={() => setCurrentPageVideos((prev) => prev - 1)}>
                       Previous
                     </Button>
                     <span>
@@ -752,8 +750,7 @@ const handleDeleteSavedItem = async (
                     </span>
                     <Button
                       disabled={currentPageVideos === totalPagesVideos}
-                      onClick={() => setCurrentPageVideos((prev) => prev + 1)}
-                    >
+                      onClick={() => setCurrentPageVideos((prev) => prev + 1)}>
                       Next
                     </Button>
                   </div>
@@ -770,11 +767,10 @@ const handleDeleteSavedItem = async (
 
             {dataLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({length: 6}).map((_, i) => (
                   <Card
                     key={`pdf-skel-${i}`}
-                    className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                  >
+                    className="hover:shadow-lg transition-shadow flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
                         <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
@@ -795,8 +791,12 @@ const handleDeleteSavedItem = async (
             ) : savedItems.pdfs.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No saved PDFs yet</h3>
-                <p className="text-muted-foreground">Start saving PDFs from your lessons</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No saved PDFs yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Start saving PDFs from your lessons
+                </p>
               </div>
             ) : (
               <>
@@ -804,8 +804,7 @@ const handleDeleteSavedItem = async (
                   {currentPdfs.map((pdf) => (
                     <Card
                       key={pdf.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="space-y-1">
                           <CardTitle className="text-lg">{pdf.title}</CardTitle>
@@ -824,8 +823,7 @@ const handleDeleteSavedItem = async (
                           <Button
                             size="sm"
                             className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                            onClick={() => handlePreviewPdf(pdf)}
-                          >
+                            onClick={() => handlePreviewPdf(pdf)}>
                             <Download className="mr-2 h-3 w-3" />
                             Preview
                           </Button>
@@ -835,8 +833,7 @@ const handleDeleteSavedItem = async (
                             variant="outline"
                             onClick={() => handleDeleteSavedItem("pdfs", pdf)}
                             className="flex-1 h-10 shadow-md"
-                            disabled={deletingIds.has(`pdfs-${pdf.id}`)}
-                          >
+                            disabled={deletingIds.has(`pdfs-${pdf.id}`)}>
                             {deletingIds.has(`pdfs-${pdf.id}`) ? (
                               "Deleting..."
                             ) : (
@@ -856,8 +853,7 @@ const handleDeleteSavedItem = async (
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
                       disabled={currentPagePdfs === 1}
-                      onClick={() => setCurrentPagePdfs((prev) => prev - 1)}
-                    >
+                      onClick={() => setCurrentPagePdfs((prev) => prev - 1)}>
                       Previous
                     </Button>
                     <span>
@@ -865,8 +861,7 @@ const handleDeleteSavedItem = async (
                     </span>
                     <Button
                       disabled={currentPagePdfs === totalPagesPdfs}
-                      onClick={() => setCurrentPagePdfs((prev) => prev + 1)}
-                    >
+                      onClick={() => setCurrentPagePdfs((prev) => prev + 1)}>
                       Next
                     </Button>
                   </div>
@@ -883,11 +878,10 @@ const handleDeleteSavedItem = async (
 
             {dataLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({length: 6}).map((_, i) => (
                   <Card
                     key={`audio-skel-${i}`}
-                    className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                  >
+                    className="hover:shadow-lg transition-shadow flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
                         <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
@@ -907,8 +901,12 @@ const handleDeleteSavedItem = async (
             ) : savedItems.audio.length === 0 ? (
               <div className="text-center py-12">
                 <Headphones className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No saved audio yet</h3>
-                <p className="text-muted-foreground">Start saving audio from your lessons</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No saved audio yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Start saving audio from your lessons
+                </p>
               </div>
             ) : (
               <>
@@ -916,11 +914,12 @@ const handleDeleteSavedItem = async (
                   {currentAudio.map((audio) => (
                     <Card
                       key={audio.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="space-y-1">
-                          <CardTitle className="text-lg">{audio.title}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {audio.title}
+                          </CardTitle>
                           <CardDescription>by {audio.speaker}</CardDescription>
                         </div>
                       </CardHeader>
@@ -930,8 +929,7 @@ const handleDeleteSavedItem = async (
                           <Button
                             size="sm"
                             className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                            onClick={() => handlePlayAudio(audio)}
-                          >
+                            onClick={() => handlePlayAudio(audio)}>
                             <Play className="mr-2 h-3 w-3" />
                             Continue Listening
                           </Button>
@@ -939,10 +937,11 @@ const handleDeleteSavedItem = async (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteSavedItem("audio", audio)}
+                            onClick={() =>
+                              handleDeleteSavedItem("audio", audio)
+                            }
                             className="flex-1 h-10 shadow-md"
-                            disabled={deletingIds.has(`audio-${audio.id}`)}
-                          >
+                            disabled={deletingIds.has(`audio-${audio.id}`)}>
                             {deletingIds.has(`audio-${audio.id}`) ? (
                               "Deleting..."
                             ) : (
@@ -962,8 +961,7 @@ const handleDeleteSavedItem = async (
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
                       disabled={currentPageAudio === 1}
-                      onClick={() => setCurrentPageAudio((prev) => prev - 1)}
-                    >
+                      onClick={() => setCurrentPageAudio((prev) => prev - 1)}>
                       Previous
                     </Button>
                     <span>
@@ -971,8 +969,7 @@ const handleDeleteSavedItem = async (
                     </span>
                     <Button
                       disabled={currentPageAudio === totalPagesAudio}
-                      onClick={() => setCurrentPageAudio((prev) => prev + 1)}
-                    >
+                      onClick={() => setCurrentPageAudio((prev) => prev + 1)}>
                       Next
                     </Button>
                   </div>
@@ -980,7 +977,6 @@ const handleDeleteSavedItem = async (
               </>
             )}
           </div>
-
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-4">
@@ -988,8 +984,7 @@ const handleDeleteSavedItem = async (
             <h3 className="text-lg font-semibold">My Notes</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => router.push("/student/notes/create")}
-            >
+              onClick={() => router.push("/student/notes/create")}>
               <Edit className="mr-2 h-4 w-4" />
               Create New Note
             </Button>
@@ -998,18 +993,20 @@ const handleDeleteSavedItem = async (
             <div className="text-center py-12">
               <Edit className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No notes yet</h3>
-              <p className="text-muted-foreground">Start creating notes for your lessons</p>
+              <p className="text-muted-foreground">
+                Start creating notes for your lessons
+              </p>
             </div>
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {currentNotes.map((note) => (
-                  <Card key={note.id} className="hover:shadow-lg transition-shadow">
+                  <Card
+                    key={note.id}
+                    className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">
-                          {note.title}
-                        </CardTitle>
+                        <CardTitle className="text-lg">{note.title}</CardTitle>
                         <CardDescription className="line-clamp-2">
                           {note.content}
                         </CardDescription>
@@ -1023,8 +1020,9 @@ const handleDeleteSavedItem = async (
                         <Button
                           size="sm"
                           className="flex-1 w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                          onClick={() => router.push(`/student/notes/${note.id}`)}
-                        >
+                          onClick={() =>
+                            router.push(`/student/notes/${note.id}`)
+                          }>
                           <Edit className="mr-2 h-3 w-3" />
                           Open
                         </Button>
@@ -1033,9 +1031,10 @@ const handleDeleteSavedItem = async (
                           variant="outline"
                           onClick={() => handleDeleteNote(note.id)}
                           className="flex-1 w-full h-10 shadow-md"
-                          disabled={deletingIds.has(`note-${note.id}`)}
-                        >
-                          {deletingIds.has(`note-${note.id}`) ? "Deleting..." : "Delete"}
+                          disabled={deletingIds.has(`note-${note.id}`)}>
+                          {deletingIds.has(`note-${note.id}`)
+                            ? "Deleting..."
+                            : "Delete"}
                         </Button>
                       </div>
                     </CardContent>
@@ -1046,15 +1045,15 @@ const handleDeleteSavedItem = async (
                 <div className="flex justify-center items-center gap-4 mt-4">
                   <Button
                     disabled={currentPageNotes === 1}
-                    onClick={() => setCurrentPageNotes((prev) => prev - 1)}
-                  >
+                    onClick={() => setCurrentPageNotes((prev) => prev - 1)}>
                     Previous
                   </Button>
-                  <span>Page {currentPageNotes} of {totalPagesNotes}</span>
+                  <span>
+                    Page {currentPageNotes} of {totalPagesNotes}
+                  </span>
                   <Button
                     disabled={currentPageNotes === totalPagesNotes}
-                    onClick={() => setCurrentPageNotes((prev) => prev + 1)}
-                  >
+                    onClick={() => setCurrentPageNotes((prev) => prev + 1)}>
                     Next
                   </Button>
                 </div>
@@ -1068,8 +1067,7 @@ const handleDeleteSavedItem = async (
             <h3 className="text-lg font-semibold">My Bookmarks</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => setBookmarkManagerOpen(true)}
-            >
+              onClick={() => setBookmarkManagerOpen(true)}>
               <Bookmark className="mr-2 h-4 w-4" />
               Manage Bookmarks
             </Button>
@@ -1091,8 +1089,7 @@ const handleDeleteSavedItem = async (
               {bookmarks.map((bookmark) => (
                 <Card
                   key={bookmark.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
+                  className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="space-y-1">
                       <CardTitle className="text-lg">

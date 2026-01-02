@@ -11,30 +11,20 @@ export default function UnauthorizedPage() {
   const {data: session, status} = useSession();
   const router = useRouter();
 
-  console.log("[UnauthorizedPage] Session status:", status);
-  console.log("[UnauthorizedPage] Session data:", session);
-
   // Redirect based on role after session is loaded
   useEffect(() => {
     if (status === "loading") {
-      console.log("[UnauthorizedPage] Session is loading");
       return;
     }
     if (status === "authenticated" && session?.user?.role) {
-      console.log(
-        "[UnauthorizedPage] Redirecting based on role:",
-        session.user.role
-      );
       if (session.user.role === "admin") {
         router.push("/admin");
       } else if (session.user.role === "student") {
         router.push("/student");
       } else {
-        console.log("[UnauthorizedPage] Unknown role, redirecting to /login");
         router.push("/login");
       }
     } else {
-      console.log("[UnauthorizedPage] Redirecting to /login: unauthenticated");
       router.push("/login");
     }
   }, [status, session, router]);

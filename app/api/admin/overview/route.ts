@@ -1,29 +1,18 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 export async function GET(request: Request) {
-  console.log(
-    "[Route] Received GET request to orgs/api/admin/dashboard/summary"
-  );
   const session = await getServerSession(authOptions);
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
+    return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
-    console.log(
-      "[Route] Fetching data from",
-      `${BASE_URL}/api/admin/dashboard/summary/`
-    );
     const res = await fetch(`${BASE_URL}/api/admin/dashboard/summary/`, {
       headers: {
         Authorization: `Api-Key ${API_KEY}`,
@@ -32,21 +21,18 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API fetch failed:", data);
       return NextResponse.json(
-        { error: data.detail || "Failed to fetch data" },
-        { status: res.status }
+        {error: data.detail || "Failed to fetch data"},
+        {status: res.status}
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

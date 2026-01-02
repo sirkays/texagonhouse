@@ -52,7 +52,9 @@ export function DashboardOverview() {
   const [liveSessionsLoading, setLiveSessionsLoading] = useState(true);
   const [testsLoading, setTestsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [liveSessionsError, setLiveSessionsError] = useState<string | null>(null);
+  const [liveSessionsError, setLiveSessionsError] = useState<string | null>(
+    null
+  );
   const [testsError, setTestsError] = useState<string | null>(null);
   const router = useRouter();
   const sessionToken = useMemo(
@@ -70,28 +72,16 @@ export function DashboardOverview() {
   };
 
   const handleLogout = async () => {
-    console.log(
-      "[DashboardOverview] Initiating logout, sessionToken:",
-      session?.user?.sessionToken
-    );
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
-      console.log(
-        "[DashboardOverview] Logout API response status:",
-        response.status
-      );
       const data = await response.json();
-      console.log("[DashboardOverview] Logout API response:", data);
       if (!response.ok) {
         console.error("[DashboardOverview] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log(
-        "[DashboardOverview] Logout successful, redirecting to /login"
-      );
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -106,26 +96,13 @@ export function DashboardOverview() {
   // Fetch dashboard data
   useEffect(() => {
     const fetchData = async () => {
-      console.log(
-        "[DashboardOverview] Initiating fetch for /api/student/dashboard-overview"
-      );
       if (status !== "authenticated" || !session?.user?.sessionToken) {
-        console.log(
-          "[DashboardOverview] Session not authenticated, status:",
-          status,
-          "sessionToken:",
-          session?.user?.sessionToken
-        );
         setError("Not authenticated");
         setLoading(false);
         return;
       }
 
       try {
-        console.log(
-          "[DashboardOverview] Fetching from /api/student/dashboard-overview with token:",
-          session.user.sessionToken
-        );
         const res = await fetch("/api/student/dashboard-overview", {
           headers: {
             Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
@@ -133,7 +110,6 @@ export function DashboardOverview() {
             "X-Session-Token": session.user.sessionToken,
           },
         });
-        console.log("[DashboardOverview] Fetch response status:", res.status);
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Fetch failed with status:",
@@ -150,7 +126,6 @@ export function DashboardOverview() {
           throw new Error("Fetch failed");
         }
         const json = await res.json();
-        console.log("[DashboardOverview] Fetch response data:", json);
         setData(json);
         setError(null);
       } catch (e) {
@@ -164,22 +139,12 @@ export function DashboardOverview() {
     // Fetch live sessions
     const fetchLiveSessions = async () => {
       if (status !== "authenticated" || !session?.user?.sessionToken) {
-        console.log(
-          "[DashboardOverview] Session not authenticated for live sessions, status:",
-          status,
-          "sessionToken:",
-          session?.user?.sessionToken
-        );
         setLiveSessionsError("Not authenticated");
         setLiveSessionsLoading(false);
         return;
       }
 
       try {
-        console.log(
-          "[DashboardOverview] Fetching live sessions from /api/teacher/live-session/ with token:",
-          session.user.sessionToken
-        );
         const res = await fetch("/api/teacher/live-session/", {
           headers: {
             Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
@@ -187,14 +152,14 @@ export function DashboardOverview() {
             "X-Session-Token": session.user.sessionToken,
           },
         });
-        console.log("[DashboardOverview] Live sessions fetch response status:", res.status);
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Live sessions fetch failed with status:",
             res.status
           );
           const errorData = await res.json().catch(() => ({}));
-          const errorMessage = errorData.error || "Failed to fetch live sessions";
+          const errorMessage =
+            errorData.error || "Failed to fetch live sessions";
           if (res.status === 401 || res.status === 403) {
             setLiveSessionsError("Session expired");
             setLiveSessions([]);
@@ -204,7 +169,6 @@ export function DashboardOverview() {
           throw new Error(errorMessage);
         }
         const json = await res.json();
-        console.log("[DashboardOverview] Live sessions fetch response data:", json);
         const currentDate = new Date();
         const sessions: LiveSession[] = (json.live_sessions || [])
           .filter((session) => new Date(session.scheduled_at) > currentDate)
@@ -227,22 +191,12 @@ export function DashboardOverview() {
     // Fetch upcoming tests
     const fetchTests = async () => {
       if (status !== "authenticated" || !session?.user?.sessionToken) {
-        console.log(
-          "[DashboardOverview] Session not authenticated for tests, status:",
-          status,
-          "sessionToken:",
-          session?.user?.sessionToken
-        );
         setTestsError("Not authenticated");
         setTestsLoading(false);
         return;
       }
 
       try {
-        console.log(
-          "[DashboardOverview] Fetching tests from /api/student/cbt with token:",
-          session.user.sessionToken
-        );
         const res = await fetch("/api/student/cbt", {
           headers: {
             Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
@@ -250,7 +204,6 @@ export function DashboardOverview() {
             "X-Session-Token": session.user.sessionToken,
           },
         });
-        console.log("[DashboardOverview] Tests fetch response status:", res.status);
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Tests fetch failed with status:",
@@ -267,15 +220,15 @@ export function DashboardOverview() {
           throw new Error(errorMessage);
         }
         const json = await res.json();
-        console.log("[DashboardOverview] Tests fetch response data:", json);
         const currentDate = new Date();
-        const tests: Test[] = (json.tests || [])
-          .map((test) => ({
-            title: test.title,
-            date: test.startsAt ? new Date(test.startsAt).toLocaleString() : "Available Now",
-            duration: test.duration,
-            testId: test.id,
-          }));
+        const tests: Test[] = (json.tests || []).map((test) => ({
+          title: test.title,
+          date: test.startsAt
+            ? new Date(test.startsAt).toLocaleString()
+            : "Available Now",
+          duration: test.duration,
+          testId: test.id,
+        }));
         setTests(tests);
         setTestsError(null);
       } catch (e) {
@@ -306,7 +259,10 @@ export function DashboardOverview() {
     liveSessionsError === "Not authenticated" ||
     testsError === "Session expired" ||
     testsError === "Not authenticated" ||
-    (status === "authenticated" && (error === "Session expired" || liveSessionsError === "Session expired" || testsError === "Session expired"))
+    (status === "authenticated" &&
+      (error === "Session expired" ||
+        liveSessionsError === "Session expired" ||
+        testsError === "Session expired"))
   ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
@@ -331,7 +287,11 @@ export function DashboardOverview() {
     );
   }
 
-  if ((error && !data) || (liveSessionsError && !liveSessions.length) || (testsError && !tests.length)) {
+  if (
+    (error && !data) ||
+    (liveSessionsError && !liveSessions.length) ||
+    (testsError && !tests.length)
+  ) {
     return (
       <div className="p-6">
         <Card className="w-full max-w-md mx-auto">
@@ -367,7 +327,6 @@ export function DashboardOverview() {
 
   const handleTestClick = (testId) => {
     if (testId) {
-      console.log("[DashboardOverview] Navigating to test:", testId);
       router.push(`/student/cbt?testId=${testId}`);
     } else {
       console.log("[DashboardOverview] No testId provided, navigation skipped");
@@ -376,10 +335,8 @@ export function DashboardOverview() {
 
   const handleSessionClick = (joinUrl) => {
     if (joinUrl) {
-      console.log("[DashboardOverview] Navigating to live session:", joinUrl);
       window.location.href = joinUrl;
     } else {
-      console.log("[DashboardOverview] No join_url, redirecting to /main/home");
       router.push("/main/home");
     }
   };
@@ -392,7 +349,9 @@ export function DashboardOverview() {
         </h1>
         <p className="text-muted-foreground">Continue your learning journey</p>
         {error && <p className="text-yellow-600 text-sm">{error}</p>}
-        {liveSessionsError && <p className="text-yellow-600 text-sm">{liveSessionsError}</p>}
+        {liveSessionsError && (
+          <p className="text-yellow-600 text-sm">{liveSessionsError}</p>
+        )}
         {testsError && <p className="text-yellow-600 text-sm">{testsError}</p>}
       </div>
 
@@ -542,7 +501,10 @@ export function DashboardOverview() {
               <p className="text-sm text-green-600">in your school</p>
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <Zap className="h-3 w-3" />
-                <span>Global rank: #{data?.gamification?.leaderboard?.global_rank ?? "N/A"}</span>
+                <span>
+                  Global rank: #
+                  {data?.gamification?.leaderboard?.global_rank ?? "N/A"}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -615,7 +577,7 @@ export function DashboardOverview() {
                   <Button
                     className="bg-transparent  shadow-md"
                     size="sm"
-                    variant={'ghost'}
+                    variant={"ghost"}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleTestClick(test.testId);
@@ -637,9 +599,7 @@ export function DashboardOverview() {
         <Card className="bg-transparent border-none shadow-md">
           <CardHeader>
             <CardTitle>Upcoming Live Sessions</CardTitle>
-            <CardDescription>
-              Join your scheduled live sessions
-            </CardDescription>
+            <CardDescription>Join your scheduled live sessions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {liveSessions.length > 0 ? (
@@ -658,7 +618,7 @@ export function DashboardOverview() {
                   <Button
                     className="bg-transparent shadow-md"
                     size="sm"
-                    variant={'ghost'}
+                    variant={"ghost"}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSessionClick(session.join_url);

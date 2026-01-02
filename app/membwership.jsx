@@ -15,7 +15,6 @@ export default function MembershipPage() {
   const [planError, setPlanError] = useState(null);
 
   const submitMembershipApplication = async (formData) => {
-    console.log("Submitting membership application:", formData);
     try {
       const response = await fetch("/api/membership", {
         method: "POST",
@@ -24,13 +23,11 @@ export default function MembershipPage() {
         cache: "no-store",
       });
       const result = await response.json();
-      console.log("Submission response:", result);
       if (!response.ok) {
         throw new Error(result.error || "Failed to submit application");
       }
       return result;
     } catch (error) {
-      console.error("Submission error:", error.message);
       throw error;
     }
   };
@@ -62,13 +59,11 @@ export default function MembershipPage() {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        console.log("Fetching membership plans from /api/membership");
         const response = await fetch("/api/membership", {cache: "no-store"});
         if (!response.ok) {
           throw new Error("Failed to fetch membership plans");
         }
         const result = await response.json();
-        console.log("Membership plans received:", result.plans);
         setMembershipPlans(result.plans);
         setLoadingPlans(false);
       } catch (error) {

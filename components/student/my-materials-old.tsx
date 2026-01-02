@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -25,13 +25,13 @@ import {
   LogIn,
   Download,
 } from "lucide-react";
-import { VideoModal } from "./video-modal";
-import { NoteEditor } from "./note-editor";
-import { BookmarkManager } from "./bookmark-manager";
-import { AudioPlayer } from "./audio-player";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import {VideoModal} from "./video-modal";
+import {NoteEditor} from "./note-editor";
+import {BookmarkManager} from "./bookmark-manager";
+import {AudioPlayer} from "./audio-player";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Note {
   id: number;
@@ -89,7 +89,7 @@ interface Lesson {
 }
 
 export function MyMaterials() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -179,27 +179,21 @@ export function MyMaterials() {
         },
       ],
     },
-    notes: [
-
-    ],
+    notes: [],
     bookmarks: [],
   };
 
   const handleLogout = async () => {
-    console.log("[MyMaterials] Initiating logout, sessionToken:", sessionToken);
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
-      console.log("[MyMaterials] Logout API response status:", response.status);
       const data = await response.json();
-      console.log("[MyMaterials] Logout API response:", data);
       if (!response.ok) {
         console.error("[MyMaterials] Logout failed:", data);
         throw new Error(data.error || "Logout failed");
       }
-      console.log("[MyMaterials] Logout successful, redirecting to /login");
       document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
       document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
       window.location.href = "/login";
@@ -212,31 +206,19 @@ export function MyMaterials() {
   };
 
   const fetchData = async () => {
-    console.log("[MyMaterials] Initiating fetch for /api/student/materials");
     if (status !== "authenticated" || !sessionToken) {
-      console.log(
-        "[MyMaterials] Session not authenticated, status:",
-        status,
-        "sessionToken:",
-        session?.user?.sessionToken
-      );
       setError("Not authenticated");
       setLoading(false);
       return;
     }
 
     try {
-      console.log(
-        "[MyMaterials] Fetching from /api/student/materials with token:",
-        session.user.sessionToken
-      );
       const res = await fetch("/api/student/materials", {
         headers: {
           "Content-Type": "application/json",
           "X-Session-Token": sessionToken,
         },
       });
-      console.log("[MyMaterials] Fetch response status:", res.status);
       if (!res.ok) {
         const errorData = await res.json();
         console.error(
@@ -260,7 +242,6 @@ export function MyMaterials() {
         throw new Error("Fetch failed");
       }
       const json = await res.json();
-      console.log("[MyMaterials] Fetch response data:", json);
 
       const bookmarksWithTitles = json.bookmarks.map((bookmark) => {
         if (!bookmark.lessonId) {
@@ -278,7 +259,7 @@ export function MyMaterials() {
         };
       });
 
-      setData({ ...json, bookmarks: bookmarksWithTitles });
+      setData({...json, bookmarks: bookmarksWithTitles});
       setError(null);
     } catch (e) {
       console.error("[MyMaterials] Fetch error:", e);
@@ -319,8 +300,6 @@ export function MyMaterials() {
       created_at: note.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
-    console.log("[MyMaterials] Saving note:", normalizedNote);
 
     try {
       let response;
@@ -381,10 +360,6 @@ export function MyMaterials() {
 
   const handleDeleteNote = async (noteId: number) => {
     setDeletingIds((prev) => new Set([...prev, noteId]));
-    console.log(
-      "[MyMaterials] Sending DELETE to /api/student/notes for note ID:",
-      noteId
-    );
     try {
       const response = await fetch(`/api/student/notes`, {
         method: "DELETE",
@@ -392,9 +367,8 @@ export function MyMaterials() {
           "Content-Type": "application/json",
           "X-Session-Token": sessionToken || "",
         },
-        body: JSON.stringify({ id: noteId }),
+        body: JSON.stringify({id: noteId}),
       });
-      console.log("[MyMaterials] DELETE response status:", response.status);
       if (!response.ok) {
         const errorData = await response.json();
         console.error("[MyMaterials] Delete note error details:", errorData);
@@ -466,8 +440,7 @@ export function MyMaterials() {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -494,7 +467,6 @@ export function MyMaterials() {
       );
       return;
     }
-    console.log("[MyMaterials] Opening PDF in new tab:", pdf.downloadUrl);
     window.open(pdf.downloadUrl, "_blank");
   };
 
@@ -519,19 +491,31 @@ export function MyMaterials() {
 
   // Notes pagination
   const totalPagesNotes = Math.ceil(notes.length / itemsPerPage);
-  const currentNotes = notes.slice((currentPageNotes - 1) * itemsPerPage, currentPageNotes * itemsPerPage);
+  const currentNotes = notes.slice(
+    (currentPageNotes - 1) * itemsPerPage,
+    currentPageNotes * itemsPerPage
+  );
 
   // Videos pagination
   const totalPagesVideos = Math.ceil(savedItems.videos.length / itemsPerPage);
-  const currentVideos = savedItems.videos.slice((currentPageVideos - 1) * itemsPerPage, currentPageVideos * itemsPerPage);
+  const currentVideos = savedItems.videos.slice(
+    (currentPageVideos - 1) * itemsPerPage,
+    currentPageVideos * itemsPerPage
+  );
 
   // PDFs pagination
   const totalPagesPdfs = Math.ceil(savedItems.pdfs.length / itemsPerPage);
-  const currentPdfs = savedItems.pdfs.slice((currentPagePdfs - 1) * itemsPerPage, currentPagePdfs * itemsPerPage);
+  const currentPdfs = savedItems.pdfs.slice(
+    (currentPagePdfs - 1) * itemsPerPage,
+    currentPagePdfs * itemsPerPage
+  );
 
   // Audio pagination
   const totalPagesAudio = Math.ceil(savedItems.audio.length / itemsPerPage);
-  const currentAudio = savedItems.audio.slice((currentPageAudio - 1) * itemsPerPage, currentPageAudio * itemsPerPage);
+  const currentAudio = savedItems.audio.slice(
+    (currentPageAudio - 1) * itemsPerPage,
+    currentPageAudio * itemsPerPage
+  );
 
   return (
     <div className="space-y-6">
@@ -554,8 +538,7 @@ export function MyMaterials() {
         </div>
         <Button
           className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-          variant="outline"
-        >
+          variant="outline">
           <Filter className="mr-2 h-4 w-4" />
           Search
         </Button>
@@ -565,14 +548,12 @@ export function MyMaterials() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="saved"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Saved Items
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-          >
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             My Notes
           </TabsTrigger>
           {/* <TabsTrigger
@@ -592,8 +573,12 @@ export function MyMaterials() {
             {savedItems.videos.length === 0 ? (
               <div className="text-center py-12">
                 <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No saved videos yet</h3>
-                <p className="text-muted-foreground">Start saving videos from your lessons</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No saved videos yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Start saving videos from your lessons
+                </p>
               </div>
             ) : (
               <>
@@ -601,8 +586,7 @@ export function MyMaterials() {
                   {currentVideos.map((video) => (
                     <Card
                       key={video.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader className="p-0">
                         <div className="relative">
                           <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
@@ -635,15 +619,18 @@ export function MyMaterials() {
                             <Button
                               size="sm"
                               className="rounded-full bg-transparent h-10 w-10 text-white hover:bg-[#f7977192] hover:text-white"
-                              onClick={() => handleWatchVideo(video)}
-                            >
+                              onClick={() => handleWatchVideo(video)}>
                               <Play className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
                         <div className="space-y-1 px-4">
-                          <CardTitle className="text-lg">{video.title}</CardTitle>
-                          <CardDescription>by {video.instructor}</CardDescription>
+                          <CardTitle className="text-lg">
+                            {video.title}
+                          </CardTitle>
+                          <CardDescription>
+                            by {video.instructor}
+                          </CardDescription>
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 px-4">
@@ -657,8 +644,7 @@ export function MyMaterials() {
                           <Button
                             size="sm"
                             className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                            onClick={() => handleWatchVideo(video)}
-                          >
+                            onClick={() => handleWatchVideo(video)}>
                             <Play className="mr-2 h-3 w-3" />
                             Continue Watching
                           </Button>
@@ -671,15 +657,15 @@ export function MyMaterials() {
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
                       disabled={currentPageVideos === 1}
-                      onClick={() => setCurrentPageVideos((prev) => prev - 1)}
-                    >
+                      onClick={() => setCurrentPageVideos((prev) => prev - 1)}>
                       Previous
                     </Button>
-                    <span>Page {currentPageVideos} of {totalPagesVideos}</span>
+                    <span>
+                      Page {currentPageVideos} of {totalPagesVideos}
+                    </span>
                     <Button
                       disabled={currentPageVideos === totalPagesVideos}
-                      onClick={() => setCurrentPageVideos((prev) => prev + 1)}
-                    >
+                      onClick={() => setCurrentPageVideos((prev) => prev + 1)}>
                       Next
                     </Button>
                   </div>
@@ -696,8 +682,12 @@ export function MyMaterials() {
             {savedItems.pdfs.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No saved PDFs yet</h3>
-                <p className="text-muted-foreground">Start saving PDFs from your lessons</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No saved PDFs yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Start saving PDFs from your lessons
+                </p>
               </div>
             ) : (
               <>
@@ -705,8 +695,7 @@ export function MyMaterials() {
                   {currentPdfs.map((pdf) => (
                     <Card
                       key={pdf.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="space-y-1">
                           <CardTitle className="text-lg">{pdf.title}</CardTitle>
@@ -723,8 +712,7 @@ export function MyMaterials() {
                           <Button
                             size="sm"
                             className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                            onClick={() => handlePreviewPdf(pdf)}
-                          >
+                            onClick={() => handlePreviewPdf(pdf)}>
                             <Download className="mr-2 h-3 w-3" />
                             Preview
                           </Button>
@@ -737,15 +725,15 @@ export function MyMaterials() {
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
                       disabled={currentPagePdfs === 1}
-                      onClick={() => setCurrentPagePdfs((prev) => prev - 1)}
-                    >
+                      onClick={() => setCurrentPagePdfs((prev) => prev - 1)}>
                       Previous
                     </Button>
-                    <span>Page {currentPagePdfs} of {totalPagesPdfs}</span>
+                    <span>
+                      Page {currentPagePdfs} of {totalPagesPdfs}
+                    </span>
                     <Button
                       disabled={currentPagePdfs === totalPagesPdfs}
-                      onClick={() => setCurrentPagePdfs((prev) => prev + 1)}
-                    >
+                      onClick={() => setCurrentPagePdfs((prev) => prev + 1)}>
                       Next
                     </Button>
                   </div>
@@ -762,8 +750,12 @@ export function MyMaterials() {
             {savedItems.audio.length === 0 ? (
               <div className="text-center py-12">
                 <Headphones className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No saved audio yet</h3>
-                <p className="text-muted-foreground">Start saving audio from your lessons</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No saved audio yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Start saving audio from your lessons
+                </p>
               </div>
             ) : (
               <>
@@ -771,11 +763,12 @@ export function MyMaterials() {
                   {currentAudio.map((audio) => (
                     <Card
                       key={audio.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="space-y-1">
-                          <CardTitle className="text-lg">{audio.title}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {audio.title}
+                          </CardTitle>
                           <CardDescription>by {audio.speaker}</CardDescription>
                         </div>
                       </CardHeader>
@@ -790,8 +783,7 @@ export function MyMaterials() {
                           <Button
                             size="sm"
                             className="w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                            onClick={() => handlePlayAudio(audio)}
-                          >
+                            onClick={() => handlePlayAudio(audio)}>
                             <Play className="mr-2 h-3 w-3" />
                             Continue Listening
                           </Button>
@@ -804,15 +796,15 @@ export function MyMaterials() {
                   <div className="flex justify-center items-center gap-4 mt-4">
                     <Button
                       disabled={currentPageAudio === 1}
-                      onClick={() => setCurrentPageAudio((prev) => prev - 1)}
-                    >
+                      onClick={() => setCurrentPageAudio((prev) => prev - 1)}>
                       Previous
                     </Button>
-                    <span>Page {currentPageAudio} of {totalPagesAudio}</span>
+                    <span>
+                      Page {currentPageAudio} of {totalPagesAudio}
+                    </span>
                     <Button
                       disabled={currentPageAudio === totalPagesAudio}
-                      onClick={() => setCurrentPageAudio((prev) => prev + 1)}
-                    >
+                      onClick={() => setCurrentPageAudio((prev) => prev + 1)}>
                       Next
                     </Button>
                   </div>
@@ -827,8 +819,7 @@ export function MyMaterials() {
             <h3 className="text-lg font-semibold">My Notes</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => router.push("/student/notes/create")}
-            >
+              onClick={() => router.push("/student/notes/create")}>
               <Edit className="mr-2 h-4 w-4" />
               Create New Note
             </Button>
@@ -837,18 +828,20 @@ export function MyMaterials() {
             <div className="text-center py-12">
               <Edit className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No notes yet</h3>
-              <p className="text-muted-foreground">Start creating notes for your lessons</p>
+              <p className="text-muted-foreground">
+                Start creating notes for your lessons
+              </p>
             </div>
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {currentNotes.map((note) => (
-                  <Card key={note.id} className="hover:shadow-lg transition-shadow">
+                  <Card
+                    key={note.id}
+                    className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">
-                          {note.title}
-                        </CardTitle>
+                        <CardTitle className="text-lg">{note.title}</CardTitle>
                         <CardDescription className="line-clamp-2">
                           {note.content}
                         </CardDescription>
@@ -862,8 +855,9 @@ export function MyMaterials() {
                         <Button
                           size="sm"
                           className="flex-1 w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
-                          onClick={() => router.push(`/student/notes/${note.id}`)}
-                        >
+                          onClick={() =>
+                            router.push(`/student/notes/${note.id}`)
+                          }>
                           <Edit className="mr-2 h-3 w-3" />
                           Open
                         </Button>
@@ -872,8 +866,7 @@ export function MyMaterials() {
                           variant="outline"
                           onClick={() => handleDeleteNote(note.id)}
                           className="flex-1 w-full h-10 shadow-md"
-                          disabled={deletingIds.has(note.id)}
-                        >
+                          disabled={deletingIds.has(note.id)}>
                           {deletingIds.has(note.id) ? "Deleting..." : "Delete"}
                         </Button>
                       </div>
@@ -885,15 +878,15 @@ export function MyMaterials() {
                 <div className="flex justify-center items-center gap-4 mt-4">
                   <Button
                     disabled={currentPageNotes === 1}
-                    onClick={() => setCurrentPageNotes((prev) => prev - 1)}
-                  >
+                    onClick={() => setCurrentPageNotes((prev) => prev - 1)}>
                     Previous
                   </Button>
-                  <span>Page {currentPageNotes} of {totalPagesNotes}</span>
+                  <span>
+                    Page {currentPageNotes} of {totalPagesNotes}
+                  </span>
                   <Button
                     disabled={currentPageNotes === totalPagesNotes}
-                    onClick={() => setCurrentPageNotes((prev) => prev + 1)}
-                  >
+                    onClick={() => setCurrentPageNotes((prev) => prev + 1)}>
                     Next
                   </Button>
                 </div>
@@ -907,8 +900,7 @@ export function MyMaterials() {
             <h3 className="text-lg font-semibold">My Bookmarks</h3>
             <Button
               className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-              onClick={() => setBookmarkManagerOpen(true)}
-            >
+              onClick={() => setBookmarkManagerOpen(true)}>
               <Bookmark className="mr-2 h-4 w-4" />
               Manage Bookmarks
             </Button>
@@ -930,8 +922,7 @@ export function MyMaterials() {
               {bookmarks.map((bookmark) => (
                 <Card
                   key={bookmark.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
+                  className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="space-y-1">
                       <CardTitle className="text-lg">

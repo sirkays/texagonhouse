@@ -1,7 +1,7 @@
 // app/api/admin/classrooms/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
 
 // ✅ Base configuration
 const BASE_URL = "https://texagonbackend.onrender.com/orgs";
@@ -9,23 +9,19 @@ const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 // ✅ GET /api/admin/classrooms - List all classrooms
 export async function GET(request: Request) {
-  console.log(
-    "[Admin Classrooms] Received GET request to /api/admin/classrooms"
-  );
-
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
 
   if (!sessionToken) {
     console.warn("[Admin Classrooms] No session token found");
     return NextResponse.json(
-      { detail: "Invalid or missing session token." },
-      { status: 401 }
+      {detail: "Invalid or missing session token."},
+      {status: 401}
     );
   }
 
   try {
-    const { searchParams } = new URL(request.url);
+    const {searchParams} = new URL(request.url);
     const org_id = searchParams.get("org_id");
     const page_size = searchParams.get("page_size");
 
@@ -34,7 +30,6 @@ export async function GET(request: Request) {
     if (page_size) url.searchParams.append("page_size", page_size);
 
     const endpoint = url.toString();
-    console.log("[Admin Classrooms] Fetching from:", endpoint);
 
     const res = await fetchWithRetry(endpoint, {
       method: "GET",
@@ -45,60 +40,52 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log("[Admin Classrooms] Response status:", res.status);
-
     const text = await res.text();
     let data;
     try {
       data = JSON.parse(text);
     } catch {
       console.error("[Admin Classrooms] Non-JSON response:", text);
-      data = { detail: text };
+      data = {detail: text};
     }
 
     if (!res.ok) {
       console.error("[Admin Classrooms] Backend error:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          { detail: "Unauthorized: Invalid session token or API key" },
-          { status: 403 }
+          {detail: "Unauthorized: Invalid session token or API key"},
+          {status: 403}
         );
       }
       return NextResponse.json(
-        { detail: data.detail || "Failed to fetch classrooms" },
-        { status: res.status }
+        {detail: data.detail || "Failed to fetch classrooms"},
+        {status: res.status}
       );
     }
 
-    console.log("[Admin Classrooms] Successfully fetched classrooms");
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Admin Classrooms] Error fetching classrooms:", error);
-    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
+    return NextResponse.json({detail: "Internal server error"}, {status: 500});
   }
 }
 
 // ✅ POST /api/admin/classrooms - Create a new classroom
 export async function POST(request: Request) {
-  console.log(
-    "[Admin Classrooms] Received POST request to /api/admin/classrooms"
-  );
-
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
 
   if (!sessionToken) {
     console.warn("[Admin Classrooms] No session token found");
     return NextResponse.json(
-      { detail: "Invalid or missing session token." },
-      { status: 401 }
+      {detail: "Invalid or missing session token."},
+      {status: 401}
     );
   }
 
   try {
     const body = await request.json();
     const endpoint = `${BASE_URL}/api/classrooms/`;
-    console.log("[Admin Classrooms] Creating classroom at:", endpoint);
 
     const res = await fetchWithRetry(endpoint, {
       method: "POST",
@@ -110,36 +97,33 @@ export async function POST(request: Request) {
       body: JSON.stringify(body),
     });
 
-    console.log("[Admin Classrooms] Response status:", res.status);
-
     const text = await res.text();
     let data;
     try {
       data = JSON.parse(text);
     } catch {
       console.error("[Admin Classrooms] Non-JSON response:", text);
-      data = { detail: text };
+      data = {detail: text};
     }
 
     if (!res.ok) {
       console.error("[Admin Classrooms] Backend error:", data);
       if (res.status === 403) {
         return NextResponse.json(
-          { detail: "Unauthorized: Invalid session token or API key" },
-          { status: 403 }
+          {detail: "Unauthorized: Invalid session token or API key"},
+          {status: 403}
         );
       }
       return NextResponse.json(
-        { detail: data.detail || "Failed to create classroom" },
-        { status: res.status }
+        {detail: data.detail || "Failed to create classroom"},
+        {status: res.status}
       );
     }
 
-    console.log("[Admin Classrooms] Successfully created classroom");
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(data, {status: 201});
   } catch (error) {
     console.error("[Admin Classrooms] Error creating classroom:", error);
-    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
+    return NextResponse.json({detail: "Internal server error"}, {status: 500});
   }
 }
 

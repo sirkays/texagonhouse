@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { unstable_noStore as noStore } from "next/cache";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 //const BASE_URL = "http://127.0.0.1:9098";
@@ -21,7 +21,7 @@ function normalizeMedia(media: string | undefined): string | undefined {
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
 
 interface Lesson {
@@ -40,12 +40,12 @@ interface Module {
   title: string;
   description: string;
   difficulty: "Beginner" | "Intermediate" | "Advanced";
-  category: { id: string; name: string } | null;
+  category: {id: string; name: string} | null;
   estimatedDuration: number; // ✅ minutes (API)
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: { id: string; name: string } | null;
+  course: {id: string; name: string} | null;
   createdAt: string | null;
   updatedAt: string | null;
   lessons: Lesson[];
@@ -59,7 +59,7 @@ interface Module {
 
 export async function GET(req: Request) {
   noStore();
-  const { searchParams } = new URL(req.url);
+  const {searchParams} = new URL(req.url);
 
   const endpoint = "/learning/api/teacher/modules/";
   const query = new URLSearchParams();
@@ -79,22 +79,15 @@ export async function GET(req: Request) {
   if (category) query.set("category", category);
   if (include_lessons) query.set("include_lessons", include_lessons);
 
-  const fullUrl = `${BASE_URL}${endpoint}${query.toString() ? `?${query.toString()}` : ""}`;
-
-  console.log("[TeacherModulesAPI] Initiating fetch for:", fullUrl);
+  const fullUrl = `${BASE_URL}${endpoint}${
+    query.toString() ? `?${query.toString()}` : ""
+  }`;
 
   const session = await getServerSession(authOptions);
-  console.log("[TeacherModulesAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user
-      ? { id: session.user.id, role: session.user.role }
-      : null,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[TeacherModulesAPI] No session token found");
     return NextResponse.json(
-      { error: "Not authenticated", redirect: "/login" },
+      {error: "Not authenticated", redirect: "/login"},
       {
         status: 401,
         headers: {
@@ -109,33 +102,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    console.log(
-      "[TeacherModulesAPI] Fetching from",
-      fullUrl,
-      "with token:",
-      session.user.sessionToken
-    );
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[TeacherModulesAPI] Fetch response status:", response.status);
-    console.log(
-      "[TeacherModulesAPI] Fetch response headers:",
-      Object.fromEntries(response.headers)
-    );
-    console.log(
-      "[TeacherModulesAPI] Fetch response content-type:",
-      response.headers.get("content-type")
-    );
-
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = await response.text();
-    console.log(
-      "[TeacherModulesAPI] Raw response:",
-      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
-    );
 
     if (!response.ok) {
       console.error(
@@ -145,7 +118,7 @@ export async function GET(req: Request) {
       );
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
+          {error: "Session expired", redirect: "/login"},
           {
             status: 401,
             headers: {
@@ -157,7 +130,7 @@ export async function GET(req: Request) {
       }
       if (response.status === 404) {
         return NextResponse.json(
-          { error: "Teacher modules endpoint not found" },
+          {error: "Teacher modules endpoint not found"},
           {
             status: 404,
             headers: {
@@ -168,7 +141,7 @@ export async function GET(req: Request) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch teacher modules" },
+        {error: "Failed to fetch teacher modules"},
         {
           status: response.status,
           headers: {
@@ -185,7 +158,7 @@ export async function GET(req: Request) {
         contentType
       );
       return NextResponse.json(
-        { error: "Invalid response format, expected JSON" },
+        {error: "Invalid response format, expected JSON"},
         {
           status: 500,
           headers: {
@@ -196,13 +169,13 @@ export async function GET(req: Request) {
       );
     }
 
-    let data: { modules: any[] };
+    let data: {modules: any[]};
     try {
       data = JSON.parse(rawResponse);
     } catch (parseError) {
       console.error("[TeacherModulesAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        { error: "Invalid response format" },
+        {error: "Invalid response format"},
         {
           status: 500,
           headers: {
@@ -219,7 +192,7 @@ export async function GET(req: Request) {
         data
       );
       return NextResponse.json(
-        { error: "Invalid response format, expected modules array" },
+        {error: "Invalid response format, expected modules array"},
         {
           status: 500,
           headers: {
@@ -230,63 +203,66 @@ export async function GET(req: Request) {
       );
     }
 
-  const normalizedData: Module[] = data.modules.map((module) => ({
-    id: String(module.id),
-    title: module.title || "",
-    description: module.description || "",
-    type: module.type || "video",
+    const normalizedData: Module[] = data.modules.map((module) => ({
+      id: String(module.id),
+      title: module.title || "",
+      description: module.description || "",
+      type: module.type || "video",
 
-    // ✅ keep API field name + number type
-    estimatedDuration: Number(module.estimatedDuration ?? 0),
+      // ✅ keep API field name + number type
+      estimatedDuration: Number(module.estimatedDuration ?? 0),
 
-    difficulty: module.difficulty
-      ? ((module.difficulty.charAt(0).toUpperCase() +
-          module.difficulty.slice(1).toLowerCase()) as
-          | "Beginner"
-          | "Intermediate"
-          | "Advanced")
-      : "Beginner",
+      difficulty: module.difficulty
+        ? ((module.difficulty.charAt(0).toUpperCase() +
+            module.difficulty.slice(1).toLowerCase()) as
+            | "Beginner"
+            | "Intermediate"
+            | "Advanced")
+        : "Beginner",
 
-    // ✅ keep API category shape
-    category: module.category
-      ? { id: String(module.category.id), name: module.category.name || "" }
-      : null,
+      // ✅ keep API category shape
+      category: module.category
+        ? {id: String(module.category.id), name: module.category.name || ""}
+        : null,
 
-    enrollments: module.enrollments ?? 0,
-    rating: module.rating ?? 0,
-    order: module.order ?? 0,
-    active: !!module.active,
-    isPublished: module.isPublished ?? !!module.active,
+      enrollments: module.enrollments ?? 0,
+      rating: module.rating ?? 0,
+      order: module.order ?? 0,
+      active: !!module.active,
+      isPublished: module.isPublished ?? !!module.active,
 
-    course: module.course
-      ? { id: String(module.course.id), name: module.course.name || "" }
-      : null,
+      course: module.course
+        ? {id: String(module.course.id), name: module.course.name || ""}
+        : null,
 
-    createdAt: module.createdAt ?? null,
-    updatedAt: module.updatedAt ?? null,
+      createdAt: module.createdAt ?? null,
+      updatedAt: module.updatedAt ?? null,
 
-    lessons: Array.isArray(module.lessons)
-      ? module.lessons.map((lesson: any): Lesson => ({
-          id: String(lesson.id),
-          title: lesson.title || "",
-          type: lesson.type || "video",
+      lessons: Array.isArray(module.lessons)
+        ? module.lessons.map(
+            (lesson: any): Lesson => ({
+              id: String(lesson.id),
+              title: lesson.title || "",
+              type: lesson.type || "video",
 
-          // keep as-is OR normalize if backend sends seconds (see section 3)
-          duration: lesson.duration ?? "",
+              // keep as-is OR normalize if backend sends seconds (see section 3)
+              duration: lesson.duration ?? "",
 
-          content: lesson.content || undefined,
-          videoUrl: lesson.video_url ? normalizeMedia(lesson.video_url) : undefined,
-          audioUrl: lesson.audio_url ? normalizeMedia(lesson.audio_url) : undefined,
-          coverImageUrl: lesson.cover_image ? normalizeMedia(lesson.cover_image) : undefined,
-        }))
-      : [],
-  }));
+              content: lesson.content || undefined,
+              videoUrl: lesson.video_url
+                ? normalizeMedia(lesson.video_url)
+                : undefined,
+              audioUrl: lesson.audio_url
+                ? normalizeMedia(lesson.audio_url)
+                : undefined,
+              coverImageUrl: lesson.cover_image
+                ? normalizeMedia(lesson.cover_image)
+                : undefined,
+            })
+          )
+        : [],
+    }));
 
-
-    console.log(
-      "[TeacherModulesAPI] Fetch successful, normalized data:",
-      normalizedData
-    );
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {

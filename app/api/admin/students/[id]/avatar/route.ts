@@ -14,14 +14,9 @@ export async function POST(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log("[Route] Received POST request to /api/students/[id]/avatar");
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
@@ -37,7 +32,6 @@ export async function POST(
       );
     }
 
-    console.log("[Route] Uploading avatar for student", id);
     const uploadFormData = new FormData();
     uploadFormData.append("image", file);
 
@@ -53,12 +47,9 @@ export async function POST(
       }
     );
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API upload failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to upload avatar"},
         {status: res.status}

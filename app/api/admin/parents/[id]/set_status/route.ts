@@ -13,23 +13,15 @@ export async function POST(
   request: NextRequest,
   {params}: {params: {id: string}}
 ) {
-  console.log(
-    "[Route] Received POST request to /api/admin/parents/[id]/set_status"
-  );
   const session = await getSession();
-  console.log("[Route] Session data:", {
-    sessionToken: session?.user?.sessionToken,
-  });
 
   if (!session?.user?.sessionToken) {
-    console.log("[Route] No session token found");
     return NextResponse.json({error: "No session token"}, {status: 401});
   }
 
   try {
     const {id} = params;
     const body = await request.json();
-    console.log("[Route] Request body:", body);
 
     if (!body.status) {
       return NextResponse.json({error: "status is required"}, {status: 400});
@@ -53,12 +45,9 @@ export async function POST(
       body: JSON.stringify(body),
     });
 
-    console.log("[Route] API response status:", res.status);
     const data = await res.json();
-    console.log("[Route] API response data:", data);
 
     if (!res.ok) {
-      console.log("[Route] API post failed:", data);
       return NextResponse.json(
         {error: data.detail || "Failed to set status"},
         {status: res.status}

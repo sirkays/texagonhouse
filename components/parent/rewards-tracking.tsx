@@ -7,9 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Star, Zap, Loader2 } from "lucide-react";
+import {Badge} from "@/components/ui/badge";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import {Trophy, Star, Zap, Loader2} from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -19,27 +19,27 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
+import {Spinner} from "@/components/ui/spinner";
 
 interface BadgeDTO {
   id: number;
   name: string;
-  icon: string;           // Badge.icon_name
-  color: string;          // Badge.color (Tailwind class)
-  pointsThreshold: number;// Badge.points
+  icon: string; // Badge.icon_name
+  color: string; // Badge.color (Tailwind class)
+  pointsThreshold: number; // Badge.points
   earned: boolean;
   earnedAt?: string | null;
   reason?: string;
 }
 
 interface AchievementDTO {
-  code: string;           // AchievementDefinition.code
+  code: string; // AchievementDefinition.code
   title: string;
   description?: string;
-  icon: string;           // AchievementDefinition.icon
-  category: string;       // AchievementDefinition.category
-  points: number;         // AchievementDefinition.points
-  acquiredAt: string;     // AchievementAcquired.acquired_at
+  icon: string; // AchievementDefinition.icon
+  category: string; // AchievementDefinition.category
+  points: number; // AchievementDefinition.points
+  acquiredAt: string; // AchievementAcquired.acquired_at
   valueAtUnlock?: number; // AchievementAcquired.value_at_unlock
 }
 
@@ -82,11 +82,9 @@ const badgeIconMap: Record<string, React.ReactNode> = {
   silver: <span className="text-base">🥈</span>,
 };
 
-
-
 export function RewardsTracking() {
   const [leaderboardPage, setLeaderboardPage] = React.useState(1);
-  
+
   const itemsPerPageLeaderboard = 5;
   const [data, setData] = React.useState<RewardsResponse | null>(null);
 
@@ -110,8 +108,6 @@ export function RewardsTracking() {
     };
     fetchData();
   }, []);
-
-  console.log("RewardsTracking data:", data);
 
   const children = data?.children ?? [];
   const leaderboard = data?.leaderboard ?? [];
@@ -145,8 +141,7 @@ export function RewardsTracking() {
         <PaginationItem key={i}>
           <PaginationLink
             isActive={i === leaderboardPage}
-            onClick={() => handleLeaderboardPageChange(i)}
-          >
+            onClick={() => handleLeaderboardPageChange(i)}>
             {i}
           </PaginationLink>
         </PaginationItem>
@@ -187,8 +182,7 @@ export function RewardsTracking() {
         {children.map((child) => (
           <Card
             key={child.id}
-            className="hover:shadow-md transition-shadow w-full max-w-full overflow-hidden"
-          >
+            className="hover:shadow-md transition-shadow w-full max-w-full overflow-hidden">
             <CardHeader className="p-4 sm:p-6">
               <div className="flex items-center space-x-3 sm:space-x-4 overflow-hidden">
                 <Avatar className="h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
@@ -234,8 +228,7 @@ export function RewardsTracking() {
                         badge.earned
                           ? "bg-green-50 border-green-200"
                           : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
+                      }`}>
                       <div className="text-base sm:text-lg mb-1">
                         {badgeIconMap[badge.icon] || (
                           <span className="text-base">🏅</span>
@@ -249,51 +242,51 @@ export function RewardsTracking() {
                           Earned {badge.earnedAt}
                         </div>
                       )}
-
                     </div>
                   ))}
                 </div>
               </div>
 
-            <div className="space-y-2">
-              <h4 className="font-semibold text-xs sm:text-sm">Unlocked Achievements</h4>
+              <div className="space-y-2">
+                <h4 className="font-semibold text-xs sm:text-sm">
+                  Unlocked Achievements
+                </h4>
 
-              <div className="space-y-2 max-h-40 scrollbar-thin">
-                {(child.achievements ?? []).slice(0, 3).map((a) => (
-                  <div
-                    key={a.code}
-                    className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{a.title}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {a.category} • {a.acquiredAt}
+                <div className="space-y-2 max-h-40 scrollbar-thin">
+                  {(child.achievements ?? []).slice(0, 3).map((a) => (
+                    <div
+                      key={a.code}
+                      className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{a.title}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {a.category} • {a.acquiredAt}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 text-green-600 font-medium flex-shrink-0">
+                        <Star className="h-3 w-3" />+{a.points}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-green-600 font-medium flex-shrink-0">
-                      <Star className="h-3 w-3" />+{a.points}
+                  ))}
+
+                  {(!child.achievements || child.achievements.length === 0) && (
+                    <div className="text-xs text-muted-foreground p-2">
+                      No achievements unlocked yet.
                     </div>
-                  </div>
-                ))}
-
-                {(!child.achievements || child.achievements.length === 0) && (
-                  <div className="text-xs text-muted-foreground p-2">
-                    No achievements unlocked yet.
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-
 
               <div className="space-y-2">
-                <h4 className="font-semibold text-xs sm:text-sm">Recent Points</h4>
+                <h4 className="font-semibold text-xs sm:text-sm">
+                  Recent Points
+                </h4>
 
                 <div className="space-y-2 max-h-40 scrollbar-thin">
                   {(child.recentPoints ?? []).slice(0, 3).map((p, idx) => (
                     <div
                       key={`${p.date}-${idx}`}
-                      className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm"
-                    >
+                      className="flex items-center justify-between p-2 bg-muted rounded text-xs sm:text-sm">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{p.reason}</div>
                         <div className="text-xs text-muted-foreground truncate">
@@ -315,7 +308,6 @@ export function RewardsTracking() {
                   )}
                 </div>
               </div>
-
             </CardContent>
           </Card>
         ))}
@@ -339,8 +331,7 @@ export function RewardsTracking() {
                   student.isChild
                     ? "bg-blue-50 border border-blue-200"
                     : "bg-muted"
-                }`}
-              >
+                }`}>
                 <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                   <div
                     className={`flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm ${
@@ -351,16 +342,14 @@ export function RewardsTracking() {
                           ? "bg-gray-400 text-white"
                           : "bg-orange-500 text-white"
                         : "bg-gray-200 text-gray-700"
-                    }`}
-                  >
+                    }`}>
                     {student.rank}
                   </div>
                   <div className="min-w-0">
                     <div
                       className={`font-medium truncate text-xs sm:text-sm ${
                         student.isChild ? "text-blue-700" : ""
-                      }`}
-                    >
+                      }`}>
                       {student.name}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">

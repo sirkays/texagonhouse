@@ -17,16 +17,10 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
   const moduleId = params.id;
   const endpoint = `/learning/api/teacher/modules/${moduleId}/delete/`;
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log("[ModuleDeleteAPI] Initiating DELETE request for:", fullUrl);
-
+  
   const session = await getServerSession(authOptions);
-  console.log("[ModuleDeleteAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? { id: session.user.id, role: session.user.role } : null,
-  });
-
+  
   if (!session?.user?.sessionToken) {
-    console.log("[ModuleDeleteAPI] No session token found");
     return NextResponse.json(
       { error: "Not authenticated", redirect: "/auth/signin" },
       {
@@ -42,18 +36,14 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
   }
 
   try {
-    console.log("[ModuleDeleteAPI] Sending DELETE to", fullUrl, "with token:", session.user.sessionToken);
     const response = await fetch(fullUrl, {
       method: "DELETE",
       headers: headers(session.user.sessionToken),
     });
 
-    console.log("[ModuleDeleteAPI] Response status:", response.status);
-    console.log("[ModuleDeleteAPI] Response headers:", Object.fromEntries(response.headers));
-
+  
     const rawResponse = await response.text();
-    console.log("[ModuleDeleteAPI] Raw response:", rawResponse);
-
+  
     if (!response.ok) {
       console.error("[ModuleDeleteAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
       if (response.status === 401) {
@@ -109,7 +99,6 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
       );
     }
 
-    console.log("[ModuleDeleteAPI] Deletion successful, data:", data);
     return NextResponse.json(data, {
       status: 200,
       headers: {

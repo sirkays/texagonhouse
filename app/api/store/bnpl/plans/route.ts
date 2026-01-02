@@ -33,7 +33,6 @@ export async function GET(req: Request) {
   const sessionToken = session?.user?.sessionToken;
 
   const fullUrl = `${BASE_URL}/bnpl/plans`;
-  console.log("[StoreBnplPlansAPI] Initiating fetch for:", fullUrl);
 
   try {
     const response = await fetch(fullUrl, {

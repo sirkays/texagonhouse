@@ -32,11 +32,6 @@ async function handler(req: any) {
     backendPath = "/accounts/api/parent";
   }
   const fullUrl = `${BASE_URL}${backendPath}${path}${req.nextUrl.search}`;
-  console.log("[TutoringAPI] Initiating fetch for:", fullUrl);
-  console.log("[TutoringAPI] Session retrieved:", {
-    sessionToken: session?.user?.sessionToken,
-    user: session?.user ? {id: session.user.id, role: session.user.role} : null,
-  });
 
   const fetchHeaders = {
     Authorization: `Session ${session.user.sessionToken}`,
@@ -69,26 +64,11 @@ async function handler(req: any) {
   }
 
   try {
-    console.log(
-      "[TutoringAPI] Fetching from",
-      fullUrl,
-      "with token:",
-      session.user.sessionToken
-    );
-    if (body) console.log("[TutoringAPI] With body:", body);
+    // if (body) console.log("[TutoringAPI] With body:", body);
     const response = await fetch(fullUrl, fetchOptions);
-    console.log("[TutoringAPI] Fetch response status:", response.status);
-    console.log(
-      "[TutoringAPI] Fetch response headers:",
-      Object.fromEntries(response.headers)
-    );
     const contentType = response.headers.get("content-type") || "";
-    console.log("[TutoringAPI] Fetch response content-type:", contentType);
+
     const rawResponse = await response.text();
-    console.log(
-      "[TutoringAPI] Raw response:",
-      rawResponse.slice(0, 200) + (rawResponse.length > 200 ? "..." : "")
-    );
 
     if (!response.ok) {
       console.error(
@@ -149,7 +129,6 @@ async function handler(req: any) {
       );
     }
 
-    console.log("[TutoringAPI] Fetch successful, data:", data);
     return NextResponse.json(data, {
       status: 200,
       headers: {

@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import {NextResponse} from "next/server";
+import {getServerSession} from "next-auth/next";
+import {authOptions} from "@/lib/auth";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
@@ -10,7 +10,7 @@ interface Headers {
 }
 
 const headers = (sessionToken: string): Headers => ({
-  "Authorization": `Api-Key ${API_KEY}`,
+  Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
   "X-Session-Token": sessionToken,
 });
@@ -38,25 +38,27 @@ export async function POST(request: Request): Promise<NextResponse> {
       [key: string]: any;
     }
 
-    const session = await getServerSession(authOptions) as Session;
-    console.log("[LogoutRoute] Session:", session);
+    const session = (await getServerSession(authOptions)) as Session;
 
     if (!session?.user?.sessionToken) {
       console.error("[LogoutRoute] No session or session token");
-      const res: NextResponse = NextResponse.json({ message: "Logged out (no session)" }, { status: 200 });
+      const res: NextResponse = NextResponse.json(
+        {message: "Logged out (no session)"},
+        {status: 200}
+      );
       res.cookies.set("next-auth.session-token", "", {
         maxAge: 0,
         path: "/",
         httpOnly: true,
         secure: true,
-        sameSite: "lax"
+        sameSite: "lax",
       });
       res.cookies.set("next-auth.csrf-token", "", {
         maxAge: 0,
         path: "/",
         httpOnly: true,
         secure: true,
-        sameSite: "lax"
+        sameSite: "lax",
       });
       return res;
     }
@@ -66,11 +68,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       headers: headers(session.user.sessionToken as string),
     });
 
-    console.log("[LogoutRoute] Logout API response status:", response.status);
-    console.log("[LogoutRoute] Logout API response headers:", Object.fromEntries(response.headers));
-
     const rawResponse: string = await response.text();
-    console.log("[LogoutRoute] Raw response from logout API:", rawResponse || "Empty response");
 
     let data: LogoutResponseData = {};
     if (rawResponse) {
@@ -78,66 +76,73 @@ export async function POST(request: Request): Promise<NextResponse> {
         data = JSON.parse(rawResponse) as LogoutResponseData;
       } catch (parseError) {
         console.error("[LogoutRoute] Failed to parse logout JSON:", parseError);
-        data = { detail: "Invalid response format" };
+        data = {detail: "Invalid response format"};
       }
     } else {
-      console.log("[LogoutRoute] Empty response from logout API, assuming success");
-      data = { detail: "Logged out (assumed)" };
+      data = {detail: "Logged out (assumed)"};
     }
 
     if (!response.ok) {
       console.error("[LogoutRoute] Logout failed:", response.status, data);
-      const res: NextResponse = NextResponse.json({ message: "Logged out (API error)" }, { status: 200 });
+      const res: NextResponse = NextResponse.json(
+        {message: "Logged out (API error)"},
+        {status: 200}
+      );
       res.cookies.set("next-auth.session-token", "", {
         maxAge: 0,
         path: "/",
         httpOnly: true,
         secure: true,
-        sameSite: "lax"
+        sameSite: "lax",
       });
       res.cookies.set("next-auth.csrf-token", "", {
         maxAge: 0,
         path: "/",
         httpOnly: true,
         secure: true,
-        sameSite: "lax"
+        sameSite: "lax",
       });
       return res;
     }
 
-    console.log("[LogoutRoute] Logout successful:", data);
-    const res: NextResponse = NextResponse.json({ message: "Logged out successfully", detail: data.detail }, { status: 200 });
+    const res: NextResponse = NextResponse.json(
+      {message: "Logged out successfully", detail: data.detail},
+      {status: 200}
+    );
     res.cookies.set("next-auth.session-token", "", {
       maxAge: 0,
       path: "/",
       httpOnly: true,
       secure: true,
-      sameSite: "lax"
+      sameSite: "lax",
     });
     res.cookies.set("next-auth.csrf-token", "", {
       maxAge: 0,
       path: "/",
       httpOnly: true,
       secure: true,
-      sameSite: "lax"
+      sameSite: "lax",
     });
     return res;
   } catch (error) {
     console.error("[LogoutRoute] Error:", error);
-    const res: NextResponse = NextResponse.json({ message: "Logged out (error)" }, { status: 200 });
+    const res: NextResponse = NextResponse.json(
+      {message: "Logged out (error)"},
+      {status: 200}
+    );
     res.cookies.set("next-auth.session-token", "", {
       maxAge: 0,
       path: "/",
       httpOnly: true,
       secure: true,
-      sameSite: "lax"
+      sameSite: "lax",
     });
     res.cookies.set("next-auth.csrf-token", "", {
       maxAge: 0,
       path: "/",
       httpOnly: true,
       secure: true,
-      sameSite: "lax"
+      sameSite: "lax",
     });
     return res;
   }
