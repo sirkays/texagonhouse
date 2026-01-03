@@ -61,7 +61,7 @@ export default function CheckoutPage() {
   } = useCart();
 
   const hasConfirmedRef = useRef(false);
-  const displayItems = buyNowProduct ? [buyNowProduct] : cartItems;
+
 
   const [formData, setFormData] = useState({
     phoneNumber: "",
@@ -72,6 +72,9 @@ export default function CheckoutPage() {
     zipCode: "",
     country: "US",
   });
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const [bnplBreakdown, setBnplBreakdown] = useState<any>(null);
   const [bnplLoading, setBnplLoading] = useState(false);
@@ -88,6 +91,8 @@ export default function CheckoutPage() {
   const uiLocked = isCartMutating || isPlacingOrder;
 
   const searchParams = useSearchParams();
+  const TAX_RATE = 0.08;
+  const FLAT_SHIPPING = 1000; // change to your real shipping
 
   // ✅ URL controls BNPL mode
   const payParam = (searchParams.get("pay") || "").toLowerCase();
@@ -129,42 +134,63 @@ export default function CheckoutPage() {
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
 
-  // ✅ Find a BNPL item if cart is loaded
-  const bnplItem = useMemo(() => {
-    // Prefer explicit BNPL-enabled
-    const explicit = (displayItems || []).find(
-      (i: any) => i.bnplAvailable || i.bnpl_enabled
-    );
-    if (explicit) return explicit;
 
-    // If forced BNPL via URL, fallback to first item (so UI doesn't flip),
-    // but this might not be BNPL-enabled; we still use URL/localStorage for product_id.
-    if (urlWantsBnpl) return (displayItems || [])[0];
+  const LS_BUYNOW_SNAPSHOT = "buynow_snapshot";
 
-    return null;
-  }, [displayItems, urlWantsBnpl]);
+  const [buyNowSnapshot, setBuyNowSnapshot] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_BUYNOW_SNAPSHOT);
+      setBuyNowSnapshot(raw ? JSON.parse(raw) : null);
+    } catch {
+      setBuyNowSnapshot(null);
+    }
+  }, []);
+
 
   // ✅ BNPL mode is controlled by URL OR having a BNPL item
-  const isBnplCheckout =
-    urlWantsBnpl ||
-    !!(displayItems || []).find((i: any) => i.bnplAvailable || i.bnpl_enabled);
+  const isBnplCheckout = urlWantsBnpl;
 
   // ✅ When BNPL is on, hide cart items + totals UI
-  const showCartItemsUI = !isBnplCheckout && !isBuyNowCheckout;
+  const showCartItemsUI = !isBnplCheckout;
 
-  // ✅ Confirm payment callback
-  useEffect(() => {
-    const status = searchParams.get("status");
-    const tx_ref = searchParams.get("tx_ref");
-    const transaction_id = searchParams.get("transaction_id");
 
-    if (status === "completed" && tx_ref && transaction_id) {
-      const invoice_id = localStorage.getItem("checkout_invoice_id");
-      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
+  const displayItems = useMemo(() => {
+    if (isBuyNowCheckout) {
+      const p = resolveBuyNowPayload();
+      const qty = Math.max(1, safeNum(p?.quantity || 1, 1));
+
+      if (buyNowProduct) {
+        return [{ ...buyNowProduct, quantity: qty }];
+      }
+
+      if (buyNowSnapshot?.product_id) {
+        return [
+          {
+            id: buyNowSnapshot.product_id,
+            product_id: buyNowSnapshot.product_id,
+            title: buyNowSnapshot.title,
+            price: String(buyNowSnapshot.price ?? "0"),
+            quantity: qty,
+            line_total: String(Number(buyNowSnapshot.price || 0) * qty),
+            image: buyNowSnapshot.image || "",
+            bnpl_enabled: !!buyNowSnapshot.bnpl_enabled,
+          },
+        ];
+      }
+
+      return [];
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
+    return buyNowProduct ? [buyNowProduct] : cartItems;
+  }, [isBuyNowCheckout, buyNowProduct, cartItems, buyNowSnapshot]);
+
+  // ✅ Find a BNPL item if cart is loaded
+  const bnplItem = useMemo(() => {
+    if (!isBnplCheckout) return null;
+    return (displayItems || [])[0] || null;
+  }, [displayItems, isBnplCheckout]);
   // ✅ Addresses
   useEffect(() => {
     const fetchAddresses = async () => {
@@ -190,14 +216,45 @@ export default function CheckoutPage() {
     }),
     []
   );
+
+
+  const buyNowTotals = useMemo(() => {
+    if (!isBuyNowCheckout) return null;
+
+    const item = (displayItems || [])[0];
+    const qty = Math.max(1, safeNum(item?.quantity || urlQty || 1, 1));
+
+    // Your items use `price` as string. Snapshot uses `price` too.
+    const unitPrice = safeNum(item?.price ?? 0, 0);
+
+
+    const subtotal = unitPrice * qty;
+    const tax = subtotal * TAX_RATE;
+
+    // If you don’t know digital/physical on frontend, you can keep shipping 0,
+    // or use a constant flat shipping.
+    const shipping = FLAT_SHIPPING;
+
+    const total = subtotal + tax + shipping;
+
+    return { subtotal, tax, shipping, total };
+  }, [isBuyNowCheckout, displayItems, urlQty]);
+
+
   const areasForSelectedState = (AREAS_BY_STATE as any)[formData.state] ?? [];
 
   // Totals
-  const subtotal = Number(cartSummary?.subtotal || 0);
+  const cartSubtotal = Number(cartSummary?.subtotal || 0);
   const discount = Number(cartSummary?.discount_total || 0);
-  const shipping = Number(cartSummary?.shipping_total || 0);
-  const tax = Number(cartSummary?.tax_total || 0);
-  const total = Number(cartSummary?.payable_total || 0);
+  const cartShipping = Number(cartSummary?.shipping_total || 0);
+  const cartTax = Number(cartSummary?.tax_total || 0);
+  const cartTotal = Number(cartSummary?.payable_total || 0);
+
+  // ✅ what UI should show
+  const subtotal = isBuyNowCheckout ? (buyNowTotals?.subtotal || 0) : cartSubtotal;
+  const shipping = isBuyNowCheckout ? (buyNowTotals?.shipping || 0) : cartShipping;
+  const tax = isBuyNowCheckout ? (buyNowTotals?.tax || 0) : cartTax;
+  const total = isBuyNowCheckout ? (buyNowTotals?.total || 0) : cartTotal;
 
   // ✅ Resolve BNPL product_id + qty from URL/localStorage/cart
   const resolveBnplPayload = () => {
@@ -315,6 +372,27 @@ export default function CheckoutPage() {
     }
   };
 
+
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status === "cancelled") {
+      toast({
+        variant: "destructive",
+        title: "Payment cancelled",
+        description: "No charges were made.",
+      });
+
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("status");
+      clean.searchParams.delete("tx_ref");
+      clean.searchParams.delete("transaction_id");
+      router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
+    }
+    // ...
+  }, [searchParams]);
+
+
+
   // ✅ Auto-fetch breakdown whenever BNPL mode is active
   useEffect(() => {
     if (isBnplCheckout) fetchCheckoutBnpl();
@@ -342,8 +420,15 @@ export default function CheckoutPage() {
     }
 
     // ✅ Only normal checkout needs cart items
-    if (!isBnplCheckout && !displayItems?.length) {
+    if (!isBnplCheckout && !isBuyNowCheckout && !displayItems?.length) {
       return { ok: false, message: "Your cart is empty." };
+    }
+
+    if (isBuyNowCheckout) {
+      const p = resolveBuyNowPayload();
+      if (!p?.product_id) {
+        return { ok: false, message: "No Buy Now product selected." };
+      }
     }
 
     // ✅ BNPL can proceed without cart items (uses URL/localStorage)
@@ -383,7 +468,7 @@ export default function CheckoutPage() {
     [
       formData,
       selectedShippingAddress,
-      displayItems.length,
+      displayItems,
       isBnplCheckout,
       bnplLoading,
       bnplBreakdown,
@@ -539,7 +624,9 @@ export default function CheckoutPage() {
         return;
       }
 
-      const redirect_url = `${window.location.origin}/store/checkout`;
+      const currentUrl = new URL(window.location.href);
+      const redirect_url = `${window.location.origin}/store/checkout?${currentUrl.searchParams.toString()}`;
+
 
       const normalAmountToPay = safeNum(
         orderData?.grand_total ??
@@ -673,8 +760,19 @@ export default function CheckoutPage() {
       localStorage.removeItem("checkout_invoice_id");
       setBuyNowProduct(null);
 
-      router.replace("/store/checkout?pay=bnpl");
+      // after success
+      const mode = (searchParams.get("mode") || "").toLowerCase();
+      const pay = (searchParams.get("pay") || "").toLowerCase();
+
+      // remove gateway params but keep mode/pay/product_id/qty
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("status");
+      clean.searchParams.delete("tx_ref");
+      clean.searchParams.delete("transaction_id");
+
+      router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
       setTimeout(() => router.push("/store"), 1200);
+
     } catch (err: any) {
       hasConfirmedRef.current = false;
       toast({
@@ -687,10 +785,49 @@ export default function CheckoutPage() {
     }
   };
 
+
+  // ✅ Confirm payment callback
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const tx_ref = searchParams.get("tx_ref");
+    const transaction_id = searchParams.get("transaction_id");
+
+    if (status === "completed" && tx_ref && transaction_id) {
+      const invoice_id = localStorage.getItem("checkout_invoice_id");
+      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  
   const bnplPayNowText = useMemo(() => {
     const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
     return formatNGN(payNow);
   }, [bnplBreakdown]);
+  const formatDate = (iso: string) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", year: "numeric", month: "short", day: "2-digit" })
+      .format(new Date(iso));
+  if (!mounted) {
+    return (
+      <div className="max-w-7xl mx-auto py-5 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-md border" />
+          <div className="space-y-2">
+            <div className="h-6 w-40 rounded bg-muted" />
+            <div className="h-4 w-56 rounded bg-muted" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-56 rounded-lg border" />
+            <div className="h-80 rounded-lg border" />
+          </div>
+          <div className="h-[520px] rounded-lg border" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto py-5">
@@ -894,12 +1031,12 @@ export default function CheckoutPage() {
                           className="flex gap-3 p-3 border rounded-lg">
                           <img
                             src={item.image}
-                            alt={item.name}
+                            alt={item.title}
                             className="w-16 h-16 rounded object-cover flex-shrink-0"
                           />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-sm line-clamp-2">
-                              {item.name}
+                              {item.title}
                             </h4>
 
                             <div className="flex items-center gap-2 mt-1">
@@ -1090,7 +1227,7 @@ export default function CheckoutPage() {
                               className="flex justify-between text-xs p-2 border rounded-md">
                               <span className="text-muted-foreground">
                                 #{inst.index} •{" "}
-                                {new Date(inst.due_at).toLocaleDateString()}
+                                {formatDate(inst.due_at)}
                                 {inst.capture_immediately ? " (today)" : ""}
                               </span>
                               <span className="font-semibold">
@@ -1136,4 +1273,5 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
+
 }

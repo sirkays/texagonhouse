@@ -1,14 +1,8 @@
-// texagon_academy\texagonui\components\store\order-management.tsx
+// app/store/checkout/CheckoutClient.tsx
 "use client";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -17,717 +11,1238 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Trash2, ShoppingBag, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/providers/CartProvider";
 import {
-  Package,
-  Truck,
-  CheckCircle,
-  Clock,
-  Search,
-  MessageSquare,
-  Star,
-  Calendar,
-  Loader2,
-} from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface OrderItem {
-  name: string;
-  price: number;
-  type: string;
-  downloadUrl?: string;
-  tracking?: string;
-  trackingUrl?: string;
+const LS_BNPL_PID = "bnpl_last_product_id";
+const LS_BNPL_QTY = "bnpl_last_qty";
+
+const LS_BUYNOW_PID = "buynow_last_product_id";
+const LS_BUYNOW_QTY = "buynow_last_qty";
+
+function safeNum(v: any, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-interface Order {
-  id: string;
-  date: string;
-  status: string;
-  total: number;
-  items: OrderItem[];
-  paymentMethod: string;
-  nextPayment?: string;
-  remainingPayments?: number;
-  estimatedDelivery?: string;
-  agreementId?: string;
+function uniq(arr: (string | undefined | null)[]) {
+  const s = new Set<string>();
+  for (const a of arr) {
+    const v = (a || "").trim();
+    if (v) s.add(v);
+  }
+  return Array.from(s);
 }
 
-type Installment = {
-  id: string;
-  index: number;
-  due_at: string;
-  amount_due: string;
-  amount_paid: string;
-  status: string;
-};
-
-type BnplAgreementDetail = {
-  id: string;
-  order_id: string;
-  provider: string;
-  status: string;
-  total_amount: string;
-  amount_paid: string;
-  amount_outstanding: string;
-  installments: Installment[];
-};
-
-export function OrderManagement() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [bnplOpen, setBnplOpen] = useState(false);
-  const [bnplLoading, setBnplLoading] = useState(false);
-  const [bnplDetail, setBnplDetail] = useState<BnplAgreementDetail | null>(null);
-  const [bnplError, setBnplError] = useState<string | null>(null);
+export default function CheckoutPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { toast } = useToast();
+
+  const {
+    cartItems,
+    cartSummary,
+    updateQuantity,
+    removeFromCart,
+    buyNowProduct,
+    setBuyNowProduct,
+    isCartMutating,
+  } = useCart();
+
   const hasConfirmedRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
 
-    async function loadData() {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/store/orders");
-        if (!res.ok) {
-          console.error("Failed to fetch orders");
-          return;
-        }
-        const { results } = await res.json();
+  const [formData, setFormData] = useState({
+    phoneNumber: "",
+    address: "",
+    city: "",
+    state: "",
+    area: "",
+    zipCode: "",
+    country: "US",
+  });
 
-        const detailedOrders = await Promise.all(
-          (results || []).map(async (order: any) => {
-            const detailRes = await fetch(`/api/store/orders/${order.id}`);
-            let detail;
-            if (detailRes.ok) {
-              detail = await detailRes.json();
-            } else {
-              console.error(`Failed to fetch order details for ${order.id}`);
-              detail = {
-                id: order.id,
-                status: order.status,
-                grand_total: order.grand_total,
-                items: order.items,
-                shipments: [],
-              };
-            }
+  const [bnplBreakdown, setBnplBreakdown] = useState<any>(null);
+  const [bnplLoading, setBnplLoading] = useState(false);
 
-            const hasShipments = (detail.shipments || []).length > 0;
-            const itemType = hasShipments ? "physical" : "physical";
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [selectedBillingAddress, setSelectedBillingAddress] = useState<
+    string | null
+  >(null);
+  const [selectedShippingAddress, setSelectedShippingAddress] = useState<
+    string | null
+  >(null);
 
-            const items = (detail.items || []).map((item: any) => ({
-              name: item.title,
-              price: parseFloat(item.price),
-              type: itemType,
-              downloadUrl: !hasShipments ? "#" : undefined,
-              tracking: hasShipments
-                ? detail.shipments[0]?.tracking_number
-                : undefined,
-              trackingUrl: hasShipments
-                ? detail.shipments[0]?.tracking_url
-                : undefined,
-            }));
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const uiLocked = isCartMutating || isPlacingOrder;
 
-            let estimatedDelivery: string | undefined;
-            if (hasShipments) {
-              const shipment = detail.shipments[0];
-              if (shipment?.delivered_at) {
-                estimatedDelivery = shipment.delivered_at.split("T")[0];
-              } else if (shipment?.shipped_at) {
-                const shippedDate = new Date(shipment.shipped_at);
-                shippedDate.setDate(shippedDate.getDate() + 7);
-                estimatedDelivery = shippedDate.toISOString().split("T")[0];
-              }
-            }
+  const searchParams = useSearchParams();
+  const TAX_RATE = 0.08;
+  const FLAT_SHIPPING = 1000; // change to your real shipping
 
-            return {
-              id: detail.id,
-              date: order.created_at.split("T")[0],
-              status: detail.status,
-              total: parseFloat(detail.grand_total),
-              items,
+  // ✅ URL controls BNPL mode
+  const payParam = (searchParams.get("pay") || "").toLowerCase();
+  const urlWantsBnpl = payParam === "bnpl";
 
-              // ✅ payment method + bnpl metadata
-              paymentMethod: order.is_bnpl ? "BNPL" : "Credit Card",
-              nextPayment: order.next_payment ? order.next_payment.split("T")[0] : undefined,
-              remainingPayments: typeof order.remaining_payments === "number" ? order.remaining_payments : undefined,
-              agreementId: order.agreement_id || undefined,
+  // Optional: allow explicit product_id + qty in URL
+  const urlProductId = (searchParams.get("product_id") || "").trim();
+  const urlQty = safeNum(searchParams.get("qty") || "1", 1);
 
-              estimatedDelivery,
-            };
+  const modeParam = (searchParams.get("mode") || "").toLowerCase();
+  const isBuyNowCheckout = modeParam === "buynow";
 
-          })
-        );
 
-        if (!cancelled) setOrders(detailedOrders);
-      } catch (error) {
-        console.error("Error loading orders:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const resolveBuyNowPayload = () => {
+    if (urlProductId) return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
+
+    const lsPid = (typeof window !== "undefined" && localStorage.getItem(LS_BUYNOW_PID)) || "";
+    const lsQty = safeNum(
+      (typeof window !== "undefined" && localStorage.getItem(LS_BUYNOW_QTY)) || "1",
+      1
+    );
+
+    if (lsPid) return { product_id: lsPid, quantity: Math.max(1, lsQty) };
+
+    // fallback: buyNowProduct in context
+    if (buyNowProduct?.product_id) {
+      return { product_id: buyNowProduct.product_id, quantity: Math.max(1, safeNum(buyNowProduct.quantity || 1, 1)) };
     }
 
-    loadData();
+    return null;
+  };
 
-    return () => {
-      cancelled = true;
-    };
+  // Helper
+  const formatNGN = (amount: number) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(amount || 0));
+
+
+  const LS_BUYNOW_SNAPSHOT = "buynow_snapshot";
+
+  const [buyNowSnapshot, setBuyNowSnapshot] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_BUYNOW_SNAPSHOT);
+      setBuyNowSnapshot(raw ? JSON.parse(raw) : null);
+    } catch {
+      setBuyNowSnapshot(null);
+    }
   }, []);
 
 
+  // ✅ BNPL mode is controlled by URL OR having a BNPL item
+  const isBnplCheckout = urlWantsBnpl;
+
+  // ✅ When BNPL is on, hide cart items + totals UI
+  const showCartItemsUI = !isBnplCheckout;
+
+  // ✅ Confirm payment callback
   useEffect(() => {
-    const isBnplReturn = searchParams.get("bnpl_return") === "1";
-    if (!isBnplReturn) return;
+    const status = searchParams.get("status");
+    const tx_ref = searchParams.get("tx_ref");
+    const transaction_id = searchParams.get("transaction_id");
 
-    const status = (searchParams.get("status") || "").toLowerCase();
-    const tx_ref = searchParams.get("tx_ref") || "";
-    const transaction_id = searchParams.get("transaction_id") || "";
+    if (status === "completed" && tx_ref && transaction_id) {
+      const invoice_id = localStorage.getItem("checkout_invoice_id");
+      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const displayItems = useMemo(() => {
+    if (isBuyNowCheckout) {
+      const p = resolveBuyNowPayload();
+      const qty = Math.max(1, safeNum(p?.quantity || 1, 1));
 
-    if (!tx_ref || !transaction_id) return;
-    if (!["successful", "completed"].includes(status)) return;
-    if (hasConfirmedRef.current) return;
+      if (buyNowProduct) {
+        return [{ ...buyNowProduct, quantity: qty }];
+      }
 
-    const invoice_id = localStorage.getItem(`bnpl_invoice_id:${tx_ref}`);
-    if (!invoice_id) {
-      console.error("Missing invoice_id for tx_ref:", tx_ref);
+      if (buyNowSnapshot?.product_id) {
+        return [
+          {
+            id: buyNowSnapshot.product_id,
+            product_id: buyNowSnapshot.product_id,
+            title: buyNowSnapshot.title,
+            price: String(buyNowSnapshot.price ?? "0"),
+            quantity: qty,
+            line_total: String(Number(buyNowSnapshot.price || 0) * qty),
+            image: buyNowSnapshot.image || "",
+            bnpl_enabled: !!buyNowSnapshot.bnpl_enabled,
+          },
+        ];
+      }
+
+      return [];
+    }
+
+    return buyNowProduct ? [buyNowProduct] : cartItems;
+  }, [isBuyNowCheckout, buyNowProduct, cartItems, buyNowSnapshot]);
+
+  // ✅ Find a BNPL item if cart is loaded
+  const bnplItem = useMemo(() => {
+    if (!isBnplCheckout) return null;
+    return (displayItems || [])[0] || null;
+  }, [displayItems, isBnplCheckout]);
+  // ✅ Addresses
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      const res = await fetch("/api/store/addresses");
+      if (res.ok) {
+        const data = await res.json();
+        setAddresses(data.results || []);
+      } else if (res.status === 401) {
+        router.push("/login");
+      }
+    };
+    fetchAddresses();
+  }, [router]);
+
+  // Dummy options
+  const STATES = useMemo(() => ["Lagos", "Abuja (FCT)", "Rivers", "Kano"], []);
+  const AREAS_BY_STATE = useMemo(
+    () => ({
+      Lagos: ["Ikeja", "Lekki", "Yaba", "Surulere"],
+      "Abuja (FCT)": ["Garki", "Wuse", "Maitama", "Gwarinpa"],
+      Rivers: ["Port Harcourt", "Obio-Akpor"],
+      Kano: ["Nassarawa", "Fagge"],
+    }),
+    []
+  );
+
+
+  const buyNowTotals = useMemo(() => {
+    if (!isBuyNowCheckout) return null;
+
+    const item = (displayItems || [])[0];
+    const qty = Math.max(1, safeNum(item?.quantity || urlQty || 1, 1));
+
+    // Your items use `price` as string. Snapshot uses `price` too.
+    const unitPrice = safeNum(item?.price ?? 0, 0);
+
+
+    const subtotal = unitPrice * qty;
+    const tax = subtotal * TAX_RATE;
+
+    // If you don’t know digital/physical on frontend, you can keep shipping 0,
+    // or use a constant flat shipping.
+    const shipping = FLAT_SHIPPING;
+
+    const total = subtotal + tax + shipping;
+
+    return { subtotal, tax, shipping, total };
+  }, [isBuyNowCheckout, displayItems, urlQty]);
+
+
+  const areasForSelectedState = (AREAS_BY_STATE as any)[formData.state] ?? [];
+
+  // Totals
+  const cartSubtotal = Number(cartSummary?.subtotal || 0);
+  const discount = Number(cartSummary?.discount_total || 0);
+  const cartShipping = Number(cartSummary?.shipping_total || 0);
+  const cartTax = Number(cartSummary?.tax_total || 0);
+  const cartTotal = Number(cartSummary?.payable_total || 0);
+
+  // ✅ what UI should show
+  const subtotal = isBuyNowCheckout ? (buyNowTotals?.subtotal || 0) : cartSubtotal;
+  const shipping = isBuyNowCheckout ? (buyNowTotals?.shipping || 0) : cartShipping;
+  const tax = isBuyNowCheckout ? (buyNowTotals?.tax || 0) : cartTax;
+  const total = isBuyNowCheckout ? (buyNowTotals?.total || 0) : cartTotal;
+
+  // ✅ Resolve BNPL product_id + qty from URL/localStorage/cart
+  const resolveBnplPayload = () => {
+    // 1) URL
+    if (urlProductId)
+      return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
+
+    // 2) localStorage
+    const lsPid =
+      (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_PID)) ||
+      "";
+    const lsQty = safeNum(
+      (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_QTY)) ||
+      "1",
+      1
+    );
+    if (lsPid) return { product_id: lsPid, quantity: Math.max(1, lsQty) };
+
+    // 3) from bnplItem (ONLY if it looks like product id)
+    if (bnplItem) {
+      // Your cart shape is inconsistent on reload, so try several candidates.
+      // We DO NOT want cartItemId here.
+      const candidates = uniq([bnplItem.product_id, bnplItem.id]);
+
+      // choose first candidate
+      if (candidates[0]) {
+        return {
+          product_id: candidates[0],
+          quantity: Math.max(1, safeNum(bnplItem.quantity || 1, 1)),
+          _candidates: candidates,
+        } as any;
+      }
+    }
+
+    return null;
+  };
+
+  // ✅ Persist BNPL selection once we have a stable product_id
+  useEffect(() => {
+    if (!isBnplCheckout) return;
+    const payload: any = resolveBnplPayload();
+    if (!payload?.product_id) return;
+
+    try {
+      localStorage.setItem(LS_BNPL_PID, String(payload.product_id));
+      localStorage.setItem(LS_BNPL_QTY, String(payload.quantity || 1));
+    } catch { }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBnplCheckout, bnplItem?.id, bnplItem?.quantity, urlProductId, urlQty]);
+
+  // ✅ Fetch BNPL breakdown (with retry if wrong id was sent)
+  const fetchCheckoutBnpl = async () => {
+    const payload: any = resolveBnplPayload();
+    if (!payload?.product_id) {
+      setBnplBreakdown(null);
       return;
     }
 
-    hasConfirmedRef.current = true;
+    const quantity = Math.max(1, safeNum(payload.quantity || 1, 1));
 
-    (async () => {
-      const res = await fetch("/api/billing?action=confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "completed",
-          tx_ref,
-          transaction_id,
-          invoice_id,
-        }),
-      });
+    // candidate ids (if available)
+    const candidates = uniq([
+      payload.product_id,
+      ...(payload._candidates || []),
+      // also try: if bnplItem has cartItemId separate, try item.id and product?.id already included above
+    ]);
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        hasConfirmedRef.current = false;
-        console.error("Confirm failed:", data);
-        return;
-      }
-
-      // cleanup
-      localStorage.removeItem(`bnpl_invoice_id:${tx_ref}`);
-      localStorage.removeItem(`bnpl_installment_id:${tx_ref}`);
-
-      // ✅ stay on same page, clean URL
-      router.replace("/store?tab=orders");
-    })();
-  }, [searchParams, router]);
-
-  
-  const startBnpl = async (_orderId: string) => {
-    alert("Start BNPL (your existing logic stays here)");
-  };
-
-  const viewSchedule = async (agreementId: string | undefined) => {
-    if (!agreementId) return;
-
-    setBnplOpen(true);
     setBnplLoading(true);
-    setBnplError(null);
 
     try {
-      // IMPORTANT:
-      // This assumes you create a Next route like: /api/store/bnpl/agreements/[id]
-      // If you don't have it yet, see section 3 below.
+      let lastErr: any = null;
 
-      const res = await fetch(`/api/store/bnpl/agreements/${agreementId}`);
-      if (!res.ok) throw new Error("Failed to load BNPL schedule");
+      for (
+        let attempt = 0;
+        attempt < Math.min(2, candidates.length);
+        attempt++
+      ) {
+        const pid = candidates[attempt];
+        const res = await fetch("/api/store/bnpl/breakdown", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product_id: pid,
+            quantity,
+          }),
+        });
 
-      const data = await res.json();
-      setBnplDetail(data);
-    } catch (e: any) {
-      setBnplError(e?.message || "Failed to load BNPL schedule");
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          setBnplBreakdown(data);
+
+          // persist the working product_id (prevents future 404s)
+          try {
+            localStorage.setItem(LS_BNPL_PID, String(pid));
+            localStorage.setItem(LS_BNPL_QTY, String(quantity));
+          } catch { }
+
+          return;
+        }
+
+        lastErr = { status: res.status, data };
+        // if 404, try the next candidate once
+        if (res.status !== 404) break;
+      }
+
+      setBnplBreakdown(
+        lastErr?.data || {
+          eligible: false,
+          reason: "Unable to fetch BNPL breakdown.",
+        }
+      );
     } finally {
       setBnplLoading(false);
     }
   };
 
 
-  const updateMethod = () => {
-    alert("Update payment method not implemented");
-  };
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status === "cancelled") {
+      toast({
+        variant: "destructive",
+        title: "Payment cancelled",
+        description: "No charges were made.",
+      });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "delivered":
-        return "bg-green-100 text-green-700";
-      case "shipped":
-        return "bg-blue-100 text-blue-700";
-      case "processing":
-        return "bg-yellow-100 text-yellow-700";
-      case "cancelled":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-700";
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("status");
+      clean.searchParams.delete("tx_ref");
+      clean.searchParams.delete("transaction_id");
+      router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
     }
-  };
+    // ...
+  }, [searchParams]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "delivered":
-        return <CheckCircle className="h-4 w-4" />;
-      case "shipped":
-        return <Truck className="h-4 w-4" />;
-      case "processing":
-        return <Clock className="h-4 w-4" />;
-      default:
-        return <Package className="h-4 w-4" />;
+
+
+  // ✅ Auto-fetch breakdown whenever BNPL mode is active
+  useEffect(() => {
+    if (isBnplCheckout) fetchCheckoutBnpl();
+    else setBnplBreakdown(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBnplCheckout, bnplItem?.id, bnplItem?.quantity, urlProductId, urlQty]);
+
+  const validateCheckout = () => {
+    if (!formData.phoneNumber?.trim()) {
+      return { ok: false, message: "Phone number is required." };
     }
-  };
 
-
-  const isSettled = (inst: Installment) => {
-  const status = (inst.status || "").toLowerCase();
-  const paid = parseFloat(inst.amount_paid || "0");
-  const due = parseFloat(inst.amount_due || "0");
-
-  // Backend supports statuses like captured/refunded
-  if (["captured", "refunded"].includes(status)) return true;
-
-  // Safety net if status wasn't updated but amounts are
-  return due > 0 && paid >= due;
-};
-
-const getInstallmentBadge = (inst: Installment) => {
-  const status = (inst.status || "").toLowerCase();
-  const due = new Date(inst.due_at);
-  const now = new Date();
-  const unpaid = ["pending", "authorized", "failed"].includes(status);
-
-  if (isSettled(inst)) {
-    return { label: "Paid", className: "bg-green-100 text-green-700" };
-  }
-
-  if (unpaid && due <= now) {
-    // if you want to distinguish failed vs due
-    if (status === "failed") {
-      return { label: "Payment failed", className: "bg-red-100 text-red-700" };
+    const usingSavedShipping = !!selectedShippingAddress;
+    if (!usingSavedShipping) {
+      if (!formData.address?.trim())
+        return { ok: false, message: "Street address is required." };
+      if (!formData.city?.trim())
+        return { ok: false, message: "City is required." };
+      if (!formData.state?.trim())
+        return { ok: false, message: "State is required." };
+      if (!formData.area?.trim())
+        return { ok: false, message: "Area is required." };
+      if (!formData.zipCode?.trim())
+        return { ok: false, message: "Postal code is required." };
     }
-    return { label: "Due now", className: "bg-yellow-100 text-yellow-700" };
-  }
 
-  return { label: "Upcoming", className: "bg-gray-100 text-gray-700" };
-};
+    // ✅ Only normal checkout needs cart items
+    if (!isBnplCheckout && !isBuyNowCheckout && !displayItems?.length) {
+      return { ok: false, message: "Your cart is empty." };
+    }
 
-
-  const isInstallmentPayableNow = (inst: Installment) => {
-    const due = new Date(inst.due_at);
-    const now = new Date();
-    const status = (inst.status || "").toLowerCase();
-    const unpaid = ["pending", "authorized", "failed"].includes(status);
-    return unpaid && due <= now;
-  };
-
-  const getNextDueInstallment = (detail: BnplAgreementDetail | null) => {
-    if (!detail?.installments?.length) return null;
-    const unpaid = detail.installments.filter((i) =>
-      ["pending", "authorized", "failed"].includes((i.status || "").toLowerCase())
-    );
-    if (!unpaid.length) return null;
-    unpaid.sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
-    return unpaid[0];
-  };
-
-  const getNextPayableInstallment = (detail: BnplAgreementDetail | null) => {
-    if (!detail?.installments?.length) return null;
-
-    const candidates = detail.installments.filter((i) => {
-      if (isSettled(i)) return false;          // ⛔ already paid
-      const status = (i.status || "").toLowerCase();
-      const unpaid = ["pending", "authorized", "failed"].includes(status);
-      if (!unpaid) return false;               // ⛔ not chargeable
-      return new Date(i.due_at) <= new Date(); // ✅ due now
-    });
-
-    candidates.sort(
-      (a, b) =>
-        new Date(a.due_at).getTime() -
-        new Date(b.due_at).getTime()
-    );
-
-    return candidates[0] || null;
-  };
-
-  const payable = getNextPayableInstallment(bnplDetail);
-
-  const makePayment = async (agreementId?: string) => {
-    if (!agreementId) return;
-
-    // ✅ ensure we have a non-null detail object
-    let detail: BnplAgreementDetail | null = bnplDetail;
-
-    if (!detail) {
-      setBnplLoading(true);
-      try {
-        const r = await fetch(`/api/store/bnpl/agreements/${agreementId}`);
-        if (!r.ok) throw new Error("Failed to load BNPL schedule");
-        detail = await r.json();
-        setBnplDetail(detail);
-      } catch (e: any) {
-        setBnplError(e?.message || "Failed to load BNPL schedule");
-        return;
-      } finally {
-        setBnplLoading(false);
+    if (isBuyNowCheckout) {
+      const p = resolveBuyNowPayload();
+      if (!p?.product_id) {
+        return { ok: false, message: "No Buy Now product selected." };
       }
     }
 
-    // ✅ TS now knows `detail` might still be null, so hard-guard it
-    if (!detail) return;
+    // ✅ BNPL can proceed without cart items (uses URL/localStorage)
+    if (isBnplCheckout) {
+      const payload = resolveBnplPayload?.();
+      if (!payload?.product_id) {
+        return {
+          ok: false,
+          message:
+            "No BNPL product selected. Please go back and select an item.",
+        };
+      }
 
-    // ... now safe:
-    const orderId = detail.order_id;
-    if (!orderId) {
-      alert("BNPL schedule is missing order_id.");
-      return;
-    }
-      // pick the next payable installment (due now + not settled)
-    const next = (detail.installments || [])
-      .filter((i: any) => !["captured", "refunded"].includes(String(i.status || "").toLowerCase()))
-      .filter((i: any) => new Date(i.due_at) <= new Date())
-      .sort((a: any, b: any) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime())[0];
+      if (bnplLoading) return { ok: false, message: "Loading BNPL breakdown…" };
+      if (!bnplBreakdown)
+        return { ok: false, message: "BNPL breakdown unavailable." };
 
-    if (!next) {
-      alert("No installment is due for payment yet.");
-      return;
-    }
+      if (!bnplBreakdown?.eligible) {
+        return {
+          ok: false,
+          message:
+            bnplBreakdown?.reason || "This request is not eligible for BNPL.",
+        };
+      }
 
-        // ✅ Create payment link (your backend expects these keys)
-    const redirect_url =
-      `${window.location.origin}/store?tab=orders&bnpl_return=1`; // SAME page
-
-    const res = await fetch("/api/billing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        redirect_url,
-        is_store_payment: true,
-        is_bnpl: true,
-        order_id: detail.order_id,
-        amount: String(next.amount_due),
-        payment_title: `BNPL Installment #${next.index}`,
-
-        // optional: helps backend pick correct installment later
-        installment_id: next.id,
-        agreement_id: agreementId,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.detail || data?.error || "Payment init failed");
-
-    // ✅ These come from _serialize_payment
-    const link = data?.payment_link;
-    const invoiceId = data?.invoice_id;
-    const reference = data?.reference; // THIS is what provider returns as tx_ref
-
-    if (!link || !invoiceId || !reference) {
-      throw new Error("Missing payment_link / invoice_id / reference from backend");
+      const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
+      if (!payNow || payNow <= 0)
+        return { ok: false, message: "Invalid BNPL downpayment amount." };
     }
 
-    // ✅ store invoice_id by tx_ref(reference)
-    localStorage.setItem(`bnpl_invoice_id:${reference}`, String(invoiceId));
 
-    // (optional) store installment mapping too
-    localStorage.setItem(`bnpl_installment_id:${reference}`, String(next.id));
-
-    window.location.href = link;
-
+    return { ok: true as const };
   };
 
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.items.some((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+  const canRequestOrPlace = useMemo(
+    () => validateCheckout().ok,
+    [
+      formData,
+      selectedShippingAddress,
+      displayItems.length,
+      isBnplCheckout,
+      bnplLoading,
+      bnplBreakdown,
+    ]
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Loading orders…</span>
-        </div>
-      </div>
-    );
-  }
+  const handleRemoveItem = (id: any) => {
+    if (uiLocked || isBnplCheckout) return;
+
+    if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
+      setBuyNowProduct(null);
+    } else {
+      removeFromCart(String(id) as any);
+    }
+    toast({ title: "Item Removed", description: "Item removed from cart" });
+  };
+
+  const handleQuantityChange = (id: any, newQuantity: number) => {
+    if (uiLocked || isBnplCheckout) return;
+    if (newQuantity < 1) return;
+
+    if (buyNowProduct && String(buyNowProduct.id) === String(id)) {
+      setBuyNowProduct({ ...buyNowProduct, quantity: newQuantity });
+    } else {
+      updateQuantity(String(id) as any, newQuantity);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isPlacingOrder || isCartMutating) return;
+
+    const v = validateCheckout();
+    if (!v.ok) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete checkout",
+        description: v.message,
+      });
+      return;
+    }
+
+    setIsPlacingOrder(true);
+
+    try {
+      let billingId = selectedBillingAddress;
+      let shippingId = selectedShippingAddress;
+
+      if (!billingId && !shippingId) {
+        const res = await fetch("/api/store/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            full_name: "Customer",
+            line1: formData.address,
+            city: formData.city,
+            state: formData.state,
+            postal_code: formData.zipCode,
+            country: formData.country,
+            phone_number: formData.phoneNumber,
+            area: formData.area,
+          }),
+        });
+
+        const addrData = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast({
+            variant: "destructive",
+            title: "Error creating address",
+            description:
+              addrData?.detail || addrData?.error || "Could not create address",
+          });
+          return;
+        }
+        billingId = String(addrData.id);
+      }
+
+      if (!billingId) billingId = shippingId;
+      if (!shippingId) shippingId = billingId;
+
+      const createOrderPayload: any = {
+        billing_address_id: billingId,
+        shipping_address_id: shippingId,
+        phone_number: formData.phoneNumber,
+      };
+
+      // ✅ Make modes exclusive (BNPL wins if both appear)
+      if (isBnplCheckout) {
+        const bnplPayload: any = resolveBnplPayload?.();
+
+        if (!bnplPayload?.product_id && !bnplBreakdown?.product_details?.product_id) {
+          toast({
+            variant: "destructive",
+            title: "BNPL item missing",
+            description: "No BNPL product selected. Please go back and try again.",
+          });
+          return;
+        }
+
+        createOrderPayload.is_bnpl = true;
+        createOrderPayload.bnpl_plan_id = bnplBreakdown?.plan?.id || null;
+
+        createOrderPayload.product_id =
+          bnplPayload?.product_id ||
+          bnplBreakdown?.product_details?.product_id ||
+          null;
+
+        createOrderPayload.quantity = Math.max(
+          1,
+          safeNum(bnplPayload?.quantity || 1, 1)
+        );
+      } else if (isBuyNowCheckout) {
+        const p = resolveBuyNowPayload();
+
+        if (!p?.product_id) {
+          toast({
+            variant: "destructive",
+            title: "Buy now item missing",
+            description: "No product selected. Please go back and try again.",
+          });
+          return;
+        }
+
+        createOrderPayload.product_id = p.product_id;
+        createOrderPayload.quantity = Math.max(1, safeNum(p.quantity || 1, 1));
+        // IMPORTANT: do NOT set is_bnpl
+      }
+
+      const orderRes = await fetch("/api/store/checkout/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createOrderPayload),
+      });
+
+      const orderData = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok) {
+        toast({
+          variant: "destructive",
+          title: "Failed to create order",
+          description:
+            orderData?.detail || orderData?.error || "Order creation failed",
+        });
+        return;
+      }
+
+      const orderId = orderData?.id || orderData?.order_id;
+      if (!orderId) {
+        toast({
+          variant: "destructive",
+          title: "Order created but missing order_id",
+          description: "Backend did not return order id",
+        });
+        return;
+      }
+
+      const currentUrl = new URL(window.location.href);
+      const redirect_url = `${window.location.origin}/store/checkout?${currentUrl.searchParams.toString()}`;
+
+
+      const normalAmountToPay = safeNum(
+        orderData?.grand_total ??
+        orderData?.payable_total ??
+        orderData?.amount ??
+        orderData?.total_amount,
+        0
+      );
+
+      const bnplPayNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
+      const amountToPay = isBnplCheckout ? bnplPayNow : normalAmountToPay;
+
+      if (!amountToPay || amountToPay <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Invalid amount",
+          description: "Payment amount is invalid. Please refresh and try again.",
+        });
+        return;
+      }
+
+      const bnplPayload: any = isBnplCheckout ? resolveBnplPayload?.() : null;
+
+      const itemList = isBnplCheckout
+        ? String(
+          bnplPayload?.product_id ||
+          bnplBreakdown?.product_details?.product_id ||
+          ""
+        )
+        : isBuyNowCheckout
+          ? String(resolveBuyNowPayload()?.product_id || "")
+          : displayItems.map((i: any) => i.id).join(",");
+
+      const paymentPayload: any = {
+        redirect_url,
+        is_store_payment: true,
+        amount: amountToPay.toFixed(2),
+        order_id: orderId,
+        item_list: itemList,
+        payment_title: isBnplCheckout
+          ? "BNPL - First Payment"
+          : "Store Checkout",
+      };
+
+      if (isBnplCheckout) {
+        paymentPayload.is_bnpl = true;
+        paymentPayload.bnpl_plan_id = bnplBreakdown?.plan?.id || null;
+      }
+
+      const payRes = await fetch("/api/billing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentPayload),
+      });
+
+      const payData = await payRes.json().catch(() => ({}));
+      if (!payRes.ok) {
+        toast({
+          variant: "destructive",
+          title: "Payment initialization failed",
+          description:
+            payData?.detail || payData?.error || "Unable to create payment link",
+        });
+        return;
+      }
+
+      const link = payData?.payment_link;
+      const invoiceId = payData?.invoice_id;
+
+      if (invoiceId) localStorage.setItem("checkout_invoice_id", String(invoiceId));
+
+      if (!link) {
+        toast({
+          variant: "destructive",
+          title: "Payment link missing",
+          description: "Backend did not return payment_link",
+        });
+        return;
+      }
+
+      window.location.href = link;
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: err?.message || "Could not start checkout",
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+
+  const confirmPayment = async (
+    tx_ref: string,
+    transaction_id: string,
+    invoice_id?: string
+  ) => {
+    if (hasConfirmedRef.current) return;
+    hasConfirmedRef.current = true;
+
+    setIsPlacingOrder(true);
+    try {
+      const payload: any = { status: "completed", tx_ref, transaction_id };
+      if (invoice_id) payload.invoice_id = invoice_id;
+
+      const res = await fetch("/api/billing?action=confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        hasConfirmedRef.current = false;
+        toast({
+          variant: "destructive",
+          title: "Payment confirmation failed",
+          description:
+            data?.detail || data?.error || "Could not confirm payment",
+        });
+        return;
+      }
+
+      toast({
+        title: "Payment Confirmed!",
+        description: "Your request has been submitted successfully.",
+      });
+
+      localStorage.removeItem("checkout_invoice_id");
+      setBuyNowProduct(null);
+
+      // after success
+      const mode = (searchParams.get("mode") || "").toLowerCase();
+      const pay = (searchParams.get("pay") || "").toLowerCase();
+
+      // remove gateway params but keep mode/pay/product_id/qty
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("status");
+      clean.searchParams.delete("tx_ref");
+      clean.searchParams.delete("transaction_id");
+
+      router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
+      setTimeout(() => router.push("/store"), 1200);
+
+    } catch (err: any) {
+      hasConfirmedRef.current = false;
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: err?.message || "Could not confirm payment",
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+  const bnplPayNowText = useMemo(() => {
+    const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
+    return formatNGN(payNow);
+  }, [bnplBreakdown]);
+  const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", year: "numeric", month: "short", day: "2-digit" })
+    .format(new Date(iso));
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <header>
-        <h1 className="text-2xl sm:text-3xl font-bold">Order Management</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Track your orders and manage your purchases
-        </p>
-      </header>
-
-      {/* Search */}
-      <div className="relative max-w-full sm:max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search orders..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+    <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto py-5">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Checkout
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
+            Complete your purchase
+          </p>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="all-orders" className="space-y-6">
-        <div className="flex justify-between items-center flex-wrap gap-3">
-          <TabsList className="flex w-full sm:w-auto justify-start sm:justify-center gap-2 overflow-x-auto whitespace-nowrap no-scrollbar bg-muted/50 p-2 rounded-2xl">
-            <TabsTrigger
-              value="all-orders"
-              className="px-4 py-2 rounded-xl text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
-            >
-              All Orders
-            </TabsTrigger>
-            <TabsTrigger
-              value="bnpl"
-              className="px-4 py-2 rounded-xl text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
-            >
-              BNPL Orders
-            </TabsTrigger>
-          </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+              <CardDescription>
+                We'll use this to contact you about delivery
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    placeholder="e.g. 08012345678"
+                    value={formData.phoneNumber}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phoneNumber: e.target.value })
+                    }
+                    required
+                    disabled={uiLocked}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Shipping Information</CardTitle>
+              <CardDescription>
+                Where should we deliver your order?
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Select
+                  value={selectedShippingAddress || ""}
+                  onValueChange={(val) =>
+                    setSelectedShippingAddress(val === "new" ? null : val)
+                  }
+                  disabled={uiLocked}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select shipping address" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {addresses.map((addr) => (
+                      <SelectItem key={addr.id} value={String(addr.id)}>
+                        {addr.full_name} - {addr.line1}, {addr.city}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="new">Create new address</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {!selectedShippingAddress && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Street Address</Label>
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) =>
+                          setFormData({ ...formData, address: e.target.value })
+                        }
+                        required
+                        disabled={uiLocked}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          value={formData.city}
+                          onChange={(e) =>
+                            setFormData({ ...formData, city: e.target.value })
+                          }
+                          required
+                          disabled={uiLocked}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>State</Label>
+                        <Select
+                          value={formData.state}
+                          onValueChange={(val) =>
+                            setFormData({ ...formData, state: val, area: "" })
+                          }
+                          disabled={uiLocked}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Area</Label>
+                        <Select
+                          value={formData.area}
+                          onValueChange={(val) =>
+                            setFormData({ ...formData, area: val })
+                          }
+                          disabled={uiLocked || !formData.state}>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                formData.state
+                                  ? "Select area"
+                                  : "Select state first"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {areasForSelectedState.map((a: string) => (
+                              <SelectItem key={a} value={a}>
+                                {a}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">Zip / Postal Code</Label>
+                        <Input
+                          id="zipCode"
+                          value={formData.zipCode}
+                          onChange={(e) =>
+                            setFormData({ ...formData, zipCode: e.target.value })
+                          }
+                          required
+                          disabled={uiLocked}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <TabsContent value="all-orders">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOrders.map((order) => (
-              <Card
-                key={order.id}
-                className="flex flex-col shadow-sm hover:shadow-md transition-all rounded-2xl"
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
-                    <span>Order {order.id}</span>
-                    <Badge className={getStatusColor(order.status)}>
-                      <div className="flex items-center gap-1 capitalize">
-                        {getStatusIcon(order.status)}
-                        {order.status}
-                      </div>
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>
-                    Placed on {order.date} • Total: ₦{order.total}
-                  </CardDescription>
-                </CardHeader>
+        <div className="lg:col-span-1">
+          <Card className="sticky top-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5" />
+                {isBnplCheckout ? "BNPL Request" : "Order Summary"}
+              </CardTitle>
+              {isBnplCheckout && (
+                <CardDescription>
+                  Cart items are hidden for BNPL — review the payment schedule
+                  below.
+                </CardDescription>
+              )}
+            </CardHeader>
 
-                <CardContent className="space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    {order.items.map((item, index) => (
-                      <div
-                        key={index}
-                        className="p-3 bg-gray-50 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
-                      >
-                        <div>
-                          <h4 className="font-medium text-sm sm:text-base">
-                            {item.name}
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant={
-                                item.type === "digital" ? "secondary" : "outline"
-                              }
-                            >
-                              {item.type}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              ₦{item.price}
-                            </span>
-                          </div>
-                          {item.tracking && (
-                            <p className="text-xs text-muted-foreground">
-                              Tracking: {item.tracking}
+            <CardContent className="space-y-4">
+              {/* ✅ CART UI (hidden during BNPL) */}
+              {showCartItemsUI && (
+                <>
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {displayItems.map((item: any) => {
+                      const key = item.cartItemId || item.id;
+                      const id = item.cartItemId || item.id;
+
+                      return (
+                        <div
+                          key={key}
+                          className="flex gap-3 p-3 border rounded-lg">
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-16 h-16 rounded object-cover flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm line-clamp-2">
+                              {item.title}
+                            </h4>
+
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6 bg-transparent"
+                                  disabled={uiLocked}
+                                  onClick={() =>
+                                    handleQuantityChange(id, item.quantity - 1)
+                                  }>
+                                  -
+                                </Button>
+
+                                <span className="text-sm w-8 text-center">
+                                  {item.quantity}
+                                </span>
+
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6 bg-transparent"
+                                  disabled={uiLocked}
+                                  onClick={() =>
+                                    handleQuantityChange(id, item.quantity + 1)
+                                  }>
+                                  +
+                                </Button>
+                              </div>
+
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-auto"
+                                disabled={uiLocked}
+                                onClick={() => handleRemoveItem(id)}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+
+                            <p className="text-sm font-semibold mt-1">
+                              {formatNGN(
+                                Number(item.price) * Number(item.quantity)
+                              )}
                             </p>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t pt-3">
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                      <MessageSquare className="mr-2 h-3 w-3" />
-                      Contact Support
-                    </Button>
+                  <Separator />
 
-                    {order.status === "delivered" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                      >
-                        <Star className="mr-2 h-3 w-3" />
-                        Leave Review
-                      </Button>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="font-medium">{formatNGN(subtotal)}</span>
+                    </div>
+
+                    {!buyNowProduct && discount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Discount{" "}
+                          {cartSummary?.coupon ? `(${cartSummary.coupon})` : ""}
+                        </span>
+                        <span className="font-medium">
+                          - {formatNGN(discount)}
+                        </span>
+                      </div>
                     )}
 
-                    {order.paymentMethod === "Credit Card" &&
-                      order.status === "processing" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                          onClick={() => startBnpl(order.id)}
-                        >
-                          Set up BNPL
-                        </Button>
-                      )}
-                  </div>
-
-                  {order.estimatedDelivery && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">
-                        Estimated delivery: {order.estimatedDelivery}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Shipping</span>
+                      <span className="font-medium">
+                        {shipping === 0 ? (
+                          <Badge variant="secondary" className="text-xs">
+                            FREE
+                          </Badge>
+                        ) : (
+                          formatNGN(shipping)
+                        )}
                       </span>
                     </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tax (8%)</span>
+                      <span className="font-medium">{formatNGN(tax)}</span>
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex justify-between text-base font-bold">
+                      <span>Total</span>
+                      <span>{formatNGN(total)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ✅ BNPL Breakdown */}
+              {isBnplCheckout && (
+                <div className="p-3 rounded-lg border space-y-3">
+                  <div className="text-sm font-semibold">
+                    Buy Now, Pay Later
+                  </div>
+
+                  {bnplLoading ? (
+                    <div className="text-sm text-muted-foreground">
+                      Loading BNPL breakdown…
+                    </div>
+                  ) : !bnplBreakdown ? (
+                    <div className="text-sm text-muted-foreground">
+                      BNPL breakdown unavailable.
+                    </div>
+                  ) : (
+                    <>
+                      {/* ✅ Product details header */}
+                      {bnplBreakdown?.product_details && (
+                        <div className="flex gap-3 items-center p-2 rounded-md border bg-muted/30">
+                          <img
+                            src={
+                              bnplBreakdown.product_details.image_url ||
+                              "/placeholder.svg"
+                            }
+                            alt={
+                              bnplBreakdown.product_details.title || "Product"
+                            }
+                            className="w-12 h-12 rounded object-cover flex-shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold line-clamp-1">
+                              {bnplBreakdown.product_details.title}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatNGN(
+                                safeNum(bnplBreakdown.product_details.price, 0)
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!bnplBreakdown.eligible && (
+                        <div className="text-sm">
+                          <div className="font-semibold">BNPL not eligible</div>
+                          <div className="text-muted-foreground">
+                            {bnplBreakdown.reason}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Plan</span>
+                        <span className="font-medium">
+                          {bnplBreakdown.plan?.name} (
+                          {bnplBreakdown.plan?.num_installments}x)
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Pay today</span>
+                        <span className="font-semibold">
+                          {formatNGN(
+                            safeNum(bnplBreakdown.breakdown?.downpayment_now, 0)
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Total (BNPL)
+                        </span>
+                        <span className="font-semibold">
+                          {formatNGN(
+                            safeNum(bnplBreakdown.breakdown?.total_amount, 0)
+                          )}
+                        </span>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-2 max-h-48 overflow-auto pr-1">
+                        {(bnplBreakdown.breakdown?.installments || []).map(
+                          (inst: any) => (
+                            <div
+                              key={inst.index}
+                              className="flex justify-between text-xs p-2 border rounded-md">
+                              <span className="text-muted-foreground">
+                                #{inst.index} •{" "}
+                                {formatDate(inst.due_at)}
+                                {inst.capture_immediately ? " (today)" : ""}
+                              </span>
+                              <span className="font-semibold">
+                                {formatNGN(safeNum(inst.amount_due, 0))}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </>
                   )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="bnpl">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOrders
-              .filter((order) => order.paymentMethod === "BNPL")
-              .map((order) => (
-                <Card
-                  key={order.id}
-                  className="shadow-sm hover:shadow-md transition-all rounded-2xl"
-                >
-                  <CardHeader>
-                    <CardTitle>BNPL Order {order.id}</CardTitle>
-                    <CardDescription>Manage your payment schedule</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Next Payment</p>
-                        <p className="font-medium">{order.nextPayment}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Remaining</p>
-                        <p className="font-medium">{order.remainingPayments}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => viewSchedule(order.agreementId)}
-                      >
-                        View Schedule
-                      </Button>
-
-
-                      <Button
-                        className="w-full sm:w-auto"
-                        onClick={() => makePayment(order.agreementId)}
-                        disabled={!bnplDetail || !getNextPayableInstallment(bnplDetail)}
-                      >
-                        Make Payment
-                      </Button>
-
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={bnplOpen} onOpenChange={setBnplOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>BNPL Schedule</DialogTitle>
-            <DialogDescription>
-              {bnplDetail
-                ? `Provider: ${bnplDetail.provider} • Status: ${bnplDetail.status}`
-                : "Loading schedule..."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {bnplLoading && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Loading…</span>
-            </div>
-          )}
-
-          {bnplError && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg">
-              {bnplError}
-            </div>
-          )}
-
-          {!bnplLoading && bnplDetail && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Total</p>
-                  <p className="font-medium">₦{bnplDetail.total_amount}</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Outstanding</p>
-                  <p className="font-medium">₦{bnplDetail.amount_outstanding}</p>
-                </div>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                {bnplDetail.installments.map((inst) => {
-                  const dueDate = inst.due_at ? inst.due_at.split("T")[0] : "—";
-                  const payable = isInstallmentPayableNow(inst);
+              {/* ✅ Button: BNPL = Request Item, Non-BNPL = Place Order */}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSubmit as any}
+                disabled={
+                  uiLocked ||
+                  !canRequestOrPlace ||
+                  (isBnplCheckout && (bnplLoading || !bnplBreakdown?.eligible))
+                }>
+                {uiLocked ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isPlacingOrder ? "Processing..." : "Updating..."}
+                  </>
+                ) : isBnplCheckout ? (
+                  <>Pay {bnplPayNowText} now</>
+                ) : (
+                  <>Place Order - {formatNGN(total)}</>
+                )}
+              </Button>
 
-                  return (
-                    <div
-                      key={inst.id}
-                      className="p-3 rounded-lg border flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="font-medium text-sm">
-                          Installment #{inst.index} • ₦{inst.amount_due}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Due: {dueDate} • Status: {inst.status}
-                        </p>
-                      </div>
-
-                      {(() => {
-                        const b = getInstallmentBadge(inst);
-                        return <Badge className={b.className}>{b.label}</Badge>;
-                      })()}
-
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
+              <p className="text-xs text-muted-foreground text-center">
+                By continuing, you agree to our terms and conditions
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

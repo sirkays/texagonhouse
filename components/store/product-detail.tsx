@@ -62,7 +62,7 @@ export function ProductDetail({ product }: { product: Product }) {
   const [bnplOpen, setBnplOpen] = useState(false);
   const [bnplLoading, setBnplLoading] = useState(false);
   const [bnplData, setBnplData] = useState<any>(null);
-
+  const LS_BUYNOW_SNAPSHOT = "buynow_snapshot";
   const gallery = useMemo<ProductImage[]>(() => {
     const imgs = Array.isArray(product?.images) ? product.images : [];
     if (imgs.length > 0) return imgs;
@@ -92,17 +92,19 @@ export function ProductDetail({ product }: { product: Product }) {
   // ✅ Map Product -> CartItem (matches your CartProvider expectations)
   const toCartItem = (p: Product, quantity = 1): CartItem => {
     const unit = Number(p.price ?? 0);
+
     return {
-      product_id: p.id, // ✅ required
-      title: p.name, // ✅ required
-      quantity, // ✅ required
-      unit_price: unit, // (if CartItem has it; harmless if it does)
-      line_total: unit * quantity, // ✅ required
-      image: p.image, // (if CartItem has it)
-      bnpl_enabled: Boolean(p.bnplAvailable ?? p.bnpl_enabled), // ✅ required
-      // add any other fields your CartItem type includes
+      id: p.id,                 // ✅ important (your UI uses item.id sometimes)
+      product_id: p.id,         // ✅ backend uses this
+      title: p.name,            // ✅ UI uses title
+      price: String(unit),      // ✅ IMPORTANT: checkout totals use item.price
+      quantity,
+      line_total: String(unit * quantity),
+      image: p.image,
+      bnpl_enabled: Boolean(p.bnplAvailable ?? p.bnpl_enabled),
     } as CartItem;
   };
+
 
   const handleAddToCart = () => {
     addToCart(toCartItem(product, 1));
@@ -110,6 +112,7 @@ export function ProductDetail({ product }: { product: Product }) {
   };
 
   const handleBuyNow = () => {
+    
     // optional for UI (so summary can show immediately)
     setBuyNowProduct(toCartItem(product, 1));
 
@@ -122,9 +125,29 @@ export function ProductDetail({ product }: { product: Product }) {
       localStorage.setItem("buynow_last_qty", String(qty));
     } catch {}
 
+    try {
+      localStorage.setItem("buynow_last_product_id", String(pid));
+      localStorage.setItem("buynow_last_qty", String(qty));
+
+      // ✅ snapshot for rendering summary on refresh
+      localStorage.setItem(
+        LS_BUYNOW_SNAPSHOT,
+        JSON.stringify({
+          product_id: pid,
+          title: product.name,
+          price: product.price,
+          image: product.image,
+          bnpl_enabled: Boolean(product.bnplAvailable ?? product.bnpl_enabled),
+        })
+      );
+    } catch {}
+
     router.push(
       `/store/checkout?mode=buynow&product_id=${encodeURIComponent(pid)}&qty=${qty}`
     );
+
+
+
   };
 
 
