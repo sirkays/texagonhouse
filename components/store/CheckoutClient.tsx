@@ -92,7 +92,7 @@ export default function CheckoutPage() {
 
   const searchParams = useSearchParams();
   const TAX_RATE = 0.08;
-  const FLAT_SHIPPING = 1000; // change to your real shipping
+  const FLAT_SHIPPING = 1000.99; // change to your real shipping
 
   // ✅ URL controls BNPL mode
   const payParam = (searchParams.get("pay") || "").toLowerCase();
