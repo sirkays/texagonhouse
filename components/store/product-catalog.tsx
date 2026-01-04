@@ -85,54 +85,53 @@ export function ProductCatalog() {
 
   // Fetch products (with deduplication)
   useEffect(() => {
-    let isCancelled = false;
+    const controller = new AbortController();
 
     const fetchProducts = async () => {
       setLoadingProducts(true);
 
-      const params = new URLSearchParams();
-      if (searchQuery) params.append("q", searchQuery);
-      if (selectedCategory !== "all")
-        params.append("category", selectedCategory);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("q", searchQuery);
+        if (selectedCategory !== "all") params.append("category", selectedCategory);
 
-      let sort = sortBy;
-      if (sortBy === "price-low") sort = "price_asc";
-      if (sortBy === "price-high") sort = "price_desc";
-      if (sortBy === "rating") sort = "rating";
-      if (sortBy === "newest") sort = "newest";
+        let sort = sortBy;
+        if (sortBy === "price-low") sort = "price_asc";
+        if (sortBy === "price-high") sort = "price_desc";
 
-      params.append("sort", sort);
-      params.append("page", page.toString());
-      params.append("page_size", "20");
+        params.append("sort", sort);
+        params.append("page", String(page));
+        params.append("page_size", "20");
 
-      const res = await fetch(`/api/store/products?${params.toString()}`);
-      if (!res.ok) {
-        if (res.status === 401) router.push("/login");
+        const res = await fetch(`/api/store/products?${params.toString()}`, {
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          if (res.status === 401) router.push("/login");
+          return;
+        }
+
+        const data = await res.json();
+
+        setProducts((prev) => {
+          const combined = [...prev, ...data.results.results];
+          return Array.from(new Map(combined.map((p) => [p.id, p])).values());
+        });
+
+        setHasMore(Boolean(data.next));
+      } catch (e: any) {
+        if (e.name !== "AbortError") console.error(e);
+      } finally {
         setLoadingProducts(false);
-        return;
       }
-
-      const data = await res.json();
-      if (isCancelled) return;
-
-      setProducts((prev) => {
-        const combined = [...prev, ...data.results.results];
-        const unique = Array.from(
-          new Map(combined.map((p) => [p.id, p])).values()
-        );
-        return unique;
-      });
-
-      setHasMore(Boolean(data.next));
-      setLoadingProducts(false);
     };
 
     fetchProducts();
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [page, searchQuery, selectedCategory, sortBy, router]);
+    return () => controller.abort();
+  }, [page, searchQuery, selectedCategory, sortBy]); // (router not needed)
+
 
   const ProductCard = ({ product }: { product: any }) => {
     const fullStars = Math.floor(product.rating || 0);
@@ -184,11 +183,10 @@ export function ProductCatalog() {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-4 w-4 ${
-                      i < fullStars
+                    className={`h-4 w-4 ${i < fullStars
                         ? "fill-yellow-400 text-yellow-400"
                         : "text-gray-300"
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -206,10 +204,18 @@ export function ProductCatalog() {
                 ₦{formatCurrency(parseFloat(product.price))}
               </div>
 
-              <div className="text-xs text-gray-600">
-                or 4 payments of ₦
-                {formatCurrency(parseFloat(product.price) / 4)}
-              </div>
+          {product.bnpl_enabled ? (
+            <div className="text-xs text-gray-600">
+              or 4 payments of ₦
+              {formatCurrency(parseFloat(product.pay_in_4_amount))}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-400">
+              BNPL not available
+            </div>
+          )}
+
+
             </div>
           </div>
         </div>

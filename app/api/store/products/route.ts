@@ -27,6 +27,7 @@ interface Product {
   image: string | null;
   bnpl_enabled: boolean;
   description: string;
+  pay_in_4_amount: string;
 }
 
 interface ProductsResponse {
@@ -56,11 +57,11 @@ export async function GET(req: Request) {
   if (searchParams.get("max_price"))
     params.append("max_price", searchParams.get("max_price")!);
   const queryString = params.toString();
-  const fullUrl = `${BASE_URL}/products${queryString ? `?${queryString}` : ""}`;
+  const fullUrl = `${BASE_URL}/products/${queryString ? `?${queryString}` : ""}`;
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
   try {
-    const response = await fetch(`${fullUrl}/`, {
+    const response = await fetch(`${fullUrl}`, {
       method: "GET",
       headers: headers(sessionToken ? sessionToken : undefined),
     });
@@ -106,6 +107,7 @@ export async function GET(req: Request) {
       image: item.image || null,
       bnpl_enabled: item.bnpl_enabled || false,
       description: item.description || "",
+      pay_in_4_amount: item.pay_in_4_amount || "",
     }));
     const normalizedData = {
       count: data.count || 0,
@@ -113,6 +115,8 @@ export async function GET(req: Request) {
       previous: data.previous || null,
       results: {results: normalizedProducts},
     };
+
+    console.log(normalizedData)
     return NextResponse.json(normalizedData, {
       status: 200,
       headers: {"Cache-Control": "no-store"},
