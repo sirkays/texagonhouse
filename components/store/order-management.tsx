@@ -172,8 +172,20 @@ export function OrderManagement() {
 
     try {
       const res = await fetch("/api/store/orders");
+
+      if (res.status === 401 || res.status === 403) {
+        router.push("/login");
+        return;
+      }
+
       if (!res.ok) {
-        console.error("Failed to fetch orders");
+        const txt = await res.text().catch(() => "");
+        console.error("Failed to fetch orders:", res.status, txt);
+        toast({
+          variant: "destructive",
+          title: "Failed to load orders",
+          description: "Please try again.",
+        });
         return;
       }
 
@@ -354,6 +366,12 @@ export function OrderManagement() {
   // LOAD ORDERS
   // -----------------------------
   useEffect(() => {
+    if (status === "loading") return;   // wait for NextAuth
+    if (!isAuthed) {
+      setLoading(false);               // stop spinner if you want
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
@@ -364,8 +382,9 @@ export function OrderManagement() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // ✅ IMPORTANT: depend on status + isAuthed
+  }, [status, isAuthed]);
+
 
 
 
