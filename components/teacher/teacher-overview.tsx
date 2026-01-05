@@ -236,7 +236,7 @@ export function TeacherOverview() {
               </Button>
             </Link>
             <Link
-              href={"/teacher/learning-module"}
+              href={"/teacher/student-analytics"}
               className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] rounded-lg border bg-white border-[#f797713d] hover:border-none">
               <Button className="w-full justify-start bg-transparent hover:bg-[#F797713a] text-slate-800">
                 <Users className="mr-2 h-4 w-4" />
