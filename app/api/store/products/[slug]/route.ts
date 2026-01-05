@@ -35,6 +35,7 @@ interface Product {
   reviews: ProductReview[];
   bnpl_enabled: boolean;
   description: string;
+  stock: number; // ✅ add
 }
 
 export async function GET(
@@ -92,8 +93,9 @@ export async function GET(
       reviews: Array.isArray(data?.reviews) ? data.reviews : [],
       bnpl_enabled: Boolean(data?.bnpl_enabled),
       description: data?.description || "",
+      stock: Number(data.stock ?? 0), 
     };
-
+    
     const ok = NextResponse.json(normalizedProduct, {
       status: 200,
       headers: { "Cache-Control": "no-store" },

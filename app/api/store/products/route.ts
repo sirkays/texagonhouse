@@ -18,6 +18,7 @@ interface Product {
   bnpl_enabled: boolean;
   description: string;
   pay_in_4_amount: string;
+  stock: number; // ✅ add
 }
 
 interface ProductsResponse {
@@ -96,6 +97,7 @@ export async function GET(req: Request) {
       bnpl_enabled: item.bnpl_enabled || false,
       description: item.description || "",
       pay_in_4_amount: item.pay_in_4_amount || "",
+      stock: Number(item.stock ?? 0), 
     }));
 
     const normalizedData = {

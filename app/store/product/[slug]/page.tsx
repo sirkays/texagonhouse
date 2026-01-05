@@ -45,6 +45,7 @@ export default function ProductDetailPage() {
         images: data.images || [],          // ✅ include gallery images
         reviews: data.reviews || [],        // ✅ include reviews array
         bnplAvailable: data.bnpl_enabled,
+        stock: data.stock,
       });
 
       } catch (err) {

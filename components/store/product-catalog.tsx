@@ -135,45 +135,64 @@ export function ProductCatalog() {
 
   const ProductCard = ({ product }: { product: any }) => {
     const fullStars = Math.floor(product.rating || 0);
+    const outOfStock = Number(product.stock ?? 0) <= 0;
 
     return (
       <div
-        onClick={() => router.push(`/store/product/${product.slug}`)}
-        className="block cursor-pointer h-full"
+        onClick={() => {
+          if (outOfStock) return; // ✅ don’t navigate
+          router.push(`/store/product/${product.slug}`);
+        }}
+        className={`block h-full ${outOfStock ? "cursor-not-allowed" : "cursor-pointer"}`}
+        aria-disabled={outOfStock}
       >
-        {/* ✅ fixed height card */}
         <div className="relative flex h-[340px] flex-col p-2 border border-transparent hover:border-gray-300 transition-shadow hover:shadow-md">
-          {/* ✅ fixed height image area */}
+          {/* Image */}
           <div className="relative h-40 w-full overflow-hidden">
             <img
               src={product.image || "/placeholder.svg"}
               alt={product.title}
-              className="h-full w-full object-cover"
+              className={`h-full w-full object-cover transition ${outOfStock ? "blur-[2px] opacity-60" : ""
+                }`}
             />
+
+            {/* ✅ Out of Stock overlay */}
+            {outOfStock && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="rounded-md bg-black/70 px-3 py-2 text-xs font-semibold text-white">
+                  Out of stock
+                </span>
+              </div>
+            )}
+
+            {/* Add to cart */}
             <button
               type="button"
-              className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 cursor-pointer border-none"
-              onMouseDown={(e) => e.preventDefault()} // ✅ prevents focus shift (and scroll)
+              disabled={outOfStock} // ✅ disable
+              className={`absolute bottom-2 right-2 rounded-full p-2 shadow-md border-none
+              ${outOfStock
+                  ? "bg-gray-200 cursor-not-allowed opacity-60"
+                  : "bg-white hover:bg-gray-100 cursor-pointer"
+                }`}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
 
-                const y = window.scrollY;          // ✅ remember scroll
-                await addToCart(product);
-                requestAnimationFrame(() => window.scrollTo(0, y)); // ✅ restore
+                if (outOfStock) return; // ✅ safety
 
+                const y = window.scrollY;
+                await addToCart(product);
+                requestAnimationFrame(() => window.scrollTo(0, y));
                 toast.success(`${product.title} has been added to your cart.`);
               }}
-
-
             >
               <ShoppingCartIcon className="h-5 w-5 text-black" />
             </button>
           </div>
 
-          {/* ✅ content area uses flex so bottom section aligns across cards */}
+          {/* Content */}
           <div className="flex flex-1 flex-col pt-2">
-            {/* ✅ clamp title so it won’t change height */}
             <div className="text-sm font-medium line-clamp-2 min-h-[40px]">
               {product.title}
             </div>
@@ -183,45 +202,42 @@ export function ProductCatalog() {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-4 w-4 ${i < fullStars
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-gray-300"
+                    className={`h-4 w-4 ${i < fullStars ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
                       }`}
                   />
                 ))}
               </div>
+
               <div className="flex gap-2 text-sm">
                 <span className="font-medium">{product.rating}</span>
-                <span className="text-muted-foreground">
-                  ({product.rating_count})
-                </span>
+                <span className="text-muted-foreground">({product.rating_count})</span>
+              </div>
+
+              {/* ✅ optional: show stock line */}
+              <div className={`text-xs ${outOfStock ? "text-red-600" : "text-gray-600"}`}>
+                {outOfStock ? "Out of stock" : `${product.stock} in stock`}
               </div>
             </div>
 
-            {/* ✅ push price section to the bottom */}
             <div className="mt-auto pt-2">
               <div className="font-bold text-lg">
                 ₦{formatCurrency(parseFloat(product.price))}
               </div>
 
-          {product.bnpl_enabled ? (
-            <div className="text-xs text-gray-600">
-              or 4 payments of ₦
-              {formatCurrency(parseFloat(product.pay_in_4_amount))}
-            </div>
-          ) : (
-            <div className="text-xs text-gray-400">
-              BNPL not available
-            </div>
-          )}
-
-
+              {product.bnpl_enabled ? (
+                <div className="text-xs text-gray-600">
+                  or 4 payments of ₦{formatCurrency(parseFloat(product.pay_in_4_amount))}
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400">BNPL not available</div>
+              )}
             </div>
           </div>
         </div>
       </div>
     );
   };
+
 
   const isInitialLoading =
     (loadingCategories && categories.length === 0) ||

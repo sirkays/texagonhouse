@@ -1,4 +1,4 @@
-// texagon_academy\texagonui\components\store\product-detail.tsx
+// texagon_academy/texagonui/components/store/product-detail.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -50,8 +50,9 @@ type Product = {
   images?: ProductImage[];
   reviews?: ProductReview[];
   bnplAvailable?: boolean;
-  bnpl_enabled?: boolean; // (optional, if you ever pass it through)
+  bnpl_enabled?: boolean;
   pay_in_4_amount?: number | string;
+  stock?: number; // ✅ add
 };
 
 export function ProductDetail({ product }: { product: Product }) {
@@ -69,6 +70,8 @@ export function ProductDetail({ product }: { product: Product }) {
 
   const isAuthed = Boolean(sessionToken);
 
+  // ✅ OUT OF STOCK (disable actions)
+  const outOfStock = Number(product?.stock ?? 0) <= 0;
   const [bnplOpen, setBnplOpen] = useState(false);
   const [bnplLoading, setBnplLoading] = useState(false);
   const [bnplData, setBnplData] = useState<any>(null);
@@ -120,17 +123,18 @@ export function ProductDetail({ product }: { product: Product }) {
   // ✅ Where to send unauthenticated users
   const requireAuth = () => {
     toast.error("Please log in to continue.");
-    // Change this to your actual login route if different
     router.push("/login");
   };
 
   const handleAddToCart = () => {
+    if (outOfStock) return toast.error("Out of stock");
     if (!isAuthed) return requireAuth();
     addToCart(toCartItem(product, 1));
     toast.success("Added to cart");
   };
 
   const handleBuyNow = () => {
+    if (outOfStock) return toast.error("Out of stock");
     if (!isAuthed) return requireAuth();
 
     // optional for UI (so summary can show immediately)
@@ -168,6 +172,7 @@ export function ProductDetail({ product }: { product: Product }) {
   };
 
   const fetchBnpl = async () => {
+    if (outOfStock) return toast.error("Out of stock");
     if (!isAuthed) return requireAuth();
 
     try {
@@ -209,8 +214,19 @@ export function ProductDetail({ product }: { product: Product }) {
             <img
               src={gallery[activeImg]?.url || "/placeholder.svg"}
               alt={gallery[activeImg]?.alt_text || product.name}
-              className="w-full h-[400px] md:h-[500px] object-cover transition-transform duration-300 hover:scale-105"
+              className={`w-full h-[400px] md:h-[500px] object-cover transition-transform duration-300 ${
+                outOfStock ? "blur-[2px] opacity-75" : "hover:scale-105"
+              }`}
             />
+
+            {/* ✅ OUT OF STOCK overlay */}
+            {outOfStock && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="rounded-md bg-black/70 px-4 py-2 text-sm font-semibold text-white">
+                  Out of stock
+                </span>
+              </div>
+            )}
           </div>
 
           {gallery.length > 1 && (
@@ -228,7 +244,9 @@ export function ProductDetail({ product }: { product: Product }) {
                   <img
                     src={img.url}
                     alt={img.alt_text || product.name}
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full object-cover ${
+                      outOfStock ? "opacity-75" : ""
+                    }`}
                   />
                 </button>
               ))}
@@ -261,21 +279,43 @@ export function ProductDetail({ product }: { product: Product }) {
             {formatPrice(product.price)}
           </p>
 
+          {/* ✅ Stock text */}
+          <div
+            className={`text-sm font-medium ${
+              outOfStock ? "text-red-600" : "text-muted-foreground"
+            }`}
+          >
+            {outOfStock ? "Out of stock" : `${Number(product.stock ?? 0)} in stock`}
+          </div>
+
           {product.description && (
             <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
               {product.description}
             </p>
           )}
 
-          {/* ✅ Hide actions when not authenticated */}
+          {/* ✅ Actions */}
           {isAuthed ? (
             <>
               <div className="flex gap-4 flex-wrap">
-                <Button onClick={handleAddToCart} size="lg">
+                <Button
+                  onClick={handleAddToCart}
+                  size="lg"
+                  disabled={outOfStock}
+                  className={outOfStock ? "opacity-60 cursor-not-allowed" : ""}
+                  title={outOfStock ? "Out of stock" : undefined}
+                >
                   Add to Cart
                 </Button>
 
-                <Button onClick={handleBuyNow} variant="outline" size="lg">
+                <Button
+                  onClick={handleBuyNow}
+                  variant="outline"
+                  size="lg"
+                  disabled={outOfStock}
+                  className={outOfStock ? "opacity-60 cursor-not-allowed" : ""}
+                  title={outOfStock ? "Out of stock" : undefined}
+                >
                   Buy Now
                 </Button>
 
@@ -284,8 +324,11 @@ export function ProductDetail({ product }: { product: Product }) {
                     onClick={fetchBnpl}
                     variant="secondary"
                     size="lg"
-                    disabled={bnplLoading}
-                    className="gap-2"
+                    disabled={bnplLoading || outOfStock}
+                    className={`gap-2 ${
+                      outOfStock ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
+                    title={outOfStock ? "Out of stock" : undefined}
                   >
                     <Wallet className="h-4 w-4" />
                     {bnplLoading ? "Loading BNPL..." : "Pay with BNPL"}
@@ -414,7 +457,8 @@ export function ProductDetail({ product }: { product: Product }) {
                       className="flex items-center justify-between text-sm p-2 rounded-md border"
                     >
                       <span className="text-muted-foreground">
-                        #{inst.index} • {new Date(inst.due_at).toLocaleDateString()}
+                        #{inst.index} •{" "}
+                        {new Date(inst.due_at).toLocaleDateString()}
                         {inst.capture_immediately ? " (today)" : ""}
                       </span>
                       <span className="font-semibold">
@@ -428,6 +472,7 @@ export function ProductDetail({ product }: { product: Product }) {
               <Button
                 className="w-full"
                 onClick={() => {
+                  if (outOfStock) return toast.error("Out of stock");
                   if (!isAuthed) return requireAuth();
 
                   setBnplOpen(false);
@@ -449,7 +494,7 @@ export function ProductDetail({ product }: { product: Product }) {
                     )}&qty=${qty}`
                   );
                 }}
-                disabled={!bnplData.eligible}
+                disabled={!bnplData.eligible || outOfStock}
               >
                 Continue with BNPL
               </Button>
