@@ -181,9 +181,9 @@ export function ProductCatalog() {
 
                 if (outOfStock) return; // ✅ safety
 
-                const y = window.scrollY;
+                // const y = window.scrollY;
                 await addToCart(product);
-                requestAnimationFrame(() => window.scrollTo(0, y));
+                // requestAnimationFrame(() => window.scrollTo(0, y));
                 toast.success(`${product.title} has been added to your cart.`);
               }}
             >

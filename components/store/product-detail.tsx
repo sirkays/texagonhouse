@@ -167,7 +167,9 @@ export function ProductDetail({ product }: { product: Product }) {
     } catch {}
 
     router.push(
-      `/store/checkout?mode=buynow&product_id=${encodeURIComponent(pid)}&qty=${qty}`
+      `/store/checkout?mode=buynow&product_id=${encodeURIComponent(
+        pid
+      )}&qty=${qty}`
     );
   };
 
@@ -285,13 +287,17 @@ export function ProductDetail({ product }: { product: Product }) {
               outOfStock ? "text-red-600" : "text-muted-foreground"
             }`}
           >
-            {outOfStock ? "Out of stock" : `${Number(product.stock ?? 0)} in stock`}
+            {outOfStock
+              ? "Out of stock"
+              : `${Number(product.stock ?? 0)} in stock`}
           </div>
 
           {product.description && (
-            <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
-              {product.description}
-            </p>
+            <div className="max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
+                {product.description}
+              </p>
+            </div>
           )}
 
           {/* ✅ Actions */}
