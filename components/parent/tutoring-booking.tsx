@@ -513,7 +513,7 @@ export function TutoringBooking() {
                               variant="outline"
                               size="sm"
                               onClick={() => router.push("/invoice/invoices")}
-                              className="mt-2 w-full sm:w-auto"
+                              className="mt-2 mx-3 w-full sm:w-auto"
                             >
                               Pay Now
                             </Button>
