@@ -427,7 +427,7 @@ export function TeacherTutoringBooking() {
         "[TeacherTutoringBooking] Fetching courses from /api/teacher/courses"
       );
 
-      const response = await fetch("/api/teacher/courses?course_type=private", {
+      const response = await fetch("/api/teacher/courses", {
         method: "GET",
         headers: {
           Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,

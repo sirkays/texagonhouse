@@ -29,9 +29,7 @@ export async function GET(req: Request) {
   const courseType = searchParams.get("course_type"); // "private"
 
   const endpoint = "/learning/api/teacher/courses/";
-  const fullUrl = courseType
-    ? `${BASE_URL}${endpoint}?course_type=${courseType}`
-    : `${BASE_URL}${endpoint}`;
+  const fullUrl = `${BASE_URL}${endpoint}`;
 
   const session = await getServerSession(authOptions);
 
