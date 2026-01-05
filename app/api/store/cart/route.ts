@@ -1,40 +1,50 @@
-
 // app/api/store/cart/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+export const runtime = "nodejs";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-//const BASE_URL = "http://127.0.0.1:9098/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
-
   try {
-    const res = await fetch(`${BASE_URL}/cart/`, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        ...(sessionToken && {"X-Session-Token": sessionToken}),
-      },
-      cache: "no-store",
+    const { response, text, setCookie } = await djangoFetch("/store/api/cart/", {
+      method: "GET",
     });
 
-  if (!res.ok) {
-    return NextResponse.json({
-      id: "",
-      items: [],
-      coupon: null,
-      subtotal: "0.00",
-      discount_total: "0.00",
-      grand_total: "0.00",
-    });
-  }
+    // If backend fails, return an empty cart shape (your current behavior)
+    if (!response.ok) {
+      const fallback = NextResponse.json({
+        id: "",
+        items: [],
+        coupon: null,
+        subtotal: "0.00",
+        discount_total: "0.00",
+        grand_total: "0.00",
+        shipping_total: "0.00",
+        tax_total: "0.00",
+        payable_total: "0.00",
+      });
 
+      if (setCookie) fallback.headers.set("set-cookie", setCookie);
+      return fallback;
+    }
 
-    const data = await res.json();
+    // Parse JSON safely
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const bad = NextResponse.json(
+        {
+          error: "Backend did not return valid JSON",
+          status: response.status,
+          contentType: response.headers.get("content-type") || "",
+          preview: text.slice(0, 300),
+        },
+        { status: 502 }
+      );
+      if (setCookie) bad.headers.set("set-cookie", setCookie);
+      return bad;
+    }
 
     const normalized = {
       id: data.id || "",
@@ -55,15 +65,16 @@ export async function GET() {
       discount_total: data.discount_total ?? "0.00",
       grand_total: data.grand_total ?? "0.00",
 
-      // ✅ NEW
       shipping_total: data.shipping_total ?? "0.00",
       tax_total: data.tax_total ?? "0.00",
       payable_total: data.payable_total ?? "0.00",
     };
 
-
-    return NextResponse.json(normalized);
-  } catch (e) {
+    const ok = NextResponse.json(normalized, { status: 200 });
+    if (setCookie) ok.headers.set("set-cookie", setCookie);
+    return ok;
+  } catch (e: any) {
+    // Network/proxy error fallback
     return NextResponse.json({
       id: "",
       items: [],
@@ -71,6 +82,9 @@ export async function GET() {
       subtotal: "0.00",
       discount_total: "0.00",
       grand_total: "0.00",
+      shipping_total: "0.00",
+      tax_total: "0.00",
+      payable_total: "0.00",
     });
   }
 }

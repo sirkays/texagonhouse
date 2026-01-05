@@ -1,26 +1,72 @@
+// app/api/_lib/proxy.ts
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+//const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL =
+  process.env.STORE_BASE_URL || "https://texagonbackend.onrender.com";
 
-//const BASE_URL = process.env.STORE_BASE_URL || "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY =
+  process.env.STORE_API_KEY ||
+  "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
-export async function djangoFetch(path: string, init?: RequestInit) {
+type DjangoFetchResult = {
+  response: Response;
+  text: string;
+  setCookie?: string;
+};
+
+export async function djangoFetch(
+  path: string,
+  init: RequestInit = {}
+): Promise<DjangoFetchResult> {
+  // --- Auth session (optional) ---
   const session = await getServerSession(authOptions);
-  const sessionToken = (session as any)?.user?.sessionToken as string | undefined;
+  const sessionToken: string | undefined =
+    session?.user && "sessionToken" in session.user
+      ? (session.user as any).sessionToken ?? undefined
+      : undefined;
 
-  const headers: Record<string, string> = {
+  // --- Cookies (App Router requires async access) ---
+  const cookieStore = await cookies();
+  const cookieHeader =
+    cookieStore.getAll().length > 0
+      ? cookieStore
+          .getAll()
+          .map((c) => `${c.name}=${c.value}`)
+          .join("; ")
+      : undefined;
+
+  // --- Base headers ---
+  const baseHeaders: Record<string, string> = {
     Authorization: `Api-Key ${API_KEY}`,
     "Content-Type": "application/json",
   };
-  if (sessionToken) headers["X-Session-Token"] = sessionToken;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  if (sessionToken) {
+    baseHeaders["X-Session-Token"] = sessionToken;
+  }
+
+  if (cookieHeader) {
+    baseHeaders["Cookie"] = cookieHeader;
+  }
+
+  // --- Fetch Django ---
+  const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
-    headers: { ...headers, ...(init?.headers || {}) },
+    headers: {
+      ...baseHeaders,
+      ...(init.headers || {}),
+    },
     cache: "no-store",
   });
 
-  const text = await res.text();
-  return { res, text };
+  const text = await response.text();
+
+  return {
+    response,
+    text,
+    // IMPORTANT: forward Django sessionid back to browser
+    setCookie: response.headers.get("set-cookie") ?? undefined,
+  };
 }

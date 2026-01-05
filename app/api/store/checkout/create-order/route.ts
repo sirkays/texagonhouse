@@ -1,18 +1,9 @@
 // app/api/store/checkout/create-order/route.ts
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098/store/api";
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
-});
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface CreateOrderRequest {
   billing_address_id?: string | null;
@@ -31,16 +22,6 @@ type AnyJson = Record<string, any>;
 export async function POST(req: Request) {
   noStore();
 
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
-
-  if (!sessionToken) {
-    return NextResponse.json(
-      { error: "Session expired", redirect: "/login" },
-      { status: 401 }
-    );
-  }
-
   let body: CreateOrderRequest;
   try {
     body = await req.json();
@@ -48,70 +29,69 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const fullUrl = `${BASE_URL}/checkout/create-order/`; // keep trailing slash
-
   try {
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(sessionToken),
-      body: JSON.stringify(body), // ✅ forwards BNPL product_id + qty
-    });
-
-    const rawResponse = await response.text();
+    const { response, text, setCookie } = await djangoFetch(
+      "/store/api/checkout/create-order/",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
 
     if (!response.ok) {
-      // pass through backend message if possible
       let backend: AnyJson = {};
       try {
-        backend = JSON.parse(rawResponse);
+        backend = JSON.parse(text);
       } catch {}
 
+      let payload: AnyJson = {
+        error: backend?.detail || backend?.error || "Failed to create order",
+      };
+
       if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
-          { status: 401 }
-        );
-      }
-      if (response.status === 400) {
-        return NextResponse.json(
-          { error: backend?.detail || backend?.error || "Invalid request" },
-          { status: 400 }
-        );
-      }
-      if (response.status === 403) {
-        return NextResponse.json(
-          { error: backend?.detail || backend?.error || "Forbidden" },
-          { status: 403 }
-        );
+        payload = { error: "Session expired", redirect: "/login" };
+      } else if (response.status === 400) {
+        payload = {
+          error: backend?.detail || backend?.error || "Invalid request",
+        };
+      } else if (response.status === 403) {
+        payload = {
+          error: backend?.detail || backend?.error || "Forbidden",
+        };
       }
 
-      return NextResponse.json(
-        { error: backend?.detail || backend?.error || "Failed to create order" },
-        { status: response.status }
-      );
+      const err = NextResponse.json(payload, { status: response.status });
+      if (setCookie) err.headers.set("set-cookie", setCookie);
+      return err;
     }
 
     let data: AnyJson;
     try {
-      data = JSON.parse(rawResponse);
+      data = JSON.parse(text);
     } catch {
-      return NextResponse.json(
+      const bad = NextResponse.json(
         { error: "Invalid response format" },
         { status: 500 }
       );
+      if (setCookie) bad.headers.set("set-cookie", setCookie);
+      return bad;
     }
 
-    // ✅ Normalize to match your CheckoutClient usage:
-    // it checks: orderData?.id || orderData?.order_id
     const normalized = {
       id: data?.id || data?.order_id || data?.orderId || "",
       order_id: data?.order_id || data?.id || "",
-      grand_total: data?.grand_total || data?.grandTotal || data?.total_amount || "0.00",
+      grand_total:
+        data?.grand_total || data?.grandTotal || data?.total_amount || "0.00",
       total_amount: data?.total_amount || data?.grand_total || "0.00",
     };
 
-    return NextResponse.json(normalized, { status: 201 });
+    const ok = NextResponse.json(normalized, { status: 201 });
+    if (setCookie) ok.headers.set("set-cookie", setCookie);
+    return ok;
   } catch {
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create order" },
+      { status: 500 }
+    );
   }
 }

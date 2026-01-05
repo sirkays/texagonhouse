@@ -1,16 +1,8 @@
 // app/api/store/cart/items/[item_id]/remove/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+export const runtime = "nodejs";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface CartItem {
   id: string;
@@ -30,60 +22,64 @@ interface CartResponse {
 
 export async function DELETE(
   req: Request,
-  {params}: {params: {item_id: string}}
+  { params }: { params: { item_id: string } }
 ) {
-  const fullUrl = `${BASE_URL}/cart/items/${params.item_id}/remove/`;
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
   try {
-    const response = await fetch(fullUrl, {
-      method: "DELETE",
-      headers: headers(sessionToken ? sessionToken : undefined),
-    });
-    const rawResponse = await response.text();
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/cart/items/${params.item_id}/remove/`,
+      { method: "DELETE" }
+    );
+
     if (!response.ok) {
+      let errorPayload: any = { error: "Failed to remove cart item" };
+
       if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
-        );
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json({error: "Item not found"}, {status: 404});
-      return NextResponse.json(
-        {error: "Failed to remove cart item"},
-        {status: response.status}
-      );
+        errorPayload = { error: "Session expired", redirect: "/login" };
+      else if (response.status === 403)
+        errorPayload = { error: "Forbidden" };
+      else if (response.status === 404)
+        errorPayload = { error: "Item not found" };
+
+      const errRes = NextResponse.json(errorPayload, {
+        status: response.status,
+      });
+      if (setCookie) errRes.headers.set("set-cookie", setCookie);
+      return errRes;
     }
+
     let data: CartResponse;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+      data = JSON.parse(text);
+    } catch {
+      const bad = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
       );
+      if (setCookie) bad.headers.set("set-cookie", setCookie);
+      return bad;
     }
-    const normalizedItems: CartItem[] = data.items.map((item) => ({
-      id: item.id || "",
-      product_id: item.product_id || "",
-      title: item.title || "",
-      price: item.price || "0",
-      quantity: item.quantity || 0,
-      line_total: item.line_total || "0",
-    }));
-    const normalizedData: CartResponse = {
+
+    const normalized: CartResponse = {
       id: data.id || "",
-      items: normalizedItems,
-      coupon: data.coupon || null,
+      items: (data.items || []).map((item) => ({
+        id: item.id || "",
+        product_id: item.product_id || "",
+        title: item.title || "",
+        price: item.price || "0",
+        quantity: item.quantity || 0,
+        line_total: item.line_total || "0",
+      })),
+      coupon: data.coupon ?? null,
       subtotal: data.subtotal || "0",
     };
-    return NextResponse.json(normalizedData, {status: 200});
-  } catch (error) {
+
+    const ok = NextResponse.json(normalized, { status: 200 });
+    if (setCookie) ok.headers.set("set-cookie", setCookie);
+    return ok;
+  } catch {
     return NextResponse.json(
-      {error: "Failed to remove cart item"},
-      {status: 500}
+      { error: "Failed to remove cart item" },
+      { status: 500 }
     );
   }
 }

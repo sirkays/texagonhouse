@@ -1,17 +1,9 @@
 // app/api/store/products/[slug]/route.ts
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
-});
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface ProductImage {
   id: string;
@@ -47,72 +39,71 @@ interface Product {
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ slug: string }> } // ✅ params is async in your Next version
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   noStore();
 
-  const { slug } = await params; // ✅ await before using properties
-  const fullUrl = `${BASE_URL}/products/${slug}`;
-
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
+  const { slug } = await params;
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(sessionToken ?? undefined),
-    });
-
-    const rawResponse = await response.text();
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/products/${slug}`,
+      { method: "GET" }
+    );
 
     if (!response.ok) {
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
-          { status: 401 }
-        );
-      }
-      if (response.status === 403) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-      if (response.status === 404) {
-        return NextResponse.json({ error: "Product not found" }, { status: 404 });
-      }
-      return NextResponse.json(
-        { error: "Failed to fetch product" },
-        { status: response.status }
-      );
+      let payload: any = { error: "Failed to fetch product" };
+
+      if (response.status === 401)
+        payload = { error: "Session expired", redirect: "/login" };
+      else if (response.status === 403)
+        payload = { error: "Forbidden" };
+      else if (response.status === 404)
+        payload = { error: "Product not found" };
+
+      const err = NextResponse.json(payload, { status: response.status });
+      if (setCookie) err.headers.set("set-cookie", setCookie);
+      return err;
     }
 
     let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = JSON.parse(text);
     } catch {
-      return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
+      const bad = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
+      );
+      if (setCookie) bad.headers.set("set-cookie", setCookie);
+      return bad;
     }
 
     const normalizedProduct: Product = {
-      id: data.id || "",
-      title: data.title || "",
-      slug: data.slug || "",
-      type: data.type || "",
-      category: data.category || "",
-      price: data.price || "0",
-      rating: Number(data.rating || 0),
-      rating_count: Number(data.rating_count || 0),
-      image: data.image || null,
-      images: Array.isArray(data.images) ? data.images : [],
-      reviews: Array.isArray(data.reviews) ? data.reviews : [],
-      bnpl_enabled: Boolean(data.bnpl_enabled),
-      description: data.description || "",
+      id: data?.id || "",
+      title: data?.title || "",
+      slug: data?.slug || "",
+      type: data?.type || "",
+      category: data?.category || "",
+      price: data?.price || "0",
+      rating: Number(data?.rating || 0),
+      rating_count: Number(data?.rating_count || 0),
+      image: data?.image || null,
+      images: Array.isArray(data?.images) ? data.images : [],
+      reviews: Array.isArray(data?.reviews) ? data.reviews : [],
+      bnpl_enabled: Boolean(data?.bnpl_enabled),
+      description: data?.description || "",
     };
 
-
-    return NextResponse.json(normalizedProduct, {
+    const ok = NextResponse.json(normalizedProduct, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch product" }, { status: 500 });
+    if (setCookie) ok.headers.set("set-cookie", setCookie);
+    return ok;
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to fetch product" },
+      { status: 500 }
+    );
   }
 }

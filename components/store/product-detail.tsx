@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useCart } from "@/providers/CartProvider";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 import {
   Dialog,
@@ -18,9 +19,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
-
 type CartItem = any;
-
 
 type ProductImage = {
   id?: string;
@@ -59,10 +58,23 @@ export function ProductDetail({ product }: { product: Product }) {
   const { addToCart, setBuyNowProduct } = useCart();
   const router = useRouter();
 
+  // ✅ AUTH STATE (NextAuth)
+  const { data: session, status } = useSession();
+  const sessionToken =
+    status === "authenticated" &&
+    session?.user &&
+    "sessionToken" in (session.user as any)
+      ? ((session.user as any).sessionToken as string | undefined)
+      : undefined;
+
+  const isAuthed = Boolean(sessionToken);
+
   const [bnplOpen, setBnplOpen] = useState(false);
   const [bnplLoading, setBnplLoading] = useState(false);
   const [bnplData, setBnplData] = useState<any>(null);
+
   const LS_BUYNOW_SNAPSHOT = "buynow_snapshot";
+
   const gallery = useMemo<ProductImage[]>(() => {
     const imgs = Array.isArray(product?.images) ? product.images : [];
     if (imgs.length > 0) return imgs;
@@ -94,10 +106,10 @@ export function ProductDetail({ product }: { product: Product }) {
     const unit = Number(p.price ?? 0);
 
     return {
-      id: p.id,                 // ✅ important (your UI uses item.id sometimes)
-      product_id: p.id,         // ✅ backend uses this
-      title: p.name,            // ✅ UI uses title
-      price: String(unit),      // ✅ IMPORTANT: checkout totals use item.price
+      id: p.id, // ✅ important (your UI uses item.id sometimes)
+      product_id: p.id, // ✅ backend uses this
+      title: p.name, // ✅ UI uses title
+      price: String(unit), // ✅ IMPORTANT: checkout totals use item.price
       quantity,
       line_total: String(unit * quantity),
       image: p.image,
@@ -105,14 +117,22 @@ export function ProductDetail({ product }: { product: Product }) {
     } as CartItem;
   };
 
+  // ✅ Where to send unauthenticated users
+  const requireAuth = () => {
+    toast.error("Please log in to continue.");
+    // Change this to your actual login route if different
+    router.push("/login");
+  };
 
   const handleAddToCart = () => {
+    if (!isAuthed) return requireAuth();
     addToCart(toCartItem(product, 1));
     toast.success("Added to cart");
   };
 
   const handleBuyNow = () => {
-    
+    if (!isAuthed) return requireAuth();
+
     // optional for UI (so summary can show immediately)
     setBuyNowProduct(toCartItem(product, 1));
 
@@ -145,13 +165,11 @@ export function ProductDetail({ product }: { product: Product }) {
     router.push(
       `/store/checkout?mode=buynow&product_id=${encodeURIComponent(pid)}&qty=${qty}`
     );
-
-
-
   };
 
-
   const fetchBnpl = async () => {
+    if (!isAuthed) return requireAuth();
+
     try {
       setBnplLoading(true);
       const res = await fetch("/api/store/bnpl/breakdown", {
@@ -176,7 +194,7 @@ export function ProductDetail({ product }: { product: Product }) {
   const payInText = useMemo(() => {
     if (!product?.pay_in_4_amount) return null;
     return `Pay in 4 from ${formatPrice(product.pay_in_4_amount)}`;
-  }, [product]);
+  }, [product, formatPrice]);
 
   const rating = Number(product?.rating ?? 0);
   const ratingCount = Number(product?.ratingCount ?? 0);
@@ -249,35 +267,49 @@ export function ProductDetail({ product }: { product: Product }) {
             </p>
           )}
 
-          <div className="flex gap-4 flex-wrap">
-            <Button onClick={handleAddToCart} size="lg">
-              Add to Cart
-            </Button>
+          {/* ✅ Hide actions when not authenticated */}
+          {isAuthed ? (
+            <>
+              <div className="flex gap-4 flex-wrap">
+                <Button onClick={handleAddToCart} size="lg">
+                  Add to Cart
+                </Button>
 
-            <Button onClick={handleBuyNow} variant="outline" size="lg">
-              Buy Now
-            </Button>
+                <Button onClick={handleBuyNow} variant="outline" size="lg">
+                  Buy Now
+                </Button>
 
-            {Boolean(product.bnplAvailable) && (
-              <Button
-                onClick={fetchBnpl}
-                variant="secondary"
-                size="lg"
-                disabled={bnplLoading}
-                className="gap-2"
-              >
-                <Wallet className="h-4 w-4" />
-                {bnplLoading ? "Loading BNPL..." : "Pay with BNPL"}
+                {Boolean(product.bnplAvailable) && (
+                  <Button
+                    onClick={fetchBnpl}
+                    variant="secondary"
+                    size="lg"
+                    disabled={bnplLoading}
+                    className="gap-2"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    {bnplLoading ? "Loading BNPL..." : "Pay with BNPL"}
+                  </Button>
+                )}
+              </div>
+
+              {Boolean(product.bnplAvailable) && (
+                <div className="text-sm text-muted-foreground">
+                  <Badge variant="secondary" className="mr-2">
+                    BNPL
+                  </Badge>
+                  {payInText || "Buy now, pay later available"}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">
+                Log in to add items to cart, buy now, or use BNPL.
+              </div>
+              <Button onClick={() => router.push("/login")} size="lg">
+                Log in to continue
               </Button>
-            )}
-          </div>
-
-          {Boolean(product.bnplAvailable) && (
-            <div className="text-sm text-muted-foreground">
-              <Badge variant="secondary" className="mr-2">
-                BNPL
-              </Badge>
-              {payInText || "Buy now, pay later available"}
             </div>
           )}
         </div>
@@ -382,8 +414,7 @@ export function ProductDetail({ product }: { product: Product }) {
                       className="flex items-center justify-between text-sm p-2 rounded-md border"
                     >
                       <span className="text-muted-foreground">
-                        #{inst.index} •{" "}
-                        {new Date(inst.due_at).toLocaleDateString()}
+                        #{inst.index} • {new Date(inst.due_at).toLocaleDateString()}
                         {inst.capture_immediately ? " (today)" : ""}
                       </span>
                       <span className="font-semibold">
@@ -397,6 +428,8 @@ export function ProductDetail({ product }: { product: Product }) {
               <Button
                 className="w-full"
                 onClick={() => {
+                  if (!isAuthed) return requireAuth();
+
                   setBnplOpen(false);
 
                   const pid = product.id;

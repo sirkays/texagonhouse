@@ -73,6 +73,9 @@ export default function CheckoutPage() {
     country: "US",
   });
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [bnplBreakdown, setBnplBreakdown] = useState<any>(null);
   const [bnplLoading, setBnplLoading] = useState(false);
 
@@ -89,7 +92,7 @@ export default function CheckoutPage() {
 
   const searchParams = useSearchParams();
   const TAX_RATE = 0.08;
-  const FLAT_SHIPPING = 1000; // change to your real shipping
+  const FLAT_SHIPPING = 1000.99; // change to your real shipping
 
   // ✅ URL controls BNPL mode
   const payParam = (searchParams.get("pay") || "").toLowerCase();
@@ -152,18 +155,7 @@ export default function CheckoutPage() {
   // ✅ When BNPL is on, hide cart items + totals UI
   const showCartItemsUI = !isBnplCheckout;
 
-  // ✅ Confirm payment callback
-  useEffect(() => {
-    const status = searchParams.get("status");
-    const tx_ref = searchParams.get("tx_ref");
-    const transaction_id = searchParams.get("transaction_id");
 
-    if (status === "completed" && tx_ref && transaction_id) {
-      const invoice_id = localStorage.getItem("checkout_invoice_id");
-      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
   const displayItems = useMemo(() => {
     if (isBuyNowCheckout) {
       const p = resolveBuyNowPayload();
@@ -476,7 +468,7 @@ export default function CheckoutPage() {
     [
       formData,
       selectedShippingAddress,
-      displayItems.length,
+      displayItems,
       isBnplCheckout,
       bnplLoading,
       bnplBreakdown,
@@ -793,13 +785,49 @@ export default function CheckoutPage() {
     }
   };
 
+
+  // ✅ Confirm payment callback
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const tx_ref = searchParams.get("tx_ref");
+    const transaction_id = searchParams.get("transaction_id");
+
+    if (status === "completed" && tx_ref && transaction_id) {
+      const invoice_id = localStorage.getItem("checkout_invoice_id");
+      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  
   const bnplPayNowText = useMemo(() => {
     const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
     return formatNGN(payNow);
   }, [bnplBreakdown]);
   const formatDate = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", year: "numeric", month: "short", day: "2-digit" })
-    .format(new Date(iso));
+    new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", year: "numeric", month: "short", day: "2-digit" })
+      .format(new Date(iso));
+  if (!mounted) {
+    return (
+      <div className="max-w-7xl mx-auto py-5 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-md border" />
+          <div className="space-y-2">
+            <div className="h-6 w-40 rounded bg-muted" />
+            <div className="h-4 w-56 rounded bg-muted" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-56 rounded-lg border" />
+            <div className="h-80 rounded-lg border" />
+          </div>
+          <div className="h-[520px] rounded-lg border" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto py-5">
@@ -1245,4 +1273,5 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
+
 }

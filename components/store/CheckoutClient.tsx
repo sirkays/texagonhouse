@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react"; // ✅ ADD
 import {
   Card,
   CardContent,
@@ -50,6 +51,26 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // ✅ AUTH STATE (NextAuth)
+  const { data: session, status } = useSession();
+  const sessionToken =
+    status === "authenticated" &&
+    session?.user &&
+    "sessionToken" in (session.user as any)
+      ? ((session.user as any).sessionToken as string | undefined)
+      : undefined;
+
+  const isAuthed = Boolean(sessionToken);
+
+  const requireAuth = () => {
+    toast({
+      variant: "destructive",
+      title: "Login required",
+      description: "Please log in to place an order or make payment.",
+    });
+    router.push("/login"); // ✅ change to your real login route
+  };
+
   const {
     cartItems,
     cartSummary,
@@ -61,7 +82,6 @@ export default function CheckoutPage() {
   } = useCart();
 
   const hasConfirmedRef = useRef(false);
-
 
   const [formData, setFormData] = useState({
     phoneNumber: "",
@@ -105,13 +125,18 @@ export default function CheckoutPage() {
   const modeParam = (searchParams.get("mode") || "").toLowerCase();
   const isBuyNowCheckout = modeParam === "buynow";
 
-
   const resolveBuyNowPayload = () => {
-    if (urlProductId) return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
+    if (urlProductId)
+      return { product_id: urlProductId, quantity: Math.max(1, urlQty) };
 
-    const lsPid = (typeof window !== "undefined" && localStorage.getItem(LS_BUYNOW_PID)) || "";
+    const lsPid =
+      (typeof window !== "undefined" &&
+        localStorage.getItem(LS_BUYNOW_PID)) ||
+      "";
     const lsQty = safeNum(
-      (typeof window !== "undefined" && localStorage.getItem(LS_BUYNOW_QTY)) || "1",
+      (typeof window !== "undefined" &&
+        localStorage.getItem(LS_BUYNOW_QTY)) ||
+        "1",
       1
     );
 
@@ -119,7 +144,10 @@ export default function CheckoutPage() {
 
     // fallback: buyNowProduct in context
     if (buyNowProduct?.product_id) {
-      return { product_id: buyNowProduct.product_id, quantity: Math.max(1, safeNum(buyNowProduct.quantity || 1, 1)) };
+      return {
+        product_id: buyNowProduct.product_id,
+        quantity: Math.max(1, safeNum(buyNowProduct.quantity || 1, 1)),
+      };
     }
 
     return null;
@@ -134,9 +162,7 @@ export default function CheckoutPage() {
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
 
-
   const LS_BUYNOW_SNAPSHOT = "buynow_snapshot";
-
   const [buyNowSnapshot, setBuyNowSnapshot] = useState<any>(null);
 
   useEffect(() => {
@@ -148,13 +174,11 @@ export default function CheckoutPage() {
     }
   }, []);
 
-
   // ✅ BNPL mode is controlled by URL OR having a BNPL item
   const isBnplCheckout = urlWantsBnpl;
 
   // ✅ When BNPL is on, hide cart items + totals UI
   const showCartItemsUI = !isBnplCheckout;
-
 
   const displayItems = useMemo(() => {
     if (isBuyNowCheckout) {
@@ -191,8 +215,12 @@ export default function CheckoutPage() {
     if (!isBnplCheckout) return null;
     return (displayItems || [])[0] || null;
   }, [displayItems, isBnplCheckout]);
+
   // ✅ Addresses
   useEffect(() => {
+    // If not authenticated, we can either redirect immediately,
+    // or allow page to show and only block "Place Order / Pay".
+    // Here we keep your original behavior + redirect on 401.
     const fetchAddresses = async () => {
       const res = await fetch("/api/store/addresses");
       if (res.ok) {
@@ -217,7 +245,6 @@ export default function CheckoutPage() {
     []
   );
 
-
   const buyNowTotals = useMemo(() => {
     if (!isBuyNowCheckout) return null;
 
@@ -227,19 +254,14 @@ export default function CheckoutPage() {
     // Your items use `price` as string. Snapshot uses `price` too.
     const unitPrice = safeNum(item?.price ?? 0, 0);
 
-
     const subtotal = unitPrice * qty;
     const tax = subtotal * TAX_RATE;
 
-    // If you don’t know digital/physical on frontend, you can keep shipping 0,
-    // or use a constant flat shipping.
     const shipping = FLAT_SHIPPING;
-
     const total = subtotal + tax + shipping;
 
     return { subtotal, tax, shipping, total };
   }, [isBuyNowCheckout, displayItems, urlQty]);
-
 
   const areasForSelectedState = (AREAS_BY_STATE as any)[formData.state] ?? [];
 
@@ -251,10 +273,10 @@ export default function CheckoutPage() {
   const cartTotal = Number(cartSummary?.payable_total || 0);
 
   // ✅ what UI should show
-  const subtotal = isBuyNowCheckout ? (buyNowTotals?.subtotal || 0) : cartSubtotal;
-  const shipping = isBuyNowCheckout ? (buyNowTotals?.shipping || 0) : cartShipping;
-  const tax = isBuyNowCheckout ? (buyNowTotals?.tax || 0) : cartTax;
-  const total = isBuyNowCheckout ? (buyNowTotals?.total || 0) : cartTotal;
+  const subtotal = isBuyNowCheckout ? buyNowTotals?.subtotal || 0 : cartSubtotal;
+  const shipping = isBuyNowCheckout ? buyNowTotals?.shipping || 0 : cartShipping;
+  const tax = isBuyNowCheckout ? buyNowTotals?.tax || 0 : cartTax;
+  const total = isBuyNowCheckout ? buyNowTotals?.total || 0 : cartTotal;
 
   // ✅ Resolve BNPL product_id + qty from URL/localStorage/cart
   const resolveBnplPayload = () => {
@@ -268,18 +290,14 @@ export default function CheckoutPage() {
       "";
     const lsQty = safeNum(
       (typeof window !== "undefined" && localStorage.getItem(LS_BNPL_QTY)) ||
-      "1",
+        "1",
       1
     );
     if (lsPid) return { product_id: lsPid, quantity: Math.max(1, lsQty) };
 
     // 3) from bnplItem (ONLY if it looks like product id)
     if (bnplItem) {
-      // Your cart shape is inconsistent on reload, so try several candidates.
-      // We DO NOT want cartItemId here.
       const candidates = uniq([bnplItem.product_id, bnplItem.id]);
-
-      // choose first candidate
       if (candidates[0]) {
         return {
           product_id: candidates[0],
@@ -301,7 +319,7 @@ export default function CheckoutPage() {
     try {
       localStorage.setItem(LS_BNPL_PID, String(payload.product_id));
       localStorage.setItem(LS_BNPL_QTY, String(payload.quantity || 1));
-    } catch { }
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBnplCheckout, bnplItem?.id, bnplItem?.quantity, urlProductId, urlQty]);
 
@@ -314,32 +332,19 @@ export default function CheckoutPage() {
     }
 
     const quantity = Math.max(1, safeNum(payload.quantity || 1, 1));
-
-    // candidate ids (if available)
-    const candidates = uniq([
-      payload.product_id,
-      ...(payload._candidates || []),
-      // also try: if bnplItem has cartItemId separate, try item.id and product?.id already included above
-    ]);
+    const candidates = uniq([payload.product_id, ...(payload._candidates || [])]);
 
     setBnplLoading(true);
 
     try {
       let lastErr: any = null;
 
-      for (
-        let attempt = 0;
-        attempt < Math.min(2, candidates.length);
-        attempt++
-      ) {
+      for (let attempt = 0; attempt < Math.min(2, candidates.length); attempt++) {
         const pid = candidates[attempt];
         const res = await fetch("/api/store/bnpl/breakdown", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            product_id: pid,
-            quantity,
-          }),
+          body: JSON.stringify({ product_id: pid, quantity }),
         });
 
         const data = await res.json().catch(() => ({}));
@@ -347,17 +352,15 @@ export default function CheckoutPage() {
         if (res.ok) {
           setBnplBreakdown(data);
 
-          // persist the working product_id (prevents future 404s)
           try {
             localStorage.setItem(LS_BNPL_PID, String(pid));
             localStorage.setItem(LS_BNPL_QTY, String(quantity));
-          } catch { }
+          } catch {}
 
           return;
         }
 
         lastErr = { status: res.status, data };
-        // if 404, try the next candidate once
         if (res.status !== 404) break;
       }
 
@@ -371,7 +374,6 @@ export default function CheckoutPage() {
       setBnplLoading(false);
     }
   };
-
 
   useEffect(() => {
     const status = searchParams.get("status");
@@ -389,9 +391,7 @@ export default function CheckoutPage() {
       router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
     }
     // ...
-  }, [searchParams]);
-
-
+  }, [searchParams, router, toast]);
 
   // ✅ Auto-fetch breakdown whenever BNPL mode is active
   useEffect(() => {
@@ -459,7 +459,6 @@ export default function CheckoutPage() {
         return { ok: false, message: "Invalid BNPL downpayment amount." };
     }
 
-
     return { ok: true as const };
   };
 
@@ -499,6 +498,13 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ BLOCK PLACE ORDER / PAY WHEN NOT AUTHENTICATED
+    if (!isAuthed) {
+      requireAuth();
+      return;
+    }
+
     if (isPlacingOrder || isCartMutating) return;
 
     const v = validateCheckout();
@@ -559,11 +565,15 @@ export default function CheckoutPage() {
       if (isBnplCheckout) {
         const bnplPayload: any = resolveBnplPayload?.();
 
-        if (!bnplPayload?.product_id && !bnplBreakdown?.product_details?.product_id) {
+        if (
+          !bnplPayload?.product_id &&
+          !bnplBreakdown?.product_details?.product_id
+        ) {
           toast({
             variant: "destructive",
             title: "BNPL item missing",
-            description: "No BNPL product selected. Please go back and try again.",
+            description:
+              "No BNPL product selected. Please go back and try again.",
           });
           return;
         }
@@ -594,7 +604,6 @@ export default function CheckoutPage() {
 
         createOrderPayload.product_id = p.product_id;
         createOrderPayload.quantity = Math.max(1, safeNum(p.quantity || 1, 1));
-        // IMPORTANT: do NOT set is_bnpl
       }
 
       const orderRes = await fetch("/api/store/checkout/create-order", {
@@ -627,12 +636,11 @@ export default function CheckoutPage() {
       const currentUrl = new URL(window.location.href);
       const redirect_url = `${window.location.origin}/store/checkout?${currentUrl.searchParams.toString()}`;
 
-
       const normalAmountToPay = safeNum(
         orderData?.grand_total ??
-        orderData?.payable_total ??
-        orderData?.amount ??
-        orderData?.total_amount,
+          orderData?.payable_total ??
+          orderData?.amount ??
+          orderData?.total_amount,
         0
       );
 
@@ -643,7 +651,8 @@ export default function CheckoutPage() {
         toast({
           variant: "destructive",
           title: "Invalid amount",
-          description: "Payment amount is invalid. Please refresh and try again.",
+          description:
+            "Payment amount is invalid. Please refresh and try again.",
         });
         return;
       }
@@ -652,13 +661,13 @@ export default function CheckoutPage() {
 
       const itemList = isBnplCheckout
         ? String(
-          bnplPayload?.product_id ||
-          bnplBreakdown?.product_details?.product_id ||
-          ""
-        )
+            bnplPayload?.product_id ||
+              bnplBreakdown?.product_details?.product_id ||
+              ""
+          )
         : isBuyNowCheckout
-          ? String(resolveBuyNowPayload()?.product_id || "")
-          : displayItems.map((i: any) => i.id).join(",");
+        ? String(resolveBuyNowPayload()?.product_id || "")
+        : displayItems.map((i: any) => i.id).join(",");
 
       const paymentPayload: any = {
         redirect_url,
@@ -666,9 +675,7 @@ export default function CheckoutPage() {
         amount: amountToPay.toFixed(2),
         order_id: orderId,
         item_list: itemList,
-        payment_title: isBnplCheckout
-          ? "BNPL - First Payment"
-          : "Store Checkout",
+        payment_title: isBnplCheckout ? "BNPL - First Payment" : "Store Checkout",
       };
 
       if (isBnplCheckout) {
@@ -696,7 +703,8 @@ export default function CheckoutPage() {
       const link = payData?.payment_link;
       const invoiceId = payData?.invoice_id;
 
-      if (invoiceId) localStorage.setItem("checkout_invoice_id", String(invoiceId));
+      if (invoiceId)
+        localStorage.setItem("checkout_invoice_id", String(invoiceId));
 
       if (!link) {
         toast({
@@ -718,7 +726,6 @@ export default function CheckoutPage() {
       setIsPlacingOrder(false);
     }
   };
-
 
   const confirmPayment = async (
     tx_ref: string,
@@ -760,11 +767,6 @@ export default function CheckoutPage() {
       localStorage.removeItem("checkout_invoice_id");
       setBuyNowProduct(null);
 
-      // after success
-      const mode = (searchParams.get("mode") || "").toLowerCase();
-      const pay = (searchParams.get("pay") || "").toLowerCase();
-
-      // remove gateway params but keep mode/pay/product_id/qty
       const clean = new URL(window.location.href);
       clean.searchParams.delete("status");
       clean.searchParams.delete("tx_ref");
@@ -772,7 +774,6 @@ export default function CheckoutPage() {
 
       router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
       setTimeout(() => router.push("/store"), 1200);
-
     } catch (err: any) {
       hasConfirmedRef.current = false;
       toast({
@@ -784,7 +785,6 @@ export default function CheckoutPage() {
       setIsPlacingOrder(false);
     }
   };
-
 
   // ✅ Confirm payment callback
   useEffect(() => {
@@ -799,14 +799,19 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  
   const bnplPayNowText = useMemo(() => {
     const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
     return formatNGN(payNow);
   }, [bnplBreakdown]);
+
   const formatDate = (iso: string) =>
-    new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", year: "numeric", month: "short", day: "2-digit" })
-      .format(new Date(iso));
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    }).format(new Date(iso));
+
   if (!mounted) {
     return (
       <div className="max-w-7xl mx-auto py-5 space-y-4">
@@ -844,6 +849,24 @@ export default function CheckoutPage() {
           </p>
         </div>
       </div>
+
+      {/* ✅ OPTIONAL: Show a login prompt block if not authenticated */}
+      {!isAuthed && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Login required</CardTitle>
+            <CardDescription>
+              Please log in to place an order or make payment.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-2">
+            <Button onClick={() => router.push("/login")}>Log in</Button>
+            <Button variant="outline" onClick={() => router.push("/store")}>
+              Continue shopping
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-2 space-y-4 md:space-y-6">
@@ -888,7 +911,8 @@ export default function CheckoutPage() {
                   onValueChange={(val) =>
                     setSelectedShippingAddress(val === "new" ? null : val)
                   }
-                  disabled={uiLocked}>
+                  disabled={uiLocked}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select shipping address" />
                   </SelectTrigger>
@@ -938,7 +962,8 @@ export default function CheckoutPage() {
                           onValueChange={(val) =>
                             setFormData({ ...formData, state: val, area: "" })
                           }
-                          disabled={uiLocked}>
+                          disabled={uiLocked}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
@@ -961,7 +986,8 @@ export default function CheckoutPage() {
                           onValueChange={(val) =>
                             setFormData({ ...formData, area: val })
                           }
-                          disabled={uiLocked || !formData.state}>
+                          disabled={uiLocked || !formData.state}
+                        >
                           <SelectTrigger>
                             <SelectValue
                               placeholder={
@@ -1028,7 +1054,8 @@ export default function CheckoutPage() {
                       return (
                         <div
                           key={key}
-                          className="flex gap-3 p-3 border rounded-lg">
+                          className="flex gap-3 p-3 border rounded-lg"
+                        >
                           <img
                             src={item.image}
                             alt={item.title}
@@ -1048,7 +1075,8 @@ export default function CheckoutPage() {
                                   disabled={uiLocked}
                                   onClick={() =>
                                     handleQuantityChange(id, item.quantity - 1)
-                                  }>
+                                  }
+                                >
                                   -
                                 </Button>
 
@@ -1063,7 +1091,8 @@ export default function CheckoutPage() {
                                   disabled={uiLocked}
                                   onClick={() =>
                                     handleQuantityChange(id, item.quantity + 1)
-                                  }>
+                                  }
+                                >
                                   +
                                 </Button>
                               </div>
@@ -1073,7 +1102,8 @@ export default function CheckoutPage() {
                                 size="icon"
                                 className="h-6 w-6 ml-auto"
                                 disabled={uiLocked}
-                                onClick={() => handleRemoveItem(id)}>
+                                onClick={() => handleRemoveItem(id)}
+                              >
                                 <Trash2 className="h-3 w-3 text-destructive" />
                               </Button>
                             </div>
@@ -1140,9 +1170,7 @@ export default function CheckoutPage() {
               {/* ✅ BNPL Breakdown */}
               {isBnplCheckout && (
                 <div className="p-3 rounded-lg border space-y-3">
-                  <div className="text-sm font-semibold">
-                    Buy Now, Pay Later
-                  </div>
+                  <div className="text-sm font-semibold">Buy Now, Pay Later</div>
 
                   {bnplLoading ? (
                     <div className="text-sm text-muted-foreground">
@@ -1162,9 +1190,7 @@ export default function CheckoutPage() {
                               bnplBreakdown.product_details.image_url ||
                               "/placeholder.svg"
                             }
-                            alt={
-                              bnplBreakdown.product_details.title || "Product"
-                            }
+                            alt={bnplBreakdown.product_details.title || "Product"}
                             className="w-12 h-12 rounded object-cover flex-shrink-0"
                           />
                           <div className="min-w-0">
@@ -1207,9 +1233,7 @@ export default function CheckoutPage() {
                       </div>
 
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Total (BNPL)
-                        </span>
+                        <span className="text-muted-foreground">Total (BNPL)</span>
                         <span className="font-semibold">
                           {formatNGN(
                             safeNum(bnplBreakdown.breakdown?.total_amount, 0)
@@ -1224,10 +1248,10 @@ export default function CheckoutPage() {
                           (inst: any) => (
                             <div
                               key={inst.index}
-                              className="flex justify-between text-xs p-2 border rounded-md">
+                              className="flex justify-between text-xs p-2 border rounded-md"
+                            >
                               <span className="text-muted-foreground">
-                                #{inst.index} •{" "}
-                                {formatDate(inst.due_at)}
+                                #{inst.index} • {formatDate(inst.due_at)}
                                 {inst.capture_immediately ? " (today)" : ""}
                               </span>
                               <span className="font-semibold">
@@ -1242,27 +1266,35 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* ✅ Button: BNPL = Request Item, Non-BNPL = Place Order */}
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleSubmit as any}
-                disabled={
-                  uiLocked ||
-                  !canRequestOrPlace ||
-                  (isBnplCheckout && (bnplLoading || !bnplBreakdown?.eligible))
-                }>
-                {uiLocked ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isPlacingOrder ? "Processing..." : "Updating..."}
-                  </>
-                ) : isBnplCheckout ? (
-                  <>Pay {bnplPayNowText} now</>
-                ) : (
-                  <>Place Order - {formatNGN(total)}</>
-                )}
-              </Button>
+              {/* ✅ Hide Place Order / Pay when not authenticated */}
+              {isAuthed ? (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleSubmit as any}
+                  disabled={
+                    uiLocked ||
+                    !canRequestOrPlace ||
+                    (isBnplCheckout &&
+                      (bnplLoading || !bnplBreakdown?.eligible))
+                  }
+                >
+                  {uiLocked ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isPlacingOrder ? "Processing..." : "Updating..."}
+                    </>
+                  ) : isBnplCheckout ? (
+                    <>Pay {bnplPayNowText} now</>
+                  ) : (
+                    <>Place Order - {formatNGN(total)}</>
+                  )}
+                </Button>
+              ) : (
+                <Button className="w-full" size="lg" onClick={requireAuth}>
+                  Log in to place order
+                </Button>
+              )}
 
               <p className="text-xs text-muted-foreground text-center">
                 By continuing, you agree to our terms and conditions
@@ -1273,5 +1305,4 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
-
 }

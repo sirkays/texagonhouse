@@ -1,60 +1,75 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// app/api/store/cart/items/[item_id]/route.ts
+export const runtime = "nodejs";
 
-//const BASE_URL = "http://127.0.0.1:9098/store/api"
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (token?: string) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(token && {"X-Session-Token": token}),
-});
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function PATCH(
   req: Request,
-  {params}: {params: Promise<{item_id: string}>}
+  { params }: { params: Promise<{ item_id: string }> }
 ) {
-  const {item_id} = await params; // ← awaited
+  const { item_id } = await params;
   const body = await req.json();
-  const fullUrl = `${BASE_URL}/cart/items/${item_id}/`;
-
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
 
   try {
-    const res = await fetch(fullUrl, {
-      method: "PATCH",
-      headers: headers(sessionToken ? sessionToken : undefined),
-      body: JSON.stringify(body),
-    });
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/cart/items/${item_id}/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }
+    );
 
-    const raw = await res.text();
-    if (!res.ok) {
-      // ... handle errors
+    if (!response.ok) {
+      const errRes = NextResponse.json(
+        {
+          error: `Backend returned ${response.status}`,
+          body: text.slice(0, 500),
+        },
+        { status: response.status }
+      );
+      if (setCookie) errRes.headers.set("set-cookie", setCookie);
+      return errRes;
     }
 
-    const data = JSON.parse(raw);
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const bad = NextResponse.json(
+        {
+          error: "Backend did not return valid JSON",
+          status: response.status,
+          contentType: response.headers.get("content-type") || "",
+          preview: text.slice(0, 300),
+        },
+        { status: 502 }
+      );
+      if (setCookie) bad.headers.set("set-cookie", setCookie);
+      return bad;
+    }
+
     const normalized = {
-      id: data.id,
-      items: data.items.map((i: any) => ({
-        id: i.id,
-        product_id: i.product_id,
-        title: i.title,
-        price: i.price,
-        quantity: i.quantity,
-        line_total: i.line_total,
-        image_url: i.image_url,
-        type: i.type,
-        bnpl_enabled: i.bnpl_enabled,
+      id: data.id ?? "",
+      items: (data.items ?? []).map((i: any) => ({
+        id: i.id ?? "",
+        product_id: i.product_id ?? "",
+        title: i.title ?? "Unknown",
+        price: i.price ?? "0",
+        quantity: i.quantity ?? 0,
+        line_total: i.line_total ?? "0",
+        image_url: i.image_url ?? null,
+        type: i.type ?? "physical",
+        bnpl_enabled: i.bnpl_enabled ?? false,
       })),
-      coupon: data.coupon,
-      subtotal: data.subtotal,
+      coupon: data.coupon ?? null,
+      subtotal: data.subtotal ?? "0.00",
     };
 
-    return NextResponse.json(normalized);
-  } catch (e) {
-    return NextResponse.json({error: "Failed"}, {status: 500});
+    const ok = NextResponse.json(normalized, { status: 200 });
+    if (setCookie) ok.headers.set("set-cookie", setCookie);
+    return ok;
+  } catch {
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

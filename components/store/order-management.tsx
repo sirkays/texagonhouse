@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+
 import {
   Card,
   CardContent,
@@ -109,6 +111,17 @@ function safeParseNum(v: any, fallback = 0) {
 
 export function OrderManagement() {
   const { toast } = useToast();
+  const { data: session, status } = useSession();
+
+  const sessionToken =
+    status === "authenticated" &&
+      session?.user &&
+      "sessionToken" in (session.user as any)
+      ? (session.user as any).sessionToken
+      : undefined;
+
+  const isAuthed = Boolean(sessionToken);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -712,6 +725,38 @@ export function OrderManagement() {
   // -----------------------------
   // RENDER
   // -----------------------------
+  if (status === "loading") {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Checking session…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>Login required</CardTitle>
+            <CardDescription>
+              You need to log in to view your orders.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-2">
+            <Button onClick={() => router.push("/login")}>Log in</Button>
+            <Button variant="outline" onClick={() => router.push("/store")}>
+              Continue shopping
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
