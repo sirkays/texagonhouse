@@ -727,6 +727,8 @@ export function OrderManagement() {
       order.items.some((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const bnplOrders = filteredOrders.filter((o) => o.paymentMethod === "BNPL");
+
   // Dialog detail (from cache)
   const dialogDetail =
     activeAgreementId ? bnplDetailsByAgreement[activeAgreementId] : undefined;
@@ -833,219 +835,325 @@ export function OrderManagement() {
         </div>
 
         <TabsContent value="all-orders">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOrders.map((order) => (
-              <Card
-                key={order.id}
-                className="flex flex-col shadow-sm hover:shadow-md transition-all rounded-2xl"
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
-                    <span>Order {order.id}</span>
-                    <Badge className={getStatusColor(order.status)}>
-                      <div className="flex items-center gap-1 capitalize">
-                        {getStatusIcon(order.status)}
-                        {order.status}
-                      </div>
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>
-                    Placed on {order.date} • Total: ₦{order.total}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    {order.items.map((item, index) => (
-                      <div
-                        key={index}
-                        className="p-3 bg-gray-50 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
-                      >
-                        <div>
-                          <h4 className="font-medium text-sm sm:text-base">
-                            {item.name}
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant={item.type === "digital" ? "secondary" : "outline"}
-                            >
-                              {item.type}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              ₦{item.price}
-                            </span>
-                          </div>
-                          {item.tracking && (
-                            <p className="text-xs text-muted-foreground">
-                              Tracking: {item.tracking}
-                            </p>
-                          )}
-                          {order.status === "fulfilled" && (
-                            <div className="pt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openReview(item.productSlug, item.name)}
-                                disabled={!item.productSlug}
-                                title={!item.productSlug ? "Missing product slug on order item" : ""}
-                                className="w-full sm:w-auto"
-                              >
-                                <Star className="mr-2 h-3 w-3" />
-                                Leave Review
-                              </Button>
-                            </div>
-                          )}
-
+          {filteredOrders.length === 0 ? (
+            <Card className="rounded-2xl">
+              <CardHeader>
+                <CardTitle>No orders</CardTitle>
+                <CardDescription>
+                  {searchQuery
+                    ? "No orders match your search."
+                    : "You haven’t placed any orders yet."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-2">
+                <Button onClick={() => router.push("/store")}>Continue shopping</Button>
+                {searchQuery ? (
+                  <Button variant="outline" onClick={() => setSearchQuery("")}>
+                    Clear search
+                  </Button>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredOrders.map((order) => (
+                <Card
+                  key={order.id}
+                  className="flex flex-col shadow-sm hover:shadow-md transition-all rounded-2xl"
+                >
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+                      <span>Order {order.id}</span>
+                      <Badge className={getStatusColor(order.status)}>
+                        <div className="flex items-center gap-1 capitalize">
+                          {getStatusIcon(order.status)}
+                          {order.status}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Placed on {order.date} • Total: ₦{order.total}
+                    </CardDescription>
+                  </CardHeader>
 
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t pt-3">
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                      <MessageSquare className="mr-2 h-3 w-3" />
-                      Contact Support
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                      onClick={() => openTracking(order.id)}
-                    >
-                      <Truck className="mr-2 h-3 w-3" />
-                      Track
-                    </Button>
+                  <CardContent className="space-y-4 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      {order.items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="p-3 bg-gray-50 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                        >
+                          <div>
+                            <h4 className="font-medium text-sm sm:text-base">
+                              {item.name}
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant={item.type === "digital" ? "secondary" : "outline"}
+                              >
+                                {item.type}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                ₦{item.price}
+                              </span>
+                            </div>
+                            {item.tracking && (
+                              <p className="text-xs text-muted-foreground">
+                                Tracking: {item.tracking}
+                              </p>
+                            )}
+                            {order.status === "fulfilled" && (
+                              <div className="pt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openReview(item.productSlug, item.name)}
+                                  disabled={!item.productSlug}
+                                  title={!item.productSlug ? "Missing product slug on order item" : ""}
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Star className="mr-2 h-3 w-3" />
+                                  Leave Review
+                                </Button>
+                              </div>
+                            )}
 
-                    {order.status === "delivered" && (
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t pt-3">
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                        <MessageSquare className="mr-2 h-3 w-3" />
+                        Contact Support
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         className="w-full sm:w-auto"
-                        onClick={() => openReview(order.items?.[0]?.productSlug, order.items?.[0]?.name)}
-                        disabled={!order.items?.[0]?.productSlug}
-                        title={!order.items?.[0]?.productSlug ? "Missing product slug on order item" : ""}
+                        onClick={() => openTracking(order.id)}
                       >
-                        <Star className="mr-2 h-3 w-3" />
-                        Leave Review
+                        <Truck className="mr-2 h-3 w-3" />
+                        Track
                       </Button>
-                    )}
 
-                    {order.paymentMethod === "Credit Card" &&
-                      order.status === "processing" && (
+                      {order.status === "delivered" && (
                         <Button
                           variant="outline"
                           size="sm"
                           className="w-full sm:w-auto"
-                          onClick={() => startBnpl(order.id)}
+                          onClick={() => openReview(order.items?.[0]?.productSlug, order.items?.[0]?.name)}
+                          disabled={!order.items?.[0]?.productSlug}
+                          title={!order.items?.[0]?.productSlug ? "Missing product slug on order item" : ""}
                         >
-                          Set up BNPL
+                          <Star className="mr-2 h-3 w-3" />
+                          Leave Review
                         </Button>
                       )}
-                  </div>
 
-                  {order.estimatedDelivery && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">
-                        Estimated delivery: {order.estimatedDelivery}
-                      </span>
+                      {order.paymentMethod === "Credit Card" &&
+                        order.status === "processing" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:w-auto"
+                            onClick={() => startBnpl(order.id)}
+                          >
+                            Set up BNPL
+                          </Button>
+                        )}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                    {order.estimatedDelivery && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">
+                          Estimated delivery: {order.estimatedDelivery}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
+        {/* ✅ BNPL TAB (FULL) */}
         <TabsContent value="bnpl">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOrders
-              .filter((order) => order.paymentMethod === "BNPL")
-              .map((order) => {
-                const detail = getCachedDetail(order.agreementId);
-                const loadingThis = isAgreementLoading(order.agreementId);
-                const nextPayable = detail ? getNextPayableInstallment(detail) : null;
+          {(() => {
+            const bnplOrders = filteredOrders.filter(
+              (order) => order.paymentMethod === "BNPL"
+            );
 
-                return (
-                  <Card
-                    key={order.id}
-                    className="shadow-sm hover:shadow-md transition-all rounded-2xl"
-                  >
-                    <CardHeader>
-                      <CardTitle>BNPL Order {order.id}</CardTitle>
-                      <CardDescription>Manage your payment schedule</CardDescription>
-                    </CardHeader>
+            // ✅ Empty state
+            if (bnplOrders.length === 0) {
+              return (
+                <Card className="rounded-2xl">
+                  <CardHeader>
+                    <CardTitle>No BNPL orders</CardTitle>
+                    <CardDescription>
+                      {searchQuery
+                        ? "No BNPL orders match your search."
+                        : "You don’t have any BNPL orders yet."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col sm:flex-row gap-2">
+                    <Button onClick={() => router.push("/store")}>
+                      Continue shopping
+                    </Button>
 
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Next Payment</p>
-                          <p className="font-medium">{order.nextPayment || "—"}</p>
+                    {searchQuery ? (
+                      <Button variant="outline" onClick={() => setSearchQuery("")}>
+                        Clear search
+                      </Button>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // ✅ Normal list
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {bnplOrders.map((order) => {
+                  const detail = getCachedDetail(order.agreementId);
+                  const loadingThis = isAgreementLoading(order.agreementId);
+                  const nextPayable = detail ? getNextPayableInstallment(detail) : null;
+
+                  return (
+                    <Card
+                      key={order.id}
+                      className="shadow-sm hover:shadow-md transition-all rounded-2xl"
+                    >
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+                          <span>BNPL Order {order.id}</span>
+
+                          <Badge className={getStatusColor(order.status)}>
+                            <div className="flex items-center gap-1 capitalize">
+                              {getStatusIcon(order.status)}
+                              {order.status}
+                            </div>
+                          </Badge>
+                        </CardTitle>
+
+                        <CardDescription>
+                          Placed on {order.date} • Total: ₦{order.total}
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Next Payment</p>
+                            <p className="font-medium">{order.nextPayment || "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Remaining</p>
+                            <p className="font-medium">
+                              {typeof order.remainingPayments === "number"
+                                ? order.remainingPayments
+                                : "—"}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Remaining</p>
-                          <p className="font-medium">
-                            {typeof order.remainingPayments === "number"
-                              ? order.remainingPayments
-                              : "—"}
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() => viewSchedule(order.agreementId)}
+                            disabled={!order.agreementId || loadingThis}
+                            title={!order.agreementId ? "Missing agreement id" : ""}
+                          >
+                            {loadingThis ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              "View Schedule"
+                            )}
+                          </Button>
+
+                          <Button
+                            className="w-full sm:w-auto"
+                            onClick={() => makePayment(order.agreementId)}
+                            disabled={
+                              !order.agreementId ||
+                              loadingThis ||
+                              (detail ? !nextPayable : false)
+                            }
+                            title={
+                              !order.agreementId
+                                ? "Missing agreement id"
+                                : loadingThis
+                                  ? "Loading schedule..."
+                                  : detail && !nextPayable
+                                    ? "No installment is due yet"
+                                    : ""
+                            }
+                          >
+                            {loadingThis ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              "Make Payment"
+                            )}
+                          </Button>
+                        </div>
+
+                        {/* Optional small hint if we haven't loaded schedule yet */}
+                        {!detail && order.agreementId && (
+                          <p className="text-xs text-muted-foreground">
+                            Tip: “Make Payment” will auto-load the schedule.
                           </p>
-                        </div>
-                      </div>
+                        )}
 
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          onClick={() => viewSchedule(order.agreementId)}
-                          disabled={!order.agreementId || loadingThis}
-                        >
-                          {loadingThis ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            "View Schedule"
-                          )}
-                        </Button>
+                        {/* ✅ Optional: show due installment preview (only if schedule already cached) */}
+                        {detail && (
+                          <div className="rounded-xl border p-3 space-y-2">
+                            <p className="text-sm font-medium">Next due installment</p>
 
-                        <Button
-                          className="w-full sm:w-auto"
-                          onClick={() => makePayment(order.agreementId)}
-                          disabled={!order.agreementId || loadingThis || (detail ? !nextPayable : false)}
-                          title={
-                            !order.agreementId
-                              ? "Missing agreement id"
-                              : loadingThis
-                                ? "Loading schedule..."
-                                : detail && !nextPayable
-                                  ? "No installment is due yet"
-                                  : ""
-                          }
-                        >
-                          {loadingThis ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            "Make Payment"
-                          )}
-                        </Button>
-                      </div>
-
-                      {/* Optional small hint if we haven't loaded schedule yet */}
-                      {!detail && order.agreementId && (
-                        <p className="text-xs text-muted-foreground">
-                          Tip: “Make Payment” will auto-load the schedule.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </div>
+                            {nextPayable ? (
+                              <div className="text-sm">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-muted-foreground">
+                                    Installment #{nextPayable.index}
+                                  </span>
+                                  <span className="font-semibold">
+                                    ₦{nextPayable.amount_due}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-muted-foreground">Due</span>
+                                  <span className="font-medium">
+                                    {nextPayable.due_at
+                                      ? nextPayable.due_at.split("T")[0]
+                                      : "—"}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No installment is due right now.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </TabsContent>
+
       </Tabs>
 
       {/* BNPL Schedule Dialog */}
