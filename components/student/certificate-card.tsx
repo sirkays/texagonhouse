@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\components\student\certificate-card.tsx
 "use client";
 
 import Link from "next/link";
