@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const headers = await withAuthHeaders();
     const body = await request.json();
-
+    
     const res = await fetchWithTimeout(`${BASE_URL}/api/ide/submissions/create/`, {
       method: "POST",
       headers,
