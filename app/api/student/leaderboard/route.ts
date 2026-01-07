@@ -3,7 +3,8 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL =
-  "https://texagonbackend.onrender.com/gamification/api/leaderboard";
+  "https://texagonbackend.onrender.com/gamification/api/leaderboard/";
+//const BASE_URL = "http://127.0.0.1:9098/gamification/api/leaderboard/";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
         "Content-Type": "application/json",
         "X-Session-Token": session.user.sessionToken,
       },
-      timeout: 8000,
+      timeout: 80000,
     });
 
     if (!res.ok) {

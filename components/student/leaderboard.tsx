@@ -11,15 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Trophy,
-  Medal,
-  Crown,
-  Star,
-  TrendingUp,
-  Users,
-  School,
-} from "lucide-react";
+import { Trophy, Medal, Crown, Star, TrendingUp, Users, School } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -36,7 +28,7 @@ interface Leader {
   name: string;
   school?: string;
   points: number;
-  avatar: string | null; // Updated to allow null
+  avatar: string | null;
   streak: number;
   badges?: number;
   isCurrentUser: boolean;
@@ -61,6 +53,7 @@ export function Leaderboard() {
     school: 1,
     weekly: 1,
   });
+
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardData>({
     stats: {
       global_rank: null,
@@ -73,6 +66,7 @@ export function Leaderboard() {
     school: [],
     weekly: [],
   });
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,10 +92,18 @@ export function Leaderboard() {
         setIsLoading(false);
       }
     };
+
     fetchLeaderboard();
   }, []);
 
-  const getRankIcon = (rank: number) => {
+  // ---- Helpers to prevent rank #1 when points = 0 ----
+  const hasPoints = (points: number) => points > 0;
+
+  const getRankIcon = (rank: number | null) => {
+    if (!rank) {
+      return <span className="text-sm text-muted-foreground">Unranked</span>;
+    }
+
     switch (rank) {
       case 1:
         return <Crown className="h-5 w-5 text-yellow-500" />;
@@ -118,16 +120,16 @@ export function Leaderboard() {
     }
   };
 
-  const getRankBadge = (rank: number) => {
+  const getRankBadge = (rank: number | null) => {
+    if (!rank) return null;
+
     switch (rank) {
       case 1:
         return (
           <Badge className="bg-yellow-100 text-yellow-700">🥇 Champion</Badge>
         );
       case 2:
-        return (
-          <Badge className="bg-gray-100 text-gray-700">🥈 Runner-up</Badge>
-        );
+        return <Badge className="bg-gray-100 text-gray-700">🥈 Runner-up</Badge>;
       case 3:
         return (
           <Badge className="bg-amber-100 text-amber-700">🥉 Third Place</Badge>
@@ -153,6 +155,7 @@ export function Leaderboard() {
         : tab === "school"
         ? leaderboardData.school
         : leaderboardData.weekly;
+
     const totalPages = getTotalPages(items);
     const current = currentPage[tab];
 
@@ -177,9 +180,7 @@ export function Leaderboard() {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() =>
-                  setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))
-                }
+                onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}
                 aria-label="Go to first page"
               >
                 1
@@ -249,20 +250,17 @@ export function Leaderboard() {
   };
 
   // Handle avatar image errors
-  const handleAvatarError = (
-    e: React.SyntheticEvent<HTMLImageElement, Event>
-  ) => {
+  const handleAvatarError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.currentTarget;
-    target.src = "/placeholder-avatar.png"; // Create this file in public folder
-    target.onerror = null; // Prevent infinite error loops
+    target.src = "/placeholder-avatar.png";
+    target.onerror = null;
   };
 
-  
-    const normalizeAvatarUrl = (avatar: string | null) => {
-      if (!avatar) return "/placeholder-avatar.png";
-      if (avatar.startsWith("http")) return avatar;
-      return `https://texagonbackend.onrender.com${avatar}`;
-    };
+  const normalizeAvatarUrl = (avatar: string | null) => {
+    if (!avatar) return "/placeholder-avatar.png";
+    if (avatar.startsWith("http")) return avatar;
+    return `https://texagonbackend.onrender.com${avatar}`;
+  };
 
   if (isLoading) {
     return (
@@ -275,6 +273,17 @@ export function Leaderboard() {
   if (error) {
     return <div>Error: {error}</div>;
   }
+
+  // stats rank should be unranked if total points is 0
+  const showGlobalRank =
+    leaderboardData.stats.total_points > 0 && leaderboardData.stats.global_rank
+      ? `#${leaderboardData.stats.global_rank}`
+      : "Unranked";
+
+  const showSchoolRank =
+    leaderboardData.stats.total_points > 0 && leaderboardData.stats.school_rank
+      ? `#${leaderboardData.stats.school_rank}`
+      : "Unranked";
 
   return (
     <div className="space-y-6">
@@ -292,36 +301,32 @@ export function Leaderboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {leaderboardData.stats.global_rank
-                ? `#${leaderboardData.stats.global_rank}`
-                : "Unranked"}
-            </div>
+            <div className="text-2xl font-bold">{showGlobalRank}</div>
             <p className="text-xs text-muted-foreground">
-              {leaderboardData.stats.global_rank
+              {leaderboardData.stats.total_points > 0 &&
+              leaderboardData.stats.global_rank
                 ? "Your global position"
                 : "Complete challenges to rank"}
             </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">School Rank</CardTitle>
             <School className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {leaderboardData.stats.school_rank
-                ? `#${leaderboardData.stats.school_rank}`
-                : "Unranked"}
-            </div>
+            <div className="text-2xl font-bold">{showSchoolRank}</div>
             <p className="text-xs text-muted-foreground">
-              {leaderboardData.stats.school_rank
+              {leaderboardData.stats.total_points > 0 &&
+              leaderboardData.stats.school_rank
                 ? "Top in your school"
                 : "Complete challenges to rank"}
             </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Points</CardTitle>
@@ -336,6 +341,7 @@ export function Leaderboard() {
             </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Competitors</CardTitle>
@@ -372,74 +378,80 @@ export function Leaderboard() {
           </TabsTrigger>
         </TabsList>
 
+        {/* ---------------- Global Tab ---------------- */}
         <TabsContent value="global" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Global Leaderboard</CardTitle>
-              <CardDescription>
-                Top performers across all schools
-              </CardDescription>
+              <CardDescription>Top performers across all schools</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getPaginatedItems(
-                  leaderboardData.global,
-                  currentPage.global
-                ).map((leader) => (
-                  <div
-                    key={leader.rank}
-                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border ${
-                      leader.isCurrentUser
-                        ? "bg-blue-50 border-blue-200"
-                        : "bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8">
-                        {getRankIcon(leader.rank)}
-                      </div>
-                      <Avatar>
-                        <AvatarImage
-                          src={normalizeAvatarUrl(leader.avatar)}
-                          onError={handleAvatarError}
-                        />
+                {getPaginatedItems(leaderboardData.global, currentPage.global).map(
+                  (leader) => {
+                    const effectiveRank = hasPoints(leader.points) ? leader.rank : null;
+                    const highlightCurrentUser =
+                      leader.isCurrentUser && hasPoints(leader.points);
 
-                        <AvatarFallback>
-                          {leader.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-medium">{leader.name}</h4>
-                          {leader.isCurrentUser && (
-                            <Badge variant="secondary">You</Badge>
-                          )}
-                          {getRankBadge(leader.rank)}
+                    return (
+                      <div
+                        key={`${leader.rank}-${leader.name}`}
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border ${
+                          highlightCurrentUser
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8">
+                            {getRankIcon(effectiveRank)}
+                          </div>
+                          <Avatar>
+                            <AvatarImage
+                              src={normalizeAvatarUrl(leader.avatar)}
+                              onError={handleAvatarError}
+                            />
+                            <AvatarFallback>
+                              {leader.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="font-medium">{leader.name}</h4>
+                              {leader.isCurrentUser && (
+                                <Badge variant="secondary">You</Badge>
+                              )}
+                              {getRankBadge(effectiveRank)}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {leader.school}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {leader.school}
-                        </p>
+
+                        <div className="text-left sm:text-right">
+                          <div className="font-bold text-lg">
+                            {leader.points.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {leader.streak} day streak • {leader.badges ?? 0} badges
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <div className="font-bold text-lg">
-                        {leader.points.toLocaleString()}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {leader.streak} day streak • {leader.badges} badges
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  }
+                )}
               </div>
               {renderPagination("global")}
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* ---------------- School Tab ---------------- */}
         <TabsContent value="school" className="space-y-4">
           <Card>
             <CardHeader>
@@ -448,64 +460,71 @@ export function Leaderboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getPaginatedItems(
-                  leaderboardData.school,
-                  currentPage.school
-                ).map((leader) => (
-                  <div
-                    key={leader.rank}
-                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
-                      leader.isCurrentUser
-                        ? "bg-blue-50 border-blue-200"
-                        : "bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                      <div className="flex items-center justify-center w-8 shrink-0">
-                        {getRankIcon(leader.rank)}
-                      </div>
-                      <Avatar className="h-10 w-10">
-                       <AvatarImage
-                          src={normalizeAvatarUrl(leader.avatar)}
-                          onError={handleAvatarError}
-                        />
-                        <AvatarFallback>
-                          {leader.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-medium truncate">
-                            {leader.name}
-                          </h4>
-                          {leader.isCurrentUser && (
-                            <Badge variant="secondary" className="text-xs">
-                              You
-                            </Badge>
-                          )}
-                          {getRankBadge(leader.rank)}
+                {getPaginatedItems(leaderboardData.school, currentPage.school).map(
+                  (leader) => {
+                    const effectiveRank = hasPoints(leader.points) ? leader.rank : null;
+                    const highlightCurrentUser =
+                      leader.isCurrentUser && hasPoints(leader.points);
+
+                    return (
+                      <div
+                        key={`${leader.rank}-${leader.name}`}
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
+                          highlightCurrentUser
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                          <div className="flex items-center justify-center w-8 shrink-0">
+                            {getRankIcon(effectiveRank)}
+                          </div>
+
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage
+                              src={normalizeAvatarUrl(leader.avatar)}
+                              onError={handleAvatarError}
+                            />
+                            <AvatarFallback>
+                              {leader.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="font-medium truncate">{leader.name}</h4>
+                              {leader.isCurrentUser && (
+                                <Badge variant="secondary" className="text-xs">
+                                  You
+                                </Badge>
+                              )}
+                              {getRankBadge(effectiveRank)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
+                          <div className="font-bold text-base sm:text-lg">
+                            {leader.points.toLocaleString()}
+                          </div>
+                          <div className="text-xs sm:text-sm text-muted-foreground">
+                            {leader.streak} day streak • {leader.badges ?? 0} badges
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
-                      <div className="font-bold text-base sm:text-lg">
-                        {leader.points.toLocaleString()}
-                      </div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        {leader.streak} day streak • {leader.badges} badges
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  }
+                )}
               </div>
               {renderPagination("school")}
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* ---------------- Weekly Tab ---------------- */}
         <TabsContent value="weekly" className="space-y-4">
           <Card>
             <CardHeader>
@@ -514,58 +533,64 @@ export function Leaderboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getPaginatedItems(
-                  leaderboardData.weekly,
-                  currentPage.weekly
-                ).map((leader) => (
-                  <div
-                    key={leader.rank}
-                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
-                      leader.isCurrentUser
-                        ? "bg-blue-50 border-blue-200"
-                        : "bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                      <div className="flex items-center justify-center w-8 shrink-0">
-                        {getRankIcon(leader.rank)}
-                      </div>
-                      <Avatar className="h-10 w-10">
-                       <AvatarImage
-                          src={normalizeAvatarUrl(leader.avatar)}
-                          onError={handleAvatarError}
-                        />
-                        <AvatarFallback>
-                          {leader.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-medium truncate">
-                            {leader.name}
-                          </h4>
-                          {leader.isCurrentUser && (
-                            <Badge variant="secondary" className="text-xs">
-                              You
-                            </Badge>
-                          )}
-                          {getRankBadge(leader.rank)}
+                {getPaginatedItems(leaderboardData.weekly, currentPage.weekly).map(
+                  (leader) => {
+                    const effectiveRank = hasPoints(leader.points) ? leader.rank : null;
+                    const highlightCurrentUser =
+                      leader.isCurrentUser && hasPoints(leader.points);
+
+                    return (
+                      <div
+                        key={`${leader.rank}-${leader.name}`}
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border ${
+                          highlightCurrentUser
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                          <div className="flex items-center justify-center w-8 shrink-0">
+                            {getRankIcon(effectiveRank)}
+                          </div>
+
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage
+                              src={normalizeAvatarUrl(leader.avatar)}
+                              onError={handleAvatarError}
+                            />
+                            <AvatarFallback>
+                              {leader.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="font-medium truncate">{leader.name}</h4>
+                              {leader.isCurrentUser && (
+                                <Badge variant="secondary" className="text-xs">
+                                  You
+                                </Badge>
+                              )}
+                              {getRankBadge(effectiveRank)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
+                          <div className="font-bold text-base sm:text-lg">
+                            {leader.points.toLocaleString()}
+                          </div>
+                          <div className="text-xs sm:text-sm text-muted-foreground">
+                            points this week
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="sm:text-right text-sm flex sm:block justify-between w-full sm:w-auto">
-                      <div className="font-bold text-base sm:text-lg">
-                        {leader.points.toLocaleString()}
-                      </div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        points this week
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  }
+                )}
               </div>
               {renderPagination("weekly")}
             </CardContent>

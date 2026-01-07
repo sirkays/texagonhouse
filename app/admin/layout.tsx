@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\app\admin\layout.tsx
 "use client";
 
 import {useState, useEffect} from "react";
@@ -109,6 +110,7 @@ const navigation = [
     id: "gamification",
     path: "/admin/gamification",
   },
+  { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
   {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
   {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
 ];
