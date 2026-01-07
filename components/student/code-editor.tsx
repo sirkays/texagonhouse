@@ -1,4 +1,3 @@
-
 import {useState, useRef, useEffect} from "react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
@@ -1410,7 +1409,7 @@ export function CodeEditor() {
           font-size: 0.875rem;
         }
       `}</style>
-      <div className="space-y-4 px-4 sm:px-6 lg:px-8">
+      <div className="space-y-4 py-4 px-4 sm:px-6 lg:px-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Code IDE</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
@@ -1683,13 +1682,14 @@ export function CodeEditor() {
                   disabled={uploading}
                 />
                 <Tabs defaultValue="saved" className="flex-1">
-                  <TabsList className="grid grid-cols-2 gap-2">
+                  <TabsList className="grid grid-cols-2 gap-2 mb-3">
                     <TabsTrigger value="saved">Saved Snippets</TabsTrigger>
                     <TabsTrigger value="uploads">Other Uploads</TabsTrigger>
                   </TabsList>
+                  {/* Saved Snippets */}
                   <TabsContent value="saved" className="space-y-4">
                     {paginatedSnippets.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-8">
+                      <p className="text-muted-foreground text-center py-8 text-sm sm:text-base">
                         No snippets found. Create some using "New Snippet"!
                       </p>
                     ) : (
@@ -1701,63 +1701,85 @@ export function CodeEditor() {
                         )
                         .map((s) => (
                           <Card key={s.id} className="p-4 overflow-hidden">
-                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                            {/* Header */}
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              {/* Title */}
                               <span
-                                className="font-medium cursor-pointer hover:text-primary truncate flex-1"
+                                className="font-medium cursor-pointer hover:text-primary truncate w-full sm:max-w-[60%]"
                                 title="Click to load into editor">
                                 {s.title}
                               </span>
-                              <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <span className="text-muted-foreground text-xs truncate">
+
+                              {/* Actions */}
+                              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                                <span className="text-muted-foreground text-xs truncate max-w-[120px] sm:max-w-none">
                                   {new Date(s.updated_at).toLocaleString()}
                                 </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copySnippetUrl(s.id)}
-                                  title="Copy snippet URL">
-                                  <Link className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteSnippet(s.id)}
-                                  title="Delete snippet"
-                                  className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => copySnippetUrl(s.id)}
+                                    title="Copy snippet URL">
+                                    <Link className="h-4 w-4" />
+                                  </Button>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteSnippet(s.id)}
+                                    title="Delete snippet"
+                                    className="text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
+
+                            {/* Lesson */}
                             {s.lesson && (
                               <p className="text-xs text-muted-foreground mt-1 truncate">
                                 Lesson {s.lesson}
                               </p>
                             )}
-                            <Button
-                              className="cursor-pointer bg-transparent"
-                              onClick={() => loadSnippet(s)}>
-                              View
-                            </Button>
+
+                            {/* View Button */}
+                            <div className="mt-3">
+                              <Button
+                                className="w-full sm:w-auto bg-transparent"
+                                onClick={() => loadSnippet(s)}>
+                                View
+                              </Button>
+                            </div>
                           </Card>
                         ))
                     )}
-                    <div className="flex justify-between mt-4 flex-wrap gap-2">
+
+                    {/* Pagination */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
                       <Button
                         disabled={currentPage === 1}
-                        onClick={() => setCurrentPage((p) => p - 1)}>
+                        onClick={() => setCurrentPage((p) => p - 1)}
+                        className="w-full sm:w-auto">
                         Previous
                       </Button>
-                      <span className="text-sm">
+
+                      <span className="text-sm text-center">
                         Page {currentPage} of {totalSnippetPages} (
                         {filteredSnippets.length} total)
                       </span>
+
                       <Button
                         disabled={currentPage === totalSnippetPages}
-                        onClick={() => setCurrentPage((p) => p + 1)}>
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="w-full sm:w-auto">
                         Next
                       </Button>
                     </div>
                   </TabsContent>
+
+                  {/* Other Uploads */}
                   <TabsContent value="uploads" className="space-y-4">
                     {uploading && (
                       <Alert className="bg-blue-50 border-blue-200">
@@ -1773,11 +1795,14 @@ export function CodeEditor() {
                       </p>
                     ) : (
                       paginatedUploads.map((file) => (
-                        <Card key={file.id} className="p-4 overflow-hidden">
-                          <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                            <div className="flex-1">
+                        <Card
+                          key={file.id}
+                          className="p-3 sm:p-4 overflow-hidden">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                            {/* File Info */}
+                            <div className="flex-1 min-w-0">
                               <h4
-                                className={`font-medium cursor-pointer hover:text-primary truncate ${
+                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${
                                   fileLoading === file.id
                                     ? "opacity-50 cursor-wait"
                                     : ""
@@ -1795,38 +1820,49 @@ export function CodeEditor() {
                                   <Spinner size="sm" className="inline ml-2" />
                                 )}
                               </h4>
-                              <p className="text-sm text-muted-foreground truncate">
+
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
                                 {file.original_name} •{" "}
                                 {Math.round(file.size_bytes / 1024)} KB •
                                 {file.lesson
                                   ? ` Lesson ${file.lesson}`
                                   : " No lesson"}
                               </p>
+
                               <p className="text-xs text-muted-foreground mt-1 truncate">
                                 {new Date(file.updated_at).toLocaleString()}
                               </p>
-                              <div className="text-xs text-muted-foreground mt-1 truncate">
-                                <span>{file.url}</span>
+
+                              {/* URL — mobile-safe wrapping */}
+                              <div className="flex flex-wrap items-start gap-2 text-xs text-muted-foreground mt-1 min-w-0">
+                                <span className="break-all flex-1 min-w-0">
+                                  {file.url}
+                                </span>
+
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => copyFileUrl(file)}
                                   title="Copy file URL"
                                   disabled={loading || fileLoading === file.id}
-                                  className="ml-2">
+                                  className="shrink-0">
                                   <Copy className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => copyFileUrl(file)}
                                 title="Copy file URL"
-                                disabled={loading || fileLoading === file.id}>
+                                disabled={loading || fileLoading === file.id}
+                                className="flex-1 sm:flex-none">
                                 <Link className="h-4 w-4" />
                               </Button>
+
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1836,7 +1872,7 @@ export function CodeEditor() {
                                     ? "Deleting..."
                                     : "Delete file"
                                 }
-                                className="text-destructive hover:text-destructive"
+                                className="text-destructive hover:text-destructive flex-1 sm:flex-none"
                                 disabled={
                                   loading ||
                                   fileLoading === file.id ||
@@ -1853,21 +1889,25 @@ export function CodeEditor() {
                         </Card>
                       ))
                     )}
-                    <div className="flex justify-between mt-4 flex-wrap gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
                       <Button
                         variant="outline"
                         disabled={currentPage === 1 || uploading}
-                        onClick={() => setCurrentPage((p) => p - 1)}>
+                        onClick={() => setCurrentPage((p) => p - 1)}
+                        className="w-full sm:w-auto">
                         Previous
                       </Button>
-                      <span className="text-sm">
+
+                      <span className="text-sm text-center sm:text-left">
                         Page {currentPage} of {totalUploadPages} (
                         {filteredUploads.length} total)
                       </span>
+
                       <Button
                         variant="outline"
                         disabled={currentPage === totalUploadPages || uploading}
-                        onClick={() => setCurrentPage((p) => p + 1)}>
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="w-full sm:w-auto">
                         Next
                       </Button>
                     </div>
@@ -2200,32 +2240,38 @@ function SubmissionTab({
                     {paginatedSubmissions.map((s) => (
                       <div
                         key={s.id}
-                        className="flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
+                        className="flex flex-col gap-3 p-4 hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between"
                         // onClick={() => viewDetail(s)}
                       >
-                        <div className="space-y-1">
-                          <p className="font-medium">
+                        {/* Left info */}
+                        <div className="space-y-1 min-w-0">
+                          <p className="font-medium truncate">
                             #{s.id}
                             {s.title ? ` - ${s.title}` : ""}
                           </p>
+
                           <p className="text-sm text-muted-foreground capitalize">
                             {s.language} • {s.status}
                           </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right space-y-1">
+
+                        {/* Right info + action */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                          <div className="text-left sm:text-right space-y-1">
                             <p className="font-medium">{s.score ?? "--"} pts</p>
                             <p className="text-sm text-muted-foreground">
                               {new Date(s.created_at).toLocaleDateString()}
                             </p>
                           </div>
+
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
                               onLoadToEditor(s);
-                            }}>
+                            }}
+                            className="w-full sm:w-auto">
                             View Code
                           </Button>
                         </div>
