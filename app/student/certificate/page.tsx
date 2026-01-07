@@ -29,6 +29,9 @@ export default function StudentCertificatesPage() {
     cert.course_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  console.log("Certificates:", certificates);
+  console.log("User Session:", session);
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">

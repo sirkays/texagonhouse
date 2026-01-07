@@ -17,6 +17,7 @@ import {
   LogOut,
   Video,
   MedalIcon,
+  Award,
 } from "lucide-react";
 import {
   Sidebar,
@@ -108,7 +109,7 @@ const menuItems = [
   },
   {
     title: "Certificates",
-    icon: MedalIcon,
+    icon: Award,
     id: "certificates",
     path: "/student/certificate",
   },
