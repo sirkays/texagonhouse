@@ -112,7 +112,7 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
+            {/* <div className="grid gap-4 md:grid-cols-2">
               {reports.map((report) => (
                 <div
                   key={report.id}
@@ -138,6 +138,46 @@ export default function ReportsPage() {
                     <Download className="mr-2 h-3 w-3" />
                     Generate
                   </Button>
+                </div>
+              ))}
+            </div> */}
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 md:grid-cols-2">
+              {reports.map((report) => (
+                <div
+                  key={report.id}
+                  className="flex flex-col gap-4 p-4 rounded-lg border border-border transition-colors hover:bg-muted/50 sm:flex-row sm:items-start">
+                  {/* Icon */}
+                  <div className="h-12 w-12 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <report.icon className="h-6 w-6 text-primary" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">
+                      {report.name}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {report.description}
+                    </p>
+
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Last generated: {report.lastGenerated}
+                    </p>
+                  </div>
+
+                  {/* Action */}
+                  <div className="w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGeneratingReport(report)}
+                      className="w-full sm:w-auto">
+                      <Download className="mr-2 h-3 w-3" />
+                      Generate
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

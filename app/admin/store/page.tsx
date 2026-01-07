@@ -1,8 +1,8 @@
 //texagon_academy\texagonui\app\admin\store\page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import {useEffect, useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
 import {
   Card,
   CardContent,
@@ -10,19 +10,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { Eye, PackagePlus, Plus, Search, Truck } from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Input} from "@/components/ui/input";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {useToast} from "@/hooks/use-toast";
+import {Eye, PackagePlus, Plus, Search, Truck} from "lucide-react";
 
 // Modals (below)
-import { CreateShipmentModal } from "@/components/admin/modals/create-shipment-modal";
-import { SetTrackingModal } from "@/components/admin/modals/set-tracking-modal";
-import { AddTrackingEventModal } from "@/components/admin/modals/add-tracking-event-modal";
-import { OrderDetailsModal } from "@/components/admin/modals/order-details-modal";
-import { ShipmentDetailsModal } from "@/components/admin/modals/shipment-details-modal";
+import {CreateShipmentModal} from "@/components/admin/modals/create-shipment-modal";
+import {SetTrackingModal} from "@/components/admin/modals/set-tracking-modal";
+import {AddTrackingEventModal} from "@/components/admin/modals/add-tracking-event-modal";
+import {OrderDetailsModal} from "@/components/admin/modals/order-details-modal";
+import {ShipmentDetailsModal} from "@/components/admin/modals/shipment-details-modal";
 
 /**
  * NOTE:
@@ -74,7 +74,6 @@ type Order = {
   hasShipment?: boolean;
 };
 
-
 type ShipmentStatus =
   | "pending"
   | "ready"
@@ -99,13 +98,13 @@ type Shipment = {
 
 export default function StorePage() {
   const router = useRouter();
-  const { toast } = useToast();
+  const {toast} = useToast();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsShipment, setDetailsShipment] = useState<Shipment | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "shipments">(
-    "orders"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "products" | "orders" | "shipments"
+  >("orders");
   const [creatingShipment, setCreatingShipment] = useState(false);
   const [settingTracking, setSettingTracking] = useState(false);
   const [addingEvent, setAddingEvent] = useState(false);
@@ -126,7 +125,9 @@ export default function StorePage() {
   const [eventOpen, setEventOpen] = useState(false);
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(
+    null
+  );
 
   const [viewingOrder, setViewingOrder] = useState<any>(null);
 
@@ -135,16 +136,24 @@ export default function StorePage() {
     if (!q) return products;
     return products.filter(
       (p) =>
-        String(p.title || "").toLowerCase().includes(q) ||
-        String(p.category || "").toLowerCase().includes(q) ||
-        String(p.sku || "").toLowerCase().includes(q)
+        String(p.title || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(p.category || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(p.sku || "")
+          .toLowerCase()
+          .includes(q)
     );
   }, [products, searchQuery]);
 
   async function loadPaidOrders() {
     setLoadingOrders(true);
     try {
-      const res = await fetch("/api/store/orders?status=paid", { cache: "no-store" });
+      const res = await fetch("/api/store/orders?status=paid", {
+        cache: "no-store",
+      });
       const raw = await res.text();
 
       if (!res.ok) throw new Error(raw || "Failed to load orders");
@@ -167,31 +176,34 @@ export default function StorePage() {
           (o.customer?.full_name || "").trim() ||
           (o.customer?.email || "").trim() ||
           "—";
-          return {
-            id: String(o.id || ""),
-            orderNumber: `ORD-${String(o.created_at || "").slice(0, 10)}-${idx + 1}`,
-            customer: customerFullName,
-            customerObj: o.customer || null,
-            shipping_address: o.shipping_address || null,
-            billing_address: o.billing_address || null,
-            itemsCount: itemsArr.reduce((sum: number, it: any) => sum + Number(it.qty || 0), 0),
-            total: Number.isFinite(totalNum) ? totalNum : 0,
-            status: String(o.status || ""),
-            date: String(o.created_at || "").slice(0, 10),
-            items: itemsArr.map((it: any) => ({
-              id: String(it.id || ""),
-              title: String(it.title || ""),
-              sku: String(it.sku || ""),
-              quantity: Number(it.qty || 0),
-            })),
+        return {
+          id: String(o.id || ""),
+          orderNumber: `ORD-${String(o.created_at || "").slice(0, 10)}-${
+            idx + 1
+          }`,
+          customer: customerFullName,
+          customerObj: o.customer || null,
+          shipping_address: o.shipping_address || null,
+          billing_address: o.billing_address || null,
+          itemsCount: itemsArr.reduce(
+            (sum: number, it: any) => sum + Number(it.qty || 0),
+            0
+          ),
+          total: Number.isFinite(totalNum) ? totalNum : 0,
+          status: String(o.status || ""),
+          date: String(o.created_at || "").slice(0, 10),
+          items: itemsArr.map((it: any) => ({
+            id: String(it.id || ""),
+            title: String(it.title || ""),
+            sku: String(it.sku || ""),
+            quantity: Number(it.qty || 0),
+          })),
 
-            // ✅ FIX: map snake_case -> camelCase
-            shipmentsCount: Number(o.shipments_count ?? 0),
-            hasShipment: Boolean(o.has_shipment),
-          };
-
+          // ✅ FIX: map snake_case -> camelCase
+          shipmentsCount: Number(o.shipments_count ?? 0),
+          hasShipment: Boolean(o.has_shipment),
+        };
       });
-
 
       setOrders(mapped);
     } catch (e: any) {
@@ -206,13 +218,11 @@ export default function StorePage() {
     }
   }
 
-
-
   async function loadShipments() {
     setLoadingShipments(true);
 
     try {
-      const res = await fetch("/api/store/shipments", { cache: "no-store" });
+      const res = await fetch("/api/store/shipments", {cache: "no-store"});
 
       // If you haven't implemented the list endpoint yet, keep UI empty quietly
       if (res.status === 404) {
@@ -234,14 +244,14 @@ export default function StorePage() {
       const arr = Array.isArray(parsed)
         ? parsed
         : Array.isArray(parsed?.results)
-          ? parsed.results
-          : [];
+        ? parsed.results
+        : [];
 
       // Normalize + coerce fields safely
       const normalized: Shipment[] = arr.map((x: any) => ({
         id: String(x?.id ?? ""),
         order_id: String(x?.order_id ?? ""),
-        status: (String(x?.status ?? "pending") as ShipmentStatus),
+        status: String(x?.status ?? "pending") as ShipmentStatus,
         carrier_code: String(x?.carrier_code ?? ""),
         tracking_number: x?.tracking_number ?? null,
         tracking_url: x?.tracking_url ?? null,
@@ -265,7 +275,6 @@ export default function StorePage() {
       setLoadingShipments(false);
     }
   }
-
 
   useEffect(() => {
     if (activeTab === "orders") loadPaidOrders();
@@ -307,26 +316,29 @@ export default function StorePage() {
     carrier_code: string;
     method_id?: string;
     to: any;
-    items: { order_item_id: string; quantity: number }[];
+    items: {order_item_id: string; quantity: number}[];
   }) {
     setCreatingShipment(true);
     try {
-      const res = await fetch(`/api/store/orders/${payload.orderId}/shipments/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          carrier_code: payload.carrier_code,
-          method_id: payload.method_id,
-          to: payload.to,
-          items: payload.items,
-        }),
-      });
+      const res = await fetch(
+        `/api/store/orders/${payload.orderId}/shipments/create`,
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            carrier_code: payload.carrier_code,
+            method_id: payload.method_id,
+            to: payload.to,
+            items: payload.items,
+          }),
+        }
+      );
 
       const raw = await res.text();
       if (!res.ok) throw new Error(raw || "Failed to create shipment");
 
       const shipment = JSON.parse(raw) as Shipment;
-      toast({ title: "Shipment", description: "Shipment created successfully" });
+      toast({title: "Shipment", description: "Shipment created successfully"});
 
       setCreateShipmentOpen(false);
       setSelectedOrder(null);
@@ -355,28 +367,33 @@ export default function StorePage() {
   }) {
     setSettingTracking(true);
     try {
-      const res = await fetch(`/api/store/shipments/${payload.shipmentId}/set-tracking`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tracking_number: payload.tracking_number,
-          tracking_url: payload.tracking_url,
-          label_url: payload.label_url,
-          label_cost: payload.label_cost,
-          currency: payload.currency,
-        }),
-      });
+      const res = await fetch(
+        `/api/store/shipments/${payload.shipmentId}/set-tracking`,
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            tracking_number: payload.tracking_number,
+            tracking_url: payload.tracking_url,
+            label_url: payload.label_url,
+            label_cost: payload.label_cost,
+            currency: payload.currency,
+          }),
+        }
+      );
 
       const raw = await res.text();
       if (!res.ok) throw new Error(raw || "Failed to set tracking");
 
       const updated = JSON.parse(raw) as Shipment;
-      toast({ title: "Tracking", description: "Tracking updated" });
+      toast({title: "Tracking", description: "Tracking updated"});
 
       setTrackingOpen(false);
       setSelectedShipment(updated);
 
-      setShipments((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setShipments((prev) =>
+        prev.map((s) => (s.id === updated.id ? updated : s))
+      );
     } catch (e: any) {
       toast({
         title: "Tracking",
@@ -401,25 +418,28 @@ export default function StorePage() {
   }) {
     setAddingEvent(true);
     try {
-      const res = await fetch(`/api/store/shipments/${payload.shipmentId}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event_code: payload.event_code,
-          description: payload.description,
-          occurred_at: payload.occurred_at,
-          city: payload.city,
-          state: payload.state,
-          country: payload.country,
-          postal_code: payload.postal_code,
-          carrier_status: payload.carrier_status,
-        }),
-      });
+      const res = await fetch(
+        `/api/store/shipments/${payload.shipmentId}/events`,
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            event_code: payload.event_code,
+            description: payload.description,
+            occurred_at: payload.occurred_at,
+            city: payload.city,
+            state: payload.state,
+            country: payload.country,
+            postal_code: payload.postal_code,
+            carrier_status: payload.carrier_status,
+          }),
+        }
+      );
 
       const raw = await res.text();
       if (!res.ok) throw new Error(raw || "Failed to add event");
 
-      toast({ title: "Event", description: "Tracking event added" });
+      toast({title: "Event", description: "Tracking event added"});
       setEventOpen(false);
 
       // If your backend advances shipment status from events, you may want to refresh shipment list
@@ -434,8 +454,6 @@ export default function StorePage() {
       setAddingEvent(false);
     }
   }
-
-  
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -455,8 +473,7 @@ export default function StorePage() {
           <Button
             variant="outline"
             className="bg-transparent"
-            onClick={() => router.push("/admin/store/checkout")}
-          >
+            onClick={() => router.push("/admin/store/checkout")}>
             <Truck className="mr-2 h-4 w-4" />
             Checkout
           </Button>
@@ -464,7 +481,10 @@ export default function StorePage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
+      <Tabs
+        className="space-y-2"
+        value={activeTab}
+        onValueChange={(v: any) => setActiveTab(v)}>
         <TabsList className="grid grid-cols-3 w-full sm:w-[520px]">
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="orders">Paid Orders</TabsTrigger>
@@ -509,20 +529,19 @@ export default function StorePage() {
         {/* PAID ORDERS */}
         <TabsContent value="orders" className="space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="px-2 sm:p-6">
               <CardTitle>Paid Orders</CardTitle>
               <CardDescription>
                 Create shipment + items for any paid order (staff-only).
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-2 sm:p-6 space-y-3">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   className="bg-transparent"
                   onClick={loadPaidOrders}
-                  disabled={loadingOrders}
-                >
+                  disabled={loadingOrders}>
                   Refresh
                 </Button>
               </div>
@@ -535,61 +554,66 @@ export default function StorePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                    {(Array.isArray(orders) ? orders : []).map((o) => {
-                      const alreadyHasShipment = Boolean(
-                        o?.hasShipment || (o?.shipmentsCount ?? 0) > 0
-                      );
-                      
-                      return (
-                    <div
-                      key={o.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-semibold">{o.orderNumber}</div>
-                          <Badge variant={getOrderStatusVariant(o.status)} className="capitalize">
-                            {o.status}
-                          </Badge>
+                  {(Array.isArray(orders) ? orders : []).map((o) => {
+                    const alreadyHasShipment = Boolean(
+                      o?.hasShipment || (o?.shipmentsCount ?? 0) > 0
+                    );
+
+                    return (
+                      <div
+                        key={o.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold">{o.orderNumber}</div>
+                            <Badge
+                              variant={getOrderStatusVariant(o.status)}
+                              className="capitalize">
+                              {o.status}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {o.customer} • {o.itemsCount} items • {o.date}
+                          </div>
+                          <div className="text-sm font-semibold">
+                            ₦{Number(o.total).toFixed(2)}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {o.customer} • {o.itemsCount} items • {o.date}
-                        </div>
-                        <div className="text-sm font-semibold">
-                          ₦{Number(o.total).toFixed(2)}
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="bg-transparent"
+                            onClick={() => setViewingOrder(o)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </Button>
+
+                          <Button
+                            onClick={() => {
+                              setSelectedOrder(o);
+                              setCreateShipmentOpen(true);
+                            }}
+                            disabled={alreadyHasShipment}
+                            className={
+                              alreadyHasShipment
+                                ? "opacity-50 blur-[0.6px] pointer-events-none select-none"
+                                : ""
+                            }
+                            title={
+                              alreadyHasShipment
+                                ? "Shipment already created for this order"
+                                : "Create Shipment"
+                            }>
+                            <PackagePlus className="mr-2 h-4 w-4" />
+                            {alreadyHasShipment
+                              ? "Shipment Created"
+                              : "Create Shipment"}
+                          </Button>
                         </div>
                       </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          className="bg-transparent"
-                          onClick={() => setViewingOrder(o)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </Button>
-
-                        <Button
-                          onClick={() => {
-                            setSelectedOrder(o);
-                            setCreateShipmentOpen(true);
-                          }}
-                          disabled={alreadyHasShipment}
-                          className={
-                            alreadyHasShipment
-                              ? "opacity-50 blur-[0.6px] pointer-events-none select-none"
-                              : ""
-                          }
-                          title={alreadyHasShipment ? "Shipment already created for this order" : "Create Shipment"}
-                        >
-                          <PackagePlus className="mr-2 h-4 w-4" />
-                          {alreadyHasShipment ? "Shipment Created" : "Create Shipment"}
-                        </Button>
-                      </div>
-                    </div>
-                      );
-                 })}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -611,8 +635,7 @@ export default function StorePage() {
                   variant="outline"
                   className="bg-transparent"
                   onClick={loadShipments}
-                  disabled={loadingShipments}
-                >
+                  disabled={loadingShipments}>
                   Refresh
                 </Button>
               </div>
@@ -623,25 +646,29 @@ export default function StorePage() {
                 <div className="text-sm text-muted-foreground">
                   No shipments loaded yet.
                   <br />
-                  If you don’t have a list endpoint, you can still manage shipments
-                  from “Paid Orders” right after creation.
+                  If you don’t have a list endpoint, you can still manage
+                  shipments from “Paid Orders” right after creation.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {shipments.map((s) => (
                     <div
                       key={s.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border"
-                    >
+                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <div className="font-semibold">Shipment #{String(s.id).slice(0, 8)}…</div>
-                          <Badge variant={getShipmentStatusVariant(s.status)} className="capitalize">
+                          <div className="font-semibold">
+                            Shipment #{String(s.id).slice(0, 8)}…
+                          </div>
+                          <Badge
+                            variant={getShipmentStatusVariant(s.status)}
+                            className="capitalize">
                             {s.status.replaceAll("_", " ")}
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Order: {String(s.order_id).slice(0, 8)}… • Carrier: {s.carrier_code}
+                          Order: {String(s.order_id).slice(0, 8)}… • Carrier:{" "}
+                          {s.carrier_code}
                         </div>
                         <div className="text-sm">
                           Tracking:{" "}
@@ -659,19 +686,18 @@ export default function StorePage() {
                             if (!s?.id || s.id === "undefined") {
                               toast({
                                 title: "Shipment",
-                                description: "Invalid shipment id. Check shipments payload mapping.",
+                                description:
+                                  "Invalid shipment id. Check shipments payload mapping.",
                                 variant: "destructive",
                               });
                               return;
                             }
                             setDetailsShipment(s);
                             setDetailsOpen(true);
-                          }}
-                        >
+                          }}>
                           <Eye className="mr-2 h-4 w-4" />
                           View
                         </Button>
-
 
                         <Button
                           variant="outline"
@@ -679,8 +705,7 @@ export default function StorePage() {
                           onClick={() => {
                             setSelectedShipment(s);
                             setTrackingOpen(true);
-                          }}
-                        >
+                          }}>
                           <Plus className="mr-2 h-4 w-4" />
                           Set Tracking
                         </Button>
@@ -690,8 +715,7 @@ export default function StorePage() {
                           onClick={() => {
                             setSelectedShipment(s);
                             setEventOpen(true);
-                          }}
-                        >
+                          }}>
                           <Plus className="mr-2 h-4 w-4" />
                           Add Event
                         </Button>
@@ -716,8 +740,7 @@ export default function StorePage() {
                 <Button
                   variant="outline"
                   className="bg-transparent"
-                  onClick={() => setTrackingOpen(true)}
-                >
+                  onClick={() => setTrackingOpen(true)}>
                   Set Tracking
                 </Button>
                 <Button variant="secondary" onClick={() => setEventOpen(true)}>
@@ -730,7 +753,6 @@ export default function StorePage() {
       </Tabs>
 
       {/* MODALS */}
-
 
       <CreateShipmentModal
         open={createShipmentOpen}
@@ -780,7 +802,6 @@ export default function StorePage() {
           setEventOpen(true);
         }}
       />
-
     </div>
   );
 }

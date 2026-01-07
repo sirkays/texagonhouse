@@ -1,7 +1,7 @@
 // texagonui/components/admin/modals/create-shipment-modal.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useState} from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {Loader2} from "lucide-react";
 
 type OrderItem = {
   id: string;
@@ -59,7 +59,7 @@ type Order = {
   customerObj?: Customer | null;
 };
 
-type CarrierOpt = { id: string; code: string; name: string };
+type CarrierOpt = {id: string; code: string; name: string};
 type MethodOpt = {
   id: string;
   carrier_id: string;
@@ -94,7 +94,7 @@ export function CreateShipmentModal({
       phone?: string;
       email?: string;
     };
-    items: { order_item_id: string; quantity: number }[];
+    items: {order_item_id: string; quantity: number}[];
   }) => Promise<void> | void;
 }) {
   // Shipping option inputs
@@ -250,10 +250,9 @@ export function CreateShipmentModal({
       onOpenChange={(v) => {
         if (submitting) return;
         onOpenChange(v);
-      }}
-    >
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+        <DialogHeader className="text-left">
           <DialogTitle>Create Shipment</DialogTitle>
           <DialogDescription>
             Create a parcel for a paid order and attach order items.
@@ -261,7 +260,9 @@ export function CreateShipmentModal({
         </DialogHeader>
 
         {!order ? (
-          <div className="text-sm text-muted-foreground">No order selected.</div>
+          <div className="text-sm text-muted-foreground">
+            No order selected.
+          </div>
         ) : (
           <div className="space-y-4">
             {/* Header summary */}
@@ -274,7 +275,6 @@ export function CreateShipmentModal({
               </div>
               <Badge className="capitalize">{order.status}</Badge>
             </div>
-
             {/* Carrier + method */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -285,8 +285,7 @@ export function CreateShipmentModal({
                     setCarrier(v);
                     setMethodId("");
                   }}
-                  disabled={loadingOpts || submitting}
-                >
+                  disabled={loadingOpts || submitting}>
                   <SelectTrigger>
                     <SelectValue
                       placeholder={
@@ -336,8 +335,7 @@ export function CreateShipmentModal({
                 <Select
                   value={methodId}
                   onValueChange={setMethodId}
-                  disabled={methodDisabled}
-                >
+                  disabled={methodDisabled}>
                   <SelectTrigger>
                     <SelectValue
                       placeholder={
@@ -377,8 +375,7 @@ export function CreateShipmentModal({
                 </Select>
               </div>
             </div>
-
-            {/* Ship to */}
+            {/* Ship-to address */}
             <div className="rounded-lg border border-border p-3 space-y-3">
               <div className="font-semibold text-sm">Ship To</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -438,8 +435,8 @@ export function CreateShipmentModal({
                 />
               </div>
             </div>
-
             {/* Attach items */}
+
             <div className="rounded-lg border border-border p-3 space-y-3">
               <div className="font-semibold text-sm">Attach Items</div>
 
@@ -454,10 +451,9 @@ export function CreateShipmentModal({
                   {items.map((it) => (
                     <div
                       key={it.id}
-                      className="flex items-center justify-between gap-3 rounded-md border border-border p-2"
-                    >
+                      className="flex items-center justify-between gap-3 rounded-md border border-border p-2">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">
+                        <div className="text-sm font-medium">
                           {it.title}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -494,8 +490,7 @@ export function CreateShipmentModal({
                 variant="outline"
                 className="bg-transparent"
                 disabled={submitting}
-                onClick={() => onOpenChange(false)}
-              >
+                onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
 
@@ -522,8 +517,7 @@ export function CreateShipmentModal({
                       quantity: getQty(it.id, it.quantity),
                     })),
                   })
-                }
-              >
+                }>
                 {submitting ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
