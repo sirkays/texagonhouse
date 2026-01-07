@@ -16,6 +16,7 @@ import {
   Medal,
   LogOut,
   Video,
+  MedalIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,6 +49,7 @@ import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {useMediaQuery} from "react-responsive";
 import {useSession} from "next-auth/react";
+import { Certificate } from "crypto";
 
 const menuItems = [
   {
@@ -103,6 +105,12 @@ const menuItems = [
     icon: Video,
     id: "live-sessions",
     path: "/main/home",
+  },
+  {
+    title: "Certificates",
+    icon: MedalIcon,
+    id: "certificates",
+    path: "/student/certificate",
   },
 ];
 
