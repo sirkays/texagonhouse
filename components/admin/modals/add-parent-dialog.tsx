@@ -1,4 +1,3 @@
-// // components/admin/modals/add-parent-dialog.tsx
 // "use client";
 
 // import {useState} from "react";
@@ -8,7 +7,6 @@
 //   DialogDescription,
 //   DialogHeader,
 //   DialogTitle,
-//   DialogTrigger,
 //   DialogFooter,
 // } from "@/components/ui/dialog";
 // import {Button} from "@/components/ui/button";
@@ -66,12 +64,18 @@
 //       }
 
 //       toast({title: "Success", description: "Parent created successfully"});
+//       setName("");
+//       setEmail("");
+//       setPhone("");
+//       setAddress("");
+//       setStatus("active");
+//       setAvatar(null);
 //       onOpenChange(false);
 //       onSuccess();
 //     } catch (error: any) {
 //       toast({
 //         title: "Error",
-//         description: error.message,
+//         description: error.message || "Failed to create parent",
 //         variant: "destructive",
 //       });
 //     } finally {
@@ -246,16 +250,28 @@ export function AddParentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Parent</DialogTitle>
-          <DialogDescription>
+      <DialogContent
+        className="
+          w-[95vw]
+          max-w-lg
+          sm:max-w-xl
+          max-h-[90vh]
+          overflow-y-auto
+          rounded-xl
+        ">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="text-lg sm:text-xl">
+            Add New Parent
+          </DialogTitle>
+          <DialogDescription className="text-sm">
             Enter the details for the new parent account.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
+
+        <form onSubmit={handleSubmit} className="mt-4">
+          {/* Mobile first → 2 columns on sm+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
@@ -264,7 +280,8 @@ export function AddParentDialog({
                 required
               />
             </div>
-            <div>
+
+            <div className="sm:col-span-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -274,6 +291,7 @@ export function AddParentDialog({
                 required
               />
             </div>
+
             <div>
               <Label htmlFor="phone">Phone</Label>
               <Input
@@ -282,14 +300,7 @@ export function AddParentDialog({
                 onChange={(e) => setPhone(e.target.value)}
               />
             </div>
-            <div>
-              <Label htmlFor="address">Address</Label>
-              <Textarea
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
+
             <div>
               <Label htmlFor="status">Status</Label>
               <Select value={status} onValueChange={setStatus}>
@@ -303,7 +314,18 @@ export function AddParentDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea
+                id="address"
+                rows={3}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
               <Label htmlFor="avatar">Profile Picture</Label>
               <Input
                 id="avatar"
@@ -313,8 +335,12 @@ export function AddParentDialog({
               />
             </div>
           </div>
-          <DialogFooter className="mt-6">
-            <Button type="submit" disabled={loading}>
+
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-auto">
               {loading ? "Creating..." : "Create Parent"}
             </Button>
           </DialogFooter>

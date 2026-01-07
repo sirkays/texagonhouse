@@ -1,3 +1,5 @@
+// student/certificates/[id]/page.tsx
+
 "use client";
 
 import {getCertificateById} from "@/lib/certificate-data";

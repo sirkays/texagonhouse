@@ -252,7 +252,7 @@ export default function GamificationPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           title="Total Points Awarded"
           value={summary?.totalPointsAwarded.toLocaleString() || "0"}
@@ -272,10 +272,10 @@ export default function GamificationPage() {
       </div>
 
       {/* Manage Badges & Achievements */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Manage Badges */}
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="sm:flex-row justify-between">
             <div>
               <CardTitle>Manage Badges</CardTitle>
               <CardDescription>Create and update visual badges</CardDescription>
@@ -386,7 +386,7 @@ export default function GamificationPage() {
 
         {/* Manage Achievements */}
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="sm:flex-row justify-between">
             <div>
               <CardTitle>Manage Achievements</CardTitle>
               <CardDescription>
@@ -428,7 +428,7 @@ export default function GamificationPage() {
                 achievements.map((a) => (
                   <div
                     key={a.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                     <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Star className="h-6 w-6" />
                     </div>
@@ -620,100 +620,121 @@ function BadgeForm({
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>{initial?.id ? "Edit Badge" : "New Badge"}</DialogTitle>
-      </DialogHeader>
-      {formError && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm mb-4">
-          {formError}
-        </div>
-      )}
-      <div className="grid gap-4 py-2">
-        <div className="grid gap-2">
-          <Label>Name</Label>
-          <Input
-            value={form.name ?? ""}
-            onChange={(e) => set("name", e.target.value)}
-            placeholder="e.g. Helping Hand"
-          />
+      {/* Wrapper ensures full-height dialog */}
+      <div className="flex flex-col h-[80dvh] sm:h-auto">
+        {/* ===== HEADER (STATIC) ===== */}
+        <DialogHeader className="shrink-0 py-3">
+          <DialogTitle className="text-base sm:text-lg">
+            {initial?.id ? "Edit Badge" : "New Badge"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {formError && (
+          <div className="px-4 pt-3">
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+              {formError}
+            </div>
+          </div>
+        )}
+
+        {/* ===== BODY (SCROLLABLE) ===== */}
+        <div className="flex-1 overflow-y-auto py-4">
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Name</Label>
+                <Input
+                  value={form.name ?? ""}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="e.g. Helping Hand"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Icon name</Label>
+                <Input
+                  value={form.icon_name ?? ""}
+                  onChange={(e) => set("icon_name", e.target.value)}
+                  placeholder="e.g. crown, gem, medal"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Color (Tailwind class)</Label>
+                <Input
+                  value={form.color ?? ""}
+                  onChange={(e) => set("color", e.target.value)}
+                  placeholder="e.g. bg-emerald-500"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Points</Label>
+                <Input
+                  type="number"
+                  value={form.points ?? 0}
+                  onChange={(e) => set("points", Number(e.target.value))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Criteria</Label>
+              <Textarea
+                value={form.criteria ?? ""}
+                onChange={(e) => set("criteria", e.target.value)}
+                placeholder="What must a student do to get this badge?"
+                className="min-h-[100px]"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Rules (JSON)</Label>
+              <Textarea
+                value={JSON.stringify(form.rules ?? {}, null, 2)}
+                onChange={(e) => {
+                  try {
+                    const parsed = JSON.parse(e.target.value || "{}");
+                    set("rules", parsed);
+                  } catch {
+                    /* keep last valid */
+                  }
+                }}
+                className="font-mono text-xs min-h-[140px]"
+                rows={5}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-2">
-          <Label>Icon name</Label>
-          <Input
-            value={form.icon_name ?? ""}
-            onChange={(e) => set("icon_name", e.target.value)}
-            placeholder="e.g. crown, gem, medal"
-          />
-        </div>
+        {/* ===== FOOTER (STATIC) ===== */}
+        <DialogFooter className="shrink-0 py-3 bg-background flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            className="w-full sm:w-auto">
+            Cancel
+          </Button>
 
-        <div className="grid gap-2">
-          <Label>Color (Tailwind class)</Label>
-          <Input
-            value={form.color ?? ""}
-            onChange={(e) => set("color", e.target.value)}
-            placeholder="e.g. bg-emerald-500"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Points</Label>
-          <Input
-            type="number"
-            value={form.points ?? 0}
-            onChange={(e) => set("points", Number(e.target.value))}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Criteria</Label>
-          <Textarea
-            value={form.criteria ?? ""}
-            onChange={(e) => set("criteria", e.target.value)}
-            placeholder="What must a student do to get this badge?"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Rules (JSON)</Label>
-          <Textarea
-            value={JSON.stringify(form.rules ?? {}, null, 2)}
-            onChange={(e) => {
+          <Button
+            onClick={async () => {
+              setSaving(true);
+              setFormError(null);
               try {
-                const parsed = JSON.parse(e.target.value || "{}");
-                set("rules", parsed);
-              } catch {
-                /* keep last valid */
+                await onSave({...form, id: initial?.id});
+              } catch (e) {
+                setFormError((e as Error).message);
+              } finally {
+                setSaving(false);
               }
             }}
-            className="font-mono text-xs"
-            rows={5}
-          />
-        </div>
+            disabled={!form.name || saving}
+            className="w-full sm:w-auto gap-2">
+            <Save className="h-4 w-4" />
+            Save
+          </Button>
+        </DialogFooter>
       </div>
-
-      <DialogFooter className="gap-2">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          onClick={async () => {
-            setSaving(true);
-            setFormError(null);
-            try {
-              await onSave({...form, id: initial?.id});
-            } catch (e) {
-              setFormError((e as Error).message);
-            } finally {
-              setSaving(false);
-            }
-          }}
-          disabled={!form.name || saving}
-          className="gap-2">
-          <Save className="h-4 w-4" />
-          Save
-        </Button>
-      </DialogFooter>
     </>
   );
 }
@@ -753,119 +774,139 @@ function AchievementForm({
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>
-          {initial?.id ? "Edit Achievement" : "New Achievement"}
-        </DialogTitle>
-      </DialogHeader>
-      {formError && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm mb-4">
-          {formError}
-        </div>
-      )}
-      <div className="grid gap-4 py-2">
-        <div className="grid gap-2">
-          <Label>Code</Label>
-          <Input
-            value={form.code ?? ""}
-            onChange={(e) => set("code", e.target.value)}
-            placeholder="e.g. streak_champion"
-          />
-        </div>
+      {/* Wrapper for full-height dialog */}
+      <div className="flex flex-col h-[80dvh] sm:h-auto">
+        {/* ===== HEADER (STATIC) ===== */}
+        <DialogHeader className="shrink-0 border-b px-4 py-3">
+          <DialogTitle className="text-base sm:text-lg">
+            {initial?.id ? "Edit Achievement" : "New Achievement"}
+          </DialogTitle>
+        </DialogHeader>
 
-        <div className="grid gap-2">
-          <Label>Title</Label>
-          <Input
-            value={form.title ?? ""}
-            onChange={(e) => set("title", e.target.value)}
-            placeholder="e.g. Streak Champion"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Description</Label>
-          <Textarea
-            value={form.description ?? ""}
-            onChange={(e) => set("description", e.target.value)}
-            placeholder="Describe what this achievement means"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Icon</Label>
-          <Input
-            value={form.icon ?? ""}
-            onChange={(e) => set("icon", e.target.value)}
-            placeholder="e.g. star, trophy, target, zap"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Category</Label>
-          <Input
-            value={form.category ?? ""}
-            onChange={(e) => set("category", e.target.value)}
-            placeholder="e.g. General, Learning, Practice"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Target Value (leave empty for non-numeric)</Label>
-          <Input
-            type="number"
-            value={form.target_value ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value;
-              set("target_value", raw === "" ? null : Number(raw));
-            }}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Points</Label>
-          <Input
-            type="number"
-            value={form.points ?? 0}
-            onChange={(e) => set("points", Number(e.target.value))}
-          />
-        </div>
-
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <div>
-            <Label className="font-medium">Active</Label>
-            <p className="text-xs text-muted-foreground">
-              Toggle to enable/disable the achievement
-            </p>
+        {formError && (
+          <div className="px-4 pt-3">
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+              {formError}
+            </div>
           </div>
-          <Switch
-            checked={!!form.is_active}
-            onCheckedChange={(v) => set("is_active", v)}
-          />
-        </div>
-      </div>
+        )}
 
-      <DialogFooter className="gap-2">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          onClick={async () => {
-            setSaving(true);
-            setFormError(null);
-            try {
-              await onSave({...form, id: initial?.id});
-            } catch (e) {
-              setFormError((e as Error).message);
-            } finally {
-              setSaving(false);
-            }
-          }}
-          disabled={!form.title || !form.code || saving}
-          className="gap-2">
-          <Save className="h-4 w-4" />
-          Save
-        </Button>
-      </DialogFooter>
+        {/* ===== BODY (SCROLLABLE) ===== */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Code</Label>
+                <Input
+                  value={form.code ?? ""}
+                  onChange={(e) => set("code", e.target.value)}
+                  placeholder="e.g. streak_champion"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Title</Label>
+                <Input
+                  value={form.title ?? ""}
+                  onChange={(e) => set("title", e.target.value)}
+                  placeholder="e.g. Streak Champion"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:col-span-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={form.description ?? ""}
+                  onChange={(e) => set("description", e.target.value)}
+                  placeholder="Describe what this achievement means"
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Icon</Label>
+                <Input
+                  value={form.icon ?? ""}
+                  onChange={(e) => set("icon", e.target.value)}
+                  placeholder="e.g. star, trophy, target, zap"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Category</Label>
+                <Input
+                  value={form.category ?? ""}
+                  onChange={(e) => set("category", e.target.value)}
+                  placeholder="e.g. General, Learning, Practice"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Target Value (leave empty for non-numeric)</Label>
+                <Input
+                  type="number"
+                  value={form.target_value ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    set("target_value", raw === "" ? null : Number(raw));
+                  }}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Points</Label>
+                <Input
+                  type="number"
+                  value={form.points ?? 0}
+                  onChange={(e) => set("points", Number(e.target.value))}
+                />
+              </div>
+            </div>
+
+            {/* Active Toggle */}
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label className="font-medium">Active</Label>
+                <p className="text-xs text-muted-foreground">
+                  Toggle to enable/disable the achievement
+                </p>
+              </div>
+              <Switch
+                checked={!!form.is_active}
+                onCheckedChange={(v) => set("is_active", v)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ===== FOOTER (STATIC) ===== */}
+        <DialogFooter className="shrink-0 border-t px-4 py-3 bg-background flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            className="w-full sm:w-auto">
+            Cancel
+          </Button>
+
+          <Button
+            onClick={async () => {
+              setSaving(true);
+              setFormError(null);
+              try {
+                await onSave({...form, id: initial?.id});
+              } catch (e) {
+                setFormError((e as Error).message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={!form.title || !form.code || saving}
+            className="w-full sm:w-auto gap-2">
+            <Save className="h-4 w-4" />
+            Save
+          </Button>
+        </DialogFooter>
+      </div>
     </>
   );
 }

@@ -305,7 +305,7 @@ export default function CoursesPage() {
     <>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="sm:flex items-center justify-between space-y-2">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Courses

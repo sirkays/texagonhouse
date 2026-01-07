@@ -232,7 +232,7 @@ export default function ModulesPage() {
         )}
 
         {/* Search and Filters */}
-        <Card>
+        {/* <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4">
               <div className="flex gap-4 flex-wrap">
@@ -292,7 +292,7 @@ export default function ModulesPage() {
               </div>
 
               {/* Active filters indicator */}
-              {hasActiveFilters && (
+        {/* {hasActiveFilters && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Active filters:</span>
                   {searchTerm && (
@@ -314,6 +314,107 @@ export default function ModulesPage() {
                       }
                     </Badge>
                   )}
+                  {statusFilter !== "All" && (
+                    <Badge variant="secondary" className="text-xs">
+                      Status: {statusFilter}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>  */}
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+                <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search modules..."
+                    className="pl-9 w-full"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                  />
+                </div>
+
+                <Select
+                  value={difficultyFilter}
+                  onValueChange={handleDifficultyChange}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Difficulties</SelectItem>
+                    <SelectItem value="BEGINNER">Beginner</SelectItem>
+                    <SelectItem value="INTERMEDIATE">Intermediate</SelectItem>
+                    <SelectItem value="ADVANCED">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={courseFilter} onValueChange={handleCourseChange}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Courses</SelectItem>
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.id.toString()}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={statusFilter} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilters}
+                  className="w-full sm:w-auto flex items-center gap-2">
+                  <FilterX className="h-4 w-4" />
+                  Clear
+                </Button>
+              </div>
+
+              {/* Active filters indicator */}
+              {hasActiveFilters && (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <span>Active filters:</span>
+
+                  {searchTerm && (
+                    <Badge variant="secondary" className="text-xs">
+                      Search: "{searchTerm}"
+                    </Badge>
+                  )}
+
+                  {difficultyFilter !== "All" && (
+                    <Badge variant="secondary" className="text-xs">
+                      Difficulty: {difficultyFilter.toLowerCase()}
+                    </Badge>
+                  )}
+
+                  {courseFilter !== "All" && (
+                    <Badge variant="secondary" className="text-xs">
+                      Course:{" "}
+                      {
+                        courses.find((c) => c.id.toString() === courseFilter)
+                          ?.name
+                      }
+                    </Badge>
+                  )}
+
                   {statusFilter !== "All" && (
                     <Badge variant="secondary" className="text-xs">
                       Status: {statusFilter}
