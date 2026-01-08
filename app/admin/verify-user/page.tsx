@@ -1,8 +1,9 @@
+//texagon_academy\texagonui\app\admin\verify-user\page.tsx
 "use client";
-
-import React, {useState, useEffect} from "react";
-import {useToast} from "@/hooks/use-toast";
-import {Button} from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import React, { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import {
   RefreshCcw,
   Search,
@@ -18,7 +19,7 @@ import {
   X,
   Undo2,
 } from "lucide-react";
-import {Badge} from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -26,9 +27,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -112,29 +113,29 @@ interface FetchUserResponse {
 const MOCK_MODE = false;
 
 const MOCK_CLASSROOMS: Classroom[] = [
-  {id: 1, name: "JSS 1A"},
-  {id: 2, name: "JSS 1B"},
-  {id: 3, name: "JSS 2A"},
-  {id: 4, name: "SSS 1A"},
-  {id: 5, name: "SSS 2B"},
+  { id: 1, name: "JSS 1A" },
+  { id: 2, name: "JSS 1B" },
+  { id: 3, name: "JSS 2A" },
+  { id: 4, name: "SSS 1A" },
+  { id: 5, name: "SSS 2B" },
 ];
 
 const MOCK_LANGUAGES: Language[] = [
-  {id: 1, name: "python"},
-  {id: 2, name: "java"},
-  {id: 3, name: "Javascript"},
-  {id: 4, name: "ruby"},
-  {id: 5, name: "C++"},
+  { id: 1, name: "python" },
+  { id: 2, name: "java" },
+  { id: 3, name: "Javascript" },
+  { id: 4, name: "ruby" },
+  { id: 5, name: "C++" },
 ];
 
 const MOCK_SUBJECTS: Subject[] = [
-  {id: 1, name: "web"},
-  {id: 2, name: "Mobile development"},
-  {id: 3, name: "Seo"},
+  { id: 1, name: "web" },
+  { id: 2, name: "Mobile development" },
+  { id: 3, name: "Seo" },
 ];
 
 export default function VerifyUserPage() {
-  const {toast} = useToast();
+  const { toast } = useToast();
 
   // Flow state
   const [step, setStep] = useState<"search" | "verified" | "updating">(
@@ -168,13 +169,27 @@ export default function VerifyUserPage() {
   const [studentSearchEmail, setStudentSearchEmail] = useState("");
   const [isSearchingStudent, setIsSearchingStudent] = useState(false);
   const [foundStudentToAdd, setFoundStudentToAdd] = useState<any | null>(null);
+  // Activation (based on primary_org_id)
+  const [activateUser, setActivateUser] = useState(false);
+
+  // best org to use if activating (fallbacks)
+  const getActivatableOrgId = (u: FetchUserResponse | null) => {
+    if (!u) return null;
+    return (
+      u.primary_org_id ??
+      u.teacher_profile?.organization_id ??
+      u.student_profile?.organization_id ??
+      u.parent_profile?.organization_id ??
+      null
+    );
+  };
 
   // Action Confirmation State
   const [actionConfirmation, setActionConfirmation] = useState<{
     isOpen: boolean;
     type: "add" | "remove" | "update_profile";
     student?: any;
-  }>({isOpen: false, type: "update_profile"});
+  }>({ isOpen: false, type: "update_profile" });
 
   // Confirmation dialog state (Legacy - replaced by actionConfirmation but kept for compatibility if needed, though we'll use actionConfirmation for everything)
   // const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -266,7 +281,7 @@ export default function VerifyUserPage() {
       const results = Array.isArray(data) ? data : data.results || [];
 
       if (Array.isArray(results)) {
-        const apiSubjects = results.map((s: any) => ({id: s.id, name: s.name}));
+        const apiSubjects = results.map((s: any) => ({ id: s.id, name: s.name }));
 
         setSubjects((prev) => {
           const newSubjects = [...prev];
@@ -298,7 +313,8 @@ export default function VerifyUserPage() {
     setShowAddStudentSearch(false);
     setStudentSearchEmail("");
     setFoundStudentToAdd(null);
-    setActionConfirmation({isOpen: false, type: "update_profile"});
+    setActionConfirmation({ isOpen: false, type: "update_profile" });
+    setActivateUser(false);
   };
 
   // Step 1: Fetch user by email
@@ -328,7 +344,7 @@ export default function VerifyUserPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({email: email.trim()}),
+        body: JSON.stringify({ email: email.trim() }),
       });
 
       const data = await res.json();
@@ -339,6 +355,7 @@ export default function VerifyUserPage() {
       }
 
       setVerifiedUser(data);
+      setActivateUser(!!data.primary_org_id);
       setStep("verified");
 
       // Pre-populate form fields based on profile type
@@ -432,7 +449,12 @@ export default function VerifyUserPage() {
 
     try {
       // 1. Update Main Profile
-      const payload: any = {email: verifiedUser.email};
+      const payload: any = { email: verifiedUser.email };
+
+      // Activation is based on primary_org_id
+      const activatableOrgId = getActivatableOrgId(verifiedUser);
+      payload.primary_org_id = activateUser ? activatableOrgId : null;
+
       const profile = buildProfilePayload(verifiedUser.profile_type);
       if (profile && Object.keys(profile).length > 0) {
         payload.profile = profile;
@@ -457,8 +479,8 @@ export default function VerifyUserPage() {
       // Re-fetch user to get updated data
       const fetchRes = await fetch("/api/admin/fetch-user", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email: verifiedUser.email}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifiedUser.email }),
       });
 
       if (fetchRes.ok) {
@@ -526,8 +548,8 @@ export default function VerifyUserPage() {
     try {
       const res = await fetch("/api/admin/fetch-user", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email: studentSearchEmail.trim()}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: studentSearchEmail.trim() }),
       });
       const data = await res.json();
 
@@ -560,7 +582,7 @@ export default function VerifyUserPage() {
         toast({
           title: "Already Linked",
           description: "This student is already linked to this parent.",
-          variant: "warning",
+          variant: "destructive",
         });
         return;
       }
@@ -597,14 +619,14 @@ export default function VerifyUserPage() {
   const confirmAction = async () => {
     if (!verifiedUser || !actionConfirmation.student) return;
 
-    const {type, student} = actionConfirmation;
-    setActionConfirmation({...actionConfirmation, isOpen: false});
+    const { type, student } = actionConfirmation;
+    setActionConfirmation({ ...actionConfirmation, isOpen: false });
     setIsLoading(true);
 
     try {
       const res = await fetch("/api/admin/parent-child-link", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: verifiedUser.email,
           other_email: student.email,
@@ -626,16 +648,15 @@ export default function VerifyUserPage() {
 
       toast({
         title: "Success",
-        description: `Student successfully ${
-          type === "add" ? "added" : "removed"
-        }.`,
+        description: `Student successfully ${type === "add" ? "added" : "removed"
+          }.`,
       });
 
       // Refresh user data
       const fetchRes = await fetch("/api/admin/fetch-user", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email: verifiedUser.email}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifiedUser.email }),
       });
 
       if (fetchRes.ok) {
@@ -805,6 +826,41 @@ export default function VerifyUserPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Full Name</p>
                 <p className="font-medium">{verifiedUser.full_name}</p>
+              </div>
+              <div className="md:col-span-2 flex items-center justify-between p-3 border rounded-md bg-background">
+                <div>
+                  <p className="text-sm font-medium">Activate user</p>
+                  <p className="text-xs text-muted-foreground">
+                    Activation is based on whether the user has a primary organization.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={activateUser}
+                    onCheckedChange={(checked) => {
+                      const next = Boolean(checked);
+                      const orgId = getActivatableOrgId(verifiedUser);
+
+                      // If trying to activate but we have no org to attach, block it.
+                      if (next && !orgId) {
+                        toast({
+                          title: "Cannot activate user",
+                          description:
+                            "This user has no organization to attach. Assign a profile/org first.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+
+                      setActivateUser(next);
+                    }}
+                    disabled={isLoading}
+                  />
+                  <span className="text-sm">
+                    {activateUser ? "Active" : "Inactive"}
+                  </span>
+                </div>
               </div>
 
               {/* Family Details for Students */}
@@ -1262,7 +1318,7 @@ export default function VerifyUserPage() {
       <AlertDialog
         open={actionConfirmation.isOpen}
         onOpenChange={(open) =>
-          setActionConfirmation({...actionConfirmation, isOpen: open})
+          setActionConfirmation({ ...actionConfirmation, isOpen: open })
         }>
         <AlertDialogContent>
           <AlertDialogHeader>

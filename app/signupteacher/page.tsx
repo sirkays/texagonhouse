@@ -1,11 +1,11 @@
+// texagon_academy\texagonui\app\signupteacher\page.tsx
 "use client";
 
-import {useState} from "react";
+import { useState } from "react";
 import ParentSignupForm from "@/components/signup/ParentSignupForm";
 import ParentBiodataForm from "@/components/signup/ParentBiodataForm";
 import Image from "next/image";
 import TeacherSignupForm from "@/components/signup/TeacherSignupForm";
-import TeacherBiodataForm from "@/components/signup/TeacherBiodataForm";
 
 export default function ParentSignupPage() {
   const [step, setStep] = useState<"signup" | "biodata">("signup");
@@ -19,15 +19,15 @@ export default function ParentSignupPage() {
       {/* Decorative Background Section (Hidden on mobile) */}
       <div
         className="hidden lg:flex lg:w-[55%] xl:w-[60%] justify-center items-center bg-cover bg-center relative"
-        style={{backgroundImage: "url('/texagon_sva.svg')"}}>
+        style={{ backgroundImage: "url('/texagon_sva.svg')" }}>
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
       {/* Scrollable Form Section (Mobile-First Priority) */}
-      <div className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12 xl:px-18 overflow-y-auto scrollbar-hide">
-        <div className="w-full max-w-md">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-10 sm:px-8 lg:px-12 xl:px-18 scrollbar-hide">
+        <div className="w-full max-w-md mx-auto">
           {/* Logo/Brand */}
-          <div className="flex items-center justify-center mb-8 mt-60 sm:mt-32 tailwind-scrollbar-hide">
+          <div className="flex items-center justify-center mb-8">
             <Image
               src="/logo.png"
               alt="TechXagon Logo"
@@ -46,28 +46,17 @@ export default function ParentSignupPage() {
             </div>
           </div>
 
-          {/* Heading */}
-          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-8">
-            Sign up as Teacher
-          </h1>
+          <TeacherSignupForm onComplete={handleSignupComplete} />
 
-          {step === "signup" ? (
-            <TeacherSignupForm onComplete={handleSignupComplete} />
-          ) : (
-            <TeacherBiodataForm />
-          )}
-
-          {/* Login Link */}
           <p className="mt-6 text-center text-sm sm:text-base">
             Already have an account?{" "}
-            <a
-              href="/login"
-              className="font-medium hover:text-red-600 transition-colors">
+            <a href="/login" className="font-medium hover:text-red-600 transition-colors">
               Log in
             </a>
           </p>
         </div>
       </div>
+
     </div>
   );
 }

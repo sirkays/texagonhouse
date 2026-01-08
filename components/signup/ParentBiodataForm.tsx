@@ -1,6 +1,7 @@
+// texagon_academy\texagonui\components\signup\ParentBiodataForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ChildData {
   firstName: string;
@@ -9,6 +10,7 @@ interface ChildData {
   password: string;
   isEmailVerified: boolean;
 }
+const JOURNEY_KEY = "parentSignupJourney";
 
 // --- Sub-Component: Add Child Form ---
 function AddChildForm({
@@ -22,6 +24,10 @@ function AddChildForm({
   setCurrentChild: any;
   parentProfileId: number | null;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [step, setStep] = useState<"list" | "form" | "otp">("list");
+
   const [error, setError] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<
     "weak" | "medium" | "strong"
@@ -150,40 +156,63 @@ function AddChildForm({
           placeholder="child@example.com"
         />
       </div>
-      <div>
+      <div className="relative">
         <label className="block text-sm font-medium text-gray-700">
           Password
         </label>
+
         <input
           name="password"
-          type="password"
+          type={showPassword ? "text" : "password"}
           required
-          value={currentChild.password}
+          value={currentChild.password || ""}
+          className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md
+             focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+          placeholder="Create strong password"
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
         />
+        <button
+          type="button"
+          onClick={() => setShowPassword((v) => !v)}
+          className="absolute right-3 top-[38px] text-gray-500 hover:text-gray-700"
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? "🙈" : "👁️"}
+        </button>
       </div>
-      <div>
+
+      <div className="relative">
         <label className="block text-sm font-medium text-gray-700">
           Confirm Password
         </label>
+
         <input
           name="confirmPassword"
-          type="password"
+          type={showConfirmPassword ? "text" : "password"}
           required
           value={currentChild.confirmPassword || ""}
+          className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md
+             focus:outline-none focus:ring-[#f79771] focus:border-[#f79771]"
+          placeholder="Confirm password"
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
         />
+        <button
+          type="button"
+          onClick={() => setShowConfirmPassword((v) => !v)}
+          className="absolute right-3 top-[38px] text-gray-500 hover:text-gray-700"
+          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+        >
+          {showConfirmPassword ? "🙈" : "👁️"}
+        </button>
       </div>
+
 
       {/* Password Strength UI (Same as before) */}
       <div className="bg-gray-50 p-4 rounded-lg text-sm space-y-2">
         {/* ... ui code ... */}
         <p
-          className={`font-semibold mt-2 ${
-            passwordStrength === "strong" ? "text-green-600" : "text-red-600"
-          }`}
+          className={`font-semibold mt-2 ${passwordStrength === "strong" ? "text-green-600" : "text-red-600"
+            }`}
         >
           Strength: {passwordStrength.toUpperCase()}
         </p>
@@ -217,52 +246,100 @@ function OtpVerificationStep({
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const [isResending, setIsResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length !== 6 || !/^\d+$/.test(otp))
-      return setError("Enter a valid 6-digit code");
+
+    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+      setError("Enter a valid 6-digit code");
+      return;
+    }
 
     setIsVerifying(true);
+    setError("");
+
     try {
-      // 🚀 API CALL: Verify Child Email
       const res = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email, code: otp }),
+        body: JSON.stringify({ email, code: otp }),
       });
-      if (!res.ok) throw new Error("Verification failed");
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.detail || "Verification failed");
+      }
 
       onVerified();
-    } catch (err) {
-      setError("Invalid OTP or error verifying");
+    } catch (err: any) {
+      setError(err?.message || "Invalid OTP or error verifying");
     } finally {
       setIsVerifying(false);
     }
   };
 
+  const handleResend = async () => {
+    if (!email) return;
+    setError("");
+    setIsResending(true);
+
+    try {
+      const res = await fetch("/api/auth/resend-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (res.status === 429 && typeof data?.retry_after === "number") {
+          setCooldown(data.retry_after);
+        }
+        throw new Error(data?.detail || "Failed to resend OTP");
+      }
+
+      setCooldown(30);
+    } catch (err: any) {
+      setError(err?.message || "Could not resend OTP");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto text-center">
-      {/* ... Same JSX ... */}
       <h2 className="text-2xl font-bold text-gray-900 mb-4">
-        Verify Child's Email
+        Verify Child&apos;s Email
       </h2>
+
       <p className="text-gray-600 mb-6">
         We sent a 6-digit code to{" "}
-        <span className="text-[#f79771]">{email}</span>
+        <span className="text-[#f79771] break-all">{email}</span>
       </p>
+
       <form onSubmit={handleVerify} className="space-y-6">
         <input
           type="text"
           maxLength={6}
           value={otp}
-          onChange={(e) =>
-            setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-          }
-          className="w-full px-6 py-5 text-center text-3xl font-mono border-2 border-gray-300 rounded-lg focus:border-[#f79771]"
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          className="w-full px-6 py-5 text-center text-3xl font-mono border-2 border-gray-300 rounded-lg focus:border-[#f79771] focus:outline-none"
           autoFocus
           placeholder="000000"
         />
-        {error && <p className="text-red-600">{error}</p>}
+
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+
         <button
           type="submit"
           disabled={isVerifying || otp.length !== 6}
@@ -271,19 +348,66 @@ function OtpVerificationStep({
           {isVerifying ? "Verifying..." : "Verify & Add Child"}
         </button>
       </form>
-      <button onClick={onBack} className="mt-6 text-sm underline">
-        ← Back to edit details
-      </button>
+
+      <div className="mt-6 space-y-3">
+        <button onClick={onBack} className="text-sm underline">
+          ← Back to edit details
+        </button>
+
+        <p className="text-xs text-gray-500">
+          Didn&apos;t receive the code?{" "}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={isResending || cooldown > 0}
+            className="text-[#f79771] font-medium hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isResending
+              ? "Sending..."
+              : cooldown > 0
+              ? `Resend in ${cooldown}s`
+              : "Resend OTP"}
+          </button>
+        </p>
+      </div>
     </div>
   );
 }
 
+
+const STORAGE_KEY = "parentSignupFlow";
+
+
 // --- Main Export ---
 export default function ParentBiodataForm({
-  parentProfileId, // Accepts ID from ParentSignupPage
+  parentProfileId,
+  onCancel,
 }: {
   parentProfileId: number | null;
+  onCancel: () => void;
 }) {
+
+  const [resolvedParentId, setResolvedParentId] = useState<number | null>(parentProfileId);
+  const [childFormKey, setChildFormKey] = useState(0);
+
+  useEffect(() => {
+    if (parentProfileId) {
+      setResolvedParentId(parentProfileId);
+      return;
+    }
+
+    // fallback if page reloaded and prop is now null
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw);
+      const id = saved?.parentProfileId;
+      setResolvedParentId(typeof id === "number" ? id : Number(id) || null);
+    } catch {
+      // ignore
+    }
+  }, [parentProfileId]);
+
   const [children, setChildren] = useState<ChildData[]>([]);
   const [step, setStep] = useState<"list" | "form" | "otp">("list");
   const [currentEmail, setCurrentEmail] = useState("");
@@ -295,10 +419,41 @@ export default function ParentBiodataForm({
     confirmPassword: "",
   });
 
+  useEffect(() => {
+    const raw = sessionStorage.getItem(JOURNEY_KEY);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw);
+      if (saved.biodataStep) setStep(saved.biodataStep);
+      if (saved.childEmailForOtp) setCurrentEmail(saved.childEmailForOtp);
+
+      // optionally restore currentChild draft so it doesn't wipe on refresh:
+      if (saved.currentChild) setCurrentChild(saved.currentChild);
+    } catch { }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(JOURNEY_KEY);
+    const prev = raw ? JSON.parse(raw) : {};
+    sessionStorage.setItem(
+      JOURNEY_KEY,
+      JSON.stringify({
+        ...prev,
+        pageStep: "biodata",
+        biodataStep: step,
+        childEmailForOtp: currentEmail,
+        currentChild,
+      })
+    );
+  }, [step, currentEmail, currentChild]);
+
+
   const handleOtpSent = (email: string) => {
     setCurrentEmail(email);
     setStep("otp");
   };
+
 
   const handleVerified = () => {
     const newChild: ChildData = {
@@ -310,21 +465,43 @@ export default function ParentBiodataForm({
     };
     setChildren((prev) => [...prev, newChild]);
     setStep("list");
-    setCurrentChild({
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    });
+
+    // clear child otp state after success (optional)
+    const raw = sessionStorage.getItem(JOURNEY_KEY);
+    const prev = raw ? JSON.parse(raw) : {};
+    sessionStorage.setItem(
+      JOURNEY_KEY,
+      JSON.stringify({
+        ...prev,
+        biodataStep: "list",
+        childEmailForOtp: "",
+        currentChild: {
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+          confirmPassword: "",
+        },
+      })
+    );
   };
 
   const removeChild = (index: number) => {
     setChildren((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const emptyChild = {
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  };
+
+
   return (
     <div className="mt-8 space-y-8">
+
       <div>
         <h3 className="text-2xl font-bold text-gray-900">Your Children</h3>
         <p className="text-gray-600 mt-2">
@@ -362,24 +539,48 @@ export default function ParentBiodataForm({
       {/* Step Renderer */}
       {step === "list" && (
         <button
-          onClick={() => setStep("form")}
+          onClick={() => {
+            setCurrentChild(emptyChild);
+            setCurrentEmail("");
+            setStep("form");
+
+            // also clear any saved child draft in storage (optional but recommended)
+            const raw = sessionStorage.getItem("parentSignupJourney");
+            const prev = raw ? JSON.parse(raw) : {};
+            sessionStorage.setItem(
+              "parentSignupJourney",
+              JSON.stringify({
+                ...prev,
+                biodataStep: "form",
+                childEmailForOtp: "",
+                currentChild: emptyChild,
+              })
+            );
+          }}
           className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 font-medium hover:border-[#f79771] hover:text-[#f79771] transition"
         >
           + Add Another Child
         </button>
       )}
 
+
       {step === "form" && (
         <div className="">
           {/* PASS PARENT ID HERE */}
           <AddChildForm
+            key={childFormKey}
             onNext={handleOtpSent}
             currentChild={currentChild}
             setCurrentChild={setCurrentChild}
-            parentProfileId={parentProfileId}
+            parentProfileId={resolvedParentId}
           />
+
           <button
-            onClick={() => setStep("list")}
+            onClick={() => {
+              setChildFormKey((k) => k + 1);
+              setStep("form");
+            }}
+
             className="mt-4 text-sm text-gray-600 underline"
           >
             ← Cancel

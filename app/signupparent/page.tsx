@@ -1,31 +1,98 @@
+//texagon_academy\texagonui\app\signupparent\page.tsx
 "use client";
 
-import {useState} from "react";
-import ParentSignupForm from "@/components/signup/ParentSignupForm";
+import { useEffect, useState } from "react";
+import ParentSignupFlow from "@/components/signup/ParentSignupForm"; // this is your flow component export
 import ParentBiodataForm from "@/components/signup/ParentBiodataForm";
 import Image from "next/image";
 
+const STORAGE_KEY = "parentSignupJourney";
+
+type JourneyState = {
+  pageStep: "signup" | "biodata";
+  parentProfileId: number | null;
+
+  // parent signup flow
+  signupStep?: "form" | "otp";
+  signupEmailForOtp?: string;
+
+  // child flow
+  biodataStep?: "list" | "form" | "otp";
+  childEmailForOtp?: string;
+};
+
 export default function ParentSignupPage() {
   const [step, setStep] = useState<"signup" | "biodata">("signup");
+  const [parentProfileId, setParentProfileId] = useState<number | null>(null);
+  const cancelRegistration = () => {
+    sessionStorage.removeItem("parentSignupJourney");
+    sessionStorage.removeItem("parentSignupFlow"); // if you still use this key anywhere
 
-  const handleSignupComplete = () => {
+    setStep("signup");
+    setParentProfileId(null);
+
+    // optional: also reload the route to fully reset UI
+    // window.location.href = "/signupparent";
+  };
+
+  // restore page-level state on reload
+  useEffect(() => {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const saved: JourneyState = JSON.parse(raw);
+
+      if (saved.pageStep) setStep(saved.pageStep);
+      if (typeof saved.parentProfileId === "number") setParentProfileId(saved.parentProfileId);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // persist page-level state
+  useEffect(() => {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const prev: JourneyState = raw ? JSON.parse(raw) : ({} as JourneyState);
+
+    const next: JourneyState = {
+      ...prev,
+      pageStep: step,
+      parentProfileId,
+    };
+
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }, [step, parentProfileId]);
+
+  // When parent is verified, move to biodata and store id
+  const handleSignupComplete = (id: number) => {
+    setParentProfileId(id);
     setStep("biodata");
+
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const prev: JourneyState = raw ? JSON.parse(raw) : ({} as JourneyState);
+
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...prev,
+        pageStep: "biodata",
+        parentProfileId: id,
+      } satisfies JourneyState)
+    );
   };
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-white">
-      {/* Decorative Background Section (Hidden on mobile) */}
       <div
         className="hidden lg:flex lg:w-[55%] xl:w-[60%] justify-center items-center bg-cover bg-center relative"
-        style={{backgroundImage: "url('/texagon_sva.svg')"}}>
+        style={{ backgroundImage: "url('/texagon_sva.svg')" }}
+      >
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
-      {/* Scrollable Form Section (Mobile-First Priority) */}
-      <div className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12 xl:px-18 overflow-y-auto scrollbar-hide">
+      <div className="flex-1 min-h-0 flex items-start justify-center px-4 py-10 sm:px-8 lg:px-12 xl:px-18 overflow-y-auto scrollbar-hide">
         <div className="w-full max-w-md">
-          {/* Logo/Brand */}
-          <div className="flex items-center justify-center mb-8 mt-60 sm:mt-32 tailwind-scrollbar-hide">
+          <div className="flex items-center justify-center mb-8">
             <Image
               src="/logo.png"
               alt="TechXagon Logo"
@@ -43,25 +110,28 @@ export default function ParentSignupPage() {
               </p>
             </div>
           </div>
-
-          {/* Heading */}
-          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
             Sign up to your account
           </h1>
 
-          {/* Form Content */}
+          <button
+            type="button"
+            onClick={cancelRegistration}
+            className="mb-6 text-sm text-gray-600 hover:text-red-600 underline"
+          >
+            Cancel registration
+          </button>
+
+
           {step === "signup" ? (
-            <ParentSignupForm onComplete={handleSignupComplete} />
+            <ParentSignupFlow onComplete={handleSignupComplete} onCancel={cancelRegistration} />
           ) : (
-            <ParentBiodataForm />
+            <ParentBiodataForm parentProfileId={parentProfileId} onCancel={cancelRegistration} />
           )}
 
-          {/* Login Link */}
           <p className="mt-6 text-center text-sm sm:text-base">
             Already have an account?{" "}
-            <a
-              href="/login"
-              className="font-medium hover:text-red-600 transition-colors">
+            <a href="/login" className="font-medium hover:text-red-600 transition-colors">
               Log in
             </a>
           </p>
