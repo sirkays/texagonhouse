@@ -1,4 +1,17 @@
 // lib/certificate-service.ts
+import { getSession } from "next-auth/react";
+
+// [cite: 63-75] Define the signature structure from the docs
+export interface DirectorSignature {
+  name: string;
+  title: string;
+  signature_url: string;
+}
+
+export interface ApiSignatures {
+  director_1?: DirectorSignature;
+  director_2?: DirectorSignature;
+}
 
 export interface ApiCertificate {
   id: number;
@@ -20,28 +33,41 @@ export interface ApiCertificate {
 export interface CertificateResponse {
   count: number;
   results: ApiCertificate[];
+  signatures?: ApiSignatures; // [cite: 89] Signatures are returned at the root
 }
 
-export async function fetchMyCertificates(studentId?: number): Promise<ApiCertificate[]> {
+export async function fetchMyCertificates(studentId?: number): Promise<{ certificates: ApiCertificate[], signatures?: ApiSignatures }> {
   try {
-    // If studentId is provided, append it; otherwise leave query empty (defaults to self)
     const query = studentId ? `?student_id=${studentId}` : "";
     
-    const res = await fetch(`/api/certificate/list${query}`, {
+    // [cite: 12] Note the trailing slash requirement
+    const res = await fetch(`/api/certificate/list/${query}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
 
     if (!res.ok) {
-      // FIX: Use comma separation instead of backticks to avoid transpiler errors
       console.error("Failed to fetch certificates. Status:", res.status);
-      return [];
+      return { certificates: [] };
     }
 
     const data: CertificateResponse = await res.json();
-    return data.results || [];
+    return { 
+      certificates: data.results || [], 
+      signatures: data.signatures 
+    };
   } catch (error) {
     console.error("Error fetching certificates:", error);
-    return [];
+    return { certificates: [] };
   }
+}
+
+/**
+ * Finds a specific certificate by ID.
+ * Since the API doesn't support filtering by ID directly, we fetch list and find.
+ */
+export async function fetchCertificateById(certId: number) {
+  const { certificates, signatures } = await fetchMyCertificates();
+  const cert = certificates.find((c) => c.id === certId);
+  return { certificate: cert, signatures };
 }

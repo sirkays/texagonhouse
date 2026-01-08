@@ -16,21 +16,22 @@ export default function StudentCertificatesPage() {
 
   useEffect(() => {
     async function loadCertificates() {
-      // Call without ID to fetch "My Certificates"
-      const data = await fetchMyCertificates();
-      setCertificates(data);
+      // FIX: Destructure 'certificates' from the response object
+      const { certificates: data } = await fetchMyCertificates();
+      
+      // Now 'data' is the array we expect
+      setCertificates(data || []); 
       setLoading(false);
     }
     loadCertificates();
   }, []);
 
-  // Simple client-side search filtering
+  // ... rest of your component code remains exactly the same ...
+  // (Search filtering and JSX)
+
   const filteredCertificates = certificates.filter((cert) =>
     cert.course_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  console.log("Certificates:", certificates);
-  console.log("User Session:", session);
 
   return (
     <main className="min-h-screen bg-background">
