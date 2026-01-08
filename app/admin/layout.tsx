@@ -217,26 +217,56 @@ export default function DashboardLayout({
     }
   }, [status]);
 
+  // const handleLogout = async () => {
+  //   try {
+  //     const response = await fetch("/api/auth/logout-route", {
+  //       method: "POST",
+  //       headers: {"Content-Type": "application/json"},
+  //     });
+  //     const data = await response.json();
+
+  //     if (!response.ok) {
+  //       console.error("[AdminLayout] Logout failed:", data);
+  //       throw new Error(data.error || "Logout failed");
+  //     }
+
+  //     await signOut({callbackUrl: "/login"});
+  //   } catch (error) {
+  //     console.error("[AdminLayout] Logout error:", error);
+
+  //     await signOut({callbackUrl: "/login"});
+  //   }
+  // };
+
+
+
   const handleLogout = async () => {
     try {
+      // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
 
       if (!response.ok) {
-        console.error("[AdminLayout] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
+        console.error("[AdminLayout] Backend logout failed");
+       
       }
 
-      await signOut({callbackUrl: "/login"});
+  
+      await signOut({ redirect: false });
+
+      window.location.href = "/login"; 
+      
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
 
-      await signOut({callbackUrl: "/login"});
+      // Fallback: Ensure the user is still visually logged out if an error occurs
+      await signOut({ redirect: false });
+      window.location.href = "/login";
     }
   };
+
 
   const handleSwitchOrg = async (orgId: number) => {
     if (!orgId) return;
