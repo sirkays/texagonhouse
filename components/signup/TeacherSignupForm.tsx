@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import router from "next/router";
+import { useRouter } from "next/navigation";
 
 // Step 1: Teacher Registration Form
 function TeacherSignupForm({
@@ -401,12 +401,7 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
     if (typeof window === "undefined") return "form";
     return (localStorage.getItem("teacher_signup_step") as any) || "form";
   });
-
-  const clearTeacherSignupStorage = () => {
-    localStorage.removeItem("teacher_signup_step");
-    localStorage.removeItem("teacher_signup_email");
-    localStorage.removeItem("teacher_signup_name");
-  };
+  const router = useRouter();
 
 
 
@@ -434,19 +429,35 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
 
     localStorage.setItem("teacher_signup_step", "otp");
     localStorage.setItem("teacher_signup_email", registrationData.email);
-    localStorage.setItem(
-      "teacher_signup_name",
-      registrationData.firstName || ""
-    );
+    if (!localStorage.getItem("teacher_signup_name")) {
+      localStorage.setItem("teacher_signup_name", registrationData.firstName || "");
+    }
   };
   const handleVerified = () => {
-    clearTeacherSignupStorage();
-    setStep("done"); // OR redirect
-    router.replace("/login"); // or "/dashboard"
+    localStorage.removeItem("teacher_signup_step");
+    localStorage.removeItem("teacher_signup_email");
+    localStorage.removeItem("teacher_signup_name");
+    setStep("done");
+
   };
 
+  useEffect(() => {
+    if (step !== "done") return;
 
-  const handleBack = () => setStep("form");
+    const t = setTimeout(() => {
+      localStorage.removeItem("teacher_signup_step");
+      router.replace("/login"); // replace is often better for "flow complete" redirects
+    }, 2000);
+
+    return () => clearTimeout(t);
+  }, [step, router]);
+
+
+  const handleBack = () => {
+    setStep("form");
+    localStorage.removeItem("teacher_signup_step");
+  };
+
 
   return (
     <div className="w-full py-12 px-4">
@@ -481,6 +492,13 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
           />
 
         )}
+        {step === "done" && (
+          <div className="text-center py-10">
+            <h2 className="text-2xl font-bold">Email verified ✅</h2>
+            <p className="text-gray-600 mt-2">Redirecting you to login...</p>
+          </div>
+        )}
+
 
 
       </div>

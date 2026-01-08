@@ -6,6 +6,7 @@ import ParentSignupForm from "@/components/signup/ParentSignupForm";
 import ParentBiodataForm from "@/components/signup/ParentBiodataForm";
 import Image from "next/image";
 import TeacherSignupForm from "@/components/signup/TeacherSignupForm";
+import Link from "next/link";
 
 export default function ParentSignupPage() {
   const [step, setStep] = useState<"signup" | "biodata">("signup");
@@ -50,9 +51,9 @@ export default function ParentSignupPage() {
 
           <p className="mt-6 text-center text-sm sm:text-base">
             Already have an account?{" "}
-            <a href="/login" className="font-medium hover:text-red-600 transition-colors">
-              Log in
-            </a>
+        <Link href="/login" className="font-medium hover:text-red-600 transition-colors">
+          Log in
+        </Link>
           </p>
         </div>
       </div>

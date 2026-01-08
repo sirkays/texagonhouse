@@ -840,19 +840,6 @@ export default function VerifyUserPage() {
                     checked={activateUser}
                     onCheckedChange={(checked) => {
                       const next = Boolean(checked);
-                      const orgId = getActivatableOrgId(verifiedUser);
-
-                      // If trying to activate but we have no org to attach, block it.
-                      if (next && !orgId) {
-                        toast({
-                          title: "Cannot activate user",
-                          description:
-                            "This user has no organization to attach. Assign a profile/org first.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-
                       setActivateUser(next);
                     }}
                     disabled={isLoading}
