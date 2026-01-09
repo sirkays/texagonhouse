@@ -817,6 +817,7 @@ import {useToast} from "@/components/ui/use-toast";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {Separator} from "@/components/ui/separator";
 import {Mail, Phone, MapPin, Calendar, Users, DollarSign} from "lucide-react";
+import {Spinner} from "@/components/ui/spinner";
 
 interface ParentDetailsModalProps {
   open: boolean;
@@ -833,16 +834,36 @@ export function ParentDetailsModal({
 }: ParentDetailsModalProps) {
   const [parent, setParent] = useState(initialParent);
   const [editing, setEditing] = useState(false);
+  
+  // Form States
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [status, setStatus] = useState("");
   const [avatar, setAvatar] = useState<File | null>(null);
+  
+  // Action States
   const [studentId, setStudentId] = useState("");
-  const [unlinkStudentId, setUnlinkStudentId] = useState("");
   const [newStatus, setNewStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+
+  // Individual Loading States
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isGeneratingInvoices, setIsGeneratingInvoices] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Derived state to disable all inputs while any action is processing
+  const isAnyLoading = 
+    isSaving || 
+    isLinking || 
+    !!unlinkingId || 
+    isUpdatingStatus || 
+    isGeneratingInvoices || 
+    isDeleting;
+
   const {toast} = useToast();
 
   useEffect(() => {
@@ -877,7 +898,7 @@ export function ParentDetailsModal({
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSaving(true);
 
     const formData = new FormData();
     if (name !== parent.name) formData.append("name", name);
@@ -908,13 +929,13 @@ export function ParentDetailsModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleLinkChild = async () => {
     if (!studentId) return;
-    setLoading(true);
+    setIsLinking(true);
     try {
       const res = await fetch(`/api/admin/parents/${parent.id}/link_child`, {
         method: "POST",
@@ -933,12 +954,12 @@ export function ParentDetailsModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLinking(false);
     }
   };
 
   const handleUnlinkChild = async (studentId: string) => {
-    setLoading(true);
+    setUnlinkingId(studentId);
     try {
       const res = await fetch(`/api/admin/parents/${parent.id}/unlink_child`, {
         method: "POST",
@@ -948,7 +969,6 @@ export function ParentDetailsModal({
       if (!res.ok) throw new Error("Failed to unlink child");
 
       toast({title: "Success", description: "Child unlinked successfully"});
-      setUnlinkStudentId("");
       await fetchParent();
     } catch (error: any) {
       toast({
@@ -957,13 +977,13 @@ export function ParentDetailsModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setUnlinkingId(null);
     }
   };
 
   const handleSetStatus = async () => {
     if (!newStatus) return;
-    setLoading(true);
+    setIsUpdatingStatus(true);
     try {
       const res = await fetch(`/api/admin/parents/${parent.id}/set_status`, {
         method: "POST",
@@ -983,12 +1003,12 @@ export function ParentDetailsModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsUpdatingStatus(false);
     }
   };
 
   const handleGenerateInvoices = async () => {
-    setLoading(true);
+    setIsGeneratingInvoices(true);
     try {
       const res = await fetch(
         `/api/admin/parents/${parent.id}/generate_invoices`,
@@ -1008,13 +1028,13 @@ export function ParentDetailsModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsGeneratingInvoices(false);
     }
   };
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this parent?")) return;
-    setLoading(true);
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/admin/parents/${parent.id}`, {
         method: "DELETE",
@@ -1030,15 +1050,14 @@ export function ParentDetailsModal({
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      setIsDeleting(false); // Only reset if failed, otherwise modal closes
     }
   };
 
   if (!parent) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => !isAnyLoading && onOpenChange(val)}>
       <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Parent Details</DialogTitle>
@@ -1065,6 +1084,7 @@ export function ParentDetailsModal({
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    disabled={isAnyLoading}
                   />
                 </div>
 
@@ -1078,12 +1098,16 @@ export function ParentDetailsModal({
                   <Input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    disabled={isAnyLoading}
                   />
                 </div>
 
                 <div>
                   <Label>Status</Label>
-                  <Select value={status} onValueChange={setStatus}>
+                  <Select
+                    value={status}
+                    onValueChange={setStatus}
+                    disabled={isAnyLoading}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1101,17 +1125,26 @@ export function ParentDetailsModal({
                     rows={3}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    disabled={isAnyLoading}
                   />
                 </div>
 
                 <div className="sm:col-span-2 flex flex-col sm:flex-row gap-2">
-                  <Button type="submit" disabled={loading} className="w-full">
-                    Save Changes
+                  <Button type="submit" disabled={isAnyLoading} className="w-full">
+                    {isSaving ? (
+                      <>
+                        <Spinner size="sm" className="mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setEditing(false)}
+                    disabled={isAnyLoading}
                     className="w-full">
                     Cancel
                   </Button>
@@ -1139,6 +1172,7 @@ export function ParentDetailsModal({
                 <Separator />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  {/* ... (Existing info display fields remain unchanged) ... */}
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4" />
                     {parent.email}
@@ -1165,7 +1199,10 @@ export function ParentDetailsModal({
                   </div>
                 </div>
 
-                <Button onClick={() => setEditing(true)} className="w-full">
+                <Button
+                  onClick={() => setEditing(true)}
+                  className="w-full"
+                  disabled={isAnyLoading}>
                   Edit Details
                 </Button>
               </div>
@@ -1186,8 +1223,10 @@ export function ParentDetailsModal({
                   size="sm"
                   className="w-full sm:w-auto"
                   onClick={() => handleUnlinkChild(child.id.toString())}
-                  disabled={loading}>
-                  Unlink
+                  disabled={isAnyLoading}>
+                  {unlinkingId === child.id.toString() ? (
+                     <Spinner size="sm" className="invert" /> 
+                  ) : "Unlink"}
                 </Button>
               </div>
             ))}
@@ -1199,19 +1238,30 @@ export function ParentDetailsModal({
                 placeholder="Student ID to link"
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
+                disabled={isAnyLoading}
               />
               <Button
                 onClick={handleLinkChild}
-                disabled={loading || !studentId}
+                disabled={isAnyLoading || !studentId}
                 className="w-full sm:w-auto">
-                Link Child
+                {isLinking ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Linking...
+                  </>
+                ) : (
+                  "Link Child"
+                )}
               </Button>
             </div>
           </TabsContent>
 
           {/* ACTIONS TAB */}
           <TabsContent value="actions" className="mt-4 space-y-4">
-            <Select value={newStatus} onValueChange={setNewStatus}>
+            <Select
+              value={newStatus}
+              onValueChange={setNewStatus}
+              disabled={isAnyLoading}>
               <SelectTrigger>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -1224,25 +1274,48 @@ export function ParentDetailsModal({
 
             <Button
               onClick={handleSetStatus}
-              disabled={loading || !newStatus}
+              disabled={isAnyLoading || !newStatus}
               className="w-full">
-              Update Status
+              {isUpdatingStatus ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Updating...
+                </>
+              ) : (
+                "Update Status"
+              )}
             </Button>
 
             <Button
               onClick={handleGenerateInvoices}
-              disabled={loading}
+              disabled={isAnyLoading}
               className="w-full">
-              <DollarSign className="h-4 w-4 mr-2" />
-              Generate Invoices
+              {isGeneratingInvoices ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Generate Invoices
+                </>
+              )}
             </Button>
 
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={loading}
+              disabled={isAnyLoading}
               className="w-full">
-              Delete Parent
+              {isDeleting ? (
+                <>
+                  <Spinner size="sm" className="mr-2 invert" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Parent"
+              )}
             </Button>
           </TabsContent>
         </Tabs>

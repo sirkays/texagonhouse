@@ -186,6 +186,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {useToast} from "@/components/ui/use-toast";
+import {Spinner} from "@/components/ui/spinner";
 
 export function AddParentDialog({
   open,
@@ -249,7 +250,7 @@ export function AddParentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => !loading && onOpenChange(val)}>
       <DialogContent
         className="
           w-[95vw]
@@ -278,6 +279,7 @@ export function AddParentDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -289,6 +291,7 @@ export function AddParentDialog({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -298,12 +301,16 @@ export function AddParentDialog({
                 id="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                disabled={loading}
               />
             </div>
 
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select
+                value={status}
+                onValueChange={setStatus}
+                disabled={loading}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -322,6 +329,7 @@ export function AddParentDialog({
                 rows={3}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -332,6 +340,7 @@ export function AddParentDialog({
                 type="file"
                 accept="image/*"
                 onChange={(e) => setAvatar(e.target.files?.[0] || null)}
+                disabled={loading}
               />
             </div>
           </div>
@@ -341,7 +350,14 @@ export function AddParentDialog({
               type="submit"
               disabled={loading}
               className="w-full sm:w-auto">
-              {loading ? "Creating..." : "Create Parent"}
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "Create Parent"
+              )}
             </Button>
           </DialogFooter>
         </form>

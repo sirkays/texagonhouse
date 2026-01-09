@@ -27,6 +27,8 @@ export default function SubjectsPage() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ✅ Fetch all subjects from API
   useEffect(() => {
