@@ -16,6 +16,12 @@ type DjangoFetchResult = {
   setCookie?: string;
 };
 
+type DjangoFetchRawResult = {
+  response: Response;
+  setCookie?: string;
+};
+
+
 export async function djangoFetch(
   path: string,
   init: RequestInit = {}
@@ -67,6 +73,49 @@ export async function djangoFetch(
     response,
     text,
     // IMPORTANT: forward Django sessionid back to browser
+    setCookie: response.headers.get("set-cookie") ?? undefined,
+  };
+}
+
+
+export async function djangoFetchRaw(
+  path: string,
+  init: RequestInit = {}
+): Promise<DjangoFetchRawResult> {
+  const session = await getServerSession(authOptions);
+  const sessionToken: string | undefined =
+    session?.user && "sessionToken" in session.user
+      ? (session.user as any).sessionToken ?? undefined
+      : undefined;
+
+  const cookieStore = await cookies();
+  const cookieHeader =
+    cookieStore.getAll().length > 0
+      ? cookieStore
+          .getAll()
+          .map((c) => `${c.name}=${c.value}`)
+          .join("; ")
+      : undefined;
+
+  const baseHeaders: Record<string, string> = {
+    Authorization: `Api-Key ${API_KEY}`,
+    // IMPORTANT: do NOT force Content-Type for binary GETs
+  };
+
+  if (sessionToken) baseHeaders["X-Session-Token"] = sessionToken;
+  if (cookieHeader) baseHeaders["Cookie"] = cookieHeader;
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      ...baseHeaders,
+      ...(init.headers || {}),
+    },
+    cache: "no-store",
+  });
+
+  return {
+    response,
     setCookie: response.headers.get("set-cookie") ?? undefined,
   };
 }

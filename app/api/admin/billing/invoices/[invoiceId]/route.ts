@@ -1,55 +1,45 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// app/api/admin/billing/invoices/[invoiceId]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+type Context = {
+  params: Promise<{ invoiceId: string }>;
+};
 
-async function getSession() {
-  return await getServerSession(authOptions);
-}
-
-interface Params {
-  params: {
-    invoiceId: string;
-  };
-}
-
-export async function GET(request: NextRequest, {params}: Params) {
-  const invoiceId = params.invoiceId;
-
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+export async function GET(_request: NextRequest, context: Context) {
+  const { invoiceId } = await context.params;
 
   if (!invoiceId) {
-    return NextResponse.json({error: "Invoice ID is required"}, {status: 400});
+    return NextResponse.json({ error: "Invoice ID is required" }, { status: 400 });
   }
 
   try {
-    const url = `${BASE_URL}/api/admin/billing/invoices/${invoiceId}`;
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/admin/billing/invoices/${invoiceId}/`,
+      { method: "GET" }
+    );
 
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch invoice"},
-        {status: res.status}
-      );
+    // Try to parse JSON, but don’t crash if backend returns non-JSON
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { detail: text };
     }
 
-    return NextResponse.json(data);
+    // Build NextResponse and forward Django cookies if present
+    const nextRes = NextResponse.json(
+      response.ok ? data : { error: data?.detail || "Failed to fetch invoice" },
+      { status: response.status }
+    );
+
+    if (setCookie) {
+      nextRes.headers.set("set-cookie", setCookie);
+    }
+
+    return nextRes;
   } catch (error) {
     console.error("[Invoice Route] Error fetching invoice:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
