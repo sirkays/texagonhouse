@@ -3,8 +3,8 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {unstable_noStore as noStore} from "next/cache";
 
-const BASE_URL = "http://127.0.0.1:9098";
-//const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "http://127.0.0.1:9098";
+const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: any) => ({
