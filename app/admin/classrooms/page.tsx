@@ -1,8 +1,9 @@
 "use client";
 
-import {useState, useEffect} from "react";
-import {useSession} from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import DashboardLayout from "@/app/admin/layout";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -10,9 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Plus,
   Users,
@@ -30,12 +31,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {ClassroomModal} from "@/components/admin/modals/classroom-modal";
-import {DeleteConfirmationModal} from "@/components/admin/modals/delete-confirmation-modal";
-import {ClassroomDetailsModal} from "@/components/admin/modals/classroom-details-modal";
-import {ManageStudentsModal} from "@/components/admin/modals/manage-students-modal";
-import {useToast} from "@/hooks/use-toast";
-import {Skeleton} from "@/components/ui/skeleton";
+import { ClassroomModal } from "@/components/admin/modals/classroom-modal";
+import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
+import { ClassroomDetailsModal } from "@/components/admin/modals/classroom-details-modal";
+import { ManageStudentsModal } from "@/components/admin/modals/manage-students-modal";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Classroom {
   id: number;
@@ -48,13 +49,16 @@ interface Classroom {
 }
 
 export default function ClassroomsPage() {
-  const {data: session, status} = useSession();
-  const {toast} = useToast();
+  const { data: session, status } = useSession();
+  const { toast } = useToast();
 
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState<Classroom | null>(
@@ -112,6 +116,8 @@ export default function ClassroomsPage() {
   };
 
   const handleSaveClassroom = async (data: any) => {
+    // Start loading
+    setIsSaving(true);
     try {
       let url = "/api/admin/classrooms";
       let method = "POST";
@@ -120,12 +126,12 @@ export default function ClassroomsPage() {
       if (editingClassroom) {
         url = `/api/admin/classrooms/${editingClassroom.id}`;
         method = "PATCH";
-        body = {...editingClassroom, ...data};
+        body = { ...editingClassroom, ...data };
       }
 
       const response = await fetch(url, {
         method,
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
@@ -140,6 +146,8 @@ export default function ClassroomsPage() {
           ? "Classroom updated successfully"
           : "Classroom created successfully",
       });
+
+      // Close modals only on success
       setEditingClassroom(null);
       setIsAddModalOpen(false);
       fetchClassrooms();
@@ -150,24 +158,34 @@ export default function ClassroomsPage() {
         description: err.message || "Failed to save classroom.",
         variant: "destructive",
       });
+    } finally {
+      // Stop loading regardless of success/error
+      setIsSaving(false);
     }
   };
 
   const handleDeleteClassroom = async () => {
     if (!deletingClassroom) return;
 
+    // Start loading
+    setIsDeleting(true);
     try {
       const url = `/api/admin/classrooms/${deletingClassroom.id}`;
       const response = await fetch(url, {
         method: "DELETE",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
-      toast({title: "Success", description: "Classroom deleted successfully"});
+      toast({
+        title: "Success",
+        description: "Classroom deleted successfully",
+      });
+
+      // Close modal only on success
       setDeletingClassroom(null);
       fetchClassrooms();
     } catch (err: any) {
@@ -177,6 +195,9 @@ export default function ClassroomsPage() {
         description: err.message || "Failed to delete classroom.",
         variant: "destructive",
       });
+    } finally {
+      // Stop loading
+      setIsDeleting(false);
     }
   };
 
@@ -194,13 +215,16 @@ export default function ClassroomsPage() {
       .map((row) => row.join(","))
       .join("\n");
 
-    const blob = new Blob([csv], {type: "text/csv"});
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "classrooms.csv";
     a.click();
-    toast({title: "Success", description: "Classrooms exported successfully"});
+    toast({
+      title: "Success",
+      description: "Classrooms exported successfully",
+    });
   };
 
   const filteredClassrooms = classrooms.filter(
@@ -272,13 +296,15 @@ export default function ClassroomsPage() {
             <Button
               variant="outline"
               onClick={handleExport}
-              className="flex-1 sm:flex-none bg-transparent">
+              className="flex-1 sm:flex-none bg-transparent"
+            >
               <Download className="mr-2 h-4 w-4" />
               <span className="hidden xs:inline">Export</span>
             </Button>
             <Button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex-1 sm:flex-none">
+              className="flex-1 sm:flex-none"
+            >
               <Plus className="mr-2 h-4 w-4" />
               <span className="hidden xs:inline">Add</span>
               <span className="xs:hidden">New</span>
@@ -304,7 +330,8 @@ export default function ClassroomsPage() {
           {filteredClassrooms.map((classroom) => (
             <Card
               key={classroom.id}
-              className="hover:shadow-lg transition-shadow">
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardHeader className="pb-3 sm:pb-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1 min-w-0 flex-1">
@@ -322,29 +349,34 @@ export default function ClassroomsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="flex-shrink-0">
+                        className="flex-shrink-0"
+                      >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        onClick={() => setViewingClassroom(classroom)}>
+                        onClick={() => setViewingClassroom(classroom)}
+                      >
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => setEditingClassroom(classroom)}>
+                        onClick={() => setEditingClassroom(classroom)}
+                      >
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Classroom
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => setManagingClassroom(classroom)}>
+                        onClick={() => setManagingClassroom(classroom)}
+                      >
                         <Users className="mr-2 h-4 w-4" />
                         Manage Students
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
-                        onClick={() => setDeletingClassroom(classroom)}>
+                        onClick={() => setDeletingClassroom(classroom)}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
@@ -386,7 +418,8 @@ export default function ClassroomsPage() {
                   className="w-full bg-transparent"
                   variant="outline"
                   size="sm"
-                  onClick={() => setViewingClassroom(classroom)}>
+                  onClick={() => setViewingClassroom(classroom)}
+                >
                   <Eye className="mr-2 h-4 w-4" />
                   View Classroom
                 </Button>
@@ -410,19 +443,27 @@ export default function ClassroomsPage() {
       <ClassroomModal
         open={isAddModalOpen || !!editingClassroom}
         onOpenChange={(open) => {
+          // Prevent closing if saving is in progress
+          if (isSaving) return;
           setIsAddModalOpen(open);
           if (!open) setEditingClassroom(null);
         }}
         classroom={editingClassroom ?? undefined}
         onSave={handleSaveClassroom}
+        loading={isSaving} // Pass the loading state
       />
 
       <DeleteConfirmationModal
         open={!!deletingClassroom}
-        onOpenChange={(open) => !open && setDeletingClassroom(null)}
+        onOpenChange={(open) => {
+          // Prevent closing if deleting is in progress
+          if (isDeleting) return;
+          if (!open) setDeletingClassroom(null);
+        }}
         title="Delete Classroom"
         description={`Are you sure you want to delete ${deletingClassroom?.name}? This action cannot be undone.`}
         onConfirm={handleDeleteClassroom}
+        loading={isDeleting} // Pass the loading state
       />
 
       <ClassroomDetailsModal

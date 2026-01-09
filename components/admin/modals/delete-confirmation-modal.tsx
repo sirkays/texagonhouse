@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   AlertDialog,
@@ -9,14 +9,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import {Spinner} from "@/components/ui/spinner";
+import {Button} from "@/components/ui/button"; // Import Button for custom styling if needed, though Action is fine
 
 interface DeleteConfirmationModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description: string
-  onConfirm: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  loading?: boolean; // Added loading prop
 }
 
 export function DeleteConfirmationModal({
@@ -25,6 +28,7 @@ export function DeleteConfirmationModal({
   title,
   description,
   onConfirm,
+  loading = false, // Default to false
 }: DeleteConfirmationModalProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -34,15 +38,30 @@ export function DeleteConfirmationModal({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={(e) => {
+              // Prevent auto-closing the modal
+              e.preventDefault();
+              if (!loading) {
+                onConfirm();
+              }
+            }}
+            disabled={loading}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Delete
+            {loading ? (
+              <>
+                <Spinner size="sm" className="mr-2 invert" />{" "}
+                {/* Invert color for dark bg if needed, or remove invert */}
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

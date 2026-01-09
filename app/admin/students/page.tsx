@@ -375,7 +375,7 @@
 
 "use client";
 
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/app/admin/layout";
 import {
   Card,
@@ -384,14 +384,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {Input} from "@/components/ui/input";
-import {Plus, Search, Mail, Download, Eye, Edit, Trash2} from "lucide-react";
-import {StudentModal} from "@/components/admin/modals/student-modal";
-import {DeleteConfirmationModal} from "@/components/admin/modals/delete-confirmation-modal";
-import {useToast} from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Plus, Search, Mail, Download, Eye, Edit, Trash2 } from "lucide-react";
+import { StudentModal } from "@/components/admin/modals/student-modal";
+import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -401,7 +401,7 @@ import {
 } from "@/components/ui/select";
 
 export default function StudentsPage() {
-  const {toast} = useToast();
+  const { toast } = useToast();
 
   const [students, setStudents] = useState<any[]>([]);
   const [classrooms, setClassrooms] = useState<any[]>([]);
@@ -412,6 +412,8 @@ export default function StudentsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [deletingStudent, setDeletingStudent] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   /* -------------------- Effects -------------------- */
   useEffect(() => {
@@ -484,20 +486,21 @@ export default function StudentsPage() {
 
   /* -------------------- Handlers -------------------- */
   const handleSaveStudent = async (data: any) => {
+    setIsSaving(true); // Start loading
     try {
       let res;
-      const {id, ...payload} = data;
+      const { id, ...payload } = data;
 
       if (editingStudent) {
         res = await fetch(`/api/admin/students/${editingStudent.id}`, {
           method: "PUT",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       } else {
         res = await fetch("/api/admin/students", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       }
@@ -515,6 +518,7 @@ export default function StudentsPage() {
       });
 
       loadStudents();
+      // Close modals only on success
       setEditingStudent(null);
       setIsAddModalOpen(false);
     } catch (error: any) {
@@ -523,10 +527,13 @@ export default function StudentsPage() {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false); // Stop loading
     }
   };
 
-  const handleDeleteStudent = async () => {
+const handleDeleteStudent = async () => {
+    setIsDeleting(true); // Start loading
     try {
       const res = await fetch(`/api/admin/students/${deletingStudent.id}`, {
         method: "DELETE",
@@ -543,6 +550,7 @@ export default function StudentsPage() {
       });
 
       loadStudents();
+      // Close modal only on success
       setDeletingStudent(null);
     } catch (error: any) {
       toast({
@@ -550,6 +558,8 @@ export default function StudentsPage() {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false); // Stop loading
     }
   };
 
@@ -566,7 +576,10 @@ export default function StudentsPage() {
       a.click();
       URL.revokeObjectURL(url);
 
-      toast({title: "Success", description: "Students exported successfully"});
+      toast({
+        title: "Success",
+        description: "Students exported successfully",
+      });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -593,13 +606,15 @@ export default function StudentsPage() {
             <Button
               variant="outline"
               className="w-full sm:w-auto"
-              onClick={handleExport}>
+              onClick={handleExport}
+            >
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
             <Button
               className="w-full sm:w-auto"
-              onClick={() => setIsAddModalOpen(true)}>
+              onClick={() => setIsAddModalOpen(true)}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add Student
             </Button>
@@ -622,7 +637,8 @@ export default function StudentsPage() {
 
               <Select
                 value={filterClassroom}
-                onValueChange={setFilterClassroom}>
+                onValueChange={setFilterClassroom}
+              >
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Classroom" />
                 </SelectTrigger>
@@ -661,7 +677,8 @@ export default function StudentsPage() {
             {students.map((student) => (
               <div
                 key={student.id}
-                className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border p-4 rounded-lg">
+                className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border p-4 rounded-lg"
+              >
                 <div className="flex gap-4 items-center">
                   <Avatar>
                     <AvatarImage src={student.avatar} />
@@ -689,13 +706,15 @@ export default function StudentsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setEditingStudent(student)}>
+                    onClick={() => setEditingStudent(student)}
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setDeletingStudent(student)}>
+                    onClick={() => setDeletingStudent(student)}
+                  >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -711,24 +730,30 @@ export default function StudentsPage() {
         </Card>
       </div>
 
-      {/* Modals */}
+    {/* Modals */}
       <StudentModal
         open={isAddModalOpen || !!editingStudent}
         onOpenChange={(open) => {
+          if (isSaving) return; // Prevent closing while saving
           setIsAddModalOpen(open);
           if (!open) setEditingStudent(null);
         }}
         student={editingStudent}
         classrooms={classrooms}
         onSave={handleSaveStudent}
+        loading={isSaving} // Pass loading state
       />
 
       <DeleteConfirmationModal
         open={!!deletingStudent}
-        onOpenChange={(open) => !open && setDeletingStudent(null)}
+        onOpenChange={(open) => {
+          if (isDeleting) return; // Prevent closing while deleting
+          if (!open) setDeletingStudent(null);
+        }}
         title="Delete Student"
         description={`Are you sure you want to delete ${deletingStudent?.name}?`}
         onConfirm={handleDeleteStudent}
+        loading={isDeleting} // Pass loading state
       />
     </>
   );

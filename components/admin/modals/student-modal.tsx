@@ -207,6 +207,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {Spinner} from "@/components/ui/spinner";
 
 interface StudentModalProps {
   open: boolean;
@@ -222,6 +223,7 @@ interface StudentModalProps {
   };
   classrooms: {id: number; name: string}[];
   onSave: (data: any) => void;
+  loading?: boolean; // Added loading prop
 }
 
 export function StudentModal({
@@ -230,6 +232,7 @@ export function StudentModal({
   student,
   classrooms,
   onSave,
+  loading = false, // Default to false
 }: StudentModalProps) {
   const [formData, setFormData] = useState({
     name: "",
@@ -272,7 +275,7 @@ export function StudentModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({...formData, id: student?.id});
-    onOpenChange(false);
+    // REMOVED: onOpenChange(false) - Parent handles closing on success
   };
 
   return (
@@ -300,6 +303,7 @@ export function StudentModal({
                   setFormData({...formData, name: e.target.value})
                 }
                 required
+                disabled={loading} // Disable input
               />
             </div>
             <div className="grid gap-2">
@@ -313,6 +317,7 @@ export function StudentModal({
                   setFormData({...formData, email: e.target.value})
                 }
                 required
+                disabled={loading} // Disable input
               />
             </div>
             <div className="grid gap-2">
@@ -325,6 +330,7 @@ export function StudentModal({
                   setFormData({...formData, admissionNo: e.target.value})
                 }
                 required
+                disabled={loading} // Disable input
               />
             </div>
             <div className="grid gap-2">
@@ -342,6 +348,7 @@ export function StudentModal({
                   type="file"
                   accept="image/*"
                   onChange={handleFileChange}
+                  disabled={loading} // Disable input
                 />
               </div>
             </div>
@@ -351,7 +358,9 @@ export function StudentModal({
                 value={formData.classroom}
                 onValueChange={(value) =>
                   setFormData({...formData, classroom: value})
-                }>
+                }
+                disabled={loading} // Disable select
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select classroom" />
                 </SelectTrigger>
@@ -370,7 +379,9 @@ export function StudentModal({
                 value={formData.status}
                 onValueChange={(value) =>
                   setFormData({...formData, status: value})
-                }>
+                }
+                disabled={loading} // Disable select
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -386,10 +397,21 @@ export function StudentModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}>
+              onClick={() => onOpenChange(false)}
+              disabled={loading} // Disable cancel
+            >
               Cancel
             </Button>
-            <Button type="submit">{student ? "Update" : "Add"} Student</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  {student ? "Updating..." : "Adding..."}
+                </>
+              ) : (
+                <>{student ? "Update" : "Add"} Student</>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
