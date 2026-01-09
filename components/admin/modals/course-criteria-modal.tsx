@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {useEffect, useState} from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,10 +9,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {useToast} from "@/hooks/use-toast";
+import {Spinner} from "@/components/ui/spinner"; // Import Spinner
 
 type Criteria = {
   course_id: number;
@@ -34,7 +34,7 @@ export function CourseCriteriaModal({
   courseId: number | null;
   courseName?: string;
 }) {
-  const { toast } = useToast();
+  const {toast} = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -90,7 +90,7 @@ export function CourseCriteriaModal({
 
   const setField = (field: keyof Criteria, val: string) => {
     const n = val === "" ? 0 : Number(val);
-    setCriteria((p) => ({ ...p, [field]: Number.isFinite(n) ? n : 0 }));
+    setCriteria((p) => ({...p, [field]: Number.isFinite(n) ? n : 0}));
   };
 
   const handleSave = async () => {
@@ -107,7 +107,7 @@ export function CourseCriteriaModal({
 
       const res = await fetch(`/api/admin/courses/${courseId}/pass-criteria`, {
         method: "POST", // upsert
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload),
       });
 
@@ -140,7 +140,7 @@ export function CourseCriteriaModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => !saving && onOpenChange(val)}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Course Pass Criteria</DialogTitle>
@@ -152,7 +152,7 @@ export function CourseCriteriaModal({
 
         {loading ? (
           <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Spinner size="md" /> {/* Use Spinner here */}
           </div>
         ) : (
           <div className="grid gap-4 py-2">
@@ -163,6 +163,7 @@ export function CourseCriteriaModal({
                 min={0}
                 value={criteria.no_of_cbt}
                 onChange={(e) => setField("no_of_cbt", e.target.value)}
+                disabled={saving} // Disable input
               />
             </div>
 
@@ -177,6 +178,7 @@ export function CourseCriteriaModal({
                 onChange={(e) =>
                   setField("no_of_code_submission", e.target.value)
                 }
+                disabled={saving} // Disable input
               />
             </div>
 
@@ -188,7 +190,10 @@ export function CourseCriteriaModal({
                 type="number"
                 min={0}
                 value={criteria.total_pass_mark_cbt}
-                onChange={(e) => setField("total_pass_mark_cbt", e.target.value)}
+                onChange={(e) =>
+                  setField("total_pass_mark_cbt", e.target.value)
+                }
+                disabled={saving} // Disable input
               />
             </div>
 
@@ -203,19 +208,27 @@ export function CourseCriteriaModal({
                 onChange={(e) =>
                   setField("total_pass_mark_code", e.target.value)
                 }
+                disabled={saving} // Disable input
               />
             </div>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving || loading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading || !courseId}>
+          <Button
+            onClick={handleSave}
+            disabled={saving || loading || !courseId}
+          >
             {saving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner size="sm" className="mr-2" />
                 Saving...
               </>
             ) : (

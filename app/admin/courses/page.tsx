@@ -30,6 +30,7 @@ import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confir
 import { ViewDetailsModal } from "@/components/admin/modals/view-details-modal";
 import { useToast } from "@/hooks/use-toast";
 import { CourseCriteriaModal } from "@/components/admin/modals/course-criteria-modal";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Course {
   id: number;
@@ -75,6 +76,8 @@ export default function CoursesPage() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleOpenCriteria = (course: Course) => {
     setSelectedCourse(course);
@@ -207,7 +210,8 @@ export default function CoursesPage() {
     setDeleteModalOpen(true);
   };
 
-  const handleSaveCourse = async (courseData: any) => {
+const handleSaveCourse = async (courseData: any) => {
+    setIsSaving(true); // Start loading
     try {
       let res;
       if (selectedCourse?.id) {
@@ -218,10 +222,13 @@ export default function CoursesPage() {
           },
           body: JSON.stringify(courseData),
         });
-        toast({
-          title: "Course Updated",
-          description: `${courseData.name} has been updated successfully.`,
-        });
+        
+        if (res.ok) {
+           toast({
+            title: "Course Updated",
+            description: `${courseData.name} has been updated successfully.`,
+           });
+        }
       } else {
         res = await fetch("/api/admin/courses", {
           method: "POST",
@@ -230,11 +237,15 @@ export default function CoursesPage() {
           },
           body: JSON.stringify(courseData),
         });
-        toast({
-          title: "Course Created",
-          description: `${courseData.name} has been created successfully.`,
-        });
+        
+        if (res.ok) {
+           toast({
+            title: "Course Created",
+            description: `${courseData.name} has been created successfully.`,
+           });
+        }
       }
+
       if (!res.ok) {
         const errData = await res.json();
         toast({
@@ -242,9 +253,13 @@ export default function CoursesPage() {
           description: errData.detail || "Failed to save course.",
           variant: "destructive",
         });
+        // Do NOT close modal on error
         return;
       }
+
       fetchCourses(searchQuery);
+      // Close modal only on success
+      setCourseModalOpen(false);
     } catch (err) {
       console.error("Error saving course:", err);
       toast({
@@ -252,12 +267,14 @@ export default function CoursesPage() {
         description: "Failed to save course.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false); // Stop loading
     }
-    setCourseModalOpen(false);
   };
 
-  const confirmDelete = async () => {
+const confirmDelete = async () => {
     if (!selectedCourse) return;
+    setIsDeleting(true); // Start loading
     try {
       const res = await fetch(
         `/api/admin/courses/${selectedCourse.id}/delete`,
@@ -274,6 +291,8 @@ export default function CoursesPage() {
             `${selectedCourse.name} has been removed from the system.`,
         });
         fetchCourses(searchQuery);
+        // Close modal only on success
+        setDeleteModalOpen(false);
       } else {
         const errData = await res.json();
         toast({
@@ -289,8 +308,9 @@ export default function CoursesPage() {
         description: "Failed to delete course.",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false); // Stop loading
     }
-    setDeleteModalOpen(false);
   };
 
   if (loading && courses.length === 0) {
@@ -484,19 +504,29 @@ export default function CoursesPage() {
         </div>
       </div>
 
+{/* Modals */}
       <CourseModal
         open={courseModalOpen}
-        onOpenChange={setCourseModalOpen}
+        onOpenChange={(open) => {
+          if (isSaving) return; // Prevent closing while saving
+          setCourseModalOpen(open);
+        }}
         course={selectedCourse}
         onSave={handleSaveCourse}
         options={options}
+        loading={isSaving} // Pass loading state
       />
+
       <DeleteConfirmationModal
         open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return; // Prevent closing while deleting
+          setDeleteModalOpen(open);
+        }}
         onConfirm={confirmDelete}
         title="Delete Course"
         description={`Are you sure you want to delete ${selectedCourse?.name}? This action cannot be undone.`}
+        loading={isDeleting} // Pass loading state
       />
       <ViewDetailsModal
         open={viewModalOpen}
