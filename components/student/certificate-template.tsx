@@ -1,13 +1,19 @@
-// texagon_academy\texagonui\components\student\certificate-template.tsx
 "use client";
 
-import type {Certificate, Student} from "@/lib/certificate-data";
+import type { CertificateListItem } from "@/lib/certificates-api";
 import Image from "next/image";
-import {forwardRef} from "react";
+import { forwardRef } from "react";
 
 interface CertificateTemplateProps {
-  certificate: Certificate;
-  student: Student;
+  certificate: CertificateListItem;
+
+  /**
+   * Optional overrides if you still want to show extra info like "school"
+   * (because CertificateListItem doesn't include school by default).
+   */
+  studentNameOverride?: string;
+  schoolName?: string;
+
   isPrint?: boolean;
   className?: string;
 }
@@ -15,58 +21,75 @@ interface CertificateTemplateProps {
 export const CertificateTemplate = forwardRef<
   HTMLDivElement,
   CertificateTemplateProps
->(({certificate, student, isPrint = false, className = ""}, ref) => {
-  const elegantNameStyle = {
-    fontFamily: "'Dancing Script', 'Brush Script MT', cursive",
-    fontSize: "3rem",
-    lineHeight: "1",
-    color: "#000000",
-    fontWeight: 400,
-  };
+>(
+  (
+    {
+      certificate,
+      studentNameOverride,
+      schoolName,
+      isPrint = false,
+      className = "",
+    },
+    ref
+  ) => {
+    const elegantNameStyle = {
+      fontFamily: "'Dancing Script', 'Brush Script MT', cursive",
+      fontSize: "3rem",
+      lineHeight: "1",
+      color: "#000000",
+      fontWeight: 400,
+    } as const;
 
-  const elegantCourseStyle = {
-    fontSize: "1rem",
-    lineHeight: "1.5",
-    color: "",
-    fontWeight: 900,
-  };
+    const elegantCourseStyle = {
+      fontSize: "1rem",
+      lineHeight: "1.5",
+      color: "",
+      fontWeight: 900,
+    } as const;
 
-  return (
-    <div
-      ref={ref}
-      className={`relative w-full ${
-        isPrint ? "aspect-[3/2]" : "max-w-5xl mx-auto aspect-[3/2]"
-      } overflow-hidden ${className}`}>
-      <Image
-        src="/certificate.png"
-        fill
-        className="object-contain"
-        alt="Certificate background"
-      />
+    const studentName = studentNameOverride ?? certificate.student_name ?? "";
+    const courseName = certificate.course_name ?? "";
 
-      {/* Name Overlay */}
+    return (
       <div
-        className="absolute border-b-2 border-slate-950"
-        style={{top: "40%", left: "50.9%"}}>
-        <p className="" style={elegantNameStyle}>
-          {student.name}
-        </p>
-      </div>
+        ref={ref}
+        className={`relative w-full ${
+          isPrint ? "aspect-[3/2]" : "max-w-5xl mx-auto aspect-[3/2]"
+        } overflow-hidden ${className}`}
+      >
+        <Image
+          src="/certificate.png"
+          fill
+          className="object-contain"
+          alt="Certificate background"
+        />
 
-      <div className="">
-        {/* Course Overlay */}
-        <div className="absolute" style={{top: "58%", left: "42.9%"}}>
-          <p className="text-base font-extrabold" style={elegantCourseStyle}>
-            {certificate.courseName}
-          </p>
+        {/* Name Overlay */}
+        <div
+          className="absolute border-b-2 border-slate-950"
+          style={{ top: "40%", left: "50.9%" }}
+        >
+          <p style={elegantNameStyle}>{studentName}</p>
         </div>
-        {/* School Overlay */}
-        <div className="absolute" style={{top: "63%", left: "42.9%"}}>
-          <p className="text-base font-extrabold">at {student.school}.</p>
+
+        <div>
+          {/* Course Overlay */}
+          <div className="absolute" style={{ top: "58%", left: "42.9%" }}>
+            <p className="text-base font-extrabold" style={elegantCourseStyle}>
+              {courseName}
+            </p>
+          </div>
+
+          {/* School Overlay (optional) */}
+          {schoolName ? (
+            <div className="absolute" style={{ top: "63%", left: "42.9%" }}>
+              <p className="text-base font-extrabold">at {schoolName}.</p>
+            </div>
+          ) : null}
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 CertificateTemplate.displayName = "CertificateTemplate";

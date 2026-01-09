@@ -1,130 +1,84 @@
-// app/student/certificate/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchStudentCertificates, type CertificateListItem } from "@/lib/certificates-api";
 import { CertificateCard } from "@/components/student/certificate-card";
-import { fetchMyCertificates, ApiCertificate } from "@/lib/certificate-service";
-import { Award, Search, Loader2, User } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function StudentCertificatesPage() {
-  const { data: session } = useSession();
-  const [certificates, setCertificates] = useState<ApiCertificate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [items, setItems] = useState<CertificateListItem[]>([]);
 
   useEffect(() => {
-    async function loadCertificates() {
-      // FIX: Destructure 'certificates' from the response object
-      const { certificates: data } = await fetchMyCertificates();
-      
-      // Now 'data' is the array we expect
-      setCertificates(data || []); 
-      setLoading(false);
-    }
-    loadCertificates();
+    let mounted = true;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await fetchStudentCertificates({ limit: 200 });
+        if (!mounted) return;
+        setItems(data.results ?? []);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || "Failed to load certificates");
+      } finally {
+        if (!mounted) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // ... rest of your component code remains exactly the same ...
-  // (Search filtering and JSX)
-
-  const filteredCertificates = certificates.filter((cert) =>
-    cert.course_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const countText = useMemo(() => {
+    if (loading) return "Loading…";
+    return `${items.length} certificate${items.length === 1 ? "" : "s"}`;
+  }, [items.length, loading]);
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Award className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                My Certificates
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                View and download your earned credentials
-              </p>
-            </div>
+    <main className="min-h-screen py-8">
+      <div className="container mx-auto px-4 max-w-6xl">
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">My Certificates</h1>
+            <p className="text-muted-foreground mt-1">{countText}</p>
           </div>
 
-          {/* User Profile Summary Card */}
-          <div className="bg-card border border-border rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center gap-6 shadow-sm">
-            <div className="relative">
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={session.user.name || "User"}
-                  className="w-20 h-20 rounded-full ring-4 ring-primary/10"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-primary/5 ring-4 ring-primary/10 flex items-center justify-center">
-                  <User className="w-10 h-10 text-primary/40" />
-                </div>
-              )}
-            </div>
-            
-            <div className="flex-1 text-center md:text-left">
-              <h2 className="text-2xl font-bold text-foreground">
-                {session?.user?.name || "Student"}
-              </h2>
-              <p className="text-muted-foreground">{session?.user?.email}</p>
-            </div>
-
-            <div className="flex items-center gap-4 bg-accent/5 px-6 py-3 rounded-xl border border-accent/10">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                  Total Earned
-                </p>
-                <p className="text-3xl font-bold text-accent">
-                  {certificates.length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search by course name..."
-              className="pl-10 py-6 text-base"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          <Button
+            variant="outline"
+            className="bg-transparent"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </Button>
         </div>
 
-        {/* Certificates Grid */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading your certificates...</p>
+        {error && (
+          <div className="bg-card border border-border rounded-xl p-6 mb-6">
+            <p className="font-semibold text-foreground mb-2">Couldn’t load certificates</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
           </div>
-        ) : filteredCertificates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCertificates.map((cert) => (
-              <CertificateCard key={cert.id} certificate={cert} />
-            ))}
+        )}
+
+        {loading ? (
+          <div className="text-muted-foreground">Loading certificates…</div>
+        ) : items.length === 0 ? (
+          <div className="bg-card border border-border rounded-xl p-8 text-center">
+            <p className="font-semibold text-foreground mb-2">No certificates yet</p>
+            <p className="text-sm text-muted-foreground">
+              Complete courses to earn certificates.
+            </p>
           </div>
         ) : (
-          <div className="text-center py-20 bg-card/50 rounded-2xl border border-border border-dashed">
-            <div className="bg-muted/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Award className="w-8 h-8 text-muted-foreground/50" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">
-              No certificates found
-            </h3>
-            <p className="text-muted-foreground max-w-sm mx-auto">
-              {searchQuery
-                ? "No certificates match your search criteria."
-                : "You haven't earned any certificates yet. Complete a course to get started!"}
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {items.map((c) => (
+              <CertificateCard key={c.id} certificate={c} />
+            ))}
           </div>
         )}
       </div>
