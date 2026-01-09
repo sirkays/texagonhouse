@@ -1,17 +1,7 @@
 // app/api/teacher/courses/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface Course {
   id: string;
@@ -25,40 +15,35 @@ interface Course {
 export async function GET(req: Request) {
   noStore();
 
-  const {searchParams} = new URL(req.url);
-  const courseType = searchParams.get("course_type"); // "private"
+  const { searchParams } = new URL(req.url);
+  const courseType = searchParams.get("course_type"); // optional e.g. "private"
 
-  const endpoint = "/learning/api/teacher/courses/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
-  }
+  // If your Django endpoint supports course_type filtering, pass it through.
+  const path = courseType
+    ? `/learning/api/teacher/courses/?course_type=${encodeURIComponent(courseType)}`
+    : `/learning/api/teacher/courses/`;
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(session.user.sessionToken),
-    });
+    const { response, text, setCookie } = await djangoFetch(path, { method: "GET" });
 
-    const rawResponse = await response.text();
-
+    // If Django returned non-2xx, forward its payload (best for debugging)
     if (!response.ok) {
-      return NextResponse.json(
-        {error: "Failed to fetch teacher courses"},
-        {status: response.status}
+      const res = NextResponse.json(
+        {
+          error: "Failed to fetch teacher courses",
+          detail: safeJson(text)?.detail ?? safeJson(text)?.error ?? text,
+        },
+        { status: response.status }
       );
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    const data = JSON.parse(rawResponse);
+    const data = safeJson(text);
 
-    const normalizedData: Course[] = data.courses.map((course: any) => ({
-      id: course.id.toString(),
+    // Your Django payload: { courses: [...] }
+    const normalizedData: Course[] = (data?.courses ?? []).map((course: any) => ({
+      id: String(course.id ?? ""),
       name: course.name || "",
       subject: course.subject || "",
       classroom: course.classroom || "",
@@ -66,11 +51,21 @@ export async function GET(req: Request) {
       isActive: course.isActive ?? true,
     }));
 
-    return NextResponse.json(normalizedData, {status: 200});
-  } catch (error) {
+    const res = NextResponse.json(normalizedData, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
+  } catch (error: any) {
     return NextResponse.json(
-      {error: "Failed to fetch teacher courses"},
-      {status: 500}
+      { error: "Failed to fetch teacher courses", detail: String(error?.message ?? error) },
+      { status: 500 }
     );
+  }
+}
+
+function safeJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
   }
 }

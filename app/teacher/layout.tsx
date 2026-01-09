@@ -1,3 +1,4 @@
+//texagon_academy\texagonui\app\teacher\layout.tsx
 "use client";
 
 import {
@@ -17,6 +18,7 @@ import {
   Calendar,
   LogOut,
   Laptop,
+  Award,
 } from "lucide-react";
 import {
   Sidebar,
@@ -105,6 +107,13 @@ const menuItems = [
     icon: Laptop,
     id: "code-submission",
     path: "/teacher/submissions",
+  },
+
+  {
+    title: "Student Cert",
+    icon: Award,
+    id: "certs",
+    path: "/teacher/student-certs",
   },
 ];
 
