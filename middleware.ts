@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const DJANGO_BASE_URL = "http://127.0.0.1:9098"
-//const DJANGO_BASE_URL = "https://texagonbackend.onrender.com";
+//const DJANGO_BASE_URL = "http://127.0.0.1:9098"
+const DJANGO_BASE_URL = "https://texagonbackend.onrender.com";
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
