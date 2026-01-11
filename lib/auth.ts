@@ -1,15 +1,16 @@
-import {NextAuthOptions} from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import type {JWT} from "next-auth/jwt";
-import type {Session, User} from "next-auth";
+import type { JWT } from "next-auth/jwt";
+import type { Session, User } from "next-auth";
 
+//const BASE_URL = "http://127.0.0.1:9098"
 const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken?: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
 export const authOptions: NextAuthOptions = {
@@ -17,7 +18,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: {label: "Email", type: "email", placeholder: "Enter your email"},
+        email: { label: "Email", type: "email", placeholder: "Enter your email" },
         password: {
           label: "Password",
           type: "password",
@@ -51,9 +52,16 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (!loginResponse.ok) {
-            throw new Error(
-              loginData.detail || `Login failed (${loginResponse.status})`
-            );
+            const code = (loginData?.code || "").toString().toLowerCase();
+
+            // map backend codes to stable frontend codes
+            if (code === "past_due") throw new Error("past_due");
+            if (code === "missing") throw new Error("subscription_missing");
+            if (code === "expired" || code === "expired_by_date") throw new Error("subscription_expired");
+            if (code === "cancelled") throw new Error("subscription_cancelled");
+
+            // fallback
+            throw new Error(loginData?.detail || "login_failed");
           }
 
           const sessionToken = loginData.sessionToken;
@@ -111,7 +119,7 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({token, user}: {token: JWT; user?: User}) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = (user as any).id;
         token.role = (user as any).role;
@@ -124,9 +132,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    async session({session, token}: {session: Session; token: JWT}) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (!token || !token.sessionToken) {
-        return {...session, user: undefined, expires: new Date().toISOString()};
+        return { ...session, user: undefined, expires: new Date().toISOString() };
       }
       if (session.user) {
         (session.user as any).id = token.id;

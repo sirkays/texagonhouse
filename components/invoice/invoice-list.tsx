@@ -59,16 +59,15 @@ const formatMoney = (currency: string, amount: string) => {
 const typeLabel = (t?: InvoiceType) => t ?? "subscription";
 
 export function InvoiceList() {
-  const { invoices: displayInvoices, loading, error } = useInvoiceFilters();
+  const { invoices: displayInvoices, loading, error, setInvoices, searchTerm } = useInvoiceFilters();
   const searchParams = useSearchParams();
 
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const { setInvoices } = useInvoiceFilters(); // For refetch after payment
+  const [confirmedTx, setConfirmedTx] = useState<string | null>(null);
 
-  // Confirm payment
   useEffect(() => {
     const status = searchParams.get("status");
     const tx_ref = searchParams.get("tx_ref");
@@ -76,13 +75,16 @@ export function InvoiceList() {
     const invoice_number = searchParams.get("invoice_number");
 
     if (status === "completed" && tx_ref && transaction_id && invoice_number) {
+      if (confirmedTx === tx_ref) return;
+      setConfirmedTx(tx_ref);
       confirmPayment(invoice_number, tx_ref, transaction_id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, confirmedTx]);
+
+
 
   const refetchInvoices = async () => {
-    const term = useInvoiceFilters().searchTerm.trim();
+    const term = searchTerm.trim();
     const params = new URLSearchParams();
     if (term) params.append("search", term);
     const url = `/api/billing?${params.toString()}`;
@@ -107,23 +109,39 @@ export function InvoiceList() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invoice_id, tx_ref, transaction_id }),
       });
-      if (!res.ok) throw new Error("Failed to confirm payment");
 
-      await refetchInvoices();
-      setIsSuccessModalOpen(true);
+      // Read once
+      const raw = await res.text();
+      const payload = raw ? JSON.parse(raw) : null;
 
+      console.log("confirm response ok?", res.ok, payload);
+
+      if (!res.ok) {
+        throw new Error(payload?.detail || payload?.error || "Failed to confirm payment");
+      }
+
+      // ✅ Clear params to prevent repeated confirm
       const url = new URL(window.location.href);
-      url.searchParams.delete("status");
-      url.searchParams.delete("tx_ref");
-      url.searchParams.delete("transaction_id");
-      url.searchParams.delete("invoice_number");
+      ["status", "tx_ref", "transaction_id", "invoice_number"].forEach((k) =>
+        url.searchParams.delete(k)
+      );
       window.history.replaceState({}, "", url);
-    } catch {
-      alert("Failed to confirm payment");
+
+      // Best-effort refetch
+      try {
+        await refetchInvoices();
+      } catch (e) {
+        console.error("Payment confirmed but invoice refetch failed:", e);
+      }
+
+      setIsSuccessModalOpen(true);
+    } catch (e: any) {
+      alert(e?.message || "Failed to confirm payment");
     } finally {
       setPaymentLoading(false);
     }
   };
+
 
   const handlePayInvoice = async (invoice_number: string) => {
     setPaymentLoading(true);

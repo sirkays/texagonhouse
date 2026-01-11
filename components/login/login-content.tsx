@@ -1,13 +1,13 @@
 "use client";
 
-import {useState, useEffect, useCallback} from "react";
-import {Mail, Lock, Eye, EyeOff} from "lucide-react";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Spinner} from "@/components/ui/spinner";
+import { useState, useEffect, useCallback } from "react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
-import {signIn, useSession} from "next-auth/react";
-import {useRouter, useSearchParams} from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginContent() {
@@ -23,7 +23,7 @@ export default function LoginContent() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [forgotSuggestions, setForgotSuggestions] = useState<string[]>([]);
   const [showForgotSuggestions, setShowForgotSuggestions] = useState(false);
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
@@ -183,11 +183,24 @@ export default function LoginContent() {
       password,
     });
 
+
+    const ERROR_MAP: Record<string, string> = {
+      past_due: "Your subscription is past due. Please renew or contact the school admin.",
+      subscription_missing: "No active subscription was found for your account. Contact support.",
+      subscription_expired: "Your subscription has expired. Please renew or contact support.",
+      subscription_cancelled: "Your subscription is cancelled. Contact support.",
+      invalid_credentials: "Invalid email or password.",
+      login_failed: "Unable to sign in. Please try again.",
+    };
+
+
+
+
     if (!result?.error) {
       saveEmail(email);
     } else {
-      console.error("[LoginPage] Sign-in error:", result.error);
-      setError(result.error);
+
+      setError(ERROR_MAP[result.error] ?? "Unable to sign in.");
     }
     setLoading(false);
   };
@@ -305,7 +318,7 @@ export default function LoginContent() {
 
             <div
               className="flex items-center justify-center"
-              style={{marginTop: "19px"}}>
+              style={{ marginTop: "19px" }}>
               <button
                 onClick={() => setShowDialog(true)}
                 className="text-sm text-blue-600 hover:underline focus:outline-none">
@@ -318,7 +331,7 @@ export default function LoginContent() {
 
       <div
         className="w-full md:w-[60%] flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center"
-        style={{backgroundImage: "url('/texagon_sva.svg')"}}>
+        style={{ backgroundImage: "url('/texagon_sva.svg')" }}>
         <div className="text-center z-10 px-4" />
       </div>
 
