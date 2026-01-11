@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\app\api\auth\logout-route\route.ts
 import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth/next";
 import {authOptions} from "@/lib/auth";

@@ -1,10 +1,11 @@
+// texagon_academy\texagonui\lib\auth.ts
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 import type { Session, User } from "next-auth";
 
-//const BASE_URL = "http://127.0.0.1:9098"
-const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098"
+//const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken?: string) => ({
@@ -71,8 +72,6 @@ export const authOptions: NextAuthOptions = {
 
           // Step 2: Post-login check
           const url = new URL(`${BASE_URL}/accounts/api/post-login/`);
-          url.searchParams.append("email", credentials.email);
-          url.searchParams.append("password", credentials.password);
 
           const response = await fetch(url, {
             method: "GET",
@@ -161,7 +160,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
       },
     },
     csrfToken: {
@@ -170,7 +169,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
       },
     },
   },
