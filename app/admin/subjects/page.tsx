@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,17 +8,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Input} from "@/components/ui/input";
-import {Plus, Search, BookOpen, Edit, Trash2, Eye} from "lucide-react";
-import {SubjectModal} from "@/components/admin/modals/subject-modal";
-import {DeleteConfirmationModal} from "@/components/admin/modals/delete-confirmation-modal";
-import {ViewDetailsModal} from "@/components/admin/modals/view-details-modal";
-import {useToast} from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Plus, Search, BookOpen, Edit, Trash2, Eye } from "lucide-react";
+import { SubjectModal } from "@/components/admin/modals/subject-modal";
+import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
+import { ViewDetailsModal } from "@/components/admin/modals/view-details-modal";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SubjectsPage() {
-  const {toast} = useToast();
+  const { toast } = useToast();
 
   const [subjects, setSubjects] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,6 +27,8 @@ export default function SubjectsPage() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ✅ Fetch all subjects from API
   useEffect(() => {
@@ -60,6 +62,7 @@ export default function SubjectsPage() {
 
   // ✅ Handle Create/Edit
   const handleSaveSubject = async (subject: any) => {
+    setIsSaving(true); // Start loading
     try {
       const isEdit = !!subject.id;
       const url = isEdit
@@ -98,6 +101,7 @@ export default function SubjectsPage() {
         });
       }
 
+      // Close modal only on success
       setSubjectModalOpen(false);
     } catch (error: any) {
       toast({
@@ -105,12 +109,15 @@ export default function SubjectsPage() {
         description: error.message || "Failed to save subject",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false); // Stop loading
     }
   };
 
   // ✅ Handle Delete
   const confirmDelete = async () => {
     if (!selectedSubject) return;
+    setIsDeleting(true); // Start loading
     try {
       const res = await fetch(`/api/admin/subjects/${selectedSubject.id}`, {
         method: "DELETE",
@@ -128,6 +135,8 @@ export default function SubjectsPage() {
         description: `${selectedSubject.name} has been removed successfully.`,
         variant: "destructive",
       });
+
+      // Close modal only on success
       setDeleteModalOpen(false);
     } catch (error: any) {
       toast({
@@ -135,6 +144,8 @@ export default function SubjectsPage() {
         description: error.message || "Failed to delete subject",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false); // Stop loading
     }
   };
 
@@ -206,7 +217,8 @@ export default function SubjectsPage() {
             filteredSubjects.map((subject) => (
               <Card
                 key={subject.id}
-                className="hover:shadow-lg transition-shadow">
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -218,7 +230,8 @@ export default function SubjectsPage() {
                     <CardDescription>
                       <Badge
                         variant="secondary"
-                        className="font-mono text-xs mt-2">
+                        className="font-mono text-xs mt-2"
+                      >
                         {subject.code}
                       </Badge>
                     </CardDescription>
@@ -251,20 +264,23 @@ export default function SubjectsPage() {
                         className="flex-1 bg-transparent"
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewSubject(subject)}>
+                        onClick={() => handleViewSubject(subject)}
+                      >
                         <Eye className="mr-1 h-3 w-3" />
                         View
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEditSubject(subject)}>
+                        onClick={() => handleEditSubject(subject)}
+                      >
                         <Edit className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDeleteSubject(subject)}>
+                        onClick={() => handleDeleteSubject(subject)}
+                      >
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </div>
@@ -281,18 +297,27 @@ export default function SubjectsPage() {
       </div>
 
       {/* Modals */}
-      <SubjectModal
+     <SubjectModal
         open={subjectModalOpen}
-        onOpenChange={setSubjectModalOpen}
+        onOpenChange={(open) => {
+          if (isSaving) return; // Prevent closing while saving
+          setSubjectModalOpen(open);
+        }}
         subject={selectedSubject}
         onSave={handleSaveSubject}
+        loading={isSaving} // Pass loading state
       />
+
       <DeleteConfirmationModal
         open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return; // Prevent closing while deleting
+          setDeleteModalOpen(open);
+        }}
         onConfirm={confirmDelete}
         title="Delete Subject"
         description={`Are you sure you want to delete ${selectedSubject?.name}? This action cannot be undone.`}
+        loading={isDeleting} // Pass loading state
       />
       <ViewDetailsModal
         open={viewModalOpen}

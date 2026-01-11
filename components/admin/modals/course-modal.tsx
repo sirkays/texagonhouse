@@ -160,7 +160,6 @@
 "use client";
 
 import type React from "react";
-
 import {useState, useEffect} from "react";
 import {
   Dialog,
@@ -181,6 +180,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Options {
   subjects: {id: number; name: string}[];
@@ -194,6 +194,7 @@ interface CourseModalProps {
   course?: any;
   onSave: (course: any) => Promise<void>;
   options: Options;
+  loading?: boolean; // Added loading prop
 }
 
 export function CourseModal({
@@ -202,26 +203,30 @@ export function CourseModal({
   course,
   onSave,
   options,
+  loading = false, // Default to false
 }: CourseModalProps) {
   const [formData, setFormData] = useState({
-    name: course?.name || "",
-    subject: course?.subject || "",
-    teacher: course?.teacher || "",
-    classroom: course?.classroom || "",
-    description: course?.description || "",
-    status: course?.status || "active",
+    name: "",
+    subject: "",
+    teacher: "",
+    classroom: "",
+    description: "",
+    status: "active",
   });
 
+  // Sync state with props when modal opens or course changes
   useEffect(() => {
-    setFormData({
-      name: course?.name || "",
-      subject: course?.subject || "",
-      teacher: course?.teacher || "",
-      classroom: course?.classroom || "",
-      description: course?.description || "",
-      status: course?.status || "active",
-    });
-  }, [course]);
+    if (open) {
+      setFormData({
+        name: course?.name || "",
+        subject: course?.subject || "",
+        teacher: course?.teacher || "",
+        classroom: course?.classroom || "",
+        description: course?.description || "",
+        status: course?.status || "active",
+      });
+    }
+  }, [course, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,11 +239,11 @@ export function CourseModal({
       is_active: formData.status === "active",
     };
     await onSave(saveData);
-    onOpenChange(false);
+    // REMOVED: onOpenChange(false) - Parent handles closing on success
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => !loading && onOpenChange(val)}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -259,6 +264,7 @@ export function CourseModal({
                   setFormData({...formData, name: e.target.value})
                 }
                 required
+                disabled={loading} // Disable input
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -268,7 +274,9 @@ export function CourseModal({
                   value={formData.subject}
                   onValueChange={(value) =>
                     setFormData({...formData, subject: value})
-                  }>
+                  }
+                  disabled={loading} // Disable select
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
@@ -287,7 +295,9 @@ export function CourseModal({
                   value={formData.classroom}
                   onValueChange={(value) =>
                     setFormData({...formData, classroom: value})
-                  }>
+                  }
+                  disabled={loading} // Disable select
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select classroom" />
                   </SelectTrigger>
@@ -308,7 +318,9 @@ export function CourseModal({
                   value={formData.teacher}
                   onValueChange={(value) =>
                     setFormData({...formData, teacher: value})
-                  }>
+                  }
+                  disabled={loading} // Disable select
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select teacher" />
                   </SelectTrigger>
@@ -327,7 +339,9 @@ export function CourseModal({
                   value={formData.status}
                   onValueChange={(value) =>
                     setFormData({...formData, status: value})
-                  }>
+                  }
+                  disabled={loading} // Disable select
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -347,6 +361,7 @@ export function CourseModal({
                   setFormData({...formData, description: e.target.value})
                 }
                 rows={4}
+                disabled={loading} // Disable input
               />
             </div>
           </div>
@@ -354,10 +369,21 @@ export function CourseModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}>
+              onClick={() => onOpenChange(false)}
+              disabled={loading} // Disable cancel
+            >
               Cancel
             </Button>
-            <Button type="submit">{course ? "Update" : "Create"} Course</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  {course ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                <>{course ? "Update" : "Create"} Course</>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

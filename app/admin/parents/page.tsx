@@ -427,6 +427,7 @@ import {Plus, Search, Mail, Users, Eye} from "lucide-react";
 import {ParentDetailsModal} from "@/components/admin/modals/parent-details-modal";
 import {AddParentDialog} from "@/components/admin/modals/add-parent-dialog";
 import {useToast} from "@/components/ui/use-toast";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ParentsPage() {
   const [parents, setParents] = useState<any[]>([]);
@@ -509,11 +510,18 @@ export default function ParentsPage() {
                 />
               </div>
 
-              <Button
+           <Button
                 type="submit"
                 disabled={loading}
                 className="w-full sm:w-auto">
-                Search
+                {loading ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Searching...
+                  </>
+                ) : (
+                  "Search"
+                )}
               </Button>
             </form>
           </CardContent>

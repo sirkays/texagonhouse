@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useCallback, useMemo} from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import DashboardLayout from "@/app/admin/layout";
 import {
   Card,
@@ -9,12 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +34,9 @@ import {
   Upload,
   Camera,
 } from "lucide-react";
-import {DeleteConfirmationModal} from "@/components/admin/modals/delete-confirmation-modal";
-import {useToast} from "@/hooks/use-toast";
+import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
+import { useToast } from "@/hooks/use-toast";
+import { Spinner } from "@/components/ui/spinner";
 
 const BASE_URL = "https://texagonbackend.onrender.com";
 
@@ -66,6 +67,7 @@ interface TeacherModalProps {
     avatarFile?: File | null;
   }) => void;
   specialtiesOptions: string[];
+  loading?: boolean; // Added loading prop
 }
 
 function TeacherModal({
@@ -74,6 +76,7 @@ function TeacherModal({
   teacher,
   onSave,
   specialtiesOptions,
+  loading = false, // Default to false
 }: TeacherModalProps) {
   const [formData, setFormData] = useState({
     name: "",
@@ -115,6 +118,7 @@ function TeacherModal({
   }, [teacher]);
 
   const toggleSpecialty = (spec: string) => {
+    if (loading) return; // Prevent toggling while loading
     setFormData((prev) => ({
       ...prev,
       specialties: prev.specialties.includes(spec)
@@ -159,13 +163,12 @@ function TeacherModal({
       experience: formData.experience,
       specialties: formData.specialties,
     };
-    onSave({...textData, avatarFile: avatarFile || undefined});
-    onOpenChange(false);
+    onSave({ ...textData, avatarFile: avatarFile || undefined });
+    // REMOVED: onOpenChange(false) - Parent handles closing on success
   };
 
   const isEditing = !!teacher?.id;
   const subtitle = !isEditing ? "Add a new teacher to the system" : undefined;
-
   const initials = formData.name
     ? formData.name
         .split(" ")
@@ -180,8 +183,8 @@ function TeacherModal({
       w-[95vw] sm:w-full max-w-md sm:max-w-lg p-0 
       h-[90vh] sm:h-auto max-h-[95vh] 
       overflow-hidden rounded-xl
-    ">
-        {/* Header */}
+    "
+      >
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
           <DialogTitle className="text-base sm:text-lg font-semibold">
             {isEditing ? "Edit Teacher" : "Add New Teacher"}
@@ -193,7 +196,6 @@ function TeacherModal({
           )}
         </DialogHeader>
 
-        {/* Scrollable Body */}
         <div className="px-4 sm:px-6 py-4 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)] sm:max-h-[calc(95vh-160px)]">
           {/* Profile Picture Upload */}
           <div className="space-y-3">
@@ -208,7 +210,8 @@ function TeacherModal({
                   ? "w-24 h-24 sm:w-28 sm:h-28 border-gray-200 bg-white"
                   : "w-20 h-20 sm:w-24 sm:h-24 border-gray-300 bg-gray-50 hover:bg-gray-100"
               }
-            `}>
+            `}
+              >
                 {preview ? (
                   <>
                     <Avatar className="h-full w-full">
@@ -237,6 +240,7 @@ function TeacherModal({
                 accept="image/*"
                 onChange={handleImageChange}
                 className="hidden"
+                disabled={loading} // Disable input
               />
               <p className="text-xs text-muted-foreground">
                 PNG, JPG up to 2MB (optional)
@@ -254,13 +258,14 @@ function TeacherModal({
                 id="name"
                 value={formData.name}
                 onChange={(e) =>
-                  setFormData((prev) => ({...prev, name: e.target.value}))
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
                 }
                 className={
                   errors.name
                     ? "border-destructive focus-visible:ring-destructive"
                     : ""
                 }
+                disabled={loading} // Disable input
               />
               {errors.name && (
                 <p className="text-xs text-destructive">{errors.name}</p>
@@ -276,13 +281,14 @@ function TeacherModal({
                 type="email"
                 value={formData.email}
                 onChange={(e) =>
-                  setFormData((prev) => ({...prev, email: e.target.value}))
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
                 }
                 className={
                   errors.email
                     ? "border-destructive focus-visible:ring-destructive"
                     : ""
                 }
+                disabled={loading} // Disable input
               />
               {errors.email && (
                 <p className="text-xs text-destructive">{errors.email}</p>
@@ -300,9 +306,10 @@ function TeacherModal({
                 id="phone"
                 value={formData.phone}
                 onChange={(e) =>
-                  setFormData((prev) => ({...prev, phone: e.target.value}))
+                  setFormData((prev) => ({ ...prev, phone: e.target.value }))
                 }
                 placeholder="e.g., +234 812 345 6789"
+                disabled={loading} // Disable input
               />
             </div>
 
@@ -326,6 +333,7 @@ function TeacherModal({
                     ? "border-destructive focus-visible:ring-destructive"
                     : ""
                 }
+                disabled={loading} // Disable input
               />
               {errors.experience && (
                 <p className="text-xs text-destructive">{errors.experience}</p>
@@ -340,17 +348,20 @@ function TeacherModal({
               {specialtiesOptions.map((spec) => (
                 <div
                   key={spec}
-                  className="flex items-center space-x-3 p-2 rounded-md hover:bg-accent cursor-pointer">
+                  className="flex items-center space-x-3 p-2 rounded-md hover:bg-accent cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     id={spec}
                     checked={formData.specialties.includes(spec)}
                     onChange={() => toggleSpecialty(spec)}
+                    disabled={loading} // Disable checkbox
                     className="h-4 w-4 rounded border-gray-300 focus:ring-primary"
                   />
                   <Label
                     htmlFor={spec}
-                    className="text-sm cursor-pointer capitalize flex-1">
+                    className="text-sm cursor-pointer capitalize flex-1"
+                  >
                     {spec}
                   </Label>
                 </div>
@@ -370,11 +381,12 @@ function TeacherModal({
               id="bio"
               value={formData.bio}
               onChange={(e) =>
-                setFormData((prev) => ({...prev, bio: e.target.value}))
+                setFormData((prev) => ({ ...prev, bio: e.target.value }))
               }
               placeholder="Enter a brief bio about the teacher..."
               rows={3}
               className="min-h-[80px] resize-none"
+              disabled={loading} // Disable input
             />
           </div>
         </div>
@@ -389,29 +401,43 @@ function TeacherModal({
     gap-3 sm:gap-2 
     sm:justify-end sm:items-center
     z-10
-  ">
+  "
+        >
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={loading} // Disable cancel
             className="
       w-full sm:w-auto 
       text-sm font-medium 
       border-gray-300 hover:bg-muted
       transition-all duration-200
-    ">
+    "
+          >
             Cancel
           </Button>
 
           <Button
             onClick={handleSubmit}
+            disabled={loading} // Disable submit
             className="
       w-full sm:w-auto 
       text-sm font-semibold 
       bg-primary hover:bg-primary/90 
       text-primary-foreground
       transition-all duration-200
-    ">
-            {isEditing ? "Update Teacher" : "Add Teacher"}
+    "
+          >
+            {loading ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                {isEditing ? "Updating..." : "Adding..."}
+              </>
+            ) : isEditing ? (
+              "Update Teacher"
+            ) : (
+              "Add Teacher"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -478,7 +504,8 @@ function ViewDetailsModal({
                   <Badge
                     key={specialty}
                     variant="secondary"
-                    className="text-xs">
+                    className="text-xs"
+                  >
                     {specialty}
                   </Badge>
                 ))}
@@ -505,7 +532,7 @@ function ViewDetailsModal({
 }
 
 export default function TeachersPage() {
-  const {toast} = useToast();
+  const { toast } = useToast();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [specialtiesOptions, setSpecialtiesOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -514,6 +541,8 @@ export default function TeachersPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchTeachers = useCallback(async () => {
     try {
@@ -606,8 +635,9 @@ export default function TeachersPage() {
   }, []);
 
   const handleSaveTeacher = useCallback(
-    async (saveData: {[key: string]: any; avatarFile?: File | null}) => {
-      const {avatarFile, ...teacherData} = saveData;
+    async (saveData: { [key: string]: any; avatarFile?: File | null }) => {
+      const { avatarFile, ...teacherData } = saveData;
+      setIsSaving(true); // Start loading
       try {
         let teacherId: number;
         if (selectedTeacher?.id) {
@@ -667,6 +697,10 @@ export default function TeachersPage() {
             selectedTeacher ? "updated" : "added"
           } successfully.`,
         });
+
+        // Close modal on success
+        setTeacherModalOpen(false);
+        setSelectedTeacher(null);
       } catch (error) {
         console.error("Error saving teacher:", error);
         toast({
@@ -675,15 +709,16 @@ export default function TeachersPage() {
             error instanceof Error ? error.message : "Something went wrong",
           variant: "destructive",
         });
+      } finally {
+        setIsSaving(false); // Stop loading
       }
-      setTeacherModalOpen(false);
-      setSelectedTeacher(null);
     },
     [selectedTeacher, toast, fetchTeachers]
   );
 
   const confirmDelete = useCallback(async () => {
     if (!selectedTeacher) return;
+    setIsDeleting(true); // Start loading
     try {
       const res = await fetch(`/api/admin/teachers/${selectedTeacher.id}`, {
         method: "DELETE",
@@ -698,6 +733,9 @@ export default function TeachersPage() {
         description: `${selectedTeacher.name} has been removed from the system.`,
         variant: "destructive",
       });
+      // Close modal on success
+      setDeleteModalOpen(false);
+      setSelectedTeacher(null);
     } catch (error) {
       console.error("Error deleting teacher:", error);
       toast({
@@ -705,12 +743,12 @@ export default function TeachersPage() {
         description: "Failed to delete teacher",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false); // Stop loading
     }
-    setDeleteModalOpen(false);
-    setSelectedTeacher(null);
   }, [selectedTeacher, toast, fetchTeachers]);
 
-  const skeletonCards = Array.from({length: 6}, (_, i) => (
+  const skeletonCards = Array.from({ length: 6 }, (_, i) => (
     <Card key={i} className="animate-pulse">
       <CardHeader>
         <div className="flex flex-col items-center text-center space-y-3">
@@ -729,7 +767,7 @@ export default function TeachersPage() {
           <div className="space-y-2">
             <div className="h-3 bg-muted rounded w-1/4" />
             <div className="flex flex-wrap gap-2">
-              {Array.from({length: 3}, (_, j) => (
+              {Array.from({ length: 3 }, (_, j) => (
                 <div key={j} className="h-5 bg-muted rounded-full w-16" />
               ))}
             </div>
@@ -745,7 +783,7 @@ export default function TeachersPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            {Array.from({length: 3}, (_, j) => (
+            {Array.from({ length: 3 }, (_, j) => (
               <div key={j} className="h-8 bg-muted rounded flex-1" />
             ))}
           </div>
@@ -813,7 +851,8 @@ export default function TeachersPage() {
           </div>
           <Button
             onClick={handleAddTeacher}
-            disabled={specialtiesOptions.length === 0}>
+            disabled={specialtiesOptions.length === 0}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Teacher
           </Button>
@@ -852,7 +891,8 @@ export default function TeachersPage() {
               return (
                 <Card
                   key={teacher.id}
-                  className="hover:shadow-lg transition-shadow">
+                  className="hover:shadow-lg transition-shadow"
+                >
                   <CardHeader>
                     <div className="flex flex-col items-center text-center space-y-3">
                       <Avatar className="h-20 w-20">
@@ -919,20 +959,23 @@ export default function TeachersPage() {
                           className="flex-1 bg-transparent"
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewTeacher(teacher)}>
+                          onClick={() => handleViewTeacher(teacher)}
+                        >
                           <Eye className="mr-1 h-3 w-3" />
                           View
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditTeacher(teacher)}>
+                          onClick={() => handleEditTeacher(teacher)}
+                        >
                           <Edit className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteTeacher(teacher)}>
+                          onClick={() => handleDeleteTeacher(teacher)}
+                        >
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button>
                       </div>
@@ -945,19 +988,27 @@ export default function TeachersPage() {
         </div>
       </div>
 
-      <TeacherModal
+<TeacherModal
         open={teacherModalOpen}
-        onOpenChange={setTeacherModalOpen}
+        onOpenChange={(open) => {
+          if (isSaving) return; // Prevent closing while saving
+          setTeacherModalOpen(open);
+        }}
         teacher={selectedTeacher}
         onSave={handleSaveTeacher}
         specialtiesOptions={specialtiesOptions}
+        loading={isSaving} // Pass loading state
       />
       <DeleteConfirmationModal
         open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return; // Prevent closing while deleting
+          setDeleteModalOpen(open);
+        }}
         onConfirm={confirmDelete}
         title="Delete Teacher"
         description={`Are you sure you want to delete ${selectedTeacher?.name}? This action cannot be undone.`}
+        loading={isDeleting} // Pass loading state
       />
       <ViewDetailsModal
         open={viewModalOpen}
