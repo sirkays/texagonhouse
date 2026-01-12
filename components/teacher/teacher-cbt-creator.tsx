@@ -469,6 +469,7 @@ export function TeacherCBTCreator() {
   const downloadQuestionsExcelTemplate = () => {
     // SINGLE-CHOICE ONLY template
     const headers = [
+      "ref",            // Q1, Q2, ...
       "type",           // fixed to single-choice
       "question",
       "option_a",
@@ -482,6 +483,7 @@ export function TeacherCBTCreator() {
     ];
 
     const example1 = [
+      "Q1",
       "single-choice",
       "What is 2 + 2?",
       "3",
@@ -495,6 +497,7 @@ export function TeacherCBTCreator() {
     ];
 
     const example2 = [
+      "Q2",
       "single-choice",
       "Which is a primary color?",
       "Green",
@@ -514,6 +517,7 @@ export function TeacherCBTCreator() {
     const guideAoa = [
       ["SINGLE-CHOICE TEMPLATE GUIDE"],
       [],
+      ["ref", "Must be exactly like Q1, Q2, Q10 (NO spaces, NO 'Que', NO 'Q 1')."],
       ["type", "Must be exactly: single-choice"],
       ["difficulty", "Easy | Medium | Hard (defaults to Medium if blank)"],
       ["correct_index", "0=A, 1=B, 2=C, 3=D"],
@@ -539,6 +543,7 @@ export function TeacherCBTCreator() {
   };
 
 
+
   // ------------------------------------------------------------
   // 2) Upload template and populate questions
   // ------------------------------------------------------------
@@ -546,17 +551,78 @@ export function TeacherCBTCreator() {
     file: File,
     mode: "replace" | "append" = "replace"
   ) => {
+    setIsSaving(true);
+
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
 
-      const sheetName =
+      const norm = (v: any) => String(v ?? "").trim();
+      const lower = (v: any) => norm(v).toLowerCase();
+
+      // Strict ref format: Q1, Q2, Q10 ...
+      const refRegex = /^Q([1-9]\d*)$/; // no Q0
+      const parseRefNum = (ref: string) => {
+        const m = refRegex.exec(ref);
+        return m ? Number(m[1]) : null;
+      };
+
+      // --- 1) Find Questions sheet ---
+      const questionsSheetName =
         wb.SheetNames.find((n) => n.trim().toLowerCase() === "questions") ||
         wb.SheetNames[0];
 
-      const ws = wb.Sheets[sheetName];
-      if (!ws) throw new Error("No worksheet found in the Excel file.");
+      const ws = wb.Sheets[questionsSheetName];
+      if (!ws) {
+        showAlert({
+          title: "Excel import failed",
+          message: "No worksheet found in the Excel file.",
+          type: "error",
+        });
+        return;
+      }
 
+      // --- 2) Validate headers strictly ---
+      const aoa = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "" });
+      if (!aoa.length || aoa.length < 2) {
+        showAlert({
+          title: "Excel import failed",
+          message: "The Questions sheet is empty or missing rows.",
+          type: "error",
+        });
+        return;
+      }
+
+      const headerRow = (aoa[0] || []).map((h) => lower(h));
+
+      // Must match these columns (teacher file must have ref now)
+      const requiredHeaders = [
+        "ref",
+        "type",
+        "question",
+        "option_a",
+        "option_b",
+        "option_c",
+        "option_d",
+        "correct_index",
+        "points",
+        "difficulty",
+        "explanation",
+      ];
+
+      const missingHeaders = requiredHeaders.filter((h) => !headerRow.includes(h));
+      if (missingHeaders.length) {
+        showAlert({
+          title: "Wrong Excel format",
+          message:
+            `Missing required column(s): ${missingHeaders.join(", ")}.\n` +
+            `Please download the template again and use that format.`,
+          type: "error",
+        });
+        return;
+      }
+
+      // Convert to objects
       const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
       if (!rows.length) {
         showAlert({
@@ -567,29 +633,54 @@ export function TeacherCBTCreator() {
         return;
       }
 
-      const norm = (v: any) => String(v ?? "").trim();
+      // --- 3) Existing refs from current form state (Q1..Qn by index position) ---
+      const existingRefs = new Set<string>();
+      (currentTest.questions || []).forEach((_, i) => {
+        existingRefs.add(`Q${i + 1}`);
+      });
 
-      // Parse rows → Questions + track which are updates/creates
-      const parsed: Question[] = [];
+      // --- 4) Parse + validate file rows (single-choice only) ---
+      const parsedByRef = new Map<string, Question>();
       const errors: string[] = [];
 
       for (let idx = 0; idx < rows.length; idx++) {
         const r = rows[idx];
-        const rowNumber = idx + 2;
+        const rowNumber = idx + 2; // header is row 1
 
-        const rawType = norm(r.type).toLowerCase();
-        // Allow blank type OR single-choice, but reject other types
-        if (rawType && rawType !== "single-choice") {
-          errors.push(`Row ${rowNumber}: Only "single-choice" is allowed for now.`);
+        const refRaw = norm(r.ref);
+        if (!refRaw) {
+          errors.push(`Row ${rowNumber}: ref is required (must be like Q1, Q2...).`);
+          continue;
+        }
+        if (!refRegex.test(refRaw)) {
+          errors.push(
+            `Row ${rowNumber}: Invalid ref "${refRaw}". Ref must be exactly like Q1, Q2, Q10 (no spaces, no "Que", no "Q 1").`
+          );
+          continue;
+        }
+
+        // Unique ref in file
+        if (parsedByRef.has(refRaw)) {
+          errors.push(`Row ${rowNumber}: Duplicate ref "${refRaw}" in the uploaded file.`);
+          continue;
+        }
+
+        // type must be single-choice ONLY
+        const rawType = lower(r.type);
+        if (rawType !== "single-choice") {
+          errors.push(
+            `Row ${rowNumber}: type must be exactly "single-choice" (got "${norm(r.type)}").`
+          );
           continue;
         }
 
         const qText = norm(r.question);
         if (!qText) {
-          errors.push(`Row ${rowNumber}: Question is required.`);
+          errors.push(`Row ${rowNumber}: question is required.`);
           continue;
         }
 
+        // Options: A & B required, C & D optional
         const optionA = norm(r.option_a);
         const optionB = norm(r.option_b);
         const optionC = norm(r.option_c);
@@ -602,9 +693,12 @@ export function TeacherCBTCreator() {
 
         const options = [optionA, optionB, optionC, optionD];
 
+        // correct_index must be 0..3 and point to non-empty
         const ci = Number(r.correct_index);
         if (![0, 1, 2, 3].includes(ci)) {
-          errors.push(`Row ${rowNumber}: correct_index must be 0,1,2,or 3.`);
+          errors.push(
+            `Row ${rowNumber}: correct_index must be 0, 1, 2, or 3 (0=A,1=B,2=C,3=D).`
+          );
           continue;
         }
         if (!options[ci]) {
@@ -613,27 +707,33 @@ export function TeacherCBTCreator() {
         }
 
         const points = safeNumber(r.points, 1);
+        if (!Number.isFinite(points) || points < 1) {
+          errors.push(`Row ${rowNumber}: points must be a number >= 1.`);
+          continue;
+        }
+
         const difficulty = normalizeDifficulty(r.difficulty);
         const explanation = norm(r.explanation);
 
-        // IMPORTANT: allow 'id' for existing questions
-        const excelId = norm(r.id);
-
-        parsed.push({
-          id: excelId || `${Date.now()}-${idx}`, // temp id if new
+        // Build question object
+        const q: Question = {
+          id: `${Date.now()}-${idx}`, // temp; will be replaced for existing items on REPLACE
           type: "single-choice",
           question: qText,
           options,
           correctAnswer: ci,
           points,
-          difficulty,
           explanation,
-        });
+          difficulty,
+        };
+
+        parsedByRef.set(refRaw, q);
       }
 
+      // Abort on any validation error (no partial import)
       if (errors.length) {
         showAlert({
-          title: "Excel import errors",
+          title: "Excel upload blocked",
           message:
             errors.slice(0, 12).join("\n") +
             (errors.length > 12 ? `\n...and ${errors.length - 12} more` : ""),
@@ -642,113 +742,108 @@ export function TeacherCBTCreator() {
         return;
       }
 
-      if (!parsed.length) {
+      if (!parsedByRef.size) {
         showAlert({
           title: "Excel import failed",
-          message: "No valid questions found in the file.",
+          message: "No valid questions found in the uploaded file.",
           type: "error",
         });
         return;
       }
 
-      // 1) Update UI state first
-      let nextQuestionsSnapshot: Question[] = [];
+      // --- 5) Mode rules ---
+      if (mode === "append") {
+        // Append means NONE of the refs must exist already
+        const clashes = Array.from(parsedByRef.keys()).filter((ref) => existingRefs.has(ref));
+        if (clashes.length) {
+          showAlert({
+            title: "Append blocked",
+            message:
+              `These questions already exist in the form and cannot be appended:\n` +
+              clashes.join(", ") +
+              `\n\nRemove them from the file or use Replace.`,
+            type: "error",
+          });
+          return;
+        }
+
+        // Append in ref order (Q1..Qn) if you want
+        const parsedSorted = Array.from(parsedByRef.entries())
+          .sort((a, b) => (parseRefNum(a[0]) ?? 0) - (parseRefNum(b[0]) ?? 0))
+          .map(([, q]) => q);
+
+        setCurrentTest((prev) => {
+          const nextQuestions = [...prev.questions, ...parsedSorted];
+          const totals = recalcTotals(nextQuestions);
+          return {
+            ...prev,
+            questions: nextQuestions,
+            questionsCount: totals.questionsCount,
+            totalPoints: totals.totalPoints,
+          };
+        });
+
+        setEditingQuestion((prev) => prev ?? Array.from(parsedByRef.values())[0]);
+
+        showAlert({
+          title: "Excel appended",
+          message: `Appended ${parsedByRef.size} question(s).`,
+          type: "success",
+        });
+
+        return;
+      }
+
+      // mode === "replace"
+      // Replace means: Update matching Qn by index, add new Qn that doesn't exist
       setCurrentTest((prev) => {
-        const nextQuestions =
-          mode === "append" ? [...prev.questions, ...parsed] : parsed;
+        const next = [...(prev.questions || [])];
 
-        const totals = recalcTotals(nextQuestions);
+        // For stable updates: Qn maps to index n-1
+        // - If index exists => update that question (keep its id)
+        // - If not => push as new question (and it becomes the next available position)
+        const entries = Array.from(parsedByRef.entries()).sort(
+          (a, b) => (parseRefNum(a[0]) ?? 0) - (parseRefNum(b[0]) ?? 0)
+        );
 
-        nextQuestionsSnapshot = nextQuestions;
+        for (const [ref, incoming] of entries) {
+          const n = parseRefNum(ref)!; // validated already
+          const idx = n - 1;
 
+          if (idx < next.length) {
+            // Update existing question at that position; preserve backend id
+            const existing = next[idx];
+            next[idx] = {
+              ...existing,
+              type: "single-choice",
+              question: incoming.question,
+              options: incoming.options,
+              correctAnswer: incoming.correctAnswer,
+              points: incoming.points,
+              difficulty: incoming.difficulty,
+              explanation: incoming.explanation,
+            };
+          } else {
+            // Add new question (Qn beyond current length)
+            next.push(incoming);
+          }
+        }
+
+        const totals = recalcTotals(next);
         return {
           ...prev,
-          questions: nextQuestions,
+          questions: next,
           questionsCount: totals.questionsCount,
           totalPoints: totals.totalPoints,
         };
       });
 
-      setEditingQuestion(parsed[0] || null);
-
-      // 2) If test is saved, sync to backend
-      if (!currentTest.id) {
-        showAlert({
-          title: "Imported locally",
-          message:
-            "Questions imported into the form. Save the test to persist them.",
-          type: "success",
-        });
-        return;
-      }
-
-      // Build map of existing question IDs in current test (backend IDs are usually short/uuid, yours uses length check)
-      const existingIds = new Set((currentTest.questions || []).map((q) => String(q.id)));
-
-      // Separate updates vs creates based on whether Excel row has an ID that exists in this test
-      const updates = parsed.filter((q) => existingIds.has(String(q.id)));
-      const creates = parsed.filter((q) => !existingIds.has(String(q.id)));
-
-      // Update existing questions
-      for (const q of updates) {
-        const res = await fetch(
-          `/api/teacher/assessments/tests/test/${currentTest.id}/questions/${q.id}/update`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "single-choice",
-              question: q.question,
-              options: q.options || ["", "", "", ""],
-              correctAnswer: Number(q.correctAnswer) || 0,
-              points: q.points,
-              explanation: q.explanation || "",
-              difficulty: q.difficulty || "Medium",
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d.error || `Failed updating question ${q.id}`);
-        }
-      }
-
-      // Create new questions
-      for (const q of creates) {
-        const res = await fetch(
-          `/api/teacher/assessments/tests/test/${currentTest.id}/questions/add`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "single-choice",
-              question: q.question,
-              options: q.options || ["", "", "", ""],
-              correctAnswer: Number(q.correctAnswer) || 0,
-              points: q.points,
-              explanation: q.explanation || "",
-              difficulty: q.difficulty || "Medium",
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d.error || "Failed creating a new question");
-        }
-      }
-
-      // 3) Refresh test from backend to get canonical IDs for newly created questions
-      const refreshed = await fetchTestById(currentTest.id);
-      if (refreshed) {
-        setCurrentTest(refreshed);
-        setEditingQuestion(refreshed.questions?.[0] || null);
-      }
+      setEditingQuestion((prev) => prev ?? Array.from(parsedByRef.values())[0]);
 
       showAlert({
-        title: "Excel upload applied",
-        message: `Updated ${updates.length} and created ${creates.length} question(s).`,
+        title: "Excel replaced/merged",
+        message:
+          `Updated matching Q refs and added new ones. Imported ${parsedByRef.size} row(s).`,
         type: "success",
       });
     } catch (err: any) {
@@ -757,17 +852,23 @@ export function TeacherCBTCreator() {
         message: err?.message || "Could not process the Excel file.",
         type: "error",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
+
+
+
+
 
 
   const exportCurrentTestQuestionsToExcel = () => {
     const questions = currentTest.questions || [];
 
-    // If no saved test yet, you can still export local questions
+    // Sheet teachers edit
     const headers = [
-      "id",
-      "type",
+      "ref",           // Q1, Q2...
+      "type",          // always single-choice
       "question",
       "option_a",
       "option_b",
@@ -779,13 +880,19 @@ export function TeacherCBTCreator() {
       "explanation",
     ];
 
-    const rows = questions.map((q) => {
+    const metaHeaders = ["ref", "id"]; // hidden mapping for backend updates
+
+    const rows = questions.map((q, i) => {
+      const ref = `Q${i + 1}`;
       const opts = q.options || ["", "", "", ""];
+
       const correctIndex =
-        typeof q.correctAnswer === "number" ? q.correctAnswer : Number(q.correctAnswer) || 0;
+        typeof q.correctAnswer === "number"
+          ? q.correctAnswer
+          : Number(q.correctAnswer) || 0;
 
       return [
-        q.id || "",
+        ref,
         "single-choice",
         q.question || "",
         opts[0] || "",
@@ -799,22 +906,18 @@ export function TeacherCBTCreator() {
       ];
     });
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // Meta mapping sheet (ref -> real backend ID)
+    const metaRows = questions.map((q, i) => {
+      const ref = `Q${i + 1}`;
+      return [ref, String(q.id || "")];
+    });
 
-    // Optional: a guide sheet
-    const guideAoa = [
-      ["EDIT MODE (SINGLE-CHOICE)"],
-      [],
-      ["IMPORTANT", "Do not change the 'id' column for existing questions."],
-      ["ADD NEW", "Leave 'id' empty to create a new question."],
-      ["correct_index", "0=A, 1=B, 2=C, 3=D"],
-      ["difficulty", "Easy | Medium | Hard"],
-    ];
-    const wsGuide = XLSX.utils.aoa_to_sheet(guideAoa);
+    const wsQuestions = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wsMeta = XLSX.utils.aoa_to_sheet([metaHeaders, ...metaRows]);
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Questions");
-    XLSX.utils.book_append_sheet(wb, wsGuide, "Guide");
+    XLSX.utils.book_append_sheet(wb, wsQuestions, "Questions");
+    XLSX.utils.book_append_sheet(wb, wsMeta, "__META"); // keep this sheet in file
 
     const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const blob = new Blob([out], {
@@ -822,8 +925,9 @@ export function TeacherCBTCreator() {
     });
 
     const safeTitle = (currentTest.title || "CBT_Test").replace(/[^\w\-]+/g, "_");
-    saveAs(blob, `${safeTitle}_Questions.xlsx`);
+    saveAs(blob, `${safeTitle}_Questions_EDIT.xlsx`);
   };
+
 
 
   useEffect(() => {
@@ -1840,14 +1944,11 @@ export function TeacherCBTCreator() {
                   <div className="flex items-center gap-2 shrink-0">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="shadow-md bg-white"
-                          disabled={isSaving}
-                        >
+                        <Button variant="outline" size="sm" disabled={isSaving}>
+                          {isSaving ? <Spinner size="sm" className="mr-2" /> : null}
                           Actions
                         </Button>
+
                       </DropdownMenuTrigger>
 
                       <DropdownMenuContent align="end" className="w-56">

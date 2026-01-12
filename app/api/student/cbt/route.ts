@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         cookie: request.headers.get("cookie") ?? "",
       },
       credentials: "include",
-      timeout: 40000,
+      timeout: 4000000,
     });
     if (!testsRes.ok) {
       const errorText = await testsRes.text();
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
         cookie: request.headers.get("cookie") ?? "",
       },
       credentials: "include",
-      timeout: 40000,
+      timeout: 40000000,
     });
     if (!attemptsRes.ok) {
       const errorText = await attemptsRes.text();
@@ -219,7 +219,7 @@ export async function POST(request: Request) {
   while (attempt < maxRetries) {
     try {
       const submitUrl = `${BASE_URL}/assessments/api/tests/${testId}/submit/`;
-
+      console.log(submitUrl, " harddddd")
       const res = await fetchWithTimeout(submitUrl, {
         method: "POST",
         headers: {
@@ -231,7 +231,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify(payload),
         credentials: "include",
-        timeout: 20000,
+        timeout: 2000000000,
       });
 
       if (!res.ok) {
