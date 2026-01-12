@@ -550,7 +550,6 @@ export function TeacherCBTCreator() {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
 
-      // Prefer a sheet named "Questions", else use first sheet
       const sheetName =
         wb.SheetNames.find((n) => n.trim().toLowerCase() === "questions") ||
         wb.SheetNames[0];
@@ -558,10 +557,7 @@ export function TeacherCBTCreator() {
       const ws = wb.Sheets[sheetName];
       if (!ws) throw new Error("No worksheet found in the Excel file.");
 
-      // Read rows as objects using row 1 as headers
-      // defval: "" ensures missing cells become empty strings
       const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-
       if (!rows.length) {
         showAlert({
           title: "Excel import failed",
@@ -571,28 +567,27 @@ export function TeacherCBTCreator() {
         return;
       }
 
+      const norm = (v: any) => String(v ?? "").trim();
+
+      // Parse rows → Questions + track which are updates/creates
       const parsed: Question[] = [];
       const errors: string[] = [];
 
-      // Helper: normalize option cells
-      const norm = (v: any) => String(v ?? "").trim();
+      for (let idx = 0; idx < rows.length; idx++) {
+        const r = rows[idx];
+        const rowNumber = idx + 2;
 
-      rows.forEach((r, idx) => {
-        const rowNumber = idx + 2; // headers are in row 1
-
-        // ✅ SINGLE CHOICE ONLY (allow blank type if you want to be permissive)
         const rawType = norm(r.type).toLowerCase();
+        // Allow blank type OR single-choice, but reject other types
         if (rawType && rawType !== "single-choice") {
-          errors.push(
-            `Row ${rowNumber}: Only "single-choice" is allowed for now (got "${r.type}").`
-          );
-          return;
+          errors.push(`Row ${rowNumber}: Only "single-choice" is allowed for now.`);
+          continue;
         }
 
         const qText = norm(r.question);
         if (!qText) {
           errors.push(`Row ${rowNumber}: Question is required.`);
-          return;
+          continue;
         }
 
         const optionA = norm(r.option_a);
@@ -600,50 +595,42 @@ export function TeacherCBTCreator() {
         const optionC = norm(r.option_c);
         const optionD = norm(r.option_d);
 
-        // Require at least A & B
         if (!optionA || !optionB) {
-          errors.push(
-            `Row ${rowNumber}: option_a and option_b are required for single-choice.`
-          );
-          return;
+          errors.push(`Row ${rowNumber}: option_a and option_b are required.`);
+          continue;
         }
 
         const options = [optionA, optionB, optionC, optionD];
 
-        // correct_index must be 0..3 and point to a non-empty option
-        const ciRaw = r.correct_index;
-        const ci = Number(ciRaw);
-
+        const ci = Number(r.correct_index);
         if (![0, 1, 2, 3].includes(ci)) {
-          errors.push(
-            `Row ${rowNumber}: correct_index must be 0, 1, 2, or 3 (0=A,1=B,2=C,3=D).`
-          );
-          return;
+          errors.push(`Row ${rowNumber}: correct_index must be 0,1,2,or 3.`);
+          continue;
         }
         if (!options[ci]) {
-          errors.push(
-            `Row ${rowNumber}: correct_index points to an empty option (fill that option or change correct_index).`
-          );
-          return;
+          errors.push(`Row ${rowNumber}: correct_index points to an empty option.`);
+          continue;
         }
 
         const points = safeNumber(r.points, 1);
         const difficulty = normalizeDifficulty(r.difficulty);
         const explanation = norm(r.explanation);
 
+        // IMPORTANT: allow 'id' for existing questions
+        const excelId = norm(r.id);
+
         parsed.push({
-          id: `${Date.now()}-${idx}`, // local temp id; backend will assign real id on save
+          id: excelId || `${Date.now()}-${idx}`, // temp id if new
           type: "single-choice",
           question: qText,
           options,
-          correctAnswer: ci, // index
+          correctAnswer: ci,
           points,
-          explanation,
           difficulty,
+          explanation,
         });
-      });
+      }
 
-      // If any errors, show and stop
       if (errors.length) {
         showAlert({
           title: "Excel import errors",
@@ -658,18 +645,21 @@ export function TeacherCBTCreator() {
       if (!parsed.length) {
         showAlert({
           title: "Excel import failed",
-          message: "No valid questions were found to import.",
+          message: "No valid questions found in the file.",
           type: "error",
         });
         return;
       }
 
-      // Apply to state
+      // 1) Update UI state first
+      let nextQuestionsSnapshot: Question[] = [];
       setCurrentTest((prev) => {
         const nextQuestions =
           mode === "append" ? [...prev.questions, ...parsed] : parsed;
 
         const totals = recalcTotals(nextQuestions);
+
+        nextQuestionsSnapshot = nextQuestions;
 
         return {
           ...prev,
@@ -679,21 +669,160 @@ export function TeacherCBTCreator() {
         };
       });
 
-      // Set first imported question as active for editing
       setEditingQuestion(parsed[0] || null);
 
+      // 2) If test is saved, sync to backend
+      if (!currentTest.id) {
+        showAlert({
+          title: "Imported locally",
+          message:
+            "Questions imported into the form. Save the test to persist them.",
+          type: "success",
+        });
+        return;
+      }
+
+      // Build map of existing question IDs in current test (backend IDs are usually short/uuid, yours uses length check)
+      const existingIds = new Set((currentTest.questions || []).map((q) => String(q.id)));
+
+      // Separate updates vs creates based on whether Excel row has an ID that exists in this test
+      const updates = parsed.filter((q) => existingIds.has(String(q.id)));
+      const creates = parsed.filter((q) => !existingIds.has(String(q.id)));
+
+      // Update existing questions
+      for (const q of updates) {
+        const res = await fetch(
+          `/api/teacher/assessments/tests/test/${currentTest.id}/questions/${q.id}/update`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "single-choice",
+              question: q.question,
+              options: q.options || ["", "", "", ""],
+              correctAnswer: Number(q.correctAnswer) || 0,
+              points: q.points,
+              explanation: q.explanation || "",
+              difficulty: q.difficulty || "Medium",
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || `Failed updating question ${q.id}`);
+        }
+      }
+
+      // Create new questions
+      for (const q of creates) {
+        const res = await fetch(
+          `/api/teacher/assessments/tests/test/${currentTest.id}/questions/add`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "single-choice",
+              question: q.question,
+              options: q.options || ["", "", "", ""],
+              correctAnswer: Number(q.correctAnswer) || 0,
+              points: q.points,
+              explanation: q.explanation || "",
+              difficulty: q.difficulty || "Medium",
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || "Failed creating a new question");
+        }
+      }
+
+      // 3) Refresh test from backend to get canonical IDs for newly created questions
+      const refreshed = await fetchTestById(currentTest.id);
+      if (refreshed) {
+        setCurrentTest(refreshed);
+        setEditingQuestion(refreshed.questions?.[0] || null);
+      }
+
       showAlert({
-        title: "Excel import successful",
-        message: `Imported ${parsed.length} single-choice question(s).`,
+        title: "Excel upload applied",
+        message: `Updated ${updates.length} and created ${creates.length} question(s).`,
         type: "success",
       });
     } catch (err: any) {
       showAlert({
         title: "Excel import failed",
-        message: err?.message || "Could not read the Excel file.",
+        message: err?.message || "Could not process the Excel file.",
         type: "error",
       });
     }
+  };
+
+
+  const exportCurrentTestQuestionsToExcel = () => {
+    const questions = currentTest.questions || [];
+
+    // If no saved test yet, you can still export local questions
+    const headers = [
+      "id",
+      "type",
+      "question",
+      "option_a",
+      "option_b",
+      "option_c",
+      "option_d",
+      "correct_index",
+      "points",
+      "difficulty",
+      "explanation",
+    ];
+
+    const rows = questions.map((q) => {
+      const opts = q.options || ["", "", "", ""];
+      const correctIndex =
+        typeof q.correctAnswer === "number" ? q.correctAnswer : Number(q.correctAnswer) || 0;
+
+      return [
+        q.id || "",
+        "single-choice",
+        q.question || "",
+        opts[0] || "",
+        opts[1] || "",
+        opts[2] || "",
+        opts[3] || "",
+        correctIndex,
+        q.points ?? 1,
+        q.difficulty ?? "Medium",
+        q.explanation ?? "",
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Optional: a guide sheet
+    const guideAoa = [
+      ["EDIT MODE (SINGLE-CHOICE)"],
+      [],
+      ["IMPORTANT", "Do not change the 'id' column for existing questions."],
+      ["ADD NEW", "Leave 'id' empty to create a new question."],
+      ["correct_index", "0=A, 1=B, 2=C, 3=D"],
+      ["difficulty", "Easy | Medium | Hard"],
+    ];
+    const wsGuide = XLSX.utils.aoa_to_sheet(guideAoa);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Questions");
+    XLSX.utils.book_append_sheet(wb, wsGuide, "Guide");
+
+    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([out], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const safeTitle = (currentTest.title || "CBT_Test").replace(/[^\w\-]+/g, "_");
+    saveAs(blob, `${safeTitle}_Questions.xlsx`);
   };
 
 
@@ -1711,12 +1840,18 @@ export function TeacherCBTCreator() {
                   <div className="flex items-center gap-2 shrink-0">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="shadow-md" disabled={isSaving}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shadow-md bg-white"
+                          disabled={isSaving}
+                        >
                           Actions
                         </Button>
                       </DropdownMenuTrigger>
 
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-56">
+                        {/* 1) Blank template */}
                         <DropdownMenuItem
                           onClick={downloadQuestionsExcelTemplate}
                           disabled={isSaving}
@@ -1724,12 +1859,24 @@ export function TeacherCBTCreator() {
                           Download Excel Template
                         </DropdownMenuItem>
 
+                        {/* 2) Filled export (only when there are questions) */}
+                        <DropdownMenuItem
+                          onClick={exportCurrentTestQuestionsToExcel}
+                          disabled={isSaving || (currentTest.questions?.length ?? 0) === 0}
+                        >
+                          Download Filled Excel
+                        </DropdownMenuItem>
+
+                        {/* Divider */}
+                        <div className="my-1 h-px bg-muted" />
+
+                        {/* 3) Upload replace */}
                         <DropdownMenuItem
                           onSelect={(e) => e.preventDefault()}
                           disabled={isSaving}
                         >
                           <label className="cursor-pointer w-full">
-                            Upload Excel
+                            Upload Excel (Replace)
                             <input
                               type="file"
                               accept=".xlsx,.xls"
@@ -1743,20 +1890,44 @@ export function TeacherCBTCreator() {
                             />
                           </label>
                         </DropdownMenuItem>
+
+                        {/* 4) Upload append */}
+                        <DropdownMenuItem
+                          onSelect={(e) => e.preventDefault()}
+                          disabled={isSaving}
+                        >
+                          <label className="cursor-pointer w-full">
+                            Upload Excel (Append)
+                            <input
+                              type="file"
+                              accept=".xlsx,.xls"
+                              className="hidden"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                handleQuestionsExcelUpload(f, "append");
+                                e.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
 
+                    {/* Plus button always visible */}
                     <Button
                       className="bg-[#f79771] text-white hover:bg-gray-300"
                       onClick={addQuestion}
                       size="sm"
                       disabled={isSaving}
+                      title="Add Question"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </CardHeader>
+
 
 
               <CardContent className="space-y-3">
