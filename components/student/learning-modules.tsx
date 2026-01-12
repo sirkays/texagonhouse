@@ -1,7 +1,6 @@
 "use client";
 import { useRef } from "react";
 
-
 import { useEffect, useMemo, useState } from "react";
 import {
   Card,
@@ -31,6 +30,7 @@ import {
   Eye,
   Bookmark,
   Star,
+  Inbox,
 } from "lucide-react";
 import {
   Pagination,
@@ -148,11 +148,13 @@ function markSavedInData(data: ModulesData, lessonId: number): ModulesData {
 }
 
 export function LearningModules() {
-  const [pageLoading, setPageLoading] = useState(true);     // first load only
+  const [pageLoading, setPageLoading] = useState(true); // first load only
   const [filterLoading, setFilterLoading] = useState(false); // module filter loading
   const didInitialLoadRef = useRef(false);
   const { data: session, status } = useSession();
-  const [savingLessonIds, setSavingLessonIds] = useState<Set<number>>(new Set());
+  const [savingLessonIds, setSavingLessonIds] = useState<Set<number>>(
+    new Set()
+  );
   const [currentPage, setCurrentPage] = useState({
     videos: 1,
     audio: 1,
@@ -195,77 +197,77 @@ export function LearningModules() {
   const itemsPerPage = 3;
 
   // -------------------- Fetch modules --------------------
-useEffect(() => {
-  const fetchModules = async () => {
-    const isInitial = !didInitialLoadRef.current;
-    if (isInitial) setPageLoading(true);
+  useEffect(() => {
+    const fetchModules = async () => {
+      const isInitial = !didInitialLoadRef.current;
+      if (isInitial) setPageLoading(true);
 
-    if (status !== "authenticated" || !sessionToken) {
-      setError("Not authenticated");
-      setModules(null);
-      setPageLoading(false);
-      showAlert(
-        "Not authenticated",
-        "Your session is not active. Please log in again to access your learning modules."
-      );
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/student/learning-modules", {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          setError("Session expired");
-          setModules(null);
-          showAlert(
-            "Session expired",
-            "Your session has expired. Please log in again to continue."
-          );
-          return;
-        }
-        setError("Failed to fetch modules");
+      if (status !== "authenticated" || !sessionToken) {
+        setError("Not authenticated");
         setModules(null);
-        showAlert("Error", "Failed to fetch your learning modules.");
+        setPageLoading(false);
+        showAlert(
+          "Not authenticated",
+          "Your session is not active. Please log in again to access your learning modules."
+        );
         return;
       }
 
-      const data: ModulesData = await response.json();
-      setModules(data);
-      setError(null);
+      try {
+        const response = await fetch("/api/student/learning-modules", {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+          },
+        });
 
-      // ✅ hydrate local saved set from backend is_saved flags
-      const serverSaved = new Set<number>();
-      [
-        ...(data.videos || []),
-        ...(data.audio || []),
-        ...(data.pdfs || []),
-        ...(data.docs || []),
-        ...(data.links || []),
-      ].forEach((x) => {
-        if (x?.is_saved) serverSaved.add(x.id);
-      });
-      setSavedLessons(serverSaved);
-    } catch (e) {
-      setError("Session expired");
-      setModules(null);
-      showAlert(
-        "Session expired",
-        "Your session has expired or there was a network issue. Please log in again."
-      );
-    } finally {
-      didInitialLoadRef.current = true;
-      setPageLoading(false);
-    }
-  };
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            setError("Session expired");
+            setModules(null);
+            showAlert(
+              "Session expired",
+              "Your session has expired. Please log in again to continue."
+            );
+            return;
+          }
+          setError("Failed to fetch modules");
+          setModules(null);
+          showAlert("Error", "Failed to fetch your learning modules.");
+          return;
+        }
 
-  fetchModules();
-}, [sessionToken, status]);
+        const data: ModulesData = await response.json();
+        setModules(data);
+        setError(null);
+
+        // ✅ hydrate local saved set from backend is_saved flags
+        const serverSaved = new Set<number>();
+        [
+          ...(data.videos || []),
+          ...(data.audio || []),
+          ...(data.pdfs || []),
+          ...(data.docs || []),
+          ...(data.links || []),
+        ].forEach((x) => {
+          if (x?.is_saved) serverSaved.add(x.id);
+        });
+        setSavedLessons(serverSaved);
+      } catch (e) {
+        setError("Session expired");
+        setModules(null);
+        showAlert(
+          "Session expired",
+          "Your session has expired or there was a network issue. Please log in again."
+        );
+      } finally {
+        didInitialLoadRef.current = true;
+        setPageLoading(false);
+      }
+    };
+
+    fetchModules();
+  }, [sessionToken, status]);
 
   // -------------------- Fetch active modules (dropdown options) --------------------
   useEffect(() => {
@@ -302,64 +304,73 @@ useEffect(() => {
   }, [sessionToken, status]);
 
   // -------------------- Save Lesson -> Material --------------------
-const handleSaveLesson = async (module: ModuleItem) => {
-  if (!session?.user?.sessionToken) {
-    showAlert("Login required", "Please log in to your account to save lessons for later.");
-    return;
-  }
-
-  if (savedLessons.has(module.id)) {
-    showAlert("Already saved", "You have already saved this lesson.");
-    return;
-  }
-
-  // ✅ start loading for this lesson
-  setSavingLessonIds((prev) => new Set(prev).add(module.id));
-
-  try {
-    const response = await fetch(`/api/student/save/lesson/${module.id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: JSON.stringify({}),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 401 || response.status === 403) {
-        setError("Session expired");
-        setModules(null);
-        showAlert("Session expired", "Your session has expired. Please log in again to save lessons.");
-        return;
-      }
-      if (response.status === 404) {
-        showAlert("Lesson not found", "This lesson could not be found.");
-        return;
-      }
-      showAlert("Failed to save", errorData?.detail || "We could not save this lesson. Please try again later.");
+  const handleSaveLesson = async (module: ModuleItem) => {
+    if (!session?.user?.sessionToken) {
+      showAlert(
+        "Login required",
+        "Please log in to your account to save lessons for later."
+      );
       return;
     }
 
-    await response.json().catch(() => null);
+    if (savedLessons.has(module.id)) {
+      showAlert("Already saved", "You have already saved this lesson.");
+      return;
+    }
 
-    setSavedLessons((prev) => new Set([...prev, module.id]));
-    showAlert("Saved", `"${module.title}" has been saved successfully.`);
-    toast.success("Lesson saved!");
-  } catch (error) {
-    console.error("[LearningModules] Save error:", error);
-    showAlert("Network error", "Please check your connection and try again.");
-  } finally {
-    // ✅ stop loading for this lesson
-    setSavingLessonIds((prev) => {
-      const next = new Set(prev);
-      next.delete(module.id);
-      return next;
-    });
-  }
-};
+    // ✅ start loading for this lesson
+    setSavingLessonIds((prev) => new Set(prev).add(module.id));
 
+    try {
+      const response = await fetch(`/api/student/save/lesson/${module.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": session.user.sessionToken,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401 || response.status === 403) {
+          setError("Session expired");
+          setModules(null);
+          showAlert(
+            "Session expired",
+            "Your session has expired. Please log in again to save lessons."
+          );
+          return;
+        }
+        if (response.status === 404) {
+          showAlert("Lesson not found", "This lesson could not be found.");
+          return;
+        }
+        showAlert(
+          "Failed to save",
+          errorData?.detail ||
+            "We could not save this lesson. Please try again later."
+        );
+        return;
+      }
+
+      await response.json().catch(() => null);
+
+      setSavedLessons((prev) => new Set([...prev, module.id]));
+      showAlert("Saved", `"${module.title}" has been saved successfully.`);
+      toast.success("Lesson saved!");
+    } catch (error) {
+      console.error("[LearningModules] Save error:", error);
+      showAlert("Network error", "Please check your connection and try again.");
+    } finally {
+      // ✅ stop loading for this lesson
+      setSavingLessonIds((prev) => {
+        const next = new Set(prev);
+        next.delete(module.id);
+        return next;
+      });
+    }
+  };
 
   // -------------------- Dropdown options --------------------
   const moduleOptions = useMemo(() => {
@@ -494,7 +505,10 @@ const handleSaveLesson = async (module: ModuleItem) => {
   // -------------------- Play handlers --------------------
   const handlePlayVideo = (video: ModuleItem) => {
     if (!video.url) {
-      showAlert("Video unavailable", "No video URL is available for this lesson yet.");
+      showAlert(
+        "Video unavailable",
+        "No video URL is available for this lesson yet."
+      );
       return;
     }
     setSelectedVideo(video);
@@ -503,7 +517,10 @@ const handleSaveLesson = async (module: ModuleItem) => {
 
   const handlePlayAudio = (audio: ModuleItem) => {
     if (!audio.url) {
-      showAlert("Audio unavailable", "No audio URL is available for this lesson yet.");
+      showAlert(
+        "Audio unavailable",
+        "No audio URL is available for this lesson yet."
+      );
       return;
     }
     setSelectedAudio(audio);
@@ -512,7 +529,10 @@ const handleSaveLesson = async (module: ModuleItem) => {
 
   const handlePreviewPdf = (pdf: ModuleItem) => {
     if (!pdf.url) {
-      showAlert("PDF unavailable", "No PDF URL is available for this document yet.");
+      showAlert(
+        "PDF unavailable",
+        "No PDF URL is available for this document yet."
+      );
       return;
     }
     const url = new URL(pdf.url);
@@ -528,7 +548,6 @@ const handleSaveLesson = async (module: ModuleItem) => {
       </div>
     );
   }
-
 
   if (
     error === "Session expired" ||
@@ -556,6 +575,20 @@ const handleSaveLesson = async (module: ModuleItem) => {
       </div>
     );
   }
+
+  // Place this inside your LearningModules component, before the return statement
+  const renderEmptyState = (type: string) => (
+    <div className="flex flex-col items-center justify-center py-12 text-center min-h-[400px] border-2 border-dashed rounded-lg bg-muted/30">
+      <div className="bg-muted rounded-full p-4 mb-4">
+        <Inbox className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-semibold">No {type} Available</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mt-2">
+        There are no {type.toLowerCase()} found for this module. Try selecting a
+        different module filter or check back later.
+      </p>
+    </div>
+  );
 
   // -------------------- Main UI --------------------
   return (
@@ -589,7 +622,6 @@ const handleSaveLesson = async (module: ModuleItem) => {
               });
             }}
           >
-
             <SelectTrigger id="module-filter" className="w-[220px]">
               <SelectValue placeholder="Select module" />
             </SelectTrigger>
@@ -632,169 +664,13 @@ const handleSaveLesson = async (module: ModuleItem) => {
 
           {/* -------------------- VIDEOS -------------------- */}
           <TabsContent value="videos" className="space-y-6">
-          {filterLoading ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: itemsPerPage }).map((_, i) => (
-                <Card key={`video-skel-${i}`} className="flex flex-col h-full">
-                  <CardHeader className="p-0">
-                    <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
-                    <div className="space-y-2 px-6 pb-4">
-                      <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col flex-1">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
-                    </div>
-
-                    <div className="mt-auto flex flex-wrap gap-3 pt-4">
-                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
-                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {getPaginatedItems(filteredModules.videos, currentPage.videos).map(
-                (video) => {
-                    const isSaving = savingLessonIds.has(video.id);
-                    const isSaved = savedLessons.has(video.id);
-
-                  return (
-                    <Card
-                      key={video.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full"
-                    >
-                      <CardHeader className="p-0">
-                      <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative overflow-hidden">
-                        {video.cover_image ? (
-                          <>
-                            <img
-                              src={
-                                video.cover_image.startsWith("http")
-                                  ? video.cover_image
-                                  : `https://texagonbackend.onrender.com${video.cover_image}`
-                              }
-                              alt={video.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // hide broken image
-                                e.currentTarget.style.display = "none";
-                                // show placeholder icon
-                                e.currentTarget.parentElement
-                                  ?.querySelector(".fallback-icon")
-                                  ?.classList.remove("hidden");
-                              }}
-                            />
-                            <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
-                              <Video className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Video className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
-
-                        {/* keep your badges here */}
-                      </div>
-
-                        <div className="space-y-2 px-6">
-                          <CardTitle className="text-lg">{video.title}</CardTitle>
-                          <CardDescription>{video.course}</CardDescription>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="flex flex-col flex-1">
-                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {video.duration}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {video.popularity} students
-                          </div>
-                          {video.instructor && (
-                            <div className="col-span-2">
-                              Instructor: {video.instructor}
-                            </div>
-                          )}
-                          <div>Module: {video.module_order}</div>
-                          <div>Lesson: {video.lesson_order}</div>
-                          <div className="col-span-2">
-                            Updated:{" "}
-                            {new Date(video.updated_at).toLocaleDateString()}
-                          </div>
-                        </div>
-
-                        <div className="mt-auto flex flex-wrap gap-3 pt-4">
-                          <Button
-                            className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
-                            onClick={() => handlePlayVideo(video)}
-                            disabled={!video.url}
-                          >
-                            <Play className="mr-2 h-4 w-4" />
-                            {video.progress === 100
-                              ? "Review Video"
-                              : video.progress > 0
-                              ? "Continue Watching"
-                              : "Start Video"}
-                          </Button>
-
-                          {/* ✅ Save button that stays readable */}
-                          <Button
-                            variant={isSaved ? "default" : "outline"}
-                            className={`flex-1 w-full h-10 shadow-md ${
-                              isSaved
-                                ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
-                                : "bg-transparent"
-                            }`}
-                            onClick={() => handleSaveLesson(video)}
-                            disabled={!session?.user?.sessionToken || isSaved || isSaving}
-                          >
-                            {isSaving ? (
-                              <span className="flex items-center gap-2">
-                                <Spinner size="sm" className="text-current" />
-                                Saving...
-                              </span>
-                            ) : (
-                              <>
-                                <Bookmark
-                                  className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`}
-                                />
-                                {isSaved ? "Saved" : "Save"}
-                              </>
-                            )}
-                          </Button>
-
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                }
-              )}
-            </div>
-            {renderPagination("videos")}
-            </>
-          )}
-          </TabsContent>
-
-          {/* -------------------- AUDIO -------------------- */}
-          <TabsContent value="audio" className="space-y-6">
             {filterLoading ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: itemsPerPage }).map((_, i) => (
-                  <Card key={`video-skel-${i}`} className="flex flex-col h-full">
+                  <Card
+                    key={`video-skel-${i}`}
+                    className="flex flex-col h-full"
+                  >
                     <CardHeader className="p-0">
                       <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
                       <div className="space-y-2 px-6 pb-4">
@@ -822,11 +698,200 @@ const handleSaveLesson = async (module: ModuleItem) => {
               </div>
             ) : (
               <>
-              <div className="grid gap-6 md:grid-cols-2">
-                {getPaginatedItems(filteredModules.audio, currentPage.audio).map(
-                  (audio) => {
-                      const isSaving = savingLessonIds.has(audio.id);
-                      const isSaved = savedLessons.has(audio.id);
+                {filteredModules.videos.length === 0 ? (
+                  renderEmptyState("Videos")
+                ) : (
+                  <>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {getPaginatedItems(
+                        filteredModules.videos,
+                        currentPage.videos
+                      ).map((video) => {
+                        const isSaving = savingLessonIds.has(video.id);
+                        const isSaved = savedLessons.has(video.id);
+
+                        return (
+                          <Card
+                            key={video.id}
+                            className="hover:shadow-lg transition-shadow flex flex-col h-full"
+                          >
+                            <CardHeader className="p-0">
+                              <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center relative overflow-hidden">
+                                {video.cover_image ? (
+                                  <>
+                                    <img
+                                      src={
+                                        video.cover_image.startsWith("http")
+                                          ? video.cover_image
+                                          : `https://texagonbackend.onrender.com${video.cover_image}`
+                                      }
+                                      alt={video.title}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        // hide broken image
+                                        e.currentTarget.style.display = "none";
+                                        // show placeholder icon
+                                        e.currentTarget.parentElement
+                                          ?.querySelector(".fallback-icon")
+                                          ?.classList.remove("hidden");
+                                      }}
+                                    />
+                                    <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
+                                      <Video className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Video className="h-8 w-8 text-muted-foreground" />
+                                  </div>
+                                )}
+
+                                {/* keep your badges here */}
+                              </div>
+
+                              <div className="space-y-2 px-6">
+                                <CardTitle className="text-lg">
+                                  {video.title}
+                                </CardTitle>
+                                <CardDescription>
+                                  {video.course}
+                                </CardDescription>
+                              </div>
+                            </CardHeader>
+
+                            <CardContent className="flex flex-col flex-1">
+                              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {video.duration}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {video.popularity} students
+                                </div>
+                                {video.instructor && (
+                                  <div className="col-span-2">
+                                    Instructor: {video.instructor}
+                                  </div>
+                                )}
+                                <div>Module: {video.module_order}</div>
+                                <div>Lesson: {video.lesson_order}</div>
+                                <div className="col-span-2">
+                                  Updated:{" "}
+                                  {new Date(
+                                    video.updated_at
+                                  ).toLocaleDateString()}
+                                </div>
+                              </div>
+
+                              <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                                <Button
+                                  className="flex-1 w-full h-10 bg-[#f79771] hover:bg-gray-300 shadow-md"
+                                  onClick={() => handlePlayVideo(video)}
+                                  disabled={!video.url}
+                                >
+                                  <Play className="mr-2 h-4 w-4" />
+                                  {video.progress === 100
+                                    ? "Review Video"
+                                    : video.progress > 0
+                                    ? "Continue Watching"
+                                    : "Start Video"}
+                                </Button>
+
+                                {/* ✅ Save button that stays readable */}
+                                <Button
+                                  variant={isSaved ? "default" : "outline"}
+                                  className={`flex-1 w-full h-10 shadow-md ${
+                                    isSaved
+                                      ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
+                                      : "bg-transparent"
+                                  }`}
+                                  onClick={() => handleSaveLesson(video)}
+                                  disabled={
+                                    !session?.user?.sessionToken ||
+                                    isSaved ||
+                                    isSaving
+                                  }
+                                >
+                                  {isSaving ? (
+                                    <span className="flex items-center gap-2">
+                                      <Spinner
+                                        size="sm"
+                                        className="text-current"
+                                      />
+                                      Saving...
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <Bookmark
+                                        className={`mr-2 h-4 w-4 ${
+                                          isSaved ? "fill-current" : ""
+                                        }`}
+                                      />
+                                      {isSaved ? "Saved" : "Save"}
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                    {renderPagination("videos")}
+                  </>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* -------------------- AUDIO -------------------- */}
+          <TabsContent value="audio" className="space-y-6">
+            {filterLoading ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <Card
+                    key={`video-skel-${i}`}
+                    className="flex flex-col h-full"
+                  >
+                    <CardHeader className="p-0">
+                      <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
+                      <div className="space-y-2 px-6 pb-4">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                      </div>
+
+                      <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <>
+    {filteredModules.audio.length === 0 ? (
+      renderEmptyState("Audio Tracks")
+    ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {getPaginatedItems(
+                    filteredModules.audio,
+                    currentPage.audio
+                  ).map((audio) => {
+                    const isSaving = savingLessonIds.has(audio.id);
+                    const isSaved = savedLessons.has(audio.id);
 
                     return (
                       <Card
@@ -847,7 +912,9 @@ const handleSaveLesson = async (module: ModuleItem) => {
                             </div>
 
                             <div className="flex-1 space-y-1">
-                              <CardTitle className="text-lg">{audio.title}</CardTitle>
+                              <CardTitle className="text-lg">
+                                {audio.title}
+                              </CardTitle>
                               <CardDescription>{audio.course}</CardDescription>
                             </div>
                           </div>
@@ -882,81 +949,95 @@ const handleSaveLesson = async (module: ModuleItem) => {
                                 : "Start Listening"}
                             </Button>
 
-                          <Button
-                            variant={isSaved ? "default" : "outline"}
-                            className={`flex-1 w-full h-10 shadow-md ${
-                              isSaved
-                                ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
-                                : "bg-transparent"
-                            }`}
-                            onClick={() => handleSaveLesson(audio)}
-                            disabled={!session?.user?.sessionToken || isSaved || isSaving}
-                          >
-                            {isSaving ? (
-                              <span className="flex items-center gap-2">
-                                <Spinner size="sm" className="text-current" />
-                                Saving...
-                              </span>
-                            ) : (
-                              <>
-                                <Bookmark
-                                  className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`}
-                                />
-                                {isSaved ? "Saved" : "Save"}
-                              </>
-                            )}
-                          </Button>
-
-                            
+                            <Button
+                              variant={isSaved ? "default" : "outline"}
+                              className={`flex-1 w-full h-10 shadow-md ${
+                                isSaved
+                                  ? "bg-[#EF7B55] text-white hover:bg-[#EF7B55]/90"
+                                  : "bg-transparent"
+                              }`}
+                              onClick={() => handleSaveLesson(audio)}
+                              disabled={
+                                !session?.user?.sessionToken ||
+                                isSaved ||
+                                isSaving
+                              }
+                            >
+                              {isSaving ? (
+                                <span className="flex items-center gap-2">
+                                  <Spinner size="sm" className="text-current" />
+                                  Saving...
+                                </span>
+                              ) : (
+                                <>
+                                  <Bookmark
+                                    className={`mr-2 h-4 w-4 ${
+                                      isSaved ? "fill-current" : ""
+                                    }`}
+                                  />
+                                  {isSaved ? "Saved" : "Save"}
+                                </>
+                              )}
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
                     );
-                  }
-                )}
-              </div>
-              {renderPagination("audio")}
+                  })}
+                </div>
+                {renderPagination("audio")}
               </>
+            )}
+            </>
             )}
           </TabsContent>
           {/* -------------------- PDFS -------------------- */}
           <TabsContent value="pdfs" className="space-y-6">
-          {filterLoading ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: itemsPerPage }).map((_, i) => (
-                <Card key={`video-skel-${i}`} className="flex flex-col h-full">
-                  <CardHeader className="p-0">
-                    <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
-                    <div className="space-y-2 px-6 pb-4">
-                      <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col flex-1">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded" />
-                      <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
-                    </div>
-
-                    <div className="mt-auto flex flex-wrap gap-3 pt-4">
-                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
-                      <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
+            {filterLoading ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {getPaginatedItems(filteredModules.pdfs, currentPage.pdfs).map(
-                  (pdf) => {
-                      const isSaving = savingLessonIds.has(pdf.id);
-                      const isSaved = savedLessons.has(pdf.id);
+                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <Card
+                    key={`video-skel-${i}`}
+                    className="flex flex-col h-full"
+                  >
+                    <CardHeader className="p-0">
+                      <div className="aspect-video bg-muted animate-pulse rounded-md mb-3" />
+                      <div className="space-y-2 px-6 pb-4">
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-full bg-muted animate-pulse rounded col-span-2" />
+                      </div>
+
+                      <div className="mt-auto flex flex-wrap gap-3 pt-4">
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                        <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <>
+    {filteredModules.pdfs.length === 0 ? (
+      renderEmptyState("Documents")
+    ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {getPaginatedItems(
+                    filteredModules.pdfs,
+                    currentPage.pdfs
+                  ).map((pdf) => {
+                    const isSaving = savingLessonIds.has(pdf.id);
+                    const isSaved = savedLessons.has(pdf.id);
 
                     return (
                       <Card
@@ -966,7 +1047,9 @@ const handleSaveLesson = async (module: ModuleItem) => {
                         <CardHeader>
                           <div className="flex items-start justify-between">
                             <div className="space-y-1">
-                              <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                              <CardTitle className="text-lg">
+                                {pdf.title}
+                              </CardTitle>
                               <CardDescription>{pdf.course}</CardDescription>
                             </div>
 
@@ -1017,7 +1100,11 @@ const handleSaveLesson = async (module: ModuleItem) => {
                                   : "bg-transparent"
                               }`}
                               onClick={() => handleSaveLesson(pdf)}
-                              disabled={!session?.user?.sessionToken || isSaved || isSaving}
+                              disabled={
+                                !session?.user?.sessionToken ||
+                                isSaved ||
+                                isSaving
+                              }
                             >
                               {isSaving ? (
                                 <span className="flex items-center gap-2">
@@ -1027,23 +1114,25 @@ const handleSaveLesson = async (module: ModuleItem) => {
                               ) : (
                                 <>
                                   <Bookmark
-                                    className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`}
+                                    className={`mr-2 h-4 w-4 ${
+                                      isSaved ? "fill-current" : ""
+                                    }`}
                                   />
                                   {isSaved ? "Saved" : "Save"}
                                 </>
                               )}
                             </Button>
-
                           </div>
                         </CardContent>
                       </Card>
                     );
-                  }
-                )}
-              </div>
-              {renderPagination("pdfs")}
+                  })}
+                </div>
+                {renderPagination("pdfs")}
+              </>
+            )}
             </>
-          )}
+            )}
           </TabsContent>
         </Tabs>
 
@@ -1074,7 +1163,11 @@ const handleSaveLesson = async (module: ModuleItem) => {
               <DialogDescription>{alertModal.message}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button onClick={() => setAlertModal((prev) => ({ ...prev, open: false }))}>
+              <Button
+                onClick={() =>
+                  setAlertModal((prev) => ({ ...prev, open: false }))
+                }
+              >
                 OK
               </Button>
             </DialogFooter>

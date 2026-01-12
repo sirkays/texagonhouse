@@ -1,7 +1,8 @@
-import {useState, useRef, useEffect} from "react";
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { useState, useRef, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 import {
   Play,
   Download,
@@ -17,7 +18,7 @@ import {
   Upload,
   Save,
 } from "lucide-react";
-import {Alert, AlertDescription} from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +27,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {useSession} from "next-auth/react";
-import {Spinner} from "@/components/ui/spinner";
-import {Input} from "@/components/ui/input";
-import {Progress} from "@/components/ui/progress";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectTrigger,
@@ -37,15 +38,15 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {Label} from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
 import CodeMirror from "@uiw/react-codemirror";
-import {javascript} from "@codemirror/lang-javascript";
-import {python} from "@codemirror/lang-python";
+import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
 // import {java} from "@codemirror/lang-java";
 // import {cpp} from "@codemirror/lang-cpp";
-import {html} from "@codemirror/lang-html";
-import {css} from "@codemirror/lang-css";
-import {monokai} from "@uiw/codemirror-theme-monokai";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { monokai } from "@uiw/codemirror-theme-monokai";
 const codeMirrorExtensions = {
   javascript: [javascript()],
   python: [python()],
@@ -108,18 +109,18 @@ export function CodeEditor() {
       judgeId: 63,
       template: `console.log("Hello, World!");`,
     },
-    python: {name: "Python", judgeId: 71, template: `print("Hello, World!")`},
+    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
     // java: {
     // name: "Java",
     // judgeId: 62,
     // template: `System.out.println("Hello");`,
     // },
     // cpp: {name: "C++", judgeId: 54, template: `std::cout << "Hello";`},
-    html: {name: "HTML", judgeId: null, template: `<h1>Hello</h1>`},
-    css: {name: "CSS", judgeId: null, template: `body { color: red; }`},
+    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
+    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
   } as const;
   // Session and authentication
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   // State variables
   const [submissionTitle, setSubmissionTitle] = useState("");
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
@@ -164,7 +165,7 @@ export function CodeEditor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [lessons, setLessons] = useState<{id: string; title: string}[]>([]);
+  const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -280,7 +281,7 @@ export function CodeEditor() {
         try {
           const res = await fetch(`/api/code-ide/snippets/${id}`, {
             method: "DELETE",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
           });
           if (!res.ok) throw new Error("Delete failed");
           setMySnippets((prev) => prev.filter((s) => s.id !== id));
@@ -375,7 +376,7 @@ export function CodeEditor() {
       `/api/code-ide/submissions/${editingSubmissionId}`,
       {
         method: "PATCH",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }
     );
@@ -421,7 +422,7 @@ export function CodeEditor() {
           if (!res.ok) {
             const error = await res
               .json()
-              .catch(() => ({error: "Delete failed"}));
+              .catch(() => ({ error: "Delete failed" }));
             throw new Error(error.error || "Delete failed");
           }
           setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
@@ -455,7 +456,7 @@ export function CodeEditor() {
       }
       setIsImagePreview(false);
       const content = await fetchFileContent(file);
-      const languageMap: {[key: string]: string} = {
+      const languageMap: { [key: string]: string } = {
         "text/x-python": "python",
         "application/javascript": "javascript",
         "text/javascript": "javascript",
@@ -510,7 +511,7 @@ export function CodeEditor() {
   const fetchSubmissions = async (lessonId?: string) => {
     const u = new URL("/api/code-ide/submissions", window.location.origin);
     if (lessonId) u.searchParams.set("lesson", lessonId);
-    const r = await fetch(u, {cache: "no-store"});
+    const r = await fetch(u, { cache: "no-store" });
     if (!r.ok) throw new Error("Failed to fetch submissions");
     return r.json() as Promise<Submission[]>;
   };
@@ -526,8 +527,8 @@ export function CodeEditor() {
       `/api/code-ide/submissions/${submissionId}/comments`,
       {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
       }
     );
     if (!res.ok) throw new Error("Comment failed");
@@ -548,7 +549,7 @@ export function CodeEditor() {
     };
     const res = await fetch("/api/code-ide/submissions/create", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -571,7 +572,7 @@ export function CodeEditor() {
   ) => {
     const res = await fetch(`/api/code-ide/submissions/${id}`, {
       method: "PATCH",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error("Grading failed");
@@ -580,7 +581,7 @@ export function CodeEditor() {
     return updated;
   };
   const handleLogout = async () => {
-    await fetch("/api/auth/logout-route", {method: "POST"}).catch(() => {});
+    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
     document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
     document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
     window.location.href = "/login";
@@ -609,7 +610,7 @@ export function CodeEditor() {
         : selectedLanguage === "css"
         ? cssCode
         : code;
-    const blob = new Blob([content], {type: "text/plain"});
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
@@ -1076,7 +1077,8 @@ export function CodeEditor() {
               </Label>
               <Select
                 value={selectedLesson}
-                onValueChange={(value) => setSelectedLesson(value)}>
+                onValueChange={(value) => setSelectedLesson(value)}
+              >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select lesson (optional)" />
                 </SelectTrigger>
@@ -1098,13 +1100,15 @@ export function CodeEditor() {
                 setSaveFileName("");
                 setPrepopulatedSaveData(null);
               }}
-              disabled={isSaving}>
+              disabled={isSaving}
+            >
               Cancel
             </Button>
             <Button
               onClick={saveAsFile}
               disabled={!saveFileName.trim() || isSaving}
-              className="bg-[#EF7B55] hover:bg-[#F79771]">
+              className="bg-[#EF7B55] hover:bg-[#F79771]"
+            >
               {isSaving ? (
                 <Spinner size="sm" className="mr-2" />
               ) : (
@@ -1163,13 +1167,15 @@ export function CodeEditor() {
                 setShowNewFileModal(false);
                 setNewFileTitle("");
                 setNewFileLesson("");
-              }}>
+              }}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleNewFileCreate}
               disabled={!newFileTitle.trim()}
-              className="bg-[#EF7B55] hover:bg-[#F79771]">
+              className="bg-[#EF7B55] hover:bg-[#F79771]"
+            >
               <FilePlus className="mr-2 h-4 w-4" />
               Create
             </Button>
@@ -1201,7 +1207,8 @@ export function CodeEditor() {
               onClick={async () => {
                 if (onConfirmCallback) await onConfirmCallback();
                 setShowConfirm(false);
-              }}>
+              }}
+            >
               Yes
             </Button>
           </DialogFooter>
@@ -1426,26 +1433,31 @@ export function CodeEditor() {
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="main-tabs">
+          className="main-tabs"
+        >
           <TabsList className="tabs-list bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
             <TabsTrigger
               value="editor"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               Editor
             </TabsTrigger>
             <TabsTrigger
               value="output"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               Output
             </TabsTrigger>
             <TabsTrigger
               value="files"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               Files
             </TabsTrigger>
             <TabsTrigger
               value="submission"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            >
               Submission
             </TabsTrigger>
           </TabsList>
@@ -1463,13 +1475,15 @@ export function CodeEditor() {
                 <Tabs
                   value={selectedLanguage}
                   onValueChange={handleLanguageChange}
-                  className="language-tabs">
+                  className="language-tabs"
+                >
                   <TabsList className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {Object.entries(languages).map(([key, lang]) => (
                       <TabsTrigger
                         key={key}
                         value={key}
-                        className="tab-trigger">
+                        className="tab-trigger"
+                      >
                         {lang.name}
                       </TabsTrigger>
                     ))}
@@ -1482,14 +1496,15 @@ export function CodeEditor() {
                     <img
                       src={imagePreviewUrl}
                       alt="Uploaded image"
-                      style={{maxWidth: "100%", height: "auto"}}
+                      style={{ maxWidth: "100%", height: "auto" }}
                     />
                   </div>
                 ) : (
                   <div
                     className={`codemirror-container ${
                       syntaxError ? "error-line" : ""
-                    }`}>
+                    }`}
+                  >
                     <CodeMirror
                       value={
                         selectedLanguage === "html"
@@ -1523,7 +1538,8 @@ export function CodeEditor() {
                   <Button
                     onClick={runCode}
                     disabled={isRunning || !!error || loading}
-                    className="bg-[#EF7B55] hover:bg-[#F79771]">
+                    className="bg-[#EF7B55] hover:bg-[#F79771]"
+                  >
                     <Play className="mr-2 h-4 w-4" />
                     {isRunning ? "Executing..." : "Run Code"}
                   </Button>
@@ -1531,7 +1547,8 @@ export function CodeEditor() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowSaveModal(true)}
-                    disabled={loading || isImagePreview}>
+                    disabled={loading || isImagePreview}
+                  >
                     <Save className="mr-2 h-4 w-4" />
                     Save As...
                   </Button>
@@ -1539,28 +1556,41 @@ export function CodeEditor() {
                     variant="outline"
                     size="sm"
                     onClick={handleSubmit}
-                    disabled={!selectedLesson || loading || isImagePreview}>
-                    {editingSubmissionId ? "Update Submission" : "Submit"}
+                    disabled={!selectedLesson || loading || isImagePreview}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {editingSubmissionId ? "Updating..." : "Submitting..."}
+                      </>
+                    ) : editingSubmissionId ? (
+                      "Update Submission"
+                    ) : (
+                      "Submit"
+                    )}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={copyCode}
-                    disabled={loading || isImagePreview}>
+                    disabled={loading || isImagePreview}
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={downloadCode}
-                    disabled={loading || isImagePreview}>
+                    disabled={loading || isImagePreview}
+                  >
                     <Download className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={resetCode}
-                    disabled={loading}>
+                    disabled={loading}
+                  >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1636,7 +1666,8 @@ export function CodeEditor() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowNewFileModal(true)}
-                    disabled={uploading}>
+                    disabled={uploading}
+                  >
                     <FilePlus className="h-4 w-4 mr-2" />
                     New Snippet
                   </Button>
@@ -1644,7 +1675,8 @@ export function CodeEditor() {
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}>
+                    disabled={uploading}
+                  >
                     {uploading ? (
                       <Spinner size="sm" className="mr-2" />
                     ) : (
@@ -1706,7 +1738,8 @@ export function CodeEditor() {
                               {/* Title */}
                               <span
                                 className="font-medium cursor-pointer hover:text-primary truncate w-full sm:max-w-[60%]"
-                                title="Click to load into editor">
+                                title="Click to load into editor"
+                              >
                                 {s.title}
                               </span>
 
@@ -1721,7 +1754,8 @@ export function CodeEditor() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => copySnippetUrl(s.id)}
-                                    title="Copy snippet URL">
+                                    title="Copy snippet URL"
+                                  >
                                     <Link className="h-4 w-4" />
                                   </Button>
 
@@ -1730,7 +1764,8 @@ export function CodeEditor() {
                                     size="sm"
                                     onClick={() => deleteSnippet(s.id)}
                                     title="Delete snippet"
-                                    className="text-destructive hover:text-destructive">
+                                    className="text-destructive hover:text-destructive"
+                                  >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
@@ -1748,7 +1783,8 @@ export function CodeEditor() {
                             <div className="mt-3">
                               <Button
                                 className="w-full sm:w-auto bg-transparent"
-                                onClick={() => loadSnippet(s)}>
+                                onClick={() => loadSnippet(s)}
+                              >
                                 View
                               </Button>
                             </div>
@@ -1761,7 +1797,8 @@ export function CodeEditor() {
                       <Button
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage((p) => p - 1)}
-                        className="w-full sm:w-auto">
+                        className="w-full sm:w-auto"
+                      >
                         Previous
                       </Button>
 
@@ -1773,7 +1810,8 @@ export function CodeEditor() {
                       <Button
                         disabled={currentPage === totalSnippetPages}
                         onClick={() => setCurrentPage((p) => p + 1)}
-                        className="w-full sm:w-auto">
+                        className="w-full sm:w-auto"
+                      >
                         Next
                       </Button>
                     </div>
@@ -1797,7 +1835,8 @@ export function CodeEditor() {
                       paginatedUploads.map((file) => (
                         <Card
                           key={file.id}
-                          className="p-3 sm:p-4 overflow-hidden">
+                          className="p-3 sm:p-4 overflow-hidden"
+                        >
                           <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
                             {/* File Info */}
                             <div className="flex-1 min-w-0">
@@ -1814,7 +1853,8 @@ export function CodeEditor() {
                                   fileLoading === file.id
                                     ? "Loading..."
                                     : "Click to load into editor"
-                                }>
+                                }
+                              >
                                 {file.label || file.original_name}
                                 {fileLoading === file.id && (
                                   <Spinner size="sm" className="inline ml-2" />
@@ -1845,7 +1885,8 @@ export function CodeEditor() {
                                   onClick={() => copyFileUrl(file)}
                                   title="Copy file URL"
                                   disabled={loading || fileLoading === file.id}
-                                  className="shrink-0">
+                                  className="shrink-0"
+                                >
                                   <Copy className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -1859,7 +1900,8 @@ export function CodeEditor() {
                                 onClick={() => copyFileUrl(file)}
                                 title="Copy file URL"
                                 disabled={loading || fileLoading === file.id}
-                                className="flex-1 sm:flex-none">
+                                className="flex-1 sm:flex-none"
+                              >
                                 <Link className="h-4 w-4" />
                               </Button>
 
@@ -1877,7 +1919,8 @@ export function CodeEditor() {
                                   loading ||
                                   fileLoading === file.id ||
                                   deletingFileId === file.id
-                                }>
+                                }
+                              >
                                 {deletingFileId === file.id ? (
                                   <Spinner size="sm" className="h-4 w-4" />
                                 ) : (
@@ -1894,7 +1937,8 @@ export function CodeEditor() {
                         variant="outline"
                         disabled={currentPage === 1 || uploading}
                         onClick={() => setCurrentPage((p) => p - 1)}
-                        className="w-full sm:w-auto">
+                        className="w-full sm:w-auto"
+                      >
                         Previous
                       </Button>
 
@@ -1907,7 +1951,8 @@ export function CodeEditor() {
                         variant="outline"
                         disabled={currentPage === totalUploadPages || uploading}
                         onClick={() => setCurrentPage((p) => p + 1)}
-                        className="w-full sm:w-auto">
+                        className="w-full sm:w-auto"
+                      >
                         Next
                       </Button>
                     </div>
@@ -1957,7 +2002,7 @@ function SubmissionTab({
   onLoadToEditor,
   showCustomAlert,
 }: {
-  lessons: {id: string; title: string}[];
+  lessons: { id: string; title: string }[];
   selectedLesson: string;
   setSelectedLesson: (v: string) => void;
   submissionTitle: string;
@@ -2038,7 +2083,8 @@ function SubmissionTab({
           <div>
             <Label
               htmlFor="lesson-select"
-              className="block mb-2 text-sm font-medium">
+              className="block mb-2 text-sm font-medium"
+            >
               Select Lesson
             </Label>
             <Select value={selectedLesson} onValueChange={setSelectedLesson}>
@@ -2057,7 +2103,8 @@ function SubmissionTab({
           <div>
             <Label
               htmlFor="submission-title"
-              className="block mb-2 text-sm font-medium">
+              className="block mb-2 text-sm font-medium"
+            >
               Submission Title (optional)
             </Label>
             <Input
@@ -2071,7 +2118,8 @@ function SubmissionTab({
         <Button
           onClick={handleSubmitClick}
           disabled={!selectedLesson || isSubmitting}
-          className="w-full md:w-auto">
+          className="w-full md:w-auto"
+        >
           {isSubmitting && <Spinner size="sm" className="mr-2" />}
           {isSubmitting ? "Submitting..." : "Submit Code"}
         </Button>
@@ -2084,7 +2132,8 @@ function SubmissionTab({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setViewing(null)}>
+                onClick={() => setViewing(null)}
+              >
                 Back to List
               </Button>
             </CardHeader>
@@ -2132,7 +2181,8 @@ function SubmissionTab({
                     variant="ghost"
                     size="sm"
                     onClick={() => copySubmissionCode(viewing.code_text)}
-                    title="Copy code">
+                    title="Copy code"
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -2158,7 +2208,8 @@ function SubmissionTab({
                       onClick={() =>
                         copySubmissionCode(viewing.correction_code)
                       }
-                      title="Copy correction code">
+                      title="Copy correction code"
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -2176,7 +2227,8 @@ function SubmissionTab({
                   {viewing.comments.map((c) => (
                     <div
                       key={c.id}
-                      className="bg-muted p-3 rounded-md space-y-1">
+                      className="bg-muted p-3 rounded-md space-y-1"
+                    >
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold">
                           {c.author_name} ({c.author_role})
@@ -2212,7 +2264,8 @@ function SubmissionTab({
                   onClick={(e) => {
                     e.stopPropagation();
                     onLoadToEditor(viewing);
-                  }}>
+                  }}
+                >
                   Load to Editor
                 </Button>
               </div>
@@ -2271,7 +2324,8 @@ function SubmissionTab({
                               e.stopPropagation();
                               onLoadToEditor(s);
                             }}
-                            className="w-full sm:w-auto">
+                            className="w-full sm:w-auto"
+                          >
                             View Code
                           </Button>
                         </div>
@@ -2285,7 +2339,8 @@ function SubmissionTab({
                   variant="outline"
                   size="sm"
                   disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}>
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
                   Previous
                 </Button>
                 <span>
@@ -2296,7 +2351,8 @@ function SubmissionTab({
                   variant="outline"
                   size="sm"
                   disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}>
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
                   Next
                 </Button>
               </div>

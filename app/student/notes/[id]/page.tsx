@@ -55,10 +55,12 @@ export default function EditNotePage() {
         });
         if (materialsRes.ok) {
           const materialsData = await materialsRes.json();
-          const lessonList = (materialsData.saved?.videos ?? []).map((v: any) => ({
-            id: parseInt(v.id),
-            title: v.title,
-          }));
+          const lessonList = (materialsData.saved?.videos ?? []).map(
+            (v: any) => ({
+              id: parseInt(v.id),
+              title: v.title,
+            })
+          );
           setLessons(lessonList);
         }
 
@@ -68,7 +70,7 @@ export default function EditNotePage() {
         });
         if (noteRes.ok) {
           const noteData: Note = await noteRes.json();
-          console.log(noteData, " smvdkmvlfvmfk")
+          console.log(noteData, " smvdkmvlfvmfk");
           setNote(noteData);
           setLessonId(noteData.lesson?.toString() ?? "");
           setTitle(noteData.title ?? "");
@@ -174,10 +176,14 @@ export default function EditNotePage() {
               <Tag className="h-4 w-4" />
               Lesson
             </label>
-            <Select value={lessonId} onValueChange={setLessonId}>
-              <SelectTrigger>
+
+            <Select value={lessonId || undefined} onValueChange={setLessonId}>
+              <SelectTrigger
+                className={!lessonId ? "text-muted-foreground" : ""}
+              >
                 <SelectValue placeholder="Select a lesson..." />
               </SelectTrigger>
+
               <SelectContent>
                 {lessons.length === 0 ? (
                   <SelectItem value="none" disabled>
