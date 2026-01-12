@@ -1,4 +1,5 @@
 "use client";
+import * as XLSX from "xlsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -406,48 +407,337 @@ export function TeacherCBTCreator() {
     useState<PerformanceSummary | null>(null);
   const [loadingPerformances, setLoadingPerformances] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  // --- Excel: columns we support ---
+  type ExcelRow = {
+    type?: string;
+    question?: string;
 
-useEffect(() => {
-  const fetchCourses = async () => {
-    setLoadingTests(true);
-    const res = await fetch("/api/teacher/assessments/courses");
-    if (!res.ok) {
-      console.error("Failed to fetch courses");
-      setLoadingTests(false);
-      return;
-    }
-    const data = await res.json();
-    if (data.error === "Session expired") {
-      router.push("/login");
-      setLoadingTests(false);
-      return;
-    }
-    setCourses(data.courses || []);
-    setLoadingTests(false);
+    option_a?: string;
+    option_b?: string;
+    option_c?: string;
+    option_d?: string;
+
+    correct_index?: any;          // 0-3 for single-choice
+    correct_truefalse?: any;      // TRUE/FALSE for true-false
+    correct_text?: any;           // for short-answer/essay
+
+    points?: any;
+    difficulty?: any;
+    explanation?: any;
   };
 
-  const fetchMyTests = async () => {
+  const normalizeDifficulty = (v: any): "Easy" | "Medium" | "Hard" => {
+    const s = String(v ?? "").trim().toLowerCase();
+    if (s === "easy") return "Easy";
+    if (s === "hard") return "Hard";
+    return "Medium";
+  };
+
+  const normalizeType = (v: any): Question["type"] | null => {
+    const s = String(v ?? "").trim().toLowerCase();
+    if (s === "single-choice") return "single-choice";
+    if (s === "true-false") return "true-false";
+    if (s === "short-answer") return "short-answer";
+    if (s === "essay") return "essay";
+    return null;
+  };
+
+  const parseBoolean = (v: any): boolean | null => {
+    if (typeof v === "boolean") return v;
+    const s = String(v ?? "").trim().toLowerCase();
+    if (s === "true" || s === "yes" || s === "1") return true;
+    if (s === "false" || s === "no" || s === "0") return false;
+    return null;
+  };
+
+  const safeNumber = (v: any, fallback = 1) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+
+  const recalcTotals = (questions: Question[]) => {
+    const totalPoints = questions.reduce((sum, q) => sum + (q.points || 0), 0);
+    return {
+      questionsCount: questions.length,
+      totalPoints,
+    };
+  };
+
+  // ------------------------------------------------------------
+  // 1) Download template .xlsx
+  // ------------------------------------------------------------
+  const downloadQuestionsExcelTemplate = () => {
+    // SINGLE-CHOICE ONLY template
+    const headers = [
+      "type",           // fixed to single-choice
+      "question",
+      "option_a",
+      "option_b",
+      "option_c",
+      "option_d",
+      "correct_index",  // 0=A, 1=B, 2=C, 3=D
+      "points",
+      "difficulty",     // Easy | Medium | Hard
+      "explanation",
+    ];
+
+    const example1 = [
+      "single-choice",
+      "What is 2 + 2?",
+      "3",
+      "4",
+      "5",
+      "6",
+      1,
+      1,
+      "Easy",
+      "2 + 2 equals 4.",
+    ];
+
+    const example2 = [
+      "single-choice",
+      "Which is a primary color?",
+      "Green",
+      "Blue",
+      "Pink",
+      "",
+      1,
+      1,
+      "Medium",
+      "",
+    ];
+
+    const questionsAoa = [headers, example1, example2];
+    const wsQuestions = XLSX.utils.aoa_to_sheet(questionsAoa);
+
+    // Guide sheet (only single-choice)
+    const guideAoa = [
+      ["SINGLE-CHOICE TEMPLATE GUIDE"],
+      [],
+      ["type", "Must be exactly: single-choice"],
+      ["difficulty", "Easy | Medium | Hard (defaults to Medium if blank)"],
+      ["correct_index", "0=A, 1=B, 2=C, 3=D"],
+      [],
+      ["NOTES"],
+      ["- option_a and option_b are required."],
+      ["- option_c and option_d are optional."],
+      ["- correct_index must point to a non-empty option."],
+      ["- points defaults to 1 if blank."],
+    ];
+    const wsGuide = XLSX.utils.aoa_to_sheet(guideAoa);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsQuestions, "Questions");
+    XLSX.utils.book_append_sheet(wb, wsGuide, "Guide");
+
+    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([out], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(blob, "CBT_Single_Choice_Questions_Template.xlsx");
+  };
+
+
+  // ------------------------------------------------------------
+  // 2) Upload template and populate questions
+  // ------------------------------------------------------------
+  const handleQuestionsExcelUpload = async (
+    file: File,
+    mode: "replace" | "append" = "replace"
+  ) => {
     try {
-      const res = await fetch("/api/teacher/fetch-my-tests");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+
+      // Prefer a sheet named "Questions", else use first sheet
+      const sheetName =
+        wb.SheetNames.find((n) => n.trim().toLowerCase() === "questions") ||
+        wb.SheetNames[0];
+
+      const ws = wb.Sheets[sheetName];
+      if (!ws) throw new Error("No worksheet found in the Excel file.");
+
+      // Read rows as objects using row 1 as headers
+      // defval: "" ensures missing cells become empty strings
+      const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+
+      if (!rows.length) {
+        showAlert({
+          title: "Excel import failed",
+          message: "No rows found in the Questions sheet.",
+          type: "error",
+        });
+        return;
+      }
+
+      const parsed: Question[] = [];
+      const errors: string[] = [];
+
+      // Helper: normalize option cells
+      const norm = (v: any) => String(v ?? "").trim();
+
+      rows.forEach((r, idx) => {
+        const rowNumber = idx + 2; // headers are in row 1
+
+        // ✅ SINGLE CHOICE ONLY (allow blank type if you want to be permissive)
+        const rawType = norm(r.type).toLowerCase();
+        if (rawType && rawType !== "single-choice") {
+          errors.push(
+            `Row ${rowNumber}: Only "single-choice" is allowed for now (got "${r.type}").`
+          );
+          return;
+        }
+
+        const qText = norm(r.question);
+        if (!qText) {
+          errors.push(`Row ${rowNumber}: Question is required.`);
+          return;
+        }
+
+        const optionA = norm(r.option_a);
+        const optionB = norm(r.option_b);
+        const optionC = norm(r.option_c);
+        const optionD = norm(r.option_d);
+
+        // Require at least A & B
+        if (!optionA || !optionB) {
+          errors.push(
+            `Row ${rowNumber}: option_a and option_b are required for single-choice.`
+          );
+          return;
+        }
+
+        const options = [optionA, optionB, optionC, optionD];
+
+        // correct_index must be 0..3 and point to a non-empty option
+        const ciRaw = r.correct_index;
+        const ci = Number(ciRaw);
+
+        if (![0, 1, 2, 3].includes(ci)) {
+          errors.push(
+            `Row ${rowNumber}: correct_index must be 0, 1, 2, or 3 (0=A,1=B,2=C,3=D).`
+          );
+          return;
+        }
+        if (!options[ci]) {
+          errors.push(
+            `Row ${rowNumber}: correct_index points to an empty option (fill that option or change correct_index).`
+          );
+          return;
+        }
+
+        const points = safeNumber(r.points, 1);
+        const difficulty = normalizeDifficulty(r.difficulty);
+        const explanation = norm(r.explanation);
+
+        parsed.push({
+          id: `${Date.now()}-${idx}`, // local temp id; backend will assign real id on save
+          type: "single-choice",
+          question: qText,
+          options,
+          correctAnswer: ci, // index
+          points,
+          explanation,
+          difficulty,
+        });
+      });
+
+      // If any errors, show and stop
+      if (errors.length) {
+        showAlert({
+          title: "Excel import errors",
+          message:
+            errors.slice(0, 12).join("\n") +
+            (errors.length > 12 ? `\n...and ${errors.length - 12} more` : ""),
+          type: "error",
+        });
+        return;
+      }
+
+      if (!parsed.length) {
+        showAlert({
+          title: "Excel import failed",
+          message: "No valid questions were found to import.",
+          type: "error",
+        });
+        return;
+      }
+
+      // Apply to state
+      setCurrentTest((prev) => {
+        const nextQuestions =
+          mode === "append" ? [...prev.questions, ...parsed] : parsed;
+
+        const totals = recalcTotals(nextQuestions);
+
+        return {
+          ...prev,
+          questions: nextQuestions,
+          questionsCount: totals.questionsCount,
+          totalPoints: totals.totalPoints,
+        };
+      });
+
+      // Set first imported question as active for editing
+      setEditingQuestion(parsed[0] || null);
+
+      showAlert({
+        title: "Excel import successful",
+        message: `Imported ${parsed.length} single-choice question(s).`,
+        type: "success",
+      });
+    } catch (err: any) {
+      showAlert({
+        title: "Excel import failed",
+        message: err?.message || "Could not read the Excel file.",
+        type: "error",
+      });
+    }
+  };
+
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setLoadingTests(true);
+      const res = await fetch("/api/teacher/assessments/courses");
       if (!res.ok) {
-        console.error("Failed to fetch my tests");
+        console.error("Failed to fetch courses");
+        setLoadingTests(false);
         return;
       }
       const data = await res.json();
       if (data.error === "Session expired") {
         router.push("/login");
+        setLoadingTests(false);
         return;
       }
-      // Django view returns: { success, count, results: [...] }
-      setMyTests(data.results || []);
-    } catch (err) {
-      console.error("Error fetching my tests:", err);
-    }
-  };
+      setCourses(data.courses || []);
+      setLoadingTests(false);
+    };
 
-  fetchCourses();
-  fetchMyTests();
-}, [router]);
+    const fetchMyTests = async () => {
+      try {
+        const res = await fetch("/api/teacher/fetch-my-tests");
+        if (!res.ok) {
+          console.error("Failed to fetch my tests");
+          return;
+        }
+        const data = await res.json();
+        if (data.error === "Session expired") {
+          router.push("/login");
+          return;
+        }
+        // Django view returns: { success, count, results: [...] }
+        setMyTests(data.results || []);
+      } catch (err) {
+        console.error("Error fetching my tests:", err);
+      }
+    };
+
+    fetchCourses();
+    fetchMyTests();
+  }, [router]);
 
 
   const fetchTests = useCallback(async () => {
@@ -558,57 +848,57 @@ useEffect(() => {
         router.push("/login");
         setLoadingSummary(false);
         return null;
-      } 
+      }
       setLoadingSummary(false);
       return data;
     },
     [router]
   );
 
-const fetchPerformances = useCallback(async () => {
-  setLoadingPerformances(true);
-  const params = new URLSearchParams();
+  const fetchPerformances = useCallback(async () => {
+    setLoadingPerformances(true);
+    const params = new URLSearchParams();
 
-  if (studentFilter) params.append("student_filter", studentFilter);
+    if (studentFilter) params.append("student_filter", studentFilter);
 
-  // ✅ Only filter when not 'all'
-  if (selectedTestFilter && selectedTestFilter !== "all") {
-    params.append("test_id", selectedTestFilter);
-  }
+    // ✅ Only filter when not 'all'
+    if (selectedTestFilter && selectedTestFilter !== "all") {
+      params.append("test_id", selectedTestFilter);
+    }
 
-  params.append("sort_field", sortField);
-  params.append("sort_order", sortOrder);
-  params.append("page", performancePagination.page.toString());
-  params.append("limit", performancePagination.limit.toString());
+    params.append("sort_field", sortField);
+    params.append("sort_order", sortOrder);
+    params.append("page", performancePagination.page.toString());
+    params.append("limit", performancePagination.limit.toString());
 
-  const res = await fetch(
-    `/api/teacher/performance-list?${params.toString()}`
-  );
-  if (!res.ok) {
-    console.error("Failed to fetch performances");
+    const res = await fetch(
+      `/api/teacher/performance-list?${params.toString()}`
+    );
+    if (!res.ok) {
+      console.error("Failed to fetch performances");
+      setLoadingPerformances(false);
+      return;
+    }
+    const data = await res.json();
+    if (data.error === "Session expired") {
+      router.push("/login");
+      setLoadingPerformances(false);
+      return;
+    }
+    setStudentPerformances(data.performances || []);
+    setPerformancePagination(
+      data.pagination || { page: 1, limit: 10, total: 0, pages: 1 }
+    );
     setLoadingPerformances(false);
-    return;
-  }
-  const data = await res.json();
-  if (data.error === "Session expired") {
-    router.push("/login");
-    setLoadingPerformances(false);
-    return;
-  }
-  setStudentPerformances(data.performances || []);
-  setPerformancePagination(
-    data.pagination || { page: 1, limit: 10, total: 0, pages: 1 }
-  );
-  setLoadingPerformances(false);
-}, [
-  studentFilter,
-  selectedTestFilter,   // ✅ NEW
-  sortField,
-  sortOrder,
-  performancePagination.page,
-  performancePagination.limit,
-  router,
-]);
+  }, [
+    studentFilter,
+    selectedTestFilter,   // ✅ NEW
+    sortField,
+    sortOrder,
+    performancePagination.page,
+    performancePagination.limit,
+    router,
+  ]);
 
 
   useEffect(() => {
@@ -837,33 +1127,33 @@ const fetchPerformances = useCallback(async () => {
 
       if (isEditing) setIsEditTestOpen(false);
     } catch (error: any) {
-    showAlert({
-      title: `Failed to ${currentTest.id ? "update" : "create"} test`,
-      message: error.message || "An unexpected error occurred.",
-      type: "error",
-    });
+      showAlert({
+        title: `Failed to ${currentTest.id ? "update" : "create"} test`,
+        message: error.message || "An unexpected error occurred.",
+        type: "error",
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-const handleEditTest = async (test: CBTTest) => {
-  setIsSaving(true);
-  const testData = await fetchTestById(test.id);
+  const handleEditTest = async (test: CBTTest) => {
+    setIsSaving(true);
+    const testData = await fetchTestById(test.id);
 
-  if (testData) {
-    setSelectedTestForEdit(testData);
-    setCurrentTest(testData);
+    if (testData) {
+      setSelectedTestForEdit(testData);
+      setCurrentTest(testData);
 
-    // ✅ go to Create New Test tab instead of opening modal
-    setActiveTab("create");
+      // ✅ go to Create New Test tab instead of opening modal
+      setActiveTab("create");
 
-    // ✅ ensure modal is not used
-    setIsEditTestOpen(false);
-  }
+      // ✅ ensure modal is not used
+      setIsEditTestOpen(false);
+    }
 
-  setIsSaving(false);
-};
+    setIsSaving(false);
+  };
 
 
   const handlePreviewTest = async (test: CBTTest) => {
@@ -955,11 +1245,11 @@ const handleEditTest = async (test: CBTTest) => {
         type: "success",
       });
     } catch (error: any) {
-    showAlert({
-      title: `Failed to ${isPublished ? "publish" : "unpublish"} test`,
-      message: error.message || "An unexpected error occurred.",
-      type: "error",
-    });
+      showAlert({
+        title: `Failed to ${isPublished ? "publish" : "unpublish"} test`,
+        message: error.message || "An unexpected error occurred.",
+        type: "error",
+      });
     }
   };
 
@@ -980,19 +1270,19 @@ const handleEditTest = async (test: CBTTest) => {
         }
         throw new Error(data.error || "Failed to duplicate test");
       }
-    showAlert({
-      title: `Duplicate test`,
-      message: "Test duplicated successfully!",
-      type: "success",
-    });
+      showAlert({
+        title: `Duplicate test`,
+        message: "Test duplicated successfully!",
+        type: "success",
+      });
       router.push(`/teacher/create-cbt`);
     } catch (error: any) {
       console.error("Error duplicating test:", error);
-    showAlert({
-      title: `Failed to duplicate test`,
-      message: error.message || "An unexpected error occurred.",
-      type: "error",
-    });
+      showAlert({
+        title: `Failed to duplicate test`,
+        message: error.message || "An unexpected error occurred.",
+        type: "error",
+      });
     }
   };
 
@@ -1065,11 +1355,11 @@ const handleEditTest = async (test: CBTTest) => {
       });
     } catch (error: any) {
       console.error("Error deleting question:", error);
-    showAlert({
-      title: `Failed to delete question`,
-      message: error.message || "An unexpected error occurred.",
-      type: "error",
-    });
+      showAlert({
+        title: `Failed to delete question`,
+        message: error.message || "An unexpected error occurred.",
+        type: "error",
+      });
     }
   };
 
@@ -1098,11 +1388,11 @@ const handleEditTest = async (test: CBTTest) => {
       });
       router.push("/teacher/create-cbt");
     } catch (error: any) {
-    showAlert({
-      title: `Failed to `,
-      message: error.message || "An unexpected error occurred.",
-      type: "error",
-    });
+      showAlert({
+        title: `Failed to `,
+        message: error.message || "An unexpected error occurred.",
+        type: "error",
+      });
     }
   };
 
@@ -1412,23 +1702,63 @@ const handleEditTest = async (test: CBTTest) => {
 
             <Card className="lg:col-span-1">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
                     <CardTitle>Questions</CardTitle>
-                    <CardDescription>
-                      Manage your test questions
-                    </CardDescription>
+                    <CardDescription>Manage your test questions</CardDescription>
                   </div>
-                  <Button
-                    className="bg-[#f79771] text-white hover:bg-gray-300"
-                    onClick={addQuestion}
-                    size="sm"
-                    disabled={isSaving}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="shadow-md" disabled={isSaving}>
+                          Actions
+                        </Button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={downloadQuestionsExcelTemplate}
+                          disabled={isSaving}
+                        >
+                          Download Excel Template
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onSelect={(e) => e.preventDefault()}
+                          disabled={isSaving}
+                        >
+                          <label className="cursor-pointer w-full">
+                            Upload Excel
+                            <input
+                              type="file"
+                              accept=".xlsx,.xls"
+                              className="hidden"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                handleQuestionsExcelUpload(f, "replace");
+                                e.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button
+                      className="bg-[#f79771] text-white hover:bg-gray-300"
+                      onClick={addQuestion}
+                      size="sm"
+                      disabled={isSaving}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
+
+
               <CardContent className="space-y-3">
                 {currentTest.questions.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -1511,7 +1841,6 @@ const handleEditTest = async (test: CBTTest) => {
                           <SelectItem value="single-choice">
                             Single Choice
                           </SelectItem>
-                          <SelectItem value="true-false">True/False</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1699,7 +2028,7 @@ const handleEditTest = async (test: CBTTest) => {
                           className="text-lg"
                           title={test.title}              // show full on hover
                         >
-                          {truncateText(test.title,35)}  {/* shorten for UI */}
+                          {truncateText(test.title, 35)}  {/* shorten for UI */}
                         </CardTitle>
                         <CardDescription
                           className="line-clamp-2"
@@ -1906,24 +2235,24 @@ const handleEditTest = async (test: CBTTest) => {
               />
             </div>
             {/* 🔽 New Test filter */}
-              <Select
-                value={selectedTestFilter}
-                onValueChange={(value) => setSelectedTestFilter(value)}
-                disabled={isSaving}
-              >
-                <SelectTrigger className="w-full sm:w-[220px]">
-                  <SelectValue placeholder="Filter by test" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Tests</SelectItem>
-                  {myTests.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {truncateText(t.title, 40)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+            <Select
+              value={selectedTestFilter}
+              onValueChange={(value) => setSelectedTestFilter(value)}
+              disabled={isSaving}
+            >
+              <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectValue placeholder="Filter by test" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tests</SelectItem>
+                {myTests.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {truncateText(t.title, 40)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
 
-              </Select>
+            </Select>
 
 
             <Select
@@ -2759,26 +3088,26 @@ const handleEditTest = async (test: CBTTest) => {
           )}
         </DialogContent>
       </Dialog>
-    <AlertDialog
-      open={alertState.open}
-      onOpenChange={(open) =>
-        setAlertState((prev) => ({ ...prev, open }))
-      }
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {alertState.title}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {alertState.message || " "}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <AlertDialog
+        open={alertState.open}
+        onOpenChange={(open) =>
+          setAlertState((prev) => ({ ...prev, open }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {alertState.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertState.message || " "}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
