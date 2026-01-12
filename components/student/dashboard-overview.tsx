@@ -169,6 +169,7 @@ export function DashboardOverview() {
           throw new Error(errorMessage);
         }
         const json = await res.json();
+        console.log(json)
         const currentDate = new Date();
         const sessions: LiveSession[] = (json.live_sessions || [])
           .filter((session) => new Date(session.scheduled_at) > currentDate)

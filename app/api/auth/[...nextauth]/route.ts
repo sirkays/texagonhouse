@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\app\api\auth\logout-route
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
 

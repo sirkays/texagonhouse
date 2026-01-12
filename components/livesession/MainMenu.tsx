@@ -159,7 +159,7 @@ const MainMenu = () => {
           title: values.title,
           scheduled_at: startsAt,
           duration_minutes: values.duration,
-          join_url: `https://texagon.epichouse.online/main/meeting/${call.id}`,
+          join_url: `main/meeting/${call.id}`,
         }),
       });
 
