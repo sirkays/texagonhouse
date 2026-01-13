@@ -2,7 +2,7 @@
 /* Modified for offline support: cache data, queue submissions, sync when online */
 /* ✅ NOW USES TEST ID AS KEY IN pendingCBTSubmissions FOR UNIQUENESS & FAST CHECKS */
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -10,13 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
-import {Label} from "@/components/ui/label";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Textarea} from "@/components/ui/textarea";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -43,9 +43,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {Spinner} from "@/components/ui/spinner";
-import {useSession} from "next-auth/react";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
+import { useSession } from "next-auth/react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -117,7 +117,7 @@ export function CBTTest() {
   const [autoReloadSeconds, setAutoReloadSeconds] = useState<number | null>(
     null
   );
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, any>>({});
@@ -150,6 +150,66 @@ export function CBTTest() {
     "date"
   );
   const [justSyncedTestId, setJustSyncedTestId] = useState<string | null>(null);
+  function TruncatedDescription({
+    text,
+    limit = 500,
+    title = "Description",
+  }: {
+    text?: string | null;
+    limit?: number;
+    title?: string;
+  }) {
+    const [open, setOpen] = useState(false);
+
+    const value = (text ?? "").trim();
+    if (!value) return null;
+
+    const isLong = value.length > limit;
+    const shortText = isLong ? value.slice(0, limit).trimEnd() + "…" : value;
+
+    return (
+      <>
+        <CardDescription className="leading-relaxed">
+          {shortText}{" "}
+          {isLong && (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="ml-1 inline p-0 align-baseline text-xs font-medium text-[#EF7B55] underline underline-offset-2 hover:text-[#F79771]"
+            >
+              Read more
+            </button>
+          )}
+        </CardDescription>
+
+        {isLong && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Full description
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="max-h-[60vh] overflow-auto whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
+                {value}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  className="h-9 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+                  onClick={() => setOpen(false)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </>
+    );
+  }
 
   // NEW: attempts state (from backend)
   const [attempts, setAttempts] = useState<AttemptsPayload>({
@@ -268,7 +328,7 @@ export function CBTTest() {
           ) {
             console.warn(
               "[CBTTest] Pending submission already on server, clearing from queue",
-              {testId, text}
+              { testId, text }
             );
 
             delete pending[testId];
@@ -412,7 +472,7 @@ export function CBTTest() {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
-            ...(deviceId ? {"X-Device-Id": deviceId} : {}),
+            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
           },
         },
         40000
@@ -432,8 +492,8 @@ export function CBTTest() {
       const tests = Array.isArray(d.tests)
         ? d.tests
         : Array.isArray((d as any).available_tests)
-        ? (d as any).available_tests
-        : [];
+          ? (d as any).available_tests
+          : [];
 
       setAvailableTests(tests);
       setTestResults((d as any).results || {});
@@ -443,13 +503,13 @@ export function CBTTest() {
           ? (d as any).attempts
           : typeof (d as any).count === "number" &&
             Array.isArray((d as any).results)
-          ? {
+            ? {
               count: (d as any).count,
               page: (d as any).page ?? attemptsPage,
               page_size: (d as any).page_size ?? 20,
               results: (d as any).results,
             }
-          : {count: 0, page: 1, page_size: 20, results: []};
+            : { count: 0, page: 1, page_size: 20, results: [] };
 
       setAttempts({
         count: Number(rawAttempts.count ?? rawAttempts.results?.length ?? 0),
@@ -488,14 +548,14 @@ export function CBTTest() {
       setAvailableTests(data.tests || []);
       setTestResults(data.results || {});
       setAttempts(
-        data.attempts || {count: 0, page: 1, page_size: 20, results: []}
+        data.attempts || { count: 0, page: 1, page_size: 20, results: [] }
       );
       setError("Offline: Showing cached data");
     } else {
       setError("Offline and no cached data available");
       setAvailableTests([]);
       setTestResults({});
-      setAttempts({count: 0, page: 1, page_size: 20, results: []});
+      setAttempts({ count: 0, page: 1, page_size: 20, results: [] });
     }
   };
 
@@ -529,8 +589,8 @@ export function CBTTest() {
     const items = Array.isArray(test.items)
       ? test.items
       : test.items
-      ? Object.values(test.items)
-      : [];
+        ? Object.values(test.items)
+        : [];
     const mappedQuestions = items.map((item: any) => ({
       id: item.id,
       type: item.type === "scq" ? "single-choice" : item.type,
@@ -538,12 +598,12 @@ export function CBTTest() {
       options:
         item.type === "true-false"
           ? [
-              {id: "true", text: "True"},
-              {id: "false", text: "False"},
-            ]
+            { id: "true", text: "True" },
+            { id: "false", text: "False" },
+          ]
           : item.choices
-          ? item.choices.map((c: any) => ({id: c.id, text: c.text}))
-          : [],
+            ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
+            : [],
       points: item.points,
     }));
 
@@ -630,7 +690,7 @@ export function CBTTest() {
 
       if (ans === undefined) continue;
 
-      const entry: any = {question: q.id};
+      const entry: any = { question: q.id };
 
       if (Array.isArray(ans)) {
         entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
@@ -672,7 +732,7 @@ export function CBTTest() {
             headers: {
               "Content-Type": "application/json",
               "X-Session-Token": sessionToken,
-              ...(deviceId ? {"X-Device-Id": deviceId} : {}),
+              ...(deviceId ? { "X-Device-Id": deviceId } : {}),
             },
             body: JSON.stringify(cleanedBody),
           },
@@ -685,7 +745,7 @@ export function CBTTest() {
           );
           setTestResults((prev) => ({
             ...prev,
-            [currentTest!]: {...data, title: test?.title},
+            [currentTest!]: { ...data, title: test?.title },
           }));
           setAttemptsPage(1);
           fetchData();
@@ -723,7 +783,7 @@ export function CBTTest() {
   };
 
   function handleAnswerChangeLocal(value: any) {
-    setAnswers((prev) => ({...prev, [currentQuestion]: value}));
+    setAnswers((prev) => ({ ...prev, [currentQuestion]: value }));
   }
 
   function previousQuestion() {
@@ -823,10 +883,10 @@ export function CBTTest() {
             {result
               ? `Your result: ${result.result || result.percentage + "%"}`
               : hasPendingForThisTest
-              ? "Results pending sync..."
-              : isOnline
-              ? "Your results are being processed."
-              : "Your submission will be synced when you are back online."}
+                ? "Results pending sync..."
+                : isOnline
+                  ? "Your results are being processed."
+                  : "Your submission will be synced when you are back online."}
             {hasPendingForThisTest && " (Pending sync)"}
           </p>
         </div>
@@ -841,10 +901,10 @@ export function CBTTest() {
               {result
                 ? "Thank you for completing the test."
                 : hasPendingForThisTest
-                ? "Your submission is queued and will be synced when online."
-                : isOnline
-                ? "Your results are being processed."
-                : "Your submission will be synced when you are back online."}
+                  ? "Your submission is queued and will be synced when online."
+                  : isOnline
+                    ? "Your results are being processed."
+                    : "Your submission will be synced when you are back online."}
             </CardDescription>
 
             {/* ✅ NEW: show explicit “Synced successfully” badge */}
@@ -1032,7 +1092,7 @@ export function CBTTest() {
 
                 {/* Question types unchanged */}
                 {currentQ?.type === "single-choice" ||
-                currentQ?.type === "true-false" ? (
+                  currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={(val) => {
@@ -1128,8 +1188,8 @@ export function CBTTest() {
                         currentQuestion === index
                           ? "default"
                           : answers[index]
-                          ? "secondary"
-                          : "outline"
+                            ? "secondary"
+                            : "outline"
                       }
                       size="sm"
                       onClick={() => setCurrentQuestion(index)}>
@@ -1223,15 +1283,15 @@ export function CBTTest() {
   const pendingSubmissions: Record<string, any> =
     typeof window !== "undefined"
       ? (() => {
-          const raw = localStorage.getItem("pendingCBTSubmissions");
-          if (!raw) return {};
-          try {
-            return JSON.parse(raw);
-          } catch (e) {
-            localStorage.removeItem("pendingCBTSubmissions");
-            return {};
-          }
-        })()
+        const raw = localStorage.getItem("pendingCBTSubmissions");
+        if (!raw) return {};
+        try {
+          return JSON.parse(raw);
+        } catch (e) {
+          localStorage.removeItem("pendingCBTSubmissions");
+          return {};
+        }
+      })()
       : {};
 
   return (
@@ -1330,14 +1390,16 @@ export function CBTTest() {
                           <CardTitle className="text-lg">
                             {test.title}
                           </CardTitle>
+
+                        </div>
                           <div className="flex gap-2">
                             <Badge
                               variant={
                                 test.difficulty === "Beginner"
                                   ? "default"
                                   : test.difficulty === "Intermediate"
-                                  ? "secondary"
-                                  : "destructive"
+                                    ? "secondary"
+                                    : "destructive"
                               }>
                               {test.difficulty}
                             </Badge>
@@ -1353,8 +1415,12 @@ export function CBTTest() {
                               <Badge variant="secondary">Pending Sync</Badge>
                             )}
                           </div>
-                        </div>
-                        <CardDescription>{test.description}</CardDescription>
+                        <TruncatedDescription
+                          text={test.description}
+                          limit={200}
+                          title={test.title || "Test description"}
+                        />
+
                       </CardHeader>
                       <CardContent className="flex-1 flex flex-col gap-4">
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -1403,7 +1469,7 @@ export function CBTTest() {
                             <Play className="mr-2 h-4 w-4" />
                             {test.type === "exam"
                               ? "Start Secure Exam"
-                              : "Start Quiz"}
+                              : "Start Test"}
                           </Button>
                         </div>
                       </CardContent>
@@ -1497,8 +1563,8 @@ export function CBTTest() {
                 const submittedDate = a.submitted_at
                   ? new Date(a.submitted_at).toLocaleDateString()
                   : a.started_at
-                  ? new Date(a.started_at).toLocaleDateString()
-                  : "";
+                    ? new Date(a.started_at).toLocaleDateString()
+                    : "";
                 return (
                   <Card key={a.id} className="flex flex-col h-full">
                     <CardHeader>

@@ -36,12 +36,14 @@ interface Invoice {
   amount: string;
   currency: string;
   issued_at: string;
+  student_name: string;
   due_at: string;
   status: InvoiceStatus;
   invoice_type?: InvoiceType;
   invoice_type_object_id?: number | null;
   invoice_type_object_type?: string | null;
   meta: Record<string, any>;
+
 }
 
 const safeDate = (iso: string | null | undefined) => {
@@ -69,12 +71,17 @@ export function InvoiceList() {
   const [confirmedTx, setConfirmedTx] = useState<string | null>(null);
 
   useEffect(() => {
-    const status = searchParams.get("status");
+    const status = (searchParams.get("status") || "").toLowerCase();
     const tx_ref = searchParams.get("tx_ref");
     const transaction_id = searchParams.get("transaction_id");
     const invoice_number = searchParams.get("invoice_number");
 
-    if (status === "completed" && tx_ref && transaction_id && invoice_number) {
+    // If user cancelled, don't confirm.
+    if (status === "cancelled") return;
+
+    // Don't hardcode "successful" vs "completed".
+    // If Flutterwave sent us a transaction_id, we can verify server-side.
+    if (tx_ref && transaction_id && invoice_number) {
       if (confirmedTx === tx_ref) return;
       setConfirmedTx(tx_ref);
       confirmPayment(invoice_number, tx_ref, transaction_id);
@@ -252,7 +259,7 @@ export function InvoiceList() {
               </CardHeader>
 
               <CardContent>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Type</p>
                     <p className="font-medium capitalize">{typeLabel(invoice.invoice_type)}</p>
@@ -261,6 +268,13 @@ export function InvoiceList() {
                     <p className="text-muted-foreground">Amount</p>
                     <p className="font-bold">{formatMoney(invoice.currency, invoice.amount)}</p>
                   </div>
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-muted-foreground">Student Name</p>
+                  <p className="font-bold">
+                    {invoice.student_name}
+                  </p>
                 </div>
 
                 <div className="mt-4 flex justify-end gap-2 border-t pt-3">
@@ -302,7 +316,13 @@ export function InvoiceList() {
         </DialogContent>
       </Dialog>
 
-      <InvoiceDetailsModal invoice={selectedInvoice as any} isOpen={isModalOpen} onClose={closeDetails} />
+      <InvoiceDetailsModal
+        invoice={selectedInvoice as any}
+        isOpen={isModalOpen}
+        onClose={closeDetails}
+        onPay={(invoice_number) => handlePayInvoice(invoice_number)}
+      />
+
     </>
   );
 }
