@@ -228,9 +228,10 @@ export default function StudentsPage() {
         <div className="flex gap-4 items-center">
           <Skeleton className="h-10 w-10 rounded-full" />
 
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-56" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-4 w-32 sm:w-40" />
+            <Skeleton className="h-3 w-full max-w-[200px]" />{" "}
+            {/* Dynamic width */}
           </div>
         </div>
 
@@ -242,7 +243,6 @@ export default function StudentsPage() {
       </div>
     );
   }
-
 
   /* -------------------- UI -------------------- */
   return (
@@ -280,7 +280,7 @@ export default function StudentsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4 md:flex-row">
-              <div className="relative flex-1">
+              <div className="relative w-full md:flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                 <Input
                   className="pl-9"
@@ -339,39 +339,54 @@ export default function StudentsPage() {
               students.map((student) => (
                 <div
                   key={student.id}
-                  className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border p-4 rounded-lg"
+                  // CHANGED: Using Grid instead of Flex. This handles width constraints much better.
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 p-4 border rounded-lg items-center bg-card text-card-foreground shadow-sm w-full max-w-full"
                 >
-                  <div className="flex gap-4 items-center">
-                    <Avatar>
+                  {/* LEFT SIDE: Avatar + Info */}
+                  {/* 'min-w-0' is the magic fix here. It allows this column to shrink below the text size. */}
+                  <div className="flex items-center gap-3 min-w-0 w-full">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 border">
                       <AvatarImage src={student.avatar} />
                       <AvatarFallback>
                         {student.name
-                          .split(" ")
+                          ?.split(" ")
                           .map((n: string) => n[0])
-                          .join("")}
+                          .join("") || "??"}
                       </AvatarFallback>
                     </Avatar>
 
-                    <div>
-                      <p className="font-semibold">{student.name}</p>
-                      <div className="text-sm text-muted-foreground flex gap-2">
-                        <Mail className="h-3 w-3" />
-                        {student.email}
+                    <div className="flex flex-col min-w-0 w-full">
+                      {/* Name: Truncate prevents long names from pushing width */}
+                      <p className="font-semibold truncate text-base leading-tight">
+                        {student.name}
+                      </p>
+
+                      {/* Email: break-all ensures super long emails wrap if needed, or use truncate */}
+                      <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate block w-full">
+                          {student.email}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  {/* RIGHT SIDE: Actions */}
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => router.push(`/admin/students/${student.id}`)}
+                      className="flex-1 sm:flex-none" // Buttons grow on mobile to fill width
+                      onClick={() =>
+                        router.push(`/admin/students/${student.id}`)
+                      }
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
+                      className="flex-1 sm:flex-none"
                       onClick={() => setEditingStudent(student)}
                     >
                       <Edit className="h-4 w-4" />
@@ -379,9 +394,10 @@ export default function StudentsPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="flex-1 sm:flex-none hover:bg-red-50 hover:text-red-600 border-red-200"
                       onClick={() => setDeletingStudent(student)}
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -391,7 +407,6 @@ export default function StudentsPage() {
                 No students found.
               </p>
             )}
-
           </CardContent>
         </Card>
       </div>

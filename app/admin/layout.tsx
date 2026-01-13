@@ -308,7 +308,7 @@ export default function DashboardLayout({
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        Loading...
+       <Spinner size="md" className="text-black" />
       </div>
     );
   }

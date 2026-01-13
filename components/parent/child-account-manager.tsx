@@ -69,7 +69,9 @@ export default function ChildAccountManager() {
       setError(null);
     } catch (err: any) {
       console.error("API fetch error:", err);
-      setError(err.message || "Failed to load children data. Please try again.");
+      setError(
+        err.message || "Failed to load children data. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -150,13 +152,16 @@ export default function ChildAccountManager() {
     setIsUpdatingPassword(true); // ✅ start loading
 
     try {
-      const res = await fetch("/api/parent/managechildren/reset-child-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ childId: resetChildId, newPassword }),
-      });
+      const res = await fetch(
+        "/api/parent/managechildren/reset-child-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ childId: resetChildId, newPassword }),
+        }
+      );
 
       const data = await res.json();
 
@@ -170,7 +175,9 @@ export default function ChildAccountManager() {
         closeResetDialog();
       }, 2000);
     } catch (err: any) {
-      setResetError(err.message || "An error occurred while resetting the password");
+      setResetError(
+        err.message || "An error occurred while resetting the password"
+      );
       setIsUpdatingPassword(false); // ✅ stop loading on error
     }
   };
@@ -197,7 +204,8 @@ export default function ChildAccountManager() {
           <p className="text-red-600">{error}</p>
           {error.includes("Unauthorized") && (
             <p className="text-red-600">
-              Please ensure you are logged in with a parent account or contact support.
+              Please ensure you are logged in with a parent account or contact
+              support.
             </p>
           )}
           <Button variant="outline" className="mt-2" onClick={fetchChildren}>
@@ -232,9 +240,12 @@ export default function ChildAccountManager() {
                       {child.name || "Unknown"}
                     </CardTitle>
                     <CardDescription className="text-xs sm:text-sm space-y-1 mt-1">
-                      <div className="truncate">
-                        Age {child.age || "N/A"} • {child.grade || "N/A"} •{" "}
-                        {child.school || "N/A"}
+                      {/* Allow text to wrap nicely up to 2 lines */}
+                      <div className="text-sm text-muted-foreground line-clamp-2 break-words leading-snug">
+                        <span className="font-medium text-foreground">
+                          Age {child.age || "N/A"}
+                        </span>{" "}
+                        • {child.grade || "N/A"} • {child.school || "N/A"}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         {getStatusBadge(child.status)}
@@ -264,41 +275,47 @@ export default function ChildAccountManager() {
                     Account Information
                   </h4>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Email:</span>
-                      <span className="truncate max-w-[60%] text-right">
-                        {child.email || "N/A"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Join Date:</span>
-                      <span>{child.joinDate || child.join_date || "N/A"}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last Active:</span>
-                      <span>{child.lastActive || child.last_active || "N/A"}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Courses:</span>
-                      <span>
-                        {child.completedCourses || child.completed_courses || 0}/
-                        {child.totalCourses || child.total_courses || 0} completed
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Relationship:</span>
-                      <span>{child.relationship || "N/A"}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Admission No:</span>
-                      <span>{child.admissionNo || child.admission_no || "N/A"}</span>
-                    </div>
+                  <div className="grid gap-y-3 text-sm mt-3">
+                    {[
+                      { label: "Email", value: child.email, isEmail: true },
+                      {
+                        label: "Join Date",
+                        value: child.joinDate || child.join_date,
+                      },
+                      {
+                        label: "Last Active",
+                        value: child.lastActive || child.last_active,
+                      },
+                      {
+                        label: "Courses",
+                        value: `${
+                          child.completedCourses || child.completed_courses || 0
+                        }/${
+                          child.totalCourses || child.total_courses || 0
+                        } completed`,
+                      },
+                      { label: "Relationship", value: child.relationship },
+                      {
+                        label: "Admission No",
+                        value: child.admissionNo || child.admission_no,
+                      },
+                    ].map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-[100px_1fr] sm:grid-cols-[120px_1fr] items-start gap-2"
+                      >
+                        <span className="text-muted-foreground font-medium text-xs uppercase tracking-wide pt-0.5">
+                          {item.label}:
+                        </span>
+                        <span
+                          className={`font-medium ${
+                            item.isEmail ? "break-all" : "break-words"
+                          }`}
+                        >
+                          {item.value || "N/A"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -339,7 +356,7 @@ export default function ChildAccountManager() {
         open={resetChildId !== null}
         onOpenChange={(open) => (!open ? closeResetDialog() : null)}
       >
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="w-[95vw] max-w-[480px] rounded-xl">
           <DialogHeader>
             <DialogTitle>Reset Child Password</DialogTitle>
             <DialogDescription>
@@ -365,7 +382,11 @@ export default function ChildAccountManager() {
                   onClick={() => setShowNew((s) => !s)}
                   disabled={isUpdatingPassword}
                 >
-                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showNew ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -387,17 +408,27 @@ export default function ChildAccountManager() {
                   onClick={() => setShowConfirm((s) => !s)}
                   disabled={isUpdatingPassword}
                 >
-                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirm ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
 
             {resetError && <p className="text-sm text-red-600">{resetError}</p>}
-            {resetSuccess && <p className="text-sm text-green-700">{resetSuccess}</p>}
+            {resetSuccess && (
+              <p className="text-sm text-green-700">{resetSuccess}</p>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeResetDialog} disabled={isUpdatingPassword}>
+            <Button
+              variant="outline"
+              onClick={closeResetDialog}
+              disabled={isUpdatingPassword}
+            >
               Cancel
             </Button>
 

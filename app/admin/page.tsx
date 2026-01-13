@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {Users, GraduationCap, BookOpen, DollarSign} from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Stat {
   value: number;
@@ -143,7 +144,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen">
+       <Spinner size="md" className="text-black" />
+      </div>
     );
   }
 

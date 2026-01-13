@@ -184,8 +184,8 @@ export default function StudentEnrollmentsPage() {
       <div className="space-y-6 px-2 sm:px-0">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => router.back()} disabled={loading || assigning}>
+          <div className="flex flex-col md:flex-row items-center gap-2">
+            <Button variant="outline" onClick={() => router.back()} className="self-start" disabled={loading || assigning}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>

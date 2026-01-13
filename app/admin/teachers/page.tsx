@@ -840,18 +840,19 @@ export default function TeachersPage() {
     <>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="self-start">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Teachers
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage teacher profiles and assignments
             </p>
           </div>
           <Button
             onClick={handleAddTeacher}
             disabled={specialtiesOptions.length === 0}
+            className="self-start"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Teacher
