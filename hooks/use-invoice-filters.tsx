@@ -10,6 +10,7 @@ interface Invoice {
   amount: string;
   currency: string;
   issued_at: string;
+  student_name: string;
   due_at: string;
   status: "open" | "paid" | "void" | "uncollectible" | "active";
   meta: { generated_for: string; parent_profile_id: number };

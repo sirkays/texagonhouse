@@ -1390,6 +1390,8 @@ export function CBTTest() {
                           <CardTitle className="text-lg">
                             {test.title}
                           </CardTitle>
+
+                        </div>
                           <div className="flex gap-2">
                             <Badge
                               variant={
@@ -1413,7 +1415,6 @@ export function CBTTest() {
                               <Badge variant="secondary">Pending Sync</Badge>
                             )}
                           </div>
-                        </div>
                         <TruncatedDescription
                           text={test.description}
                           limit={200}

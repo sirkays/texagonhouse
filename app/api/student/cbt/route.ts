@@ -219,7 +219,7 @@ export async function POST(request: Request) {
   while (attempt < maxRetries) {
     try {
       const submitUrl = `${BASE_URL}/assessments/api/tests/${testId}/submit/`;
-      console.log(submitUrl, " harddddd")
+      
       const res = await fetchWithTimeout(submitUrl, {
         method: "POST",
         headers: {
