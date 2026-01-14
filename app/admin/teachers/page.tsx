@@ -469,7 +469,7 @@ function ViewDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-lg">
+      <DialogContent className="w-[95vw] max-w-md sm:max-w-lg rounded-xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -909,16 +909,22 @@ export default function TeachersPage() {
                         <CardTitle className="text-lg">
                           {teacher.name}
                         </CardTitle>
-                        <div className="space-y-1">
-                          <CardDescription className="flex items-center justify-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {teacher.email}
-                          </CardDescription>
+                        <div className="space-y-1.5 w-full">
+                          <div className="text-sm text-muted-foreground flex items-center justify-center gap-1.5 w-full">
+                            <Mail className="h-3.5 w-3.5 shrink-0" />
+                            {/* break-all ensures long emails wrap on mobile instead of overflowing */}
+                            <span className="break-all text-xs sm:text-sm">
+                              {teacher.email}
+                            </span>
+                          </div>
+
                           {teacher.phone && (
-                            <CardDescription className="flex items-center justify-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {teacher.phone}
-                            </CardDescription>
+                            <div className="text-sm text-muted-foreground flex items-center justify-center gap-1.5 w-full">
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              <span className="text-xs sm:text-sm">
+                                {teacher.phone}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -955,29 +961,33 @@ export default function TeachersPage() {
                           {teacher.experience} years
                         </span>
                       </div>
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex gap-2 mt-5 pt-4 border-t">
                         <Button
-                          className="flex-1 bg-transparent"
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewTeacher(teacher)}
+                          className="flex-1 text-xs" // Stretches on all screens for better tap target
                         >
-                          <Eye className="mr-1 h-3 w-3" />
+                          <Eye className="mr-2 h-3.5 w-3.5" />
                           View
                         </Button>
+
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditTeacher(teacher)}
+                          className="px-3" // Square-ish on all screens
                         >
-                          <Edit className="h-3 w-3" />
+                          <Edit className="h-3.5 w-3.5" />
                         </Button>
+
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDeleteTeacher(teacher)}
+                          className="px-3 hover:bg-red-50 hover:text-red-600 border-red-200"
                         >
-                          <Trash2 className="h-3 w-3 text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -989,7 +999,7 @@ export default function TeachersPage() {
         </div>
       </div>
 
-<TeacherModal
+      <TeacherModal
         open={teacherModalOpen}
         onOpenChange={(open) => {
           if (isSaving) return; // Prevent closing while saving

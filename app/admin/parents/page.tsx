@@ -411,7 +411,7 @@
 
 "use client";
 
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -419,14 +419,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {Input} from "@/components/ui/input";
-import {Plus, Search, Mail, Users, Eye} from "lucide-react";
-import {ParentDetailsModal} from "@/components/admin/modals/parent-details-modal";
-import {AddParentDialog} from "@/components/admin/modals/add-parent-dialog";
-import {useToast} from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Plus, Search, Mail, Users, Eye } from "lucide-react";
+import { ParentDetailsModal } from "@/components/admin/modals/parent-details-modal";
+import { AddParentDialog } from "@/components/admin/modals/add-parent-dialog";
+import { useToast } from "@/components/ui/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function ParentsPage() {
@@ -435,7 +435,7 @@ export default function ParentsPage() {
   const [viewingParent, setViewingParent] = useState<any>(null);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [loading, setLoading] = useState(true);
-  const {toast} = useToast();
+  const { toast } = useToast();
 
   /* -------------------- Data -------------------- */
   const fetchParents = async () => {
@@ -488,7 +488,8 @@ export default function ParentsPage() {
 
           <Button
             className="w-full sm:w-auto"
-            onClick={() => setOpenAddDialog(true)}>
+            onClick={() => setOpenAddDialog(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Parent
           </Button>
@@ -499,8 +500,9 @@ export default function ParentsPage() {
           <CardContent className="pt-4">
             <form
               onSubmit={handleSearch}
-              className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
+              className="flex flex-col gap-3 sm:flex-row"
+            >
+              <div className="relative w-full sm:flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search parents..."
@@ -510,10 +512,11 @@ export default function ParentsPage() {
                 />
               </div>
 
-           <Button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="w-full sm:w-auto">
+                className="w-full sm:w-auto"
+              >
                 {loading ? (
                   <>
                     <Spinner size="sm" className="mr-2" />
@@ -546,10 +549,11 @@ export default function ParentsPage() {
                 {parents.map((parent) => (
                   <div
                     key={parent.id}
-                    className="rounded-lg border p-4 space-y-4 sm:flex sm:items-center sm:justify-between sm:space-y-0 hover:bg-muted/50 transition">
-                    {/* Left */}
-                    <div className="flex gap-3 items-center min-w-0">
-                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+                    className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 p-4 border rounded-lg bg-card text-card-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    {/* LEFT SIDE: Avatar + Info */}
+                    <div className="flex items-center gap-3 min-w-0 w-full">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 border bg-background">
                         <AvatarImage src={parent.avatar_url} />
                         <AvatarFallback>
                           {parent.name
@@ -560,48 +564,67 @@ export default function ParentsPage() {
                         </AvatarFallback>
                       </Avatar>
 
-                      <div className="min-w-0">
-                        <p className="font-semibold truncate">{parent.name}</p>
+                      {/* min-w-0 is CRITICAL here to allow truncation */}
+                      <div className="flex flex-col min-w-0 w-full space-y-1">
+                        <p className="font-semibold truncate text-base">
+                          {parent.name}
+                        </p>
 
-                        <div className="mt-1 space-y-1 sm:flex sm:space-y-0 sm:gap-4">
-                          <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground truncate">
-                            <Mail className="h-3 w-3 shrink-0" />
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Mail className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{parent.email}</span>
                           </div>
 
-                          <span className="text-xs sm:text-sm text-muted-foreground">
-                            {parent.phone || "N/A"}
-                          </span>
+                          {/* Only show separator on desktop */}
+                          {parent.phone && (
+                            <span className="hidden sm:inline text-muted-foreground/40">
+                              •
+                            </span>
+                          )}
+
+                          {parent.phone && (
+                            <div className="text-xs sm:text-sm">
+                              {parent.phone}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Right */}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>{parent.children_count} Children</span>
-                      </div>
+                    {/* RIGHT SIDE: Stats & Actions */}
+                    {/* On mobile, this moves to a new row with a top border for clean separation */}
+<div className="flex flex-wrap items-center justify-between sm:justify-end gap-y-3 gap-x-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-0 border-border">
+  
+  {/* Stats Group: Children Count + Badge */}
+  <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1.5 rounded-md whitespace-nowrap">
+      <Users className="h-3.5 w-3.5 shrink-0" />
+      <span className="font-medium">{parent.children_count}</span>
+      {/* Hide text 'Children' on extremely small screens to save space */}
+      <span className="hidden xs:inline opacity-70">Child{parent.children_count !== 1 && 'ren'}</span>
+    </div>
 
-                      <Badge
-                        variant={
-                          parent.subscription_status === "active"
-                            ? "default"
-                            : "destructive"
-                        }
-                        className="w-fit">
-                        {parent.subscription_status || "N/A"}
-                      </Badge>
+    <Badge
+      variant={parent.subscription_status === "active" ? "default" : "destructive"}
+      className="capitalize shadow-none px-2 h-7 whitespace-nowrap"
+    >
+      {parent.subscription_status || "N/A"}
+    </Badge>
+  </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        onClick={() => setViewingParent(parent)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </Button>
-                    </div>
+  {/* Action Button */}
+  {/* 'flex-1' ensures that if it wraps to a new line on tiny screens, it fills the width */}
+  <Button
+    variant="outline"
+    size="sm"
+    className="ml-auto sm:ml-0 flex-1 sm:flex-none min-w-[80px]"
+    onClick={() => setViewingParent(parent)}
+  >
+    <Eye className="mr-2 h-3.5 w-3.5" />
+    View
+  </Button>
+</div>
                   </div>
                 ))}
               </div>

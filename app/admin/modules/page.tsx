@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useCallback} from "react";
+import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/app/admin/layout";
 import {
   Card,
@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Alert, AlertDescription} from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Search,
   BookOpen,
@@ -28,7 +28,7 @@ import {
   AlertCircle,
   FilterX,
 } from "lucide-react";
-import {LessonsModal} from "@/components/admin/modals/lessons-modal";
+import { LessonsModal } from "@/components/admin/modals/lessons-modal";
 
 interface Module {
   id: number;
@@ -115,7 +115,7 @@ export default function ModulesPage() {
           err instanceof Error ? err.message : "Failed to fetch modules"
         );
         setModules([]);
-        setPagination({page: 1, page_size: 20, total: 0});
+        setPagination({ page: 1, page_size: 20, total: 0 });
       } finally {
         setLoading(false);
       }
@@ -174,7 +174,7 @@ export default function ModulesPage() {
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-    window.scrollTo({top: 0, behavior: "smooth"});
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -341,7 +341,8 @@ export default function ModulesPage() {
 
                 <Select
                   value={difficultyFilter}
-                  onValueChange={handleDifficultyChange}>
+                  onValueChange={handleDifficultyChange}
+                >
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter difficulty" />
                   </SelectTrigger>
@@ -382,7 +383,8 @@ export default function ModulesPage() {
                   variant="outline"
                   onClick={clearFilters}
                   disabled={!hasActiveFilters}
-                  className="w-full sm:w-auto flex items-center gap-2">
+                  className="w-full sm:w-auto flex items-center gap-2"
+                >
                   <FilterX className="h-4 w-4" />
                   Clear
                 </Button>
@@ -443,66 +445,83 @@ export default function ModulesPage() {
               {modules.map((module) => (
                 <Card
                   key={module.id}
-                  className="hover:shadow-lg transition-shadow duration-200 border">
+                  className="hover:shadow-lg transition-shadow duration-200 border"
+                >
                   <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <Badge variant="outline" className="text-xs font-medium">
+                    {/* Added 'flex-wrap' and 'gap-y-2' to handle tiny screens */}
+                    <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-2 mb-2">
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-medium shrink-0"
+                      >
                         Module {module.order}
                       </Badge>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 shrink-0">
                         <Badge
                           className={`${getDifficultyColor(
                             module.difficulty
-                          )} text-xs font-medium`}>
+                          )} text-xs font-medium px-2 py-0.5`}
+                        >
                           {formatDifficulty(module.difficulty)}
                         </Badge>
                         <Badge
                           variant={getStatusVariant(module.active)}
-                          className="text-xs font-medium">
+                          className="text-xs font-medium px-2 py-0.5"
+                        >
                           {module.active ? "Active" : "Inactive"}
                         </Badge>
                       </div>
                     </div>
-                    <CardTitle className="text-lg leading-tight line-clamp-2">
+
+                    <CardTitle className="text-lg leading-tight line-clamp-2 break-words">
                       {module.name}
                     </CardTitle>
-                    <CardDescription className="mt-2 line-clamp-1">
+                    <CardDescription className="mt-2 line-clamp-1 break-all">
                       {module.course}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3 text-sm">
+                      {/* Lessons Row */}
+                      <div className="flex items-center gap-3 text-sm min-w-0">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <BookOpen className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-foreground">
+                        {/* min-w-0 allows the text container to shrink below its content size */}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground truncate">
                             {module.lessons}{" "}
                             {module.lessons === 1 ? "Lesson" : "Lessons"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p
+                            className="text-xs text-muted-foreground truncate"
+                            title={module.category}
+                          >
                             {module.category}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-sm">
+
+                      {/* Duration Row */}
+                      <div className="flex items-center gap-3 text-sm min-w-0">
                         <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                           <Clock className="h-5 w-5 text-blue-500" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-foreground">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground truncate">
                             {module.duration} minutes
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground truncate">
                             Estimated duration
                           </p>
                         </div>
                       </div>
+
                       <Button
                         className="w-full mt-4"
                         variant="outline"
-                        onClick={() => setViewingModule(module)}>
+                        onClick={() => setViewingModule(module)}
+                      >
                         View Lessons
                       </Button>
                     </div>
@@ -515,24 +534,31 @@ export default function ModulesPage() {
             {totalPages > 1 && (
               <Card>
                 <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
+                  {/* Changed to flex-col on mobile, flex-row on small screens+ */}
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm text-muted-foreground text-center sm:text-left">
                       Showing {modules.length} of {pagination.total} modules •
                       Page {currentPage} of {totalPages}
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Buttons centered on mobile, right-aligned on desktop */}
+                    <div className="flex gap-2 justify-center sm:justify-end w-full sm:w-auto">
                       <Button
                         variant="outline"
                         size="sm"
+                        className="flex-1 sm:flex-none" // Make buttons easy to tap on mobile
                         onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}>
+                        disabled={currentPage === 1}
+                      >
                         Previous
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
+                        className="flex-1 sm:flex-none"
                         onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}>
+                        disabled={currentPage === totalPages}
+                      >
                         Next
                       </Button>
                     </div>

@@ -332,11 +332,11 @@ export default function CheckoutPage() {
                   {cartItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex gap-3 p-3 border rounded-lg">
+                      className="flex flex-col md:flex-row gap-6 md:gap-3 p-3 border rounded-lg">
                       <img
                         src={item.image || "/placeholder.svg"}
                         alt={item.title}
-                        className="w-16 h-16 rounded object-cover flex-shrink-0"
+                        className="w-16 h-16 rounded mb-5 object-cover flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm line-clamp-2">

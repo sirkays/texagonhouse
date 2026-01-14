@@ -1068,9 +1068,9 @@ export function ParentDetailsModal({
 
         <Tabs defaultValue="info">
           <TabsList className="w-full flex overflow-x-auto sm:grid sm:grid-cols-3">
-            <TabsTrigger value="info">Info</TabsTrigger>
-            <TabsTrigger value="children">Children</TabsTrigger>
-            <TabsTrigger value="actions">Actions</TabsTrigger>
+            <TabsTrigger value="info" className="w-full">Info</TabsTrigger>
+            <TabsTrigger value="children" className="w-full">Children</TabsTrigger>
+            <TabsTrigger value="actions" className="w-full">Actions</TabsTrigger>
           </TabsList>
 
           {/* INFO TAB */}

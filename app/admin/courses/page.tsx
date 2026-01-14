@@ -23,7 +23,7 @@ import {
   Trash2,
   Eye,
   Loader2,
-  Settings2
+  Settings2,
 } from "lucide-react";
 import { CourseModal } from "@/components/admin/modals/course-modal";
 import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
@@ -210,7 +210,7 @@ export default function CoursesPage() {
     setDeleteModalOpen(true);
   };
 
-const handleSaveCourse = async (courseData: any) => {
+  const handleSaveCourse = async (courseData: any) => {
     setIsSaving(true); // Start loading
     try {
       let res;
@@ -222,12 +222,12 @@ const handleSaveCourse = async (courseData: any) => {
           },
           body: JSON.stringify(courseData),
         });
-        
+
         if (res.ok) {
-           toast({
+          toast({
             title: "Course Updated",
             description: `${courseData.name} has been updated successfully.`,
-           });
+          });
         }
       } else {
         res = await fetch("/api/admin/courses", {
@@ -237,12 +237,12 @@ const handleSaveCourse = async (courseData: any) => {
           },
           body: JSON.stringify(courseData),
         });
-        
+
         if (res.ok) {
-           toast({
+          toast({
             title: "Course Created",
             description: `${courseData.name} has been created successfully.`,
-           });
+          });
         }
       }
 
@@ -272,7 +272,7 @@ const handleSaveCourse = async (courseData: any) => {
     }
   };
 
-const confirmDelete = async () => {
+  const confirmDelete = async () => {
     if (!selectedCourse) return;
     setIsDeleting(true); // Start loading
     try {
@@ -343,7 +343,7 @@ const confirmDelete = async () => {
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="md:col-span-2">
             <CardContent className="pt-6">
-              <div className="relative">
+              <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search courses..."
@@ -382,110 +382,139 @@ const confirmDelete = async () => {
 
         <div className="grid gap-6 md:grid-cols-2">
           {courses.map((course) => (
-            <Card key={course.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl">{course.name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      <Badge variant="secondary">{course.subject}</Badge>
-                    </CardDescription>
+            <Card
+              key={course.id}
+              className="hover:shadow-lg transition-shadow flex flex-col h-full"
+            >
+              <CardHeader className="pb-3">
+                {/* Grid layout prevents the badge from being pushed off screen */}
+                <div className="grid grid-cols-[1fr_auto] gap-3 items-start">
+                  <div className="min-w-0 space-y-1">
+                    <CardTitle
+                      className="text-lg sm:text-xl truncate leading-tight"
+                      title={course.name}
+                    >
+                      {course.name}
+                    </CardTitle>
+                    <div className="flex items-center">
+                      <Badge
+                        variant="secondary"
+                        className="truncate max-w-full"
+                      >
+                        {course.subject}
+                      </Badge>
+                    </div>
                   </div>
                   <Badge
+                    className="shrink-0"
                     variant={
                       course.status === "active" ? "default" : "secondary"
-                    }>
+                    }
+                  >
                     {course.status}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Teacher Info */}
-                  <div className="flex items-center gap-3 pb-3 border-b border-border">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={`/.jpg?height=40&width=40&query=${course.teacher}`}
-                      />
-                      <AvatarFallback>
-                        {course.teacher
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {course.teacher}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {course.classroom}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Course Stats */}
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50">
-                      <Users className="h-4 w-4 text-muted-foreground mb-1" />
-                      <span className="font-semibold text-foreground">
-                        {course.students}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Students
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50">
-                      <BookOpen className="h-4 w-4 text-muted-foreground mb-1" />
-                      <span className="font-semibold text-foreground">
-                        {course.modules}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Modules
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50">
-                      <Clock className="h-4 w-4 text-muted-foreground mb-1" />
-                      <span className="font-semibold text-foreground">
-                        {course.progress}%
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Progress
-                      </span>
-                    </div>
+              <CardContent className="flex-1 flex flex-col gap-5">
+                {/* Teacher Info */}
+                <div className="flex items-center gap-3 pb-3 border-b border-border min-w-0">
+                  <Avatar className="h-10 w-10 shrink-0">
+                    <AvatarImage
+                      src={`/.jpg?height=40&width=40&query=${course.teacher}`}
+                    />
+                    <AvatarFallback>
+                      {course.teacher
+                        .split(" ")
+                        .map((n: string) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {course.teacher}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {course.classroom}
+                    </p>
                   </div>
+                </div>
 
-                  <div className="flex gap-2">
+                {/* Course Stats - Reduced gap on mobile to fit 3 cols */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 text-sm">
+                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-muted/50 text-center">
+                    <Users className="h-4 w-4 text-muted-foreground mb-1" />
+                    <span className="font-semibold text-foreground text-sm sm:text-base">
+                      {course.students}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      Students
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-muted/50 text-center">
+                    <BookOpen className="h-4 w-4 text-muted-foreground mb-1" />
+                    <span className="font-semibold text-foreground text-sm sm:text-base">
+                      {course.modules}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      Modules
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-muted/50 text-center">
+                    <Clock className="h-4 w-4 text-muted-foreground mb-1" />
+                    <span className="font-semibold text-foreground text-sm sm:text-base">
+                      {course.progress}%
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      Progress
+                    </span>
+                  </div>
+                </div>
+
+                {/* Buttons - The Smart Wrapping Logic */}
+                <div className="mt-auto pt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {/* VIEW: Grows to fill space */}
                     <Button
-                      className="flex-1 bg-transparent"
+                      className="flex-1 min-w-[70px] bg-transparent"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleViewCourse(course)}>
-                      <Eye className="mr-1 h-3 w-3" />
+                      onClick={() => handleViewCourse(course)}
+                    >
+                      <Eye className="mr-1 h-3.5 w-3.5" />
                       View
                     </Button>
+
+                    {/* EDIT: Square button */}
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEditCourse(course)}>
-                      <Edit className="h-3 w-3" />
+                      className="px-3"
+                      onClick={() => handleEditCourse(course)}
+                    >
+                      <Edit className="h-3.5 w-3.5" />
                     </Button>
+
+                    {/* DELETE: Square button */}
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteCourse(course)}>
-                      <Trash2 className="h-3 w-3 text-destructive" />
+                      className="px-3 hover:bg-red-50 hover:text-red-600 border-red-200"
+                      onClick={() => handleDeleteCourse(course)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
+
+                    {/* CRITERIA: Grows to fill space. On tiny screens, this wraps to a new line and becomes full width */}
                     <Button
-                      className="flex-1 bg-transparent"
+                      className="flex-1 min-w-[85px] bg-transparent"
                       variant="outline"
                       size="sm"
                       onClick={() => handleOpenCriteria(course)}
                     >
-                      <Settings2 className="mr-1 h-3 w-3" />
+                      <Settings2 className="mr-1 h-3.5 w-3.5" />
                       Criteria
                     </Button>
-
                   </div>
                 </div>
               </CardContent>
@@ -504,7 +533,7 @@ const confirmDelete = async () => {
         </div>
       </div>
 
-{/* Modals */}
+      {/* Modals */}
       <CourseModal
         open={courseModalOpen}
         onOpenChange={(open) => {
@@ -541,7 +570,6 @@ const confirmDelete = async () => {
         courseId={selectedCourse?.id ?? null}
         courseName={selectedCourse?.name}
       />
-
     </>
   );
 }

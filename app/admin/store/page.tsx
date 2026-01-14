@@ -455,353 +455,351 @@ export default function StorePage() {
     }
   }
 
-  return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Store
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-1">
-            Products (soon), Paid Orders → Shipments, Tracking Events
-          </p>
-        </div>
-
-        {/* quick actions */}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="bg-transparent"
-            onClick={() => router.push("/admin/store/checkout")}>
-            <Truck className="mr-2 h-4 w-4" />
-            Checkout
-          </Button>
-        </div>
+return (
+  <div className="space-y-6 px-1 sm:px-0">
+    {/* Header */}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+          Store
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage Orders, Shipments & Tracking
+        </p>
       </div>
 
-      {/* Tabs */}
-      <Tabs
-        className="space-y-2"
-        value={activeTab}
-        onValueChange={(v: any) => setActiveTab(v)}>
-        <TabsList className="grid grid-cols-3 w-full sm:w-[520px]">
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="orders">Paid Orders</TabsTrigger>
-          <TabsTrigger value="shipments">Shipments</TabsTrigger>
-        </TabsList>
+      {/* Quick Actions - Full width on mobile */}
+      <Button
+        variant="outline"
+        className="w-full sm:w-auto bg-transparent border-dashed"
+        onClick={() => router.push("/admin/store/checkout")}
+      >
+        <Truck className="mr-2 h-4 w-4" />
+        Go to Checkout
+      </Button>
+    </div>
 
-        {/* PRODUCTS (placeholder only) */}
-        <TabsContent value="products" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Products</CardTitle>
-              <CardDescription>
-                CRUD will be added here later (tab only for now).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search products..."
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+    {/* Tabs - Height auto allows wrapping on very small screens */}
+    <Tabs
+      className="space-y-4"
+      value={activeTab}
+      onValueChange={(v: any) => setActiveTab(v)}
+    >
+      <TabsList className="w-full h-auto flex flex-wrap p-1 sm:grid sm:grid-cols-3 sm:w-[520px]">
+        <TabsTrigger value="products" className="flex-1 w-full">Products</TabsTrigger>
+        <TabsTrigger value="orders" className="flex-1 w-full">Paid Orders</TabsTrigger>
+        <TabsTrigger value="shipments" className="flex-1 w-full">Shipments</TabsTrigger>
+      </TabsList>
+
+      {/* PRODUCTS TAB */}
+      <TabsContent value="products" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Products</CardTitle>
+            <CardDescription>
+              Inventory management (Coming Soon)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                className="pl-9 w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-sm bg-muted/20">
+              Products CRUD intentionally not implemented.
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* PAID ORDERS TAB */}
+      <TabsContent value="orders" className="space-y-4">
+        <Card>
+          <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle>Paid Orders</CardTitle>
+                <CardDescription>Ready for shipment</CardDescription>
               </div>
-
-              <div className="text-sm text-muted-foreground">
-                Products UI/CRUD intentionally not implemented now.
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadPaidOrders}
+                disabled={loadingOrders}
+                className="w-full sm:w-auto"
+              >
+                Refresh List
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
+            {loadingOrders ? (
+              <div className="text-center py-8 text-muted-foreground animate-pulse">Loading orders...</div>
+            ) : orders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                No paid orders found.
               </div>
+            ) : (
+              <div className="space-y-4">
+                {(Array.isArray(orders) ? orders : []).map((o) => {
+                  const alreadyHasShipment = Boolean(
+                    o?.hasShipment || (o?.shipmentsCount ?? 0) > 0
+                  );
 
-              {/* If you still want your product grid here, keep it,
-                  but remove local dummy state and replace with API later. */}
-              {filteredProducts.length === 0 && (
-                <div className="text-sm text-muted-foreground">
-                  No products loaded.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* PAID ORDERS */}
-        <TabsContent value="orders" className="space-y-4">
-          <Card>
-            <CardHeader className="px-2 sm:p-6">
-              <CardTitle>Paid Orders</CardTitle>
-              <CardDescription>
-                Create shipment + items for any paid order (staff-only).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="bg-transparent"
-                  onClick={loadPaidOrders}
-                  disabled={loadingOrders}>
-                  Refresh
-                </Button>
-              </div>
-
-              {loadingOrders ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
-              ) : orders.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  No paid orders found.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {(Array.isArray(orders) ? orders : []).map((o) => {
-                    const alreadyHasShipment = Boolean(
-                      o?.hasShipment || (o?.shipmentsCount ?? 0) > 0
-                    );
-
-                    return (
-                      <div
-                        key={o.id}
-                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="font-semibold">{o.orderNumber}</div>
-                            <Badge
-                              variant={getOrderStatusVariant(o.status)}
-                              className="capitalize">
-                              {o.status}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {o.customer} • {o.itemsCount} items • {o.date}
-                          </div>
-                          <div className="text-sm font-semibold">
-                            ₦{Number(o.total).toFixed(2)}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="bg-transparent"
-                            onClick={() => setViewingOrder(o)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Button>
-
-                          <Button
-                            onClick={() => {
-                              setSelectedOrder(o);
-                              setCreateShipmentOpen(true);
-                            }}
-                            disabled={alreadyHasShipment}
-                            className={
-                              alreadyHasShipment
-                                ? "opacity-50 blur-[0.6px] pointer-events-none select-none"
-                                : ""
-                            }
-                            title={
-                              alreadyHasShipment
-                                ? "Shipment already created for this order"
-                                : "Create Shipment"
-                            }>
-                            <PackagePlus className="mr-2 h-4 w-4" />
-                            {alreadyHasShipment
-                              ? "Shipment Created"
-                              : "Create Shipment"}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* SHIPMENTS */}
-        <TabsContent value="shipments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Shipments</CardTitle>
-              <CardDescription>
-                Set tracking, and add tracking events (staff-only).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="bg-transparent"
-                  onClick={loadShipments}
-                  disabled={loadingShipments}>
-                  Refresh
-                </Button>
-              </div>
-
-              {loadingShipments ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
-              ) : shipments.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  No shipments loaded yet.
-                  <br />
-                  If you don’t have a list endpoint, you can still manage
-                  shipments from “Paid Orders” right after creation.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {shipments.map((s) => (
+                  return (
                     <div
-                      key={s.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-semibold">
-                            Shipment #{String(s.id).slice(0, 8)}…
-                          </div>
-                          <Badge
-                            variant={getShipmentStatusVariant(s.status)}
-                            className="capitalize">
-                            {s.status.replaceAll("_", " ")}
-                          </Badge>
+                      key={o.id}
+                      className="flex flex-col gap-4 p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors"
+                    >
+                      {/* Top Row: Order ID & Status */}
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-base break-all">
+                            {o.orderNumber}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {o.date}
+                          </span>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Order: {String(s.order_id).slice(0, 8)}… • Carrier:{" "}
-                          {s.carrier_code}
+                        <Badge
+                          variant={getOrderStatusVariant(o.status)}
+                          className="capitalize shrink-0"
+                        >
+                          {o.status}
+                        </Badge>
+                      </div>
+
+                      {/* Middle: Details */}
+                      <div className="text-sm space-y-1 text-muted-foreground">
+                        <div className="font-medium text-foreground truncate">
+                          {o.customer}
                         </div>
-                        <div className="text-sm">
-                          Tracking:{" "}
-                          <span className="font-medium">
-                            {s.tracking_number || "—"}
+                        <div className="flex gap-2">
+                          <span>{o.itemsCount} items</span>
+                          <span>•</span>
+                          <span className="font-semibold text-foreground">
+                            ₦{Number(o.total).toFixed(2)}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      {/* Bottom: Actions (Grid on mobile for touch targets) */}
+                      <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 pt-2 border-t mt-1">
                         <Button
                           variant="outline"
-                          className="bg-transparent"
-                          onClick={() => {
-                            if (!s?.id || s.id === "undefined") {
-                              toast({
-                                title: "Shipment",
-                                description:
-                                  "Invalid shipment id. Check shipments payload mapping.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            setDetailsShipment(s);
-                            setDetailsOpen(true);
-                          }}>
-                          <Eye className="mr-2 h-4 w-4" />
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => setViewingOrder(o)}
+                        >
+                          <Eye className="mr-2 h-3.5 w-3.5" />
                           View
                         </Button>
 
                         <Button
-                          variant="outline"
-                          className="bg-transparent"
+                          size="sm"
+                          className={`w-full sm:w-auto ${alreadyHasShipment ? "opacity-50" : ""}`}
+                          disabled={alreadyHasShipment}
                           onClick={() => {
-                            setSelectedShipment(s);
-                            setTrackingOpen(true);
-                          }}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Set Tracking
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setSelectedShipment(s);
-                            setEventOpen(true);
-                          }}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Event
+                            setSelectedOrder(o);
+                            setCreateShipmentOpen(true);
+                          }}
+                        >
+                          <PackagePlus className="mr-2 h-3.5 w-3.5" />
+                          {alreadyHasShipment ? "Shipped" : "Ship"}
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* SHIPMENTS TAB */}
+      <TabsContent value="shipments" className="space-y-4">
+        <Card>
+          <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle>Shipments</CardTitle>
+                <CardDescription>Tracking & Management</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadShipments}
+                disabled={loadingShipments}
+                className="w-full sm:w-auto"
+              >
+                Refresh List
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+            {loadingShipments ? (
+              <div className="text-center py-8 text-muted-foreground animate-pulse">Loading shipments...</div>
+            ) : shipments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                No shipments found.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {shipments.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex flex-col gap-4 p-4 rounded-lg border border-border bg-card"
+                  >
+                    {/* Header: ID + Status */}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="text-sm font-semibold break-all text-foreground">
+                          #{String(s.id).slice(0, 8)}...
+                        </div>
+                        <Badge
+                          variant={getShipmentStatusVariant(s.status)}
+                          className="capitalize shrink-0"
+                        >
+                          {s.status.replaceAll("_", " ")}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
+                        <span>Order: {String(s.order_id).slice(0, 8)}...</span>
+                        <span className="hidden xs:inline">•</span>
+                        <span className="font-medium text-foreground">{s.carrier_code}</span>
+                      </div>
+                    </div>
+
+                    {/* Tracking Info */}
+                    <div className="bg-muted/30 p-2 rounded text-sm border flex flex-col gap-1">
+                      <span className="text-xs uppercase text-muted-foreground font-semibold">Tracking Number</span>
+                      <span className="font-mono break-all select-all">
+                        {s.tracking_number || "—"}
+                      </span>
+                    </div>
+
+                    {/* Actions: Stacked on mobile for easy access */}
+                    <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                        onClick={() => {
+                          setDetailsShipment(s);
+                          setDetailsOpen(true);
+                        }}
+                      >
+                        <Eye className="mr-2 h-3.5 w-3.5" />
+                        View
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                        onClick={() => {
+                          setSelectedShipment(s);
+                          setTrackingOpen(true);
+                        }}
+                      >
+                        <Plus className="mr-2 h-3.5 w-3.5" />
+                        Tracking
+                      </Button>
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                        onClick={() => {
+                          setSelectedShipment(s);
+                          setEventOpen(true);
+                        }}
+                      >
+                        <Truck className="mr-2 h-3.5 w-3.5" />
+                        Update
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Fallback Quick Action if needed */}
+        {selectedShipment && shipments.length === 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Selected Shipment</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" className="w-full" onClick={() => setTrackingOpen(true)}>
+                Set Tracking
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={() => setEventOpen(true)}>
+                Add Event
+              </Button>
             </CardContent>
           </Card>
+        )}
+      </TabsContent>
+    </Tabs>
 
-          {/* Quick manage after shipment create if shipments list is empty */}
-          {selectedShipment && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Selected Shipment</CardTitle>
-                <CardDescription>
-                  Manage the shipment you recently created.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  className="bg-transparent"
-                  onClick={() => setTrackingOpen(true)}>
-                  Set Tracking
-                </Button>
-                <Button variant="secondary" onClick={() => setEventOpen(true)}>
-                  Add Event
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+    {/* MODALS */}
+    <CreateShipmentModal
+      open={createShipmentOpen}
+      onOpenChange={(v) => {
+        setCreateShipmentOpen(v);
+        if (!v) setSelectedOrder(null);
+      }}
+      order={selectedOrder}
+      onSubmit={handleCreateShipment}
+      submitting={creatingShipment}
+    />
 
-      {/* MODALS */}
+    <SetTrackingModal
+      open={trackingOpen}
+      onOpenChange={setTrackingOpen}
+      shipment={selectedShipment}
+      onSubmit={handleSetTracking}
+      submitting={settingTracking}
+    />
 
-      <CreateShipmentModal
-        open={createShipmentOpen}
-        onOpenChange={(v) => {
-          setCreateShipmentOpen(v);
-          if (!v) setSelectedOrder(null);
-        }}
-        order={selectedOrder}
-        onSubmit={handleCreateShipment}
-        submitting={creatingShipment}
-      />
+    <AddTrackingEventModal
+      open={eventOpen}
+      onOpenChange={setEventOpen}
+      shipment={selectedShipment}
+      onSubmit={handleAddEvent}
+      submitting={addingEvent}
+    />
 
-      <SetTrackingModal
-        open={trackingOpen}
-        onOpenChange={setTrackingOpen}
-        shipment={selectedShipment}
-        onSubmit={handleSetTracking}
-        submitting={settingTracking}
-      />
+    <OrderDetailsModal
+      open={!!viewingOrder}
+      onOpenChange={(open) => !open && setViewingOrder(null)}
+      order={viewingOrder}
+    />
 
-      <AddTrackingEventModal
-        open={eventOpen}
-        onOpenChange={setEventOpen}
-        shipment={selectedShipment}
-        onSubmit={handleAddEvent}
-        submitting={addingEvent}
-      />
-
-      <OrderDetailsModal
-        open={!!viewingOrder}
-        onOpenChange={(open) => !open && setViewingOrder(null)}
-        order={viewingOrder}
-      />
-
-      <ShipmentDetailsModal
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        shipment={detailsShipment}
-        onClickSetTracking={() => {
-          if (!detailsShipment) return;
-          setSelectedShipment(detailsShipment);
-          setTrackingOpen(true);
-        }}
-        onClickAddEvent={() => {
-          if (!detailsShipment) return;
-          setSelectedShipment(detailsShipment);
-          setEventOpen(true);
-        }}
-      />
-    </div>
-  );
+    <ShipmentDetailsModal
+      open={detailsOpen}
+      onOpenChange={setDetailsOpen}
+      shipment={detailsShipment}
+      onClickSetTracking={() => {
+        if (!detailsShipment) return;
+        setSelectedShipment(detailsShipment);
+        setTrackingOpen(true);
+      }}
+      onClickAddEvent={() => {
+        if (!detailsShipment) return;
+        setSelectedShipment(detailsShipment);
+        setEventOpen(true);
+      }}
+    />
+  </div>
+);
 }

@@ -724,374 +724,305 @@ export default function VerifyUserPage() {
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Verify & Update User
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {verifiedUser ? (
-              <>
-                User found:{" "}
-                <span className="font-semibold text-[#EF7B55]">
-                  {verifiedUser.full_name}
-                </span>
-              </>
-            ) : (
-              "Enter an email to find and verify a user."
-            )}
-          </p>
-        </div>
-        {(email || verifiedUser) && (
-          <Button variant="outline" onClick={resetForm}>
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Start Over
-          </Button>
-        )}
+return (
+  <div className="space-y-6 px-1 sm:px-0"> {/* Reduced padding for tiny screens */}
+    {/* Header */}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Verify User
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1 break-words">
+          {verifiedUser ? (
+            <>
+              User found:{" "}
+              <span className="font-semibold text-[#EF7B55]">
+                {verifiedUser.full_name}
+              </span>
+            </>
+          ) : (
+            "Enter an email to verify a user."
+          )}
+        </p>
       </div>
+      {(email || verifiedUser) && (
+        <Button 
+          variant="outline" 
+          onClick={resetForm}
+          className="w-full sm:w-auto" // Full width on mobile
+        >
+          <RefreshCcw className="mr-2 h-4 w-4" />
+          Start Over
+        </Button>
+      )}
+    </div>
 
-      {/* Step 1: Email Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-[#EF7B55]" />
-            Step 1: Find User
-          </CardTitle>
-          <CardDescription>
-            Enter the user's email address to fetch their profile details.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleFetchUser} className="flex gap-4">
-            <div className="flex-1">
-              <Label htmlFor="email" className="sr-only">
-                Email
-              </Label>
-              <Input
-                id="email"
-                placeholder="user@example.com"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading || step !== "search"}
-                className="w-full"
-              />
-            </div>
-            <Button
-              type="submit"
+    {/* Step 1: Email Search */}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Search className="h-5 w-5 text-[#EF7B55] shrink-0" />
+          Step 1: Find User
+        </CardTitle>
+        <CardDescription>
+          Enter the user's email address to fetch details.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* FIX: Stack input and button on mobile */}
+        <form onSubmit={handleFetchUser} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="flex-1">
+            <Label htmlFor="email" className="sr-only">
+              Email
+            </Label>
+            <Input
+              id="email"
+              placeholder="user@example.com"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading || step !== "search"}
-              className="bg-[#EF7B55] hover:bg-[#d96a47]">
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Fetch User Details"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              className="w-full"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={isLoading || step !== "search"}
+            className="bg-[#EF7B55] hover:bg-[#d96a47] w-full sm:w-auto shrink-0"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Fetch Details"
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
 
-      {/* Step 2: User Verified - Show Profile Info & Update Form */}
-      {verifiedUser && (
-        <Card className="border-[#EF7B55]/30">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  User Verified
-                </CardTitle>
-                <CardDescription>
-                  User found! Update their profile details below.
-                </CardDescription>
-              </div>
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1 px-3 py-1">
-                {getProfileIcon(verifiedUser.profile_type)}
-                {getProfileLabel(verifiedUser.profile_type)}
-              </Badge>
+    {/* Step 2: User Verified - Show Profile Info & Update Form */}
+    {verifiedUser && (
+      <Card className="border-[#EF7B55]/30">
+        <CardHeader className="pb-4">
+          {/* FIX: Stack header items on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                User Verified
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Update profile details below.
+              </CardDescription>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* User Info Display */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+            <Badge
+              variant="outline"
+              className="flex items-center gap-1 px-3 py-1 w-fit"
+            >
+              {getProfileIcon(verifiedUser.profile_type)}
+              {getProfileLabel(verifiedUser.profile_type)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* User Info Display */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-muted-foreground">Email</p>
+              {/* break-all handles super long emails on tiny screens */}
+              <p className="font-medium text-sm sm:text-base break-all">{verifiedUser.email}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-muted-foreground">Full Name</p>
+              <p className="font-medium text-sm sm:text-base truncate">{verifiedUser.full_name}</p>
+            </div>
+            
+            <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-md bg-background gap-3">
               <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{verifiedUser.email}</p>
+                <p className="text-sm font-medium">Activate user</p>
+                <p className="text-xs text-muted-foreground">
+                  User has primary organization?
+                </p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Full Name</p>
-                <p className="font-medium">{verifiedUser.full_name}</p>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto bg-muted/50 px-3 py-1.5 rounded-md">
+                <Checkbox
+                  checked={activateUser}
+                  onCheckedChange={(checked) => {
+                    const next = Boolean(checked);
+                    setActivateUser(next);
+                  }}
+                  disabled={isLoading}
+                />
+                <span className="text-sm">
+                  {activateUser ? "Active" : "Inactive"}
+                </span>
               </div>
-              <div className="md:col-span-2 flex items-center justify-between p-3 border rounded-md bg-background">
-                <div>
-                  <p className="text-sm font-medium">Activate user</p>
-                  <p className="text-xs text-muted-foreground">
-                    Activation is based on whether the user has a primary organization.
+            </div>
+
+            {/* Family Details Display - Using Grid for alignment */}
+            {verifiedUser.profile_type === "student" &&
+              verifiedUser.student_profile?.parent_links &&
+              verifiedUser.student_profile.parent_links.length > 0 && (
+                <div className="md:col-span-2 mt-2 pt-2 border-t border-border/50">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Parents / Guardians
                   </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={activateUser}
-                    onCheckedChange={(checked) => {
-                      const next = Boolean(checked);
-                      setActivateUser(next);
-                    }}
-                    disabled={isLoading}
-                  />
-                  <span className="text-sm">
-                    {activateUser ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Family Details for Students */}
-              {verifiedUser.profile_type === "student" &&
-                verifiedUser.student_profile?.parent_links &&
-                verifiedUser.student_profile.parent_links.length > 0 && (
-                  <div className="md:col-span-2 mt-2 pt-2 border-t border-border/50">
-                    <p className="text-sm text-muted-foreground mb-1">
-                      Parents / Guardians
-                    </p>
-                    <div className="space-y-1">
-                      {verifiedUser.student_profile.parent_links.map(
-                        (link: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="text-sm flex items-center gap-2">
-                            <UserCircle className="h-3 w-3 text-muted-foreground" />
-                            <span className="font-medium">
+                  <div className="space-y-2">
+                    {verifiedUser.student_profile.parent_links.map(
+                      (link: any, idx: number) => (
+                        <div key={idx} className="text-sm grid grid-cols-[auto_1fr] gap-2 items-start">
+                          <UserCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-medium block truncate">
                               {link.parent_user?.full_name || "Unknown"}
                             </span>
-                            <span className="text-muted-foreground text-xs">
-                              ({link.relationship})
-                            </span>
-                            <span className="text-muted-foreground text-xs">
-                              - {link.parent_user?.email}
+                            <span className="text-muted-foreground text-xs block break-all">
+                              {link.parent_user?.email} ({link.relationship})
                             </span>
                           </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {/* Family Details for Parents */}
-              {verifiedUser.profile_type === "parent" &&
-                verifiedUser.parent_profile?.children_links &&
-                verifiedUser.parent_profile.children_links.length > 0 && (
-                  <div className="md:col-span-2 mt-2 pt-2 border-t border-border/50">
-                    <p className="text-sm text-muted-foreground mb-1">
-                      Children (Students)
-                    </p>
-                    <div className="space-y-1">
-                      {verifiedUser.parent_profile.children_links.map(
-                        (link: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="text-sm flex items-center gap-2">
-                            <GraduationCap className="h-3 w-3 text-muted-foreground" />
-                            <span className="font-medium">
-                              {link.student_user?.full_name || "Unknown"}
-                            </span>
-                            <span className="text-muted-foreground text-xs">
-                              - {link.student_user?.email}
-                            </span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-            </div>
-
-            {/* Step 2: Update Profile Form */}
-            <form onSubmit={handleUpdateClick} className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Edit className="h-4 w-4 text-[#EF7B55]" />
-                <h3 className="font-medium">
-                  Step 2: Update {getProfileLabel(verifiedUser.profile_type)}{" "}
-                  Profile
-                </h3>
-              </div>
-
-              {/* Student Fields */}
-              {verifiedUser.profile_type === "student" && (
-                <div className="space-y-4 p-4 border rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="admissionNo">Admission Number</Label>
-                      <Input
-                        id="admissionNo"
-                        placeholder="e.g., ADM-2024-001"
-                        value={admissionNo}
-                        onChange={(e) => setAdmissionNo(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dob">Date of Birth</Label>
-                      <Input
-                        id="dob"
-                        type="date"
-                        value={dob}
-                        onChange={(e) => setDob(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="classroom">Current Classroom</Label>
-                    <Select
-                      value={classroomId}
-                      onValueChange={setClassroomId}
-                      disabled={isLoading}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a classroom" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classrooms.map((classroom) => (
-                          <SelectItem
-                            key={classroom.id}
-                            value={classroom.id.toString()}>
-                            {classroom.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               )}
+          </div>
 
-              {/* Teacher Fields */}
-              {verifiedUser.profile_type === "teacher" && (
-                <div className="space-y-4 p-4 border rounded-lg">
+          {/* Step 2: Update Profile Form */}
+          <form onSubmit={handleUpdateClick} className="space-y-4">
+            <div className="flex items-center gap-2 mb-4 pt-2 border-t">
+              <div className="bg-[#EF7B55]/10 p-1.5 rounded-full">
+                <Edit className="h-4 w-4 text-[#EF7B55]" />
+              </div>
+              <h3 className="font-medium text-sm sm:text-base">
+                Update {getProfileLabel(verifiedUser.profile_type)} Profile
+              </h3>
+            </div>
+
+            {/* Student Fields */}
+            {verifiedUser.profile_type === "student" && (
+              <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      placeholder="e.g., Senior Mathematics Teacher"
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
+                    <Label htmlFor="admissionNo">Admission Number</Label>
+                    <Input
+                      id="admissionNo"
+                      placeholder="e.g., ADM-2024-001"
+                      value={admissionNo}
+                      onChange={(e) => setAdmissionNo(e.target.value)}
                       disabled={isLoading}
-                      rows={3}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="experience">Experience (Years)</Label>
-                      <Input
-                        id="experience"
-                        type="number"
-                        min="0"
-                        placeholder="e.g., 5"
-                        value={experience}
-                        onChange={(e) => setExperience(e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Languages</Label>
-                      <Select
-                        value=""
-                        onValueChange={(value) => {
-                          const id = parseInt(value);
-                          if (!selectedLanguages.includes(id)) {
-                            setSelectedLanguages([...selectedLanguages, id]);
-                          }
-                        }}
-                        disabled={isLoading}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select languages..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {languages.length === 0 ? (
-                            <SelectItem value="none" disabled>
-                              No languages found
-                            </SelectItem>
-                          ) : (
-                            languages
-                              .filter(
-                                (lang) => !selectedLanguages.includes(lang.id)
-                              )
-                              .map((lang) => (
-                                <SelectItem
-                                  key={lang.id}
-                                  value={lang.id.toString()}>
-                                  {lang.name}
-                                </SelectItem>
-                              ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {selectedLanguages.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {selectedLanguages.map((id) => {
-                            const lang = languages.find((l) => l.id === id);
-                            return lang ? (
-                              <Badge
-                                key={id}
-                                variant="secondary"
-                                className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
-                                onClick={() =>
-                                  setSelectedLanguages(
-                                    selectedLanguages.filter((l) => l !== id)
-                                  )
-                                }>
-                                {lang.name} ×
-                              </Badge>
-                            ) : null;
-                          })}
-                        </div>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dob">Date of Birth</Label>
+                    <Input
+                      id="dob"
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="classroom">Current Classroom</Label>
+                  <Select
+                    value={classroomId}
+                    onValueChange={setClassroomId}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a classroom" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classrooms.map((classroom) => (
+                        <SelectItem
+                          key={classroom.id}
+                          value={classroom.id.toString()}
+                        >
+                          {classroom.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Teacher Fields */}
+            {verifiedUser.profile_type === "teacher" && (
+              <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Brief bio..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    disabled={isLoading}
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="experience">Experience (Years)</Label>
+                    <Input
+                      id="experience"
+                      type="number"
+                      min="0"
+                      value={experience}
+                      onChange={(e) => setExperience(e.target.value)}
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Specialties/Subjects</Label>
+                    <Label>Languages</Label>
                     <Select
                       value=""
                       onValueChange={(value) => {
                         const id = parseInt(value);
-                        if (!selectedSubjects.includes(id)) {
-                          setSelectedSubjects([...selectedSubjects, id]);
+                        if (!selectedLanguages.includes(id)) {
+                          setSelectedLanguages([...selectedLanguages, id]);
                         }
                       }}
-                      disabled={isLoading}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select subjects..." />
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {subjects
-                          .filter((subj) => !selectedSubjects.includes(subj.id))
-                          .map((subject) => (
-                            <SelectItem
-                              key={subject.id}
-                              value={subject.id.toString()}>
-                              {subject.name}
-                            </SelectItem>
-                          ))}
+                        {languages.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            No languages found
+                          </SelectItem>
+                        ) : (
+                          languages
+                            .filter((lang) => !selectedLanguages.includes(lang.id))
+                            .map((lang) => (
+                              <SelectItem key={lang.id} value={lang.id.toString()}>
+                                {lang.name}
+                              </SelectItem>
+                            ))
+                        )}
                       </SelectContent>
                     </Select>
-                    {selectedSubjects.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {selectedSubjects.map((id) => {
-                          const subject = subjects.find((s) => s.id === id);
-                          return subject ? (
+                    {selectedLanguages.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedLanguages.map((id) => {
+                          const lang = languages.find((l) => l.id === id);
+                          return lang ? (
                             <Badge
                               key={id}
                               variant="secondary"
-                              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground pr-1"
                               onClick={() =>
-                                setSelectedSubjects(
-                                  selectedSubjects.filter((s) => s !== id)
+                                setSelectedLanguages(
+                                  selectedLanguages.filter((l) => l !== id)
                                 )
-                              }>
-                              {subject.name} ×
+                              }
+                            >
+                              {lang.name} <X className="h-3 w-3 ml-1" />
                             </Badge>
                           ) : null;
                         })}
@@ -1099,246 +1030,260 @@ export default function VerifyUserPage() {
                     )}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Parent Fields */}
-              {verifiedUser.profile_type === "parent" && (
-                <div className="space-y-6">
-                  <div className="space-y-4 p-4 border rounded-lg">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <UserCircle className="h-4 w-4" /> Parent Details
-                    </h4>
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Address</Label>
-                      <Textarea
-                        id="address"
-                        placeholder="e.g., 123 Main St"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        disabled={isLoading}
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Manage Children Section */}
-                  <div className="space-y-4 p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <GraduationCap className="h-4 w-4" /> Manage Children
-                      </h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowAddStudentSearch(!showAddStudentSearch);
-                        }}
-                        className="h-8 gap-1">
-                        {showAddStudentSearch ? (
-                          <X className="h-3 w-3" />
-                        ) : (
-                          <Plus className="h-3 w-3" />
-                        )}
-                        {showAddStudentSearch ? "Cancel" : "Add Child"}
-                      </Button>
-                    </div>
-
-                    {/* Add Student Search Area */}
-                    {showAddStudentSearch && (
-                      <div className="p-3 border rounded-md bg-muted/30 animate-in fade-in slide-in-from-top-2 mb-4">
-                        <Label className="mb-2 block">
-                          Search Student by Email
-                        </Label>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="student@example.com"
-                            value={studentSearchEmail}
-                            onChange={(e) =>
-                              setStudentSearchEmail(e.target.value)
-                            }
-                            disabled={isSearchingStudent}
-                            className="flex-1"
-                          />
-                          <Button
-                            onClick={handleSearchStudent}
-                            disabled={isSearchingStudent || !studentSearchEmail}
-                            variant="secondary"
-                            type="button">
-                            {isSearchingStudent ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Search className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-
-                        {/* Found Student Result */}
-                        {foundStudentToAdd && (
-                          <div className="mt-3 p-3 border rounded-md bg-background flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="bg-primary/10 p-2 rounded-full">
-                                <User className="h-4 w-4 text-primary" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {foundStudentToAdd.full_name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {foundStudentToAdd.email}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleAddClick(foundStudentToAdd);
-                              }}
-                              className="gap-1">
-                              <Plus className="h-3 w-3" /> Add
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* List Existing Children */}
-                    <div className="space-y-3">
-                      <Label>Linked Students</Label>
-
-                      {verifiedUser.parent_profile?.children_links?.map(
-                        (link: any) => (
-                          <div
-                            key={link.link_id}
-                            className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
-                            <div className="flex items-center gap-3">
-                              <div className="bg-background p-2 rounded-full">
-                                <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {link.student_user?.full_name || "Unknown"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {link.student_user?.email}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleRemoveClick(link.student_user);
-                              }}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )
-                      )}
-
-                      {!verifiedUser.parent_profile?.children_links?.length && (
-                        <p className="text-sm text-muted-foreground italic py-2">
-                          No children linked yet.
-                        </p>
-                      )}
-                    </div>
+            {/* Parent Fields */}
+            {verifiedUser.profile_type === "parent" && (
+              <div className="space-y-6">
+                <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
+                  <h4 className="font-medium flex items-center gap-2 text-sm">
+                    <UserCircle className="h-4 w-4" /> Parent Details
+                  </h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      placeholder="e.g., 123 Main St"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      disabled={isLoading}
+                      rows={2}
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* Submit Button */}
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetForm}
-                  disabled={isLoading}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-[#EF7B55] hover:bg-[#d96a47]">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Update Profile
-                    </>
+                {/* Manage Children Section */}
+                <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
+                  {/* FIX: Wrap this header on small screens */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="font-medium flex items-center gap-2 text-sm">
+                      <GraduationCap className="h-4 w-4" /> Manage Children
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowAddStudentSearch(!showAddStudentSearch);
+                      }}
+                      className="h-8 gap-1 ml-auto"
+                    >
+                      {showAddStudentSearch ? (
+                        <X className="h-3 w-3" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                      {showAddStudentSearch ? "Cancel" : "Add Child"}
+                    </Button>
+                  </div>
+
+                  {/* Add Student Search Area */}
+                  {showAddStudentSearch && (
+                    <div className="p-3 border rounded-md bg-muted/30 animate-in fade-in slide-in-from-top-2 mb-4">
+                      <Label className="mb-2 block text-xs uppercase tracking-wide text-muted-foreground">
+                        Search Student by Email
+                      </Label>
+                      {/* FIX: Stack input and search button */}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Input
+                          placeholder="student@example.com"
+                          value={studentSearchEmail}
+                          onChange={(e) => setStudentSearchEmail(e.target.value)}
+                          disabled={isSearchingStudent}
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={handleSearchStudent}
+                          disabled={isSearchingStudent || !studentSearchEmail}
+                          variant="secondary"
+                          type="button"
+                          className="sm:w-auto w-full"
+                        >
+                          {isSearchingStudent ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Found Student Result */}
+                      {foundStudentToAdd && (
+                        <div className="mt-3 p-3 border rounded-md bg-background grid grid-cols-[1fr_auto] gap-3 items-center">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="bg-primary/10 p-2 rounded-full shrink-0">
+                              <User className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {foundStudentToAdd.full_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground break-all">
+                                {foundStudentToAdd.email}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleAddClick(foundStudentToAdd);
+                            }}
+                            className="gap-1 shrink-0"
+                          >
+                            <Plus className="h-3 w-3" /> <span className="hidden xs:inline">Add</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </Button>
+
+                  {/* List Existing Children */}
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">Linked Students</Label>
+
+                    {verifiedUser.parent_profile?.children_links?.map(
+                      (link: any) => (
+                        <div
+                          key={link.link_id}
+                          // FIX: Grid layout to prevent overflow
+                          className="grid grid-cols-[1fr_auto] gap-3 items-center p-3 rounded-md border bg-muted/50"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="bg-background p-2 rounded-full shrink-0">
+                              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {link.student_user?.full_name || "Unknown"}
+                              </p>
+                              {/* break-all prevents long emails from expanding container */}
+                              <p className="text-xs text-muted-foreground break-all leading-tight">
+                                {link.student_user?.email}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleRemoveClick(link.student_user);
+                            }}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    )}
+
+                    {!verifiedUser.parent_profile?.children_links?.length && (
+                      <p className="text-sm text-muted-foreground italic py-2">
+                        No children linked yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+            )}
 
-      {/* Main Profile Update Confirmation */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Profile Update</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to update the profile details for{" "}
-              {verifiedUser?.email}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmUpdate}
-              className="bg-[#EF7B55] hover:bg-[#d96a47]">
-              Confirm Update
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            {/* Submit Button */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetForm}
+                disabled={isLoading}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-[#EF7B55] hover:bg-[#d96a47] w-full sm:w-auto"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Update Profile
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    )}
 
-      {/* Add/Remove Student Confirmation */}
-      <AlertDialog
-        open={actionConfirmation.isOpen}
-        onOpenChange={(open) =>
-          setActionConfirmation({ ...actionConfirmation, isOpen: open })
-        }>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {actionConfirmation.type === "add"
-                ? "Add Student"
-                : "Remove Student"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to{" "}
-              {actionConfirmation.type === "add" ? "add" : "remove"}
-              <span className="font-semibold">
-                {" "}
-                {actionConfirmation.student?.full_name}{" "}
-              </span>
-              {actionConfirmation.type === "add" ? "to" : "from"} this parent's
-              profile?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmAction}
-              className={
-                actionConfirmation.type === "remove"
-                  ? "bg-destructive hover:bg-destructive/90"
-                  : "bg-[#EF7B55] hover:bg-[#d96a47]"
-              }>
-              Confirm {actionConfirmation.type === "add" ? "Add" : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
+    {/* Confirmation Modals - No layout changes needed here typically */}
+    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialogContent className="w-[95vw] max-w-lg rounded-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm Profile Update</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to update the profile details for{" "}
+            <span className="break-all font-medium text-foreground">{verifiedUser?.email}</span>?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col gap-2 sm:gap-0">
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmUpdate}
+            className="bg-[#EF7B55] hover:bg-[#d96a47]"
+          >
+            Confirm Update
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog
+      open={actionConfirmation.isOpen}
+      onOpenChange={(open) =>
+        setActionConfirmation({ ...actionConfirmation, isOpen: open })
+      }
+    >
+      <AlertDialogContent className="w-[95vw] max-w-lg rounded-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {actionConfirmation.type === "add"
+              ? "Add Student"
+              : "Remove Student"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to{" "}
+            {actionConfirmation.type === "add" ? "add" : "remove"}
+            <span className="font-semibold block my-1">
+              {" "}
+              {actionConfirmation.student?.full_name}{" "}
+            </span>
+            {actionConfirmation.type === "add" ? "to" : "from"} this parent's
+            profile?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col gap-2 sm:gap-0">
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={confirmAction}
+            className={
+              actionConfirmation.type === "remove"
+                ? "bg-destructive hover:bg-destructive/90"
+                : "bg-[#EF7B55] hover:bg-[#d96a47]"
+            }
+          >
+            Confirm {actionConfirmation.type === "add" ? "Add" : "Remove"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>
+);
 }
