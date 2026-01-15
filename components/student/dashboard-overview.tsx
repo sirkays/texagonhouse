@@ -63,11 +63,14 @@ export function DashboardOverview() {
   );
 
   // Helper function to capitalize first letters of each word
-  const capitalizeName = (name) => {
+  const capitalizeName = (name: any) => {
     if (!name) return "User";
     return name
       .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map(
+        (word: any) =>
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      )
       .join(" ");
   };
 
@@ -172,8 +175,10 @@ export function DashboardOverview() {
         console.log(json)
         const currentDate = new Date();
         const sessions: LiveSession[] = (json.live_sessions || [])
-          .filter((session) => new Date(session.scheduled_at) > currentDate)
-          .map((session) => ({
+          .filter(
+            (session: any) => new Date(session.scheduled_at) > currentDate
+          )
+          .map((session: any) => ({
             id: session.id,
             title: session.title,
             scheduled_at: session.scheduled_at,
@@ -222,7 +227,7 @@ export function DashboardOverview() {
         }
         const json = await res.json();
         const currentDate = new Date();
-        const tests: Test[] = (json.tests || []).map((test) => ({
+        const tests: Test[] = (json.tests || []).map((test: any) => ({
           title: test.title,
           date: test.startsAt
             ? new Date(test.startsAt).toLocaleString()
@@ -326,7 +331,7 @@ export function DashboardOverview() {
     },
   ];
 
-  const handleTestClick = (testId) => {
+  const handleTestClick = (testId: string) => {
     if (testId) {
       router.push(`/student/cbt?testId=${testId}`);
     } else {
@@ -334,7 +339,7 @@ export function DashboardOverview() {
     }
   };
 
-  const handleSessionClick = (joinUrl) => {
+  const handleSessionClick = (joinUrl: string) => {
     if (joinUrl) {
       window.location.href = joinUrl;
     } else {
@@ -343,104 +348,415 @@ export function DashboardOverview() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">
+    // <div className="space-y-6">
+    //   <div>
+    //     <h1 className="text-3xl font-bold">
+    //       Welcome back, {capitalizeName(data?.user?.display_name)}!
+    //     </h1>
+    //     <p className="text-muted-foreground">Continue your learning journey</p>
+    //     {error && <p className="text-yellow-600 text-sm">{error}</p>}
+    //     {liveSessionsError && (
+    //       <p className="text-yellow-600 text-sm">{liveSessionsError}</p>
+    //     )}
+    //     {testsError && <p className="text-yellow-600 text-sm">{testsError}</p>}
+    //   </div>
+
+    //   {/* Stats Cards */}
+    //   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    //         <CardTitle className="text-sm font-medium">
+    //           Courses Enrolled
+    //         </CardTitle>
+    //         <BookOpen className="h-4 w-4 text-muted-foreground" />
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="text-2xl font-bold">
+    //           {data?.stats?.courses_enrolled ?? 0}
+    //         </div>
+    //         <p className="text-xs text-muted-foreground">
+    //           +{data?.stats?.courses_enrolled ?? 0} from last month
+    //         </p>
+    //       </CardContent>
+    //     </Card>
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    //         <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
+    //         <Clock className="h-4 w-4 text-muted-foreground" />
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="text-2xl font-bold">
+    //           {data?.stats?.badges_earned ?? 0}
+    //         </div>
+    //         <p className="text-xs text-muted-foreground">
+    //           +{data?.stats?.badges_earned ?? 0} this week
+    //         </p>
+    //       </CardContent>
+    //     </Card>
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    //         <CardTitle className="text-sm font-medium">Certificates</CardTitle>
+    //         <Trophy className="h-4 w-4 text-muted-foreground" />
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="text-2xl font-bold">
+    //           {data?.stats?.certificates ?? 0}
+    //         </div>
+    //         <p className="text-xs text-muted-foreground">
+    //           {data?.stats?.certificates ?? 0} in progress
+    //         </p>
+    //       </CardContent>
+    //     </Card>
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    //         <CardTitle className="text-sm font-medium">Streak</CardTitle>
+    //         <TrendingUp className="h-4 w-4 text-muted-foreground" />
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="text-2xl font-bold">
+    //           {data?.stats?.streak_days ?? 0} days
+    //         </div>
+    //         <p className="text-xs text-muted-foreground">Keep it up!</p>
+    //       </CardContent>
+    //     </Card>
+    //   </div>
+
+    //   {/* Gamification Overview Section */}
+    //   <div className="grid gap-6 md:grid-cols-3">
+    //     <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200">
+    //       <CardHeader>
+    //         <div className="flex items-center gap-2">
+    //           <Star className="h-5 w-5 text-yellow-600" />
+    //           <CardTitle className="text-yellow-800">Points & Level</CardTitle>
+    //         </div>
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="space-y-2">
+    //           <div className="text-2xl font-bold text-yellow-700">
+    //             {data?.gamification?.xp ?? 0} XP
+    //           </div>
+    //           <Badge className="bg-yellow-100 text-yellow-700">
+    //             {data?.gamification?.level_name ?? "N/A"}
+    //           </Badge>
+    //           <Progress
+    //             value={data?.gamification?.progress_to_next_pct ?? 0}
+    //             className="h-2"
+    //           />
+    //           <p className="text-sm text-yellow-600">
+    //             {data?.gamification?.xp_to_next ?? 0} XP to next level
+    //           </p>
+    //         </div>
+    //       </CardContent>
+    //     </Card>
+
+    //     <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+    //       <CardHeader>
+    //         <div className="flex items-center gap-2">
+    //           <Trophy className="h-5 w-5 text-blue-600" />
+    //           <CardTitle className="text-blue-800">Achievements</CardTitle>
+    //         </div>
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="space-y-2">
+    //           <div className="text-2xl font-bold text-blue-700">
+    //             {data?.gamification?.achievements?.unlocked ?? 0} /{" "}
+    //             {data?.gamification?.achievements?.total ?? 0}
+    //           </div>
+    //           <p className="text-sm text-blue-600">
+    //             Recent: {data?.gamification?.achievements?.recent ?? "None"}
+    //           </p>
+    //           <div className="flex gap-1">
+    //             {Array.from(
+    //               {length: data?.gamification?.achievements?.unlocked ?? 0},
+    //               (_, i) => (
+    //                 <Medal key={i} className="h-4 w-4 text-yellow-500" />
+    //               )
+    //             )}
+    //             {Array.from(
+    //               {
+    //                 length:
+    //                   (data?.gamification?.achievements?.total ?? 0) -
+    //                   (data?.gamification?.achievements?.unlocked ?? 0),
+    //               },
+    //               (_, i) => (
+    //                 <Medal
+    //                   key={
+    //                     i + (data?.gamification?.achievements?.unlocked ?? 0)
+    //                   }
+    //                   className="h-4 w-4 text-gray-300"
+    //                 />
+    //               )
+    //             )}
+    //           </div>
+    //         </div>
+    //       </CardContent>
+    //     </Card>
+
+    //     <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+    //       <CardHeader>
+    //         <div className="flex items-center gap-2">
+    //           <TrendingUp className="h-5 w-5 text-green-600" />
+    //           <CardTitle className="text-green-800">Leaderboard</CardTitle>
+    //         </div>
+    //       </CardHeader>
+    //       <CardContent>
+    //         <div className="space-y-2">
+    //           <div className="text-2xl font-bold text-green-700">
+    //             #{data?.gamification?.leaderboard?.org_rank ?? "N/A"}
+    //           </div>
+    //           <p className="text-sm text-green-600">in your school</p>
+    //           <div className="flex items-center gap-1 text-sm text-green-600">
+    //             <Zap className="h-3 w-3" />
+    //             <span>
+    //               Global rank: #
+    //               {data?.gamification?.leaderboard?.global_rank ?? "N/A"}
+    //             </span>
+    //           </div>
+    //         </div>
+    //       </CardContent>
+    //     </Card>
+    //   </div>
+
+    //   <div className="grid gap-6 md:grid-cols-2">
+    //     {/* Continue Learning */}
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader>
+    //         <CardTitle>Continue Learning</CardTitle>
+    //         <CardDescription>Pick up where you left off</CardDescription>
+    //       </CardHeader>
+    //       <CardContent className="space-y-4">
+    //         {recentCourses.map((course, index) => (
+    //           <div key={index} className="space-y-2">
+    //             <div className="flex items-center justify-between">
+    //               <h4 className="font-medium">{course.title}</h4>
+    //               <Badge
+    //                 className="bg-blue-100 text-blue-800"
+    //                 variant="secondary">
+    //                 {course.duration}
+    //               </Badge>
+    //             </div>
+    //             <Progress value={course.progress} className="h-2" />
+    //             <div className="flex items-center justify-between text-sm text-muted-foreground">
+    //               <span>{course.progress}% complete</span>
+    //               <Button
+    //                 className="bg-transparent shadow-md"
+    //                 variant="ghost"
+    //                 size="sm">
+    //                 <Play className="mr-2 h-3 w-3" />
+    //                 Continue
+    //               </Button>
+    //             </div>
+    //             <p className="text-sm text-muted-foreground">
+    //               Next: {course.nextLesson}
+    //             </p>
+    //           </div>
+    //         ))}
+    //       </CardContent>
+    //     </Card>
+
+    //     {/* Upcoming Tests */}
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader>
+    //         <CardTitle>Upcoming Tests</CardTitle>
+    //         <CardDescription>
+    //           Don't miss your scheduled assessments
+    //         </CardDescription>
+    //       </CardHeader>
+    //       <CardContent className="space-y-4">
+    //         {tests.length > 0 ? (
+    //           tests.map((test, index) => (
+    //             <div
+    //               key={index}
+    //               className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+    //               onClick={() => handleTestClick(test.testId)}>
+    //               <div className="space-y-1">
+    //                 <h4 className="font-medium">{test.title}</h4>
+    //                 <div className="flex items-center text-sm text-muted-foreground">
+    //                   <Calendar className="mr-1 h-3 w-3" />
+    //                   {test.date}
+    //                 </div>
+    //                 <div className="flex items-center text-sm text-muted-foreground">
+    //                   <Clock className="mr-1 h-3 w-3" />
+    //                   {test.duration}
+    //                 </div>
+    //               </div>
+    //               <Button
+    //                 className="bg-transparent  shadow-md"
+    //                 size="sm"
+    //                 variant={"ghost"}
+    //                 onClick={(e) => {
+    //                   e.stopPropagation();
+    //                   handleTestClick(test.testId);
+    //                 }}>
+    //                 <TestTube className="mr-2 h-3 w-3" />
+    //                 Start
+    //               </Button>
+    //             </div>
+    //           ))
+    //         ) : (
+    //           <div className="text-sm text-muted-foreground">
+    //             No upcoming tests
+    //           </div>
+    //         )}
+    //       </CardContent>
+    //     </Card>
+
+    //     {/* Upcoming Live Sessions */}
+    //     <Card className="bg-transparent border-none shadow-md">
+    //       <CardHeader>
+    //         <CardTitle>Upcoming Live Sessions</CardTitle>
+    //         <CardDescription>Join your scheduled live sessions</CardDescription>
+    //       </CardHeader>
+    //       <CardContent className="space-y-4">
+    //         {liveSessions.length > 0 ? (
+    //           liveSessions.map((session, index) => (
+    //             <div
+    //               key={index}
+    //               className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+    //               onClick={() => handleSessionClick(session.join_url)}>
+    //               <div className="space-y-1">
+    //                 <h4 className="font-medium">{session.title}</h4>
+    //                 <div className="flex items-center text-sm text-muted-foreground">
+    //                   <Calendar className="mr-1 h-3 w-3" />
+    //                   {new Date(session.scheduled_at).toLocaleString()}
+    //                 </div>
+    //               </div>
+    //               <Button
+    //                 className="bg-transparent shadow-md"
+    //                 size="sm"
+    //                 variant={"ghost"}
+    //                 onClick={(e) => {
+    //                   e.stopPropagation();
+    //                   handleSessionClick(session.join_url);
+    //                 }}>
+    //                 <Video className="mr-2 h-3 w-3" />
+    //                 Join
+    //               </Button>
+    //             </div>
+    //           ))
+    //         ) : (
+    //           <div className="text-sm text-muted-foreground">
+    //             No upcoming live sessions
+    //           </div>
+    //         )}
+    //       </CardContent>
+    //     </Card>
+    //   </div>
+    // </div>
+
+    <div className="space-y-6 px-3 sm:px-4 md:px-6">
+      {/* Header */}
+      <div className="space-y-2">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">
           Welcome back, {capitalizeName(data?.user?.display_name)}!
         </h1>
-        <p className="text-muted-foreground">Continue your learning journey</p>
-        {error && <p className="text-yellow-600 text-sm">{error}</p>}
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Continue your learning journey
+        </p>
+
+        {error && <p className="text-yellow-600 text-xs">{error}</p>}
         {liveSessionsError && (
-          <p className="text-yellow-600 text-sm">{liveSessionsError}</p>
+          <p className="text-yellow-600 text-xs">{liveSessionsError}</p>
         )}
-        {testsError && <p className="text-yellow-600 text-sm">{testsError}</p>}
+        {testsError && <p className="text-yellow-600 text-xs">{testsError}</p>}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-transparent border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs sm:text-sm font-medium">
               Courses Enrolled
             </CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl sm:text-2xl font-bold">
               {data?.stats?.courses_enrolled ?? 0}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
               +{data?.stats?.courses_enrolled ?? 0} from last month
             </p>
           </CardContent>
         </Card>
+
         <Card className="bg-transparent border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Badges Earned
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl sm:text-2xl font-bold">
               {data?.stats?.badges_earned ?? 0}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
               +{data?.stats?.badges_earned ?? 0} this week
             </p>
           </CardContent>
         </Card>
+
         <Card className="bg-transparent border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Certificates</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Certificates
+            </CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl sm:text-2xl font-bold">
               {data?.stats?.certificates ?? 0}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
               {data?.stats?.certificates ?? 0} in progress
             </p>
           </CardContent>
         </Card>
+
         <Card className="bg-transparent border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Streak</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Streak
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl sm:text-2xl font-bold">
               {data?.stats?.streak_days ?? 0} days
             </div>
-            <p className="text-xs text-muted-foreground">Keep it up!</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
+              Keep it up!
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gamification Overview Section */}
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* Gamification Overview */}
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
         <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-yellow-600" />
-              <CardTitle className="text-yellow-800">Points & Level</CardTitle>
+              <CardTitle className="text-sm sm:text-base text-yellow-800">
+                Points & Level
+              </CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-yellow-700">
-                {data?.gamification?.xp ?? 0} XP
-              </div>
-              <Badge className="bg-yellow-100 text-yellow-700">
-                {data?.gamification?.level_name ?? "N/A"}
-              </Badge>
-              <Progress
-                value={data?.gamification?.progress_to_next_pct ?? 0}
-                className="h-2"
-              />
-              <p className="text-sm text-yellow-600">
-                {data?.gamification?.xp_to_next ?? 0} XP to next level
-              </p>
+          <CardContent className="space-y-2">
+            <div className="text-xl sm:text-2xl font-bold text-yellow-700">
+              {data?.gamification?.xp ?? 0} XP
             </div>
+            <Badge className="bg-yellow-100 text-yellow-700 w-fit">
+              {data?.gamification?.level_name ?? "N/A"}
+            </Badge>
+            <Progress
+              value={data?.gamification?.progress_to_next_pct ?? 0}
+              className="h-2"
+            />
+            <p className="text-xs sm:text-sm text-yellow-600">
+              {data?.gamification?.xp_to_next ?? 0} XP to next level
+            </p>
           </CardContent>
         </Card>
 
@@ -448,41 +764,39 @@ export function DashboardOverview() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-blue-800">Achievements</CardTitle>
+              <CardTitle className="text-sm sm:text-base text-blue-800">
+                Achievements
+              </CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-blue-700">
-                {data?.gamification?.achievements?.unlocked ?? 0} /{" "}
-                {data?.gamification?.achievements?.total ?? 0}
-              </div>
-              <p className="text-sm text-blue-600">
-                Recent: {data?.gamification?.achievements?.recent ?? "None"}
-              </p>
-              <div className="flex gap-1">
-                {Array.from(
-                  {length: data?.gamification?.achievements?.unlocked ?? 0},
-                  (_, i) => (
-                    <Medal key={i} className="h-4 w-4 text-yellow-500" />
-                  )
-                )}
-                {Array.from(
-                  {
-                    length:
-                      (data?.gamification?.achievements?.total ?? 0) -
-                      (data?.gamification?.achievements?.unlocked ?? 0),
-                  },
-                  (_, i) => (
-                    <Medal
-                      key={
-                        i + (data?.gamification?.achievements?.unlocked ?? 0)
-                      }
-                      className="h-4 w-4 text-gray-300"
-                    />
-                  )
-                )}
-              </div>
+          <CardContent className="space-y-2">
+            <div className="text-xl sm:text-2xl font-bold text-blue-700">
+              {data?.gamification?.achievements?.unlocked ?? 0} /{" "}
+              {data?.gamification?.achievements?.total ?? 0}
+            </div>
+            <p className="text-xs sm:text-sm text-blue-600">
+              Recent: {data?.gamification?.achievements?.recent ?? "None"}
+            </p>
+            <div className="flex gap-1 flex-wrap">
+              {Array.from(
+                {length: data?.gamification?.achievements?.unlocked ?? 0},
+                (_, i) => (
+                  <Medal key={i} className="h-4 w-4 text-yellow-500" />
+                )
+              )}
+              {Array.from(
+                {
+                  length:
+                    (data?.gamification?.achievements?.total ?? 0) -
+                    (data?.gamification?.achievements?.unlocked ?? 0),
+                },
+                (_, i) => (
+                  <Medal
+                    key={i + (data?.gamification?.achievements?.unlocked ?? 0)}
+                    className="h-4 w-4 text-gray-300"
+                  />
+                )
+              )}
             </div>
           </CardContent>
         </Card>
@@ -491,47 +805,49 @@ export function DashboardOverview() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-600" />
-              <CardTitle className="text-green-800">Leaderboard</CardTitle>
+              <CardTitle className="text-sm sm:text-base text-green-800">
+                Leaderboard
+              </CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-green-700">
-                #{data?.gamification?.leaderboard?.org_rank ?? "N/A"}
-              </div>
-              <p className="text-sm text-green-600">in your school</p>
-              <div className="flex items-center gap-1 text-sm text-green-600">
-                <Zap className="h-3 w-3" />
-                <span>
-                  Global rank: #
-                  {data?.gamification?.leaderboard?.global_rank ?? "N/A"}
-                </span>
-              </div>
+          <CardContent className="space-y-2">
+            <div className="text-xl sm:text-2xl font-bold text-green-700">
+              #{data?.gamification?.leaderboard?.org_rank ?? "N/A"}
+            </div>
+            <div className="flex items-center gap-1 text-xs sm:text-sm text-green-600">
+              <Zap className="h-3 w-3" />
+              <span>
+                Global rank #
+                {data?.gamification?.leaderboard?.global_rank ?? "N/A"}
+              </span>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Learning / Tests / Live Sessions */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Continue Learning */}
         <Card className="bg-transparent border-none shadow-md">
           <CardHeader>
-            <CardTitle>Continue Learning</CardTitle>
+            <CardTitle className="text-base sm:text-lg">
+              Continue Learning
+            </CardTitle>
             <CardDescription>Pick up where you left off</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentCourses.map((course, index) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">{course.title}</h4>
-                  <Badge
-                    className="bg-blue-100 text-blue-800"
-                    variant="secondary">
+                  <h4 className="font-medium text-sm sm:text-base">
+                    {course.title}
+                  </h4>
+                  <Badge className="bg-blue-100 text-blue-800">
                     {course.duration}
                   </Badge>
                 </div>
                 <Progress value={course.progress} className="h-2" />
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                   <span>{course.progress}% complete</span>
                   <Button
                     className="bg-transparent shadow-md"
@@ -541,7 +857,7 @@ export function DashboardOverview() {
                     Continue
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Next: {course.nextLesson}
                 </p>
               </div>
@@ -552,7 +868,9 @@ export function DashboardOverview() {
         {/* Upcoming Tests */}
         <Card className="bg-transparent border-none shadow-md">
           <CardHeader>
-            <CardTitle>Upcoming Tests</CardTitle>
+            <CardTitle className="text-base sm:text-lg">
+              Upcoming Tests
+            </CardTitle>
             <CardDescription>
               Don't miss your scheduled assessments
             </CardDescription>
@@ -562,23 +880,25 @@ export function DashboardOverview() {
               tests.map((test, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
                   onClick={() => handleTestClick(test.testId)}>
                   <div className="space-y-1">
-                    <h4 className="font-medium">{test.title}</h4>
-                    <div className="flex items-center text-sm text-muted-foreground">
+                    <h4 className="font-medium text-sm sm:text-base">
+                      {test.title}
+                    </h4>
+                    <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
                       <Calendar className="mr-1 h-3 w-3" />
                       {test.date}
                     </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
+                    <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
                       <Clock className="mr-1 h-3 w-3" />
                       {test.duration}
                     </div>
                   </div>
                   <Button
-                    className="bg-transparent  shadow-md"
+                    className="bg-transparent shadow-md"
                     size="sm"
-                    variant={"ghost"}
+                    variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleTestClick(test.testId);
@@ -589,7 +909,7 @@ export function DashboardOverview() {
                 </div>
               ))
             ) : (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 No upcoming tests
               </div>
             )}
@@ -599,7 +919,9 @@ export function DashboardOverview() {
         {/* Upcoming Live Sessions */}
         <Card className="bg-transparent border-none shadow-md">
           <CardHeader>
-            <CardTitle>Upcoming Live Sessions</CardTitle>
+            <CardTitle className="text-base sm:text-lg">
+              Upcoming Live Sessions
+            </CardTitle>
             <CardDescription>Join your scheduled live sessions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -607,11 +929,13 @@ export function DashboardOverview() {
               liveSessions.map((session, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
                   onClick={() => handleSessionClick(session.join_url)}>
                   <div className="space-y-1">
-                    <h4 className="font-medium">{session.title}</h4>
-                    <div className="flex items-center text-sm text-muted-foreground">
+                    <h4 className="font-medium text-sm sm:text-base">
+                      {session.title}
+                    </h4>
+                    <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
                       <Calendar className="mr-1 h-3 w-3" />
                       {new Date(session.scheduled_at).toLocaleString()}
                     </div>
@@ -619,7 +943,7 @@ export function DashboardOverview() {
                   <Button
                     className="bg-transparent shadow-md"
                     size="sm"
-                    variant={"ghost"}
+                    variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSessionClick(session.join_url);
@@ -630,7 +954,7 @@ export function DashboardOverview() {
                 </div>
               ))
             ) : (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 No upcoming live sessions
               </div>
             )}

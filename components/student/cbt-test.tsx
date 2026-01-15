@@ -1315,7 +1315,9 @@ export function CBTTest() {
               Syncing...
             </div>
           )}
-          <Badge variant={isOnline ? "default" : "destructive"}>
+          <Badge
+            className="bg-[#EF7B55] hover:bg-[#EF7B55]/80 text-white"
+            variant={isOnline ? "default" : "destructive"}>
             {isOnline ? "Online" : "Offline"}
           </Badge>
         </div>
@@ -1331,12 +1333,12 @@ export function CBTTest() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="available"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Available Tests
           </TabsTrigger>
           <TabsTrigger
             value="past"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Past Attempts
           </TabsTrigger>
         </TabsList>
@@ -1351,7 +1353,7 @@ export function CBTTest() {
               </div>
             </div>
           ) : !hasTests ? (
-            <Card className="max-w-2xl mx-auto">
+            <Card className="max-w-2xl mx-auto border-[#EF7B55]/50">
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4">
                   <AlertTriangle className="h-12 w-12 text-amber-500" />
@@ -1566,7 +1568,9 @@ export function CBTTest() {
                     ? new Date(a.started_at).toLocaleDateString()
                     : "";
                 return (
-                  <Card key={a.id} className="flex flex-col h-full">
+                  <Card
+                    key={a.id}
+                    className="flex flex-col h-full border-[#EF7B55]/30">
                     <CardHeader>
                       <CardTitle className="text-lg">
                         {a.test?.title || `Test #${a.test_id}`}

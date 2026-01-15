@@ -451,7 +451,7 @@ export function MyMaterials() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={handleLogout} className="flex items-center gap-2">
+            <Button onClick={handleLogout} className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors">
               <LogIn className="h-4 w-4" />
               Log In Again
             </Button>
@@ -474,7 +474,7 @@ export function MyMaterials() {
           <CardContent className="flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2">
+              className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors">
               <LogIn className="h-4 w-4" />
               Retry
             </Button>
@@ -595,15 +595,15 @@ export function MyMaterials() {
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="saved"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Saved Items
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             My Notes
           </TabsTrigger>
         </TabsList>
@@ -657,71 +657,74 @@ export function MyMaterials() {
                   {currentVideos.map((video) => (
                     <Card
                       key={video.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                      <CardHeader className="p-0">
-                        <div className="relative">
-                          <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                            {video.thumbnail &&
-                            video.thumbnail !== defaultThumbnail ? (
-                              <img
-                                src={
-                                  video.thumbnail.startsWith("http")
-                                    ? video.thumbnail
-                                    : `https://texagonbackend.onrender.com${video.thumbnail}`
-                                }
-                                alt={video.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  console.warn(
-                                    "[MyMaterials] Image load error for:",
-                                    video.thumbnail,
-                                    "using default thumbnail"
-                                  );
-                                  e.currentTarget.src = defaultThumbnail;
-                                }}
-                              />
-                            ) : (
+                      className="hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md">
+                      {/* <div className="relative"> */}
+                      <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
+                        {video.thumbnail &&
+                        video.thumbnail !== defaultThumbnail ? (
+                          <>
+                            <img
+                              src={
+                                video.thumbnail.startsWith("http")
+                                  ? video.thumbnail
+                                  : `https://texagonbackend.onrender.com${video.thumbnail}`
+                              }
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.parentElement
+                                  ?.querySelector(".fallback-icon")
+                                  ?.classList.remove("hidden");
+                              }}
+                            />
+                            <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
                               <Video className="h-8 w-8 text-muted-foreground" />
-                            )}
-                          </div>
-
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-md rounded-bl-none rounded-br-none">
-                            <Button
-                              size="sm"
-                              className="rounded-full bg-transparent h-10 w-10 text-white hover:bg-[#f7977192] hover:text-white"
-                              onClick={() => handleWatchVideo(video)}>
-                              <Play className="h-4 w-4" />
-                            </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <Video className="h-8 w-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      {/* Video Info - reduced padding & spacing */}
+                      <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
+                        {" "}
+                        {/* ← reduced from p-4 sm:p-3 */}
+                        <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
+                          {" "}
+                          {/* tighter */}
+                          <div className="space-y-0.5">
+                            {" "}
+                            {/* ← was space-y-1 */}
+                            <CardTitle className="text-base font-semibold line-clamp-2">
+                              {" "}
+                              {/* ← text-lg → text-base */}
+                              {video.title}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              {" "}
+                              {/* ← text-sm → text-xs */}
+                              by {video.instructor || "Unknown"}
+                            </CardDescription>
                           </div>
                         </div>
-
-                        <div className="space-y-1 px-4">
-                          <CardTitle className="text-lg">
-                            {video.title}
-                          </CardTitle>
-                          <CardDescription>
-                            by {video.instructor}
-                          </CardDescription>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="flex flex-col flex-1 px-4">
-                        <div className="mt-auto pt-4 flex gap-2">
+                        <div className="flex gap-3">
                           <Button
                             size="sm"
-                            className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                            variant="outline"
+                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors" // ← added text-xs + tighter padding
                             onClick={() => handleWatchVideo(video)}>
-                            <Play className="mr-2 h-3 w-3" />
-                            Continue Watching
+                            <Play className="h-3.5 w-3.5 flex-shrink-0" />{" "}
+                            {/* smaller icon */}
+                            Watch Now
                           </Button>
-
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() =>
                               handleDeleteSavedItem("videos", video)
                             }
-                            className="flex-1 h-10 shadow-md"
+                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors" // ← added text-xs + tighter padding
                             disabled={deletingIds.has(`videos-${video.id}`)}>
                             {deletingIds.has(`videos-${video.id}`) ? (
                               "Deleting..."
@@ -804,35 +807,43 @@ export function MyMaterials() {
                   {currentPdfs.map((pdf) => (
                     <Card
                       key={pdf.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                      <CardHeader>
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{pdf.title}</CardTitle>
-                          <CardDescription>by {pdf.author}</CardDescription>
+                      className="hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md">
+                      {/* PDF Placeholder — same dimensions as video thumbnail */}
+                      <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
+                        <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
+                          <div className="space-y-0.5">
+                            <CardTitle className="text-base font-semibold line-clamp-2">
+                              {pdf.title}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              by {pdf.author || "Unknown"}
+                            </CardDescription>
+                          </div>
                         </div>
-                      </CardHeader>
-
-                      <CardContent className="flex flex-col flex-1">
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             {pdf.pages ?? "—"} pages • {pdf.size ?? "—"}
                           </div>
                         </div>
-
-                        <div className="mt-auto pt-4 flex gap-2">
+                        {/* No duration/views for PDFs — so we leave this area empty or can add file size/pages later if available */}
+                        <div className="mt-2 h-5" />{" "}
+                        {/* spacer to keep vertical rhythm consistent */}
+                        <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
                           <Button
                             size="sm"
-                            className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                            variant="outline"
+                            className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
                             onClick={() => handlePreviewPdf(pdf)}>
-                            <Download className="mr-2 h-3 w-3" />
                             Preview
                           </Button>
-
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleDeleteSavedItem("pdfs", pdf)}
-                            className="flex-1 h-10 shadow-md"
+                            className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
                             disabled={deletingIds.has(`pdfs-${pdf.id}`)}>
                             {deletingIds.has(`pdfs-${pdf.id}`) ? (
                               "Deleting..."
@@ -914,24 +925,32 @@ export function MyMaterials() {
                   {currentAudio.map((audio) => (
                     <Card
                       key={audio.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
-                      <CardHeader>
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">
-                            {audio.title}
-                          </CardTitle>
-                          <CardDescription>by {audio.speaker}</CardDescription>
-                        </div>
-                      </CardHeader>
+                      className="hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md">
+                      {/* Audio Placeholder / Icon Area — same size as video thumbnail */}
+                      <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
+                        <Headphones className="h-8 w-8 text-muted-foreground" />
+                      </div>
 
-                      <CardContent className="flex flex-col flex-1">
-                        <div className="mt-auto pt-4 flex gap-2">
+                      <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
+                        <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
+                          <div className="space-y-0.5">
+                            <CardTitle className="text-base font-semibold line-clamp-2">
+                              {audio.title}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground">
+                              by {audio.speaker || "Unknown"}
+                            </CardDescription>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-4 flex items-center justify-center gap-2">
                           <Button
                             size="sm"
-                            className="flex-1 h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                            variant="outline"
+                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
                             onClick={() => handlePlayAudio(audio)}>
                             <Play className="mr-2 h-3 w-3" />
-                            Continue Listening
+                            Play
                           </Button>
 
                           <Button
@@ -940,7 +959,7 @@ export function MyMaterials() {
                             onClick={() =>
                               handleDeleteSavedItem("audio", audio)
                             }
-                            className="flex-1 h-10 shadow-md"
+                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
                             disabled={deletingIds.has(`audio-${audio.id}`)}>
                             {deletingIds.has(`audio-${audio.id}`) ? (
                               "Deleting..."
@@ -1012,14 +1031,15 @@ export function MyMaterials() {
                         </CardDescription>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-3">
                       <div className="text-xs text-muted-foreground">
                         Updated {new Date(note.updated_at).toLocaleDateString()}
                       </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          className="flex-1 w-full h-10 bg-[#f79771] text-white hover:bg-gray-300 shadow-md"
+                          variant="outline"
+                          className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
                           onClick={() =>
                             router.push(`/student/notes/${note.id}`)
                           }>
@@ -1030,7 +1050,7 @@ export function MyMaterials() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteNote(note.id)}
-                          className="flex-1 w-full h-10 shadow-md"
+                          className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
                           disabled={deletingIds.has(`note-${note.id}`)}>
                           {deletingIds.has(`note-${note.id}`)
                             ? "Deleting..."

@@ -1714,7 +1714,7 @@ export function CodeEditor() {
                   disabled={uploading}
                 />
                 <Tabs defaultValue="saved" className="flex-1">
-                  <TabsList className="grid grid-cols-2 gap-2 mb-3">
+                  <TabsList className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                     <TabsTrigger value="saved">Saved Snippets</TabsTrigger>
                     <TabsTrigger value="uploads">Other Uploads</TabsTrigger>
                   </TabsList>

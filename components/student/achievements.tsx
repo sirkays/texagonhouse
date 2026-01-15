@@ -296,252 +296,314 @@ export function Achievements() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Points</CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {achievementsData.stats.total_points.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">Keep learning!</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Achievements</CardTitle>
-            <Trophy className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {achievementsData.stats.achievements_unlocked}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              of {achievementsData.stats.achievements_total} unlocked
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Badges</CardTitle>
-            <Medal className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {achievementsData.stats.badges_earned}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              of {achievementsData.stats.badges_total} earned
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Current Streak
+              Total Learning Points
             </CardTitle>
-            <Zap className="h-4 w-4 text-orange-500" />
+            <Star className="h-5 w-5 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-2xl font-bold text-yellow-700">
+              {achievementsData.stats.total_points.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Accumulated through course completion and activities
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Achievements Unlocked
+            </CardTitle>
+            <Trophy className="h-5 w-5 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700">
+              {achievementsData.stats.achievements_unlocked}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              of {achievementsData.stats.achievements_total} milestones achieved
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
+            <Medal className="h-5 w-5 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-700">
+              {achievementsData.stats.badges_earned}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              of {achievementsData.stats.badges_total} skill credentials earned
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Learning Streak
+            </CardTitle>
+            <Zap className="h-5 w-5 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-700">
               {achievementsData.stats.streak_current} days
             </div>
-            <p className="text-xs text-muted-foreground">
-              Personal best: {achievementsData.stats.streak_best} days
+            <p className="text-xs text-muted-foreground mt-1">
+              Current streak • Best: {achievementsData.stats.streak_best} days
             </p>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="achievements" className="space-y-4">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="achievements"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Achievements
           </TabsTrigger>
           <TabsTrigger
             value="badges"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Badges
           </TabsTrigger>
           <TabsTrigger
             value="progress"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             In Progress
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="achievements" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {earnedAchievements.length === 0 && (
-              <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground">
-                  No achievements unlocked yet. Keep learning to earn some!
+        <TabsContent value="achievements" className="space-y-6">
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2">
+            {earnedAchievements.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="pt-8 pb-8 text-center">
+                  <p className="text-base font-medium text-muted-foreground">
+                    No achievements unlocked yet.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Complete courses, quizzes, and learning activities to earn
+                    your first milestone.
+                  </p>
                 </CardContent>
               </Card>
-            )}
-            {earnedAchievements.map((achievement) => {
-              const IconComponent = iconMap[achievement.icon] || Star;
-              return (
-                <Card
-                  key={achievement.id}
-                  className="border-green-200 bg-green-50">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-full">
-                          <IconComponent className="h-5 w-5 text-green-600" />
+            ) : (
+              earnedAchievements.map((achievement) => {
+                const IconComponent = iconMap[achievement.icon] || Star;
+                return (
+                  <Card
+                    key={achievement.id}
+                    className="border-[#EF7B55]/10 bg-gradient-to-b from-[#EF7B55]/5 to-white hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EF7B55]/70">
+                            <IconComponent className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base font-semibold leading-tight">
+                              {achievement.title}
+                            </CardTitle>
+                            <CardDescription className="mt-1 text-sm">
+                              {achievement.description}
+                            </CardDescription>
+                          </div>
                         </div>
-                        <div>
-                          <CardTitle className="text-lg">
-                            {achievement.title}
-                          </CardTitle>
-                          <CardDescription>
-                            {achievement.description}
-                          </CardDescription>
-                        </div>
+                        <Badge
+                          variant="outline"
+                          className="border-[#EF7B55]/20 bg-[#EF7B55]/5 px-3 py-1 text-xs font-medium text-slate-700">
+                          +{achievement.points} points
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className="bg-green-100 text-green-700">
-                        +{achievement.points} pts
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>Earned on {achievement.earnedDate || "N/A"}</span>
-                      <Badge variant="outline">{achievement.category}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          Earned{" "}
+                          {achievement.earnedDate
+                            ? `on ${achievement.earnedDate}`
+                            : "—"}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {achievement.category}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </TabsContent>
 
-        <TabsContent value="badges" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {achievementsData.badges.length === 0 && (
-              <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground">
-                  No badges available yet. Keep learning to earn some!
+        <TabsContent value="badges" className="space-y-6">
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2">
+            {achievementsData.badges.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="pt-8 pb-8 text-center">
+                  <p className="text-base font-medium text-muted-foreground">
+                    No badges earned yet.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Complete courses, master skills, and reach milestones to
+                    unlock your first badge.
+                  </p>
                 </CardContent>
               </Card>
-            )}
-            {achievementsData.badges.map((badge) => {
-              const IconComponent = iconMap[badge.icon] || Medal;
-              return (
-                <Card
-                  key={badge.id}
-                  className={
-                    badge.earned ? "border-yellow-200 bg-yellow-50" : ""
-                  }>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`p-3 rounded-full ${badge.color} ${
-                            badge.earned ? "opacity-100" : "opacity-50"
-                          }`}>
-                          <IconComponent className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">
-                            {badge.name}
-                          </CardTitle>
-                          <CardDescription>{badge.description}</CardDescription>
-                        </div>
-                      </div>
-                      {badge.earned && (
-                        <Badge className="bg-yellow-100 text-yellow-700">
-                          Earned
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  {!badge.earned &&
-                    badge.progress !== undefined &&
-                    badge.total && (
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Progress</span>
-                            <span>
-                              {badge.progress.toLocaleString()} /{" "}
-                              {badge.total.toLocaleString()}
-                            </span>
+            ) : (
+              achievementsData.badges.map((badge) => {
+                const IconComponent = iconMap[badge.icon] || Medal;
+                return (
+                  <Card
+                    key={badge.id}
+                    className={`border transition-all duration-200 hover:shadow-md ${
+                      badge.earned
+                        ? "border-[#EF7B55] bg-[#EF7B55]/10"
+                        : "border-border"
+                    }`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+                              badge.color
+                            } ${
+                              badge.earned
+                                ? "opacity-100 bg-[#EF7B55]"
+                                : "opacity-50"
+                            }`}>
+                            <IconComponent className="h-6 w-6 text-white" />
                           </div>
-                          <Progress
-                            value={(badge.progress / badge.total) * 100}
-                            className="h-2"
-                          />
+                          <div>
+                            <CardTitle className="text-base font-semibold leading-tight">
+                              {badge.name}
+                            </CardTitle>
+                            <CardDescription className="mt-1 text-sm">
+                              {badge.description}
+                            </CardDescription>
+                          </div>
                         </div>
+                        {badge.earned && (
+                          <Badge className="bg-[#EF7B55] text-white px-3 py-1 text-xs font-medium">
+                            Earned
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+
+                    {!badge.earned &&
+                      badge.progress !== undefined &&
+                      badge.total && (
+                        <CardContent className="pt-0">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>Progress</span>
+                              <span className="font-medium">
+                                {badge.progress.toLocaleString()} /{" "}
+                                {badge.total.toLocaleString()}
+                              </span>
+                            </div>
+                            <Progress
+                              value={(badge.progress / badge.total) * 100}
+                              className="h-2"
+                            />
+                          </div>
+                        </CardContent>
+                      )}
+
+                    {badge.earned && (
+                      <CardContent className="pt-0 text-xs text-muted-foreground">
+                        <span>Unlocked • Skill credential earned</span>
                       </CardContent>
                     )}
-                </Card>
-              );
-            })}
+                  </Card>
+                );
+              })
+            )}
           </div>
         </TabsContent>
 
-        <TabsContent value="progress" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {inProgressAchievements.length === 0 && (
-              <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground">
-                  No achievements in progress. Start a new challenge!
+        <TabsContent value="progress" className="space-y-6">
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2">
+            {inProgressAchievements.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="pt-8 pb-8 text-center">
+                  <p className="text-base font-medium text-muted-foreground">
+                    No achievements in progress yet.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Start a new challenge or continue learning to track your
+                    progress here.
+                  </p>
                 </CardContent>
               </Card>
-            )}
-            {inProgressAchievements.map((achievement) => {
-              const IconComponent = iconMap[achievement.icon] || Star;
-              const progressPercent =
-                achievement.progress !== undefined && achievement.total
-                  ? (achievement.progress / achievement.total) * 100
-                  : 0;
+            ) : (
+              inProgressAchievements.map((achievement) => {
+                const IconComponent = iconMap[achievement.icon] || Star;
+                const progressPercent =
+                  achievement.progress !== undefined && achievement.total
+                    ? (achievement.progress / achievement.total) * 100
+                    : 0;
 
-              return (
-                <Card key={achievement.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gray-100 rounded-full">
-                          <IconComponent className="h-5 w-5 text-gray-600" />
+                return (
+                  <Card
+                    key={achievement.id}
+                    className="transition-all duration-200 hover:shadow-md">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
+                            <IconComponent className="h-5 w-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base font-semibold leading-tight">
+                              {achievement.title}
+                            </CardTitle>
+                            <CardDescription className="mt-1 text-sm">
+                              {achievement.description}
+                            </CardDescription>
+                          </div>
                         </div>
-                        <div>
-                          <CardTitle className="text-lg">
-                            {achievement.title}
-                          </CardTitle>
-                          <CardDescription>
-                            {achievement.description}
-                          </CardDescription>
+                        <Badge variant="outline" className="text-xs">
+                          +{achievement.points} pts
+                        </Badge>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="pt-0">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">Progress</span>
+                          <span className="font-medium">
+                            {achievement.progress || 0} /{" "}
+                            {achievement.total || 0}
+                          </span>
+                        </div>
+
+                        <Progress value={progressPercent} className="h-2" />
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-xs">
+                            {achievement.category}
+                          </Badge>
+                          <span>{Math.round(progressPercent)}% complete</span>
                         </div>
                       </div>
-                      <Badge variant="outline">+{achievement.points} pts</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>
-                          {achievement.progress || 0} / {achievement.total || 0}
-                        </span>
-                      </div>
-                      <Progress value={progressPercent} className="h-2" />
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <Badge variant="outline">{achievement.category}</Badge>
-                        <span>{Math.round(progressPercent)}% complete</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </TabsContent>
       </Tabs>

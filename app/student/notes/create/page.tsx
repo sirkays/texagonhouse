@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import {useState, useEffect} from "react";
+import {Button} from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,11 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Tag, ArrowLeft, Type } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import {Textarea} from "@/components/ui/textarea";
+import {Input} from "@/components/ui/input";
+import {Tag, ArrowLeft, Type} from "lucide-react";
+import {useRouter} from "next/navigation";
+import {useSession} from "next-auth/react";
 
 interface Lesson {
   id: number;
@@ -22,7 +22,7 @@ interface Lesson {
 
 export default function CreateNotePage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const {data: session} = useSession();
 
   const [lessonId, setLessonId] = useState("");
   const [title, setTitle] = useState("");
@@ -37,7 +37,7 @@ export default function CreateNotePage() {
       if (!session?.user?.sessionToken) return;
       try {
         const res = await fetch("/api/student/materials", {
-          headers: { "X-Session-Token": session.user.sessionToken },
+          headers: {"X-Session-Token": session.user.sessionToken},
         });
         if (res.ok) {
           const data = await res.json();
@@ -88,22 +88,22 @@ export default function CreateNotePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
             variant="ghost"
+            className="hover:bg-[#f57c50]/30"
             size="icon"
-            onClick={() => router.push("/student/materials")}
-          >
+            onClick={() => router.push("/student/materials")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Create New Note</h1>
         </div>
 
         {/* Form */}
-        <div className="space-y-6 bg-card p-6 rounded-xl shadow-sm">
+        <div className="space-y-6 bg-card p-3 rounded-xl shadow-sm">
           {/* Title */}
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
@@ -160,8 +160,10 @@ export default function CreateNotePage() {
           <div className="flex justify-end">
             <Button
               onClick={handleSave}
-              disabled={loading || !lessonId || !content.trim() || !title.trim()}
-            >
+              className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#f57c50] hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
+              disabled={
+                loading || !lessonId || !content.trim() || !title.trim()
+              }>
               {loading ? "Saving..." : "Save Note"}
             </Button>
           </div>
