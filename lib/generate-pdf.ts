@@ -428,14 +428,14 @@ export function generateInvoicePDF(invoice: Invoice): void {
       </tbody>
     </table>
 
-    <div class="totals">
+    <!--<div class="totals">
       <div class="box">
         <div class="row"><span class="muted">Subtotal</span><span>${amount}</span></div>
         <div class="row"><span class="muted">Discount</span><span>${invoice.currency} 0</span></div>
         <div class="row"><span class="muted">Tax</span><span>${invoice.currency} 0</span></div>
         <div class="row total"><strong>Total</strong><strong>${amount}</strong></div>
       </div>
-    </div>
+    </div>-->
 
     <div class="note">
       <strong>Note:</strong> This invoice is auto-generated. If you have questions or need support, contact your administrator/support team.

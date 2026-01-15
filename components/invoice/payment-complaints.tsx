@@ -1,6 +1,6 @@
 "use client";
-
-import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,13 +123,19 @@ export function PaymentComplaints({ className }: PaymentComplaintsProps) {
 
   // per-complaint quick states (message + additional files)
   // near other local states
-const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
   const [messageById, setMessageById] = useState<Record<string, string>>({});
   const [additionalFilesById, setAdditionalFilesById] = useState<Record<string, File[]>>({});
   const [loadingDetailsId, setLoadingDetailsId] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [postingId, setPostingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const formLocked = transactionsLoading || submittingComplaint;
+
+
+  const searchParams = useSearchParams();
+
 
   // keep a map of detailed complaints after expansion (so we don’t lose data when list re-renders)
   const detailsById = useMemo(() => {
@@ -137,6 +143,37 @@ const [submittingComplaint, setSubmittingComplaint] = useState(false);
     for (const c of complaints) m.set(c.id, c);
     return m;
   }, [complaints]);
+
+
+  const prefillRef = useRef({
+    category: searchParams.get("category") || "",
+    txRef: searchParams.get("transaction_reference") || "",
+    appliedTx: false,
+  });
+
+  useEffect(() => {
+    const c = prefillRef.current.category;
+    if (c === "Order" || c === "Subscription") {
+      setNewComplaint((prev) => ({ ...prev, category: c as any }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const invoiceNumberParam = searchParams.get("invoice_number") || "";
+    if (!invoiceNumberParam) return;
+
+    if (transactionsLoading) return; // ✅ wait until loaded
+    if (newComplaint.transaction_reference) return;
+
+    const match = transactions.find((t) => t.invoice_number === invoiceNumberParam);
+    if (match?.reference) {
+      setNewComplaint((prev) => ({
+        ...prev,
+        transaction_reference: match.reference,
+      }));
+    }
+  }, [transactions, transactionsLoading, searchParams, newComplaint.transaction_reference]);
+
 
   useEffect(() => {
     const fetchComplaints = async () => {
@@ -151,22 +188,29 @@ const [submittingComplaint, setSubmittingComplaint] = useState(false);
     };
     fetchComplaints();
   }, []);
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setTransactionsLoading(true);
+      try {
+        const typeParam = newComplaint.category === "Order" ? "store" : "subscription";
+        const res = await fetch(`/api/transactions?type=${typeParam}&withPaid=1&page_size=100`);
+        if (!res.ok) throw new Error("Failed to fetch transactions");
+        const data = await res.json();
+        setTransactions(data.results || []);
+      } catch (e) {
+        console.error(e);
+        setTransactions([]);
+      } finally {
+        setTransactionsLoading(false);
+      }
+    };
 
-useEffect(() => {
-  const fetchTransactions = async () => {
-    try {
-      const typeParam = newComplaint.category === "Order" ? "store" : "subscription";
-      const res = await fetch(`/api/transactions?type=${typeParam}&page_size=100`);
-      if (!res.ok) throw new Error("Failed to fetch transactions");
-      const data = await res.json();
-      setTransactions(data.results || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-  fetchTransactions();
-  // re-fetch whenever the category changes so we always have the right type
-}, [newComplaint.category]);
+    fetchTransactions();
+  }, [newComplaint.category]);
+
+
+
+
 
 
   // Filter transactions by selected category:
@@ -179,15 +223,21 @@ useEffect(() => {
     );
   }, [transactions, newComplaint.category]);
 
-  // If category changes and current reference doesn't exist in the filtered list, clear it
+
   useEffect(() => {
-    if (
-      newComplaint.transaction_reference &&
-      !filteredTransactions.some((t) => t.reference === newComplaint.transaction_reference)
-    ) {
-      setNewComplaint((prev) => ({ ...prev, transaction_reference: "" }));
+    const tx = prefillRef.current.txRef;
+    if (!tx) return;
+    if (prefillRef.current.appliedTx) return;
+    if (transactionsLoading) return;
+
+    // only set it if it exists in the currently filtered list
+    const exists = filteredTransactions.some((t) => t.reference === tx);
+    if (exists) {
+      setNewComplaint((prev) => ({ ...prev, transaction_reference: tx }));
+      prefillRef.current.appliedTx = true;
     }
-  }, [filteredTransactions, newComplaint.transaction_reference]);
+  }, [filteredTransactions, transactionsLoading]);
+
 
   const getStatusIcon = (status: string) => {
     switch ((status || "").toLowerCase()) {
@@ -248,47 +298,47 @@ useEffect(() => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
 
   const handleSubmitComplaint = async () => {
-  if (
-    !newComplaint.title.trim() ||
-    !newComplaint.description.trim() ||
-    !newComplaint.transaction_reference.trim()
-  ) return;
+    if (
+      !newComplaint.title.trim() ||
+      !newComplaint.description.trim() ||
+      !newComplaint.transaction_reference.trim()
+    ) return;
 
-  if (submittingComplaint) return;
+    if (submittingComplaint) return;
 
-  const formData = new FormData();
-  formData.append("title", newComplaint.title);
-  formData.append("description", newComplaint.description);
-  formData.append("priority", newComplaint.priority);
-  formData.append("category", newComplaint.category);
-  formData.append("transaction_reference", newComplaint.transaction_reference); // always present
+    const formData = new FormData();
+    formData.append("title", newComplaint.title);
+    formData.append("description", newComplaint.description);
+    formData.append("priority", newComplaint.priority);
+    formData.append("category", newComplaint.category);
+    formData.append("transaction_reference", newComplaint.transaction_reference); // always present
 
-  selectedFiles.forEach((file) => formData.append("attachments", file));
+    selectedFiles.forEach((file) => formData.append("attachments", file));
 
-  setSubmittingComplaint(true);
-  try {
-    const res = await fetch("/api/complaints", {
-      method: "POST",
-      body: formData,
-    });
-    const payload = await res.text();
-    if (!res.ok) throw new Error(payload || "Failed to create complaint");
-    const newComp: Complaint = JSON.parse(payload);
-    setComplaints((prev) => [newComp, ...prev]);
-    setNewComplaint({
-      title: "",
-      description: "",
-      priority: "medium",
-      category: "Order",
-      transaction_reference: "",
-    });
-    setSelectedFiles([]);
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setSubmittingComplaint(false);
-  }
-};
+    setSubmittingComplaint(true);
+    try {
+      const res = await fetch("/api/complaints", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await res.text();
+      if (!res.ok) throw new Error(payload || "Failed to create complaint");
+      const newComp: Complaint = JSON.parse(payload);
+      setComplaints((prev) => [newComp, ...prev]);
+      setNewComplaint({
+        title: "",
+        description: "",
+        priority: "medium",
+        category: "Order",
+        transaction_reference: "",
+      });
+      setSelectedFiles([]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmittingComplaint(false);
+    }
+  };
 
   // -------- Inline expansion --------
   const fetchDetails = async (id: string) => {
@@ -404,14 +454,26 @@ useEffect(() => {
   return (
     <div className={`space-y-3 ${className}`}>
       {/* New Complaint Form */}
-      <Card className="mx-auto max-w-2xl">
-        <CardHeader>
+
+      <Card className="mx-auto max-w-2xl relative">
+        {/* Loading overlay that blocks ALL interaction */}
+        {formLocked && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading…
+            </div>
+          </div>
+        )}
+
+        <CardHeader className={formLocked ? "pointer-events-none opacity-60" : ""}>
           <CardTitle className="text-base md:text-lg">Submit New Complaint</CardTitle>
           <p className="text-xs md:text-sm text-muted-foreground">
-            Describe your payment-related issue and we'll help resolve it.
+            Describe your payment-related issue and we&apos;ll help resolve it.
           </p>
         </CardHeader>
-        <CardContent className="space-y-2 py-2">
+
+        <CardContent className={`${formLocked ? "pointer-events-none opacity-60" : ""} space-y-2 py-2`}>
           <div className="space-y-1">
             <Label htmlFor="title" className="text-xs md:text-sm">Title</Label>
             <Input
@@ -480,6 +542,7 @@ useEffect(() => {
               <Label htmlFor="transaction_reference" className="text-xs md:text-sm">
                 Transaction Reference <span className="text-destructive">*</span>
               </Label>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -488,20 +551,27 @@ useEffect(() => {
                     className="w-full justify-between text-sm h-9"
                     aria-required="true"
                     aria-invalid={!newComplaint.transaction_reference ? "true" : "false"}
-                    disabled={filteredTransactions.length === 0}
+                    // while loading, overlay blocks anyway, but keep this clean:
+                    disabled={transactionsLoading || filteredTransactions.length === 0}
                   >
                     {newComplaint.transaction_reference
-                      ? filteredTransactions.find((t) => t.reference === newComplaint.transaction_reference)?.reference
-                      : filteredTransactions.length === 0
-                      ? (newComplaint.category === "Order"
-                          ? "No store transactions"
-                          : "No subscription transactions")
-                      : (newComplaint.category === "Order"
-                          ? "Select order transaction (required)…"
-                          : "Select subscription transaction (required)…")}
+                      ? (
+                        filteredTransactions.find((t) => t.reference === newComplaint.transaction_reference)?.reference ??
+                        newComplaint.transaction_reference
+                      )
+                      : transactionsLoading
+                        ? "Loading transactions..."
+                        : filteredTransactions.length === 0
+                          ? (newComplaint.category === "Order"
+                            ? "No store transactions"
+                            : "No subscription transactions")
+                          : (newComplaint.category === "Order"
+                            ? "Select order transaction (required)…"
+                            : "Select subscription transaction (required)…")}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
+
                 <PopoverContent className="w-full p-0">
                   <Command>
                     <CommandInput placeholder="Search transaction..." />
@@ -520,9 +590,8 @@ useEffect(() => {
                             }}
                           >
                             <Check
-                              className={`mr-2 h-4 w-4 ${
-                                newComplaint.transaction_reference === t.reference ? "opacity-100" : "opacity-0"
-                              }`}
+                              className={`mr-2 h-4 w-4 ${newComplaint.transaction_reference === t.reference ? "opacity-100" : "opacity-0"
+                                }`}
                             />
                             {t.reference} {t.invoice_number ? `- ${t.invoice_number}` : ""}
                           </CommandItem>
@@ -532,11 +601,11 @@ useEffect(() => {
                   </Command>
                 </PopoverContent>
               </Popover>
-              {!newComplaint.transaction_reference && filteredTransactions.length > 0 && (
+
+              {!newComplaint.transaction_reference && filteredTransactions.length > 0 && !transactionsLoading && (
                 <p className="text-[11px] text-destructive/90">Transaction reference is required.</p>
               )}
             </div>
-
           </div>
 
           <div className="space-y-1">
@@ -551,12 +620,18 @@ useEffect(() => {
               <p className="text-xs text-muted-foreground">Drag and drop files here, or click to browse</p>
               <Input id="file-upload" type="file" multiple className="hidden" onChange={handleFileChange} />
             </div>
+
             {selectedFiles.length > 0 && (
               <div className="space-y-1 mt-2">
                 {selectedFiles.map((file, index) => (
                   <div key={index} className="flex items-center justify-between text-sm">
                     <span className="truncate max-w-[80%]">{file.name}</span>
-                    <Button variant="ghost" size="sm" onClick={() => removeFile(index)} className="p-0 h-auto">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                      className="p-0 h-auto"
+                    >
                       <Trash className="h-4 w-4" />
                     </Button>
                   </div>
@@ -566,18 +641,17 @@ useEffect(() => {
           </div>
 
           <div className="flex justify-center">
-          <Button
-            className="bg-[#f79771] hover:bg-gray-300 shadow-md py-1.5 text-md"
-            onClick={handleSubmitComplaint}
-            disabled={
-              submittingComplaint ||
-              !newComplaint.title.trim() ||
-              !newComplaint.description.trim() ||
-              !newComplaint.transaction_reference.trim()   // <-- added
-            }
-            aria-busy={submittingComplaint}
-          >
-
+            <Button
+              className="bg-[#f79771] hover:bg-gray-300 shadow-md py-1.5 text-md"
+              onClick={handleSubmitComplaint}
+              disabled={
+                formLocked ||
+                !newComplaint.title.trim() ||
+                !newComplaint.description.trim() ||
+                !newComplaint.transaction_reference.trim()
+              }
+              aria-busy={submittingComplaint}
+            >
               {submittingComplaint ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -588,9 +662,9 @@ useEffect(() => {
               )}
             </Button>
           </div>
-
         </CardContent>
       </Card>
+
 
       {/* Complaints List with inline expandable details */}
       <Card>
@@ -617,9 +691,8 @@ useEffect(() => {
                       {/* Row */}
                       <button
                         onClick={() => toggleExpand(complaint)}
-                        className={`w-full text-left p-3 hover:bg-muted/50 transition-colors ${
-                          isOpen ? "bg-accent/30" : ""
-                        }`}
+                        className={`w-full text-left p-3 hover:bg-muted/50 transition-colors ${isOpen ? "bg-accent/30" : ""
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
@@ -679,9 +752,8 @@ useEffect(() => {
 
                       {/* Slide-down details */}
                       <div
-                        className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${
-                          isOpen ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"
-                        }`}
+                        className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isOpen ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"
+                          }`}
                       >
                         <div className="px-3 pb-4 pt-2 bg-accent/10">
                           {/* Description */}
@@ -780,18 +852,18 @@ useEffect(() => {
                               rows={3}
                               className="text-sm"
                             />
-                          <div className="flex justify-center py-2">
+                            <div className="flex justify-center py-2">
                               <Button onClick={() => handleAddResponse(complaint)} disabled={postingId === complaint.id}>
-                              {postingId === complaint.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Submitting...
-                                </>
-                              ) : (
-                                "Submit Response"
-                              )}
-                            </Button>
-                          </div>
+                                {postingId === complaint.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Submitting...
+                                  </>
+                                ) : (
+                                  "Submit Response"
+                                )}
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Add attachments */}
@@ -834,19 +906,19 @@ useEffect(() => {
                               </div>
                             )}
                             <div className="flex justify-center py-2">
-                            <Button
-                              onClick={() => handleUploadAdditionalAttachments(complaint)}
-                              disabled={uploadingId === complaint.id}
-                            >
-                              {uploadingId === complaint.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Uploading...
-                                </>
-                              ) : (
-                                "Upload Attachments"
-                              )}
-                            </Button>
+                              <Button
+                                onClick={() => handleUploadAdditionalAttachments(complaint)}
+                                disabled={uploadingId === complaint.id}
+                              >
+                                {uploadingId === complaint.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Uploading...
+                                  </>
+                                ) : (
+                                  "Upload Attachments"
+                                )}
+                              </Button>
                             </div>
                           </div>
 

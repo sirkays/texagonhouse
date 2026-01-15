@@ -2,14 +2,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatusBadge } from "@/components/invoice/payment-status-badge";
 import { InvoiceDetailsModal } from "@/components/invoice/invoice-details-modal";
 import { Spinner } from "@/components/ui/spinner";
-import { MoreHorizontal, Eye, Download, CreditCard } from "lucide-react";
+import { MoreHorizontal, Eye, Download, CreditCard, MessageSquare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +69,11 @@ export function InvoiceList() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [confirmedTx, setConfirmedTx] = useState<string | null>(null);
+  const canMakeComplaint = (invoice: Invoice) =>
+    invoice.invoice_type === "subscription" && invoice.status === "paid";
+
+  const router = useRouter();
+
 
   useEffect(() => {
     const status = (searchParams.get("status") || "").toLowerCase();
@@ -76,18 +81,36 @@ export function InvoiceList() {
     const transaction_id = searchParams.get("transaction_id");
     const invoice_number = searchParams.get("invoice_number");
 
-    // If user cancelled, don't confirm.
-    if (status === "cancelled") return;
-
-    // Don't hardcode "successful" vs "completed".
-    // If Flutterwave sent us a transaction_id, we can verify server-side.
-    if (tx_ref && transaction_id && invoice_number) {
+    // in useEffect callback
+    if (tx_ref && invoice_number) {
       if (confirmedTx === tx_ref) return;
       setConfirmedTx(tx_ref);
-      confirmPayment(invoice_number, tx_ref, transaction_id);
+
+      confirmPayment(invoice_number, tx_ref, transaction_id || "", status); // pass status
     }
+
   }, [searchParams, confirmedTx]);
 
+  const handleMakeComplaint = (invoice: Invoice) => {
+    // ✅ Only paid subscriptions can complain
+    if (!canMakeComplaint(invoice)) return;
+
+    const category = "Subscription";
+
+    const txRef =
+      invoice.meta?.transaction_reference ||
+      invoice.meta?.tx_ref ||
+      invoice.meta?.reference ||
+      "";
+
+    const params = new URLSearchParams();
+    params.set("category", category);
+
+    if (txRef) params.set("transaction_reference", txRef);
+    params.set("invoice_number", invoice.number);
+
+    router.push(`/invoice/complaints?${params.toString()}`);
+  };
 
 
   const refetchInvoices = async () => {
@@ -108,13 +131,13 @@ export function InvoiceList() {
     }
   };
 
-  const confirmPayment = async (invoice_id: string, tx_ref: string, transaction_id: string) => {
+  const confirmPayment = async (invoice_id: string, tx_ref: string, transaction_id: string, status?: string) => {
     setPaymentLoading(true);
     try {
       const res = await fetch("/api/billing?action=confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoice_id, tx_ref, transaction_id }),
+        body: JSON.stringify({ invoice_id, tx_ref, transaction_id, status }),
       });
 
       // Read once
@@ -127,21 +150,23 @@ export function InvoiceList() {
         throw new Error(payload?.detail || payload?.error || "Failed to confirm payment");
       }
 
-      // ✅ Clear params to prevent repeated confirm
-      const url = new URL(window.location.href);
-      ["status", "tx_ref", "transaction_id", "invoice_number"].forEach((k) =>
-        url.searchParams.delete(k)
-      );
-      window.history.replaceState({}, "", url);
 
-      // Best-effort refetch
-      try {
+      if (payload?.status === "success") {
+        // Clear params
+        const url = new URL(window.location.href);
+        ["status", "tx_ref", "transaction_id", "invoice_number"].forEach((k) =>
+          url.searchParams.delete(k)
+        );
+        window.history.replaceState({}, "", url);
+
         await refetchInvoices();
-      } catch (e) {
-        console.error("Payment confirmed but invoice refetch failed:", e);
+        setIsSuccessModalOpen(true);
+      } else if (payload?.status === "cancelled") {
+        alert("Payment was cancelled.");
+      } else {
+        alert(payload?.detail || "Payment was not successful.");
       }
 
-      setIsSuccessModalOpen(true);
     } catch (e: any) {
       alert(e?.message || "Failed to confirm payment");
     } finally {
@@ -153,9 +178,10 @@ export function InvoiceList() {
   const handlePayInvoice = async (invoice_number: string) => {
     setPaymentLoading(true);
     try {
-      const redirect_url = `${window.location.origin}/invoice/invoices?invoice_number=${encodeURIComponent(
-        invoice_number
-      )}`;
+      const redirect_url =
+        `${window.location.origin}/invoice/invoices` +
+        `?invoice_number=${encodeURIComponent(invoice_number)}`;
+
       const res = await fetch("/api/billing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -237,6 +263,15 @@ export function InvoiceList() {
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end">
+
+                      {canMakeComplaint(invoice) && (
+                        <DropdownMenuItem onClick={() => handleMakeComplaint(invoice)}>
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Make Complaint
+                        </DropdownMenuItem>
+                      )}
+
+
                       <DropdownMenuItem onClick={() => openDetails(invoice)}>
                         <Eye className="h-4 w-4 mr-2" />
                         View Details

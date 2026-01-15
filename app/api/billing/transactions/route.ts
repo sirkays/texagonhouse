@@ -6,6 +6,8 @@ import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "https://texagonbackend.onrender.com";
+
+//const BASE_URL = "http://127.0.0.1:9098"
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
