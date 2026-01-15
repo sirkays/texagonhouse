@@ -80,6 +80,7 @@ const menuItems = [
     icon: Receipt,
     description: "Create and manage invoices",
     badge: "New",
+    id: "payments",
   },
 ];
 

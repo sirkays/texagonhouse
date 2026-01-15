@@ -1,4 +1,5 @@
-import {NextResponse} from "next/server";
+//texagon_academy\texagonui\app\api\accounts\create\route.ts
+import { NextResponse } from "next/server";
 
 
 //const BASE_URL = "http://127.0.0.1:9098";
@@ -28,29 +29,22 @@ export async function POST(request: Request) {
     try {
       data = JSON.parse(responseText);
     } catch (error) {
-      console.error(
-        "[Create Route] Failed to parse backend response as JSON. Raw response:",
-        responseText.slice(0, 200)
-      );
       return NextResponse.json(
-        {
-          error:
-            "Backend Error: The server returned an invalid response (likely a timeout or HTML error page).",
-        },
-        {status: res.status || 500}
+        { detail: "Backend Error: The server returned an invalid response (likely timeout/HTML)." },
+        { status: res.status || 500 }
       );
-    }
 
+    }
     if (!res.ok) {
       return NextResponse.json(
-        {error: data.detail || "Failed to create account"},
-        {status: res.status}
+        { detail: data.detail || data.error || "Failed to create account" },
+        { status: res.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Create Route] Internal Server Error:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
