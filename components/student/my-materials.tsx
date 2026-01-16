@@ -716,7 +716,7 @@ export function MyMaterials() {
                             onClick={() => handleWatchVideo(video)}>
                             <Play className="h-3.5 w-3.5 flex-shrink-0" />{" "}
                             {/* smaller icon */}
-                            Watch Now
+                            Play
                           </Button>
                           <Button
                             size="sm"

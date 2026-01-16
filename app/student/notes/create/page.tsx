@@ -1,7 +1,6 @@
 "use client";
-
-import {useState, useEffect} from "react";
-import {Button} from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,11 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Textarea} from "@/components/ui/textarea";
-import {Input} from "@/components/ui/input";
-import {Tag, ArrowLeft, Type} from "lucide-react";
-import {useRouter} from "next/navigation";
-import {useSession} from "next-auth/react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Tag, ArrowLeft, Type } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { SuccessModal } from "@/components/modals/SuccessModal";
 
 interface Lesson {
   id: number;
@@ -22,7 +22,7 @@ interface Lesson {
 
 export default function CreateNotePage() {
   const router = useRouter();
-  const {data: session} = useSession();
+  const { data: session } = useSession();
 
   const [lessonId, setLessonId] = useState("");
   const [title, setTitle] = useState("");
@@ -30,20 +30,22 @@ export default function CreateNotePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [successOpen, setSuccessOpen] = useState(false);
+
 
   // ✅ Fetch lessons on mount
   useEffect(() => {
     const fetchLessons = async () => {
       if (!session?.user?.sessionToken) return;
       try {
-        const res = await fetch("/api/student/materials", {
-          headers: {"X-Session-Token": session.user.sessionToken},
+        const res = await fetch("/api/student/mylessons", {
+          headers: { "X-Session-Token": session.user.sessionToken },
         });
         if (res.ok) {
           const data = await res.json();
-          const lessonList = data.saved.videos.map((v: any) => ({
+          const lessonList = data.map((v: any) => ({
             id: parseInt(v.id),
-            title: v.title,
+            title: v.name,
           }));
           setLessons(lessonList);
         }
@@ -79,7 +81,8 @@ export default function CreateNotePage() {
       });
 
       if (!res.ok) throw new Error("Failed to save note");
-      router.push("/student/materials");
+      setSuccessOpen(true);
+      //router.push("/student/materials");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -169,6 +172,17 @@ export default function CreateNotePage() {
           </div>
         </div>
       </div>
+      <SuccessModal
+        open={successOpen}
+        onOpenChange={setSuccessOpen}
+        title="Note created"
+        description="Your note has been saved successfully."
+        primaryText="Go to Materials"
+        onPrimary={() => router.push("/student/materials")}
+      />
+
     </div>
+
+
   );
 }

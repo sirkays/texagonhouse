@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Tag, ArrowLeft, Loader2, Type } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { SuccessModal } from "@/components/modals/SuccessModal";
 
 interface Lesson {
   id: number;
@@ -42,6 +43,8 @@ export default function EditNotePage() {
   const [saving, setSaving] = useState(false);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [note, setNote] = useState<Note | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
+
 
   // Fetch note + lessons
   useEffect(() => {
@@ -50,15 +53,15 @@ export default function EditNotePage() {
 
       try {
         // Fetch materials (for lessons)
-        const materialsRes = await fetch("/api/student/materials", {
+        const materialsRes = await fetch("/api/student/mylessons", {
           headers: { "X-Session-Token": session.user.sessionToken },
         });
         if (materialsRes.ok) {
           const materialsData = await materialsRes.json();
-          const lessonList = (materialsData.saved?.videos ?? []).map(
+          const lessonList = (materialsData ?? []).map(
             (v: any) => ({
               id: parseInt(v.id),
-              title: v.title,
+              title: v.name,
             })
           );
           setLessons(lessonList);
@@ -70,7 +73,6 @@ export default function EditNotePage() {
         });
         if (noteRes.ok) {
           const noteData: Note = await noteRes.json();
-          console.log(noteData, " smvdkmvlfvmfk");
           setNote(noteData);
           setLessonId(noteData.lesson?.toString() ?? "");
           setTitle(noteData.title ?? "");
@@ -113,7 +115,7 @@ export default function EditNotePage() {
       });
 
       if (!res.ok) throw new Error("Failed to update note");
-      router.push("/student/materials");
+      setSuccessOpen(true);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -237,6 +239,16 @@ export default function EditNotePage() {
           </div>
         </div>
       </div>
+      <SuccessModal
+        open={successOpen}
+        onOpenChange={setSuccessOpen}
+        title="Note created"
+        description="Your note has been saved successfully."
+        primaryText="Go to Materials"
+        onPrimary={() => router.push("/student/materials")}
+      />
+
+
     </div>
   );
 }
