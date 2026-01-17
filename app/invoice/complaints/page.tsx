@@ -1,18 +1,9 @@
 "use client";
 
-import {PaymentComplaints} from "@/components/invoice/payment-complaints";
-import {SidebarTrigger} from "@/components/ui/sidebar";
-import {Separator} from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { Suspense } from "react";
+import { PaymentComplaints } from "@/components/invoice/payment-complaints";
 
-export default function ComplaintsPage() {
+function ComplaintsContent() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="space-y-6">
@@ -26,5 +17,13 @@ export default function ComplaintsPage() {
         <PaymentComplaints />
       </div>
     </div>
+  );
+}
+
+export default function ComplaintsPage() {
+  return (
+    <Suspense fallback={<div className="p-4">Loading…</div>}>
+      <ComplaintsContent />
+    </Suspense>
   );
 }

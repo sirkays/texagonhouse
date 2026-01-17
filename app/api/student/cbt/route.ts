@@ -1,103 +1,103 @@
 // app/api/student/cbt/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
-  try {
-    const response = await fetch(url, {...options, signal: controller.signal});
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) {
+    // Forward Django cookies back to the client
+    res.headers.set("set-cookie", setCookie);
   }
+  return res;
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found, session:", session);
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   const deviceId = request.headers.get("x-device-id") || undefined;
 
   try {
     // Pass through query params (e.g., page, page_size, status, etc.)
-    const {searchParams} = new URL(request.url);
+    const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const qp = queryString ? `?${queryString}` : "";
 
-    // Available tests
-    const testsUrl = `${BASE_URL}/assessments/api/tests/available/`;
-
-    const testsRes = await fetchWithTimeout(testsUrl, {
+    // 1) Available tests
+    const t1 = withTimeout(120_000);
+    const testsFetch = await djangoFetch("/assessments/api/tests/available/", {
+      method: "GET",
       headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-        ...(deviceId ? {"X-Device-Id": deviceId} : {}),
-        cookie: request.headers.get("cookie") ?? "",
+        ...(deviceId ? { "X-Device-Id": deviceId } : {}),
       },
-      credentials: "include",
-      timeout: 4000000,
+      signal: t1.signal,
     });
-    if (!testsRes.ok) {
-      const errorText = await testsRes.text();
-      console.error("[Route] External API error response (tests):", errorText);
-      return NextResponse.json(
-        {error: `Failed to fetch tests: ${errorText}`},
-        {status: testsRes.status}
+    t1.clear();
+
+    if (!testsFetch.response.ok) {
+      console.error("[Route] External API error response (tests):", testsFetch.text);
+      const res = NextResponse.json(
+        { error: `Failed to fetch tests: ${testsFetch.text}` },
+        { status: testsFetch.response.status }
       );
+      return attachSetCookie(res, testsFetch.setCookie);
     }
-    const testsData = await testsRes.json();
 
-    // Student test attempts (paginated)
-    // NOTE: The docs say /assessments + /api/student/test-attempts
-    const attemptsUrl = `${BASE_URL}/assessments/api/student/test-attempts/${qp}`;
+    let testsData: any;
+    try {
+      testsData = testsFetch.text ? JSON.parse(testsFetch.text) : null;
+    } catch {
+      testsData = testsFetch.text;
+    }
 
-    const attemptsRes = await fetchWithTimeout(attemptsUrl, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-        cookie: request.headers.get("cookie") ?? "",
-      },
-      credentials: "include",
-      timeout: 40000000,
-    });
-    if (!attemptsRes.ok) {
-      const errorText = await attemptsRes.text();
+    // 2) Student test attempts (paginated)
+    const t2 = withTimeout(120_000);
+    const attemptsFetch = await djangoFetch(
+      `/assessments/api/student/test-attempts/${qp}`,
+      {
+        method: "GET",
+        headers: {
+          ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+        },
+        signal: t2.signal,
+      }
+    );
+    t2.clear();
+
+    if (!attemptsFetch.response.ok) {
       console.error(
         "[Route] External API error response (attempts):",
-        errorText
+        attemptsFetch.text
       );
-      return NextResponse.json(
-        {error: `Failed to fetch attempts: ${errorText}`},
-        {status: attemptsRes.status}
+      const res = NextResponse.json(
+        { error: `Failed to fetch attempts: ${attemptsFetch.text}` },
+        { status: attemptsFetch.response.status }
       );
+      // Prefer forwarding the newest set-cookie we got (attempts), fallback to tests
+      return attachSetCookie(res, attemptsFetch.setCookie ?? testsFetch.setCookie);
     }
-    const attemptsData = await attemptsRes.json();
+
+    let attemptsData: any;
+    try {
+      attemptsData = attemptsFetch.text ? JSON.parse(attemptsFetch.text) : null;
+    } catch {
+      attemptsData = attemptsFetch.text;
+    }
 
     // 🔹 Normalize tests
     let tests: any[] = [];
     let results: any = {};
 
     if (Array.isArray(testsData)) {
-      // backend returned raw array
       tests = testsData;
     } else if (Array.isArray(testsData?.tests)) {
       tests = testsData.tests;
     } else if (Array.isArray(testsData?.results)) {
-      // sometimes APIs put the array in "results"
       tests = testsData.results;
     }
 
@@ -106,7 +106,6 @@ export async function GET(request: Request) {
       testsData?.results &&
       !Array.isArray(testsData.results)
     ) {
-      // results is a dict / stats object
       results = testsData.results;
     }
 
@@ -130,44 +129,37 @@ export async function GET(request: Request) {
         results: attemptsData.results,
       };
     } else {
-      attempts = {count: 0, page: 1, page_size: 20, results: []};
+      attempts = { count: 0, page: 1, page_size: 20, results: [] };
     }
 
-    const payload = {
-      tests,
-      results,
-      attempts,
-    };
+    const payload = { tests, results, attempts };
 
-    return NextResponse.json(payload, {status: 200});
+    const res = NextResponse.json(payload, { status: 200 });
+    // Forward Django cookies back (prefer attempts cookie, fallback tests cookie)
+    return attachSetCookie(res, attemptsFetch.setCookie ?? testsFetch.setCookie);
   } catch (error: any) {
     console.error("[Route] Error fetching data:", error);
     return NextResponse.json(
-      {error: "Internal server error", details: error.message},
-      {status: 500}
+      { error: "Internal server error", details: error?.message ?? String(error) },
+      { status: 500 }
     );
   }
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
   const deviceId = request.headers.get("x-device-id") || undefined;
+
   const maxRetries = 3;
   let attempt = 0;
-  let body: any;
 
+  let body: any;
   try {
     body = await request.json();
   } catch (err: any) {
     console.error("[Route] Error parsing request body:", err);
     return NextResponse.json(
-      {error: "Invalid request body", details: err.message},
-      {status: 400}
+      { error: "Invalid request body", details: err?.message ?? String(err) },
+      { status: 400 }
     );
   }
 
@@ -175,8 +167,8 @@ export async function POST(request: Request) {
   if (!testId) {
     console.error("[Route] Missing test ID in request body");
     return NextResponse.json(
-      {error: "Missing test ID (test/testPk/currentTest)"},
-      {status: 400}
+      { error: "Missing test ID (test/testPk/currentTest)" },
+      { status: 400 }
     );
   }
 
@@ -185,7 +177,7 @@ export async function POST(request: Request) {
       const questionId = a.question;
       if (!questionId) return null;
 
-      const cleaned: any = {question: Number(questionId)};
+      const cleaned: any = { question: Number(questionId) };
 
       if (Array.isArray(a.choice)) {
         cleaned.choices = a.choice.map(Number);
@@ -195,14 +187,7 @@ export async function POST(request: Request) {
         cleaned.text = a.text;
       } else if (a.choice !== undefined) {
         const numeric = Number(a.choice);
-        if (!isNaN(numeric)) {
-          cleaned.choice = numeric;
-        } else {
-          console.warn(
-            `[Route] Skipping invalid non-numeric choice for question ${questionId}:`,
-            a.choice
-          );
-        }
+        if (!isNaN(numeric)) cleaned.choice = numeric;
       }
 
       return cleaned;
@@ -218,46 +203,58 @@ export async function POST(request: Request) {
 
   while (attempt < maxRetries) {
     try {
-      const submitUrl = `${BASE_URL}/assessments/api/tests/${testId}/submit/`;
-      
-      const res = await fetchWithTimeout(submitUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Api-Key ${API_KEY}`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-          ...(deviceId ? {"X-Device-Id": deviceId} : {}),
-          cookie: request.headers.get("cookie") ?? "",
-        },
-        body: JSON.stringify(payload),
-        credentials: "include",
-        timeout: 2000000000,
-      });
+      const t = withTimeout(180_000);
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("[Route] External API error response:", errorText);
-        return NextResponse.json(
-          {error: `Failed to submit test: ${errorText}`},
-          {status: res.status}
+      const submitFetch = await djangoFetch(
+        `/assessments/api/tests/${testId}/submit/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json", // djangoFetch sets it too, but OK to be explicit
+            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+          },
+          body: JSON.stringify(payload),
+          signal: t.signal,
+        }
+      );
+
+      t.clear();
+
+      if (!submitFetch.response.ok) {
+        console.error("[Route] External API error response:", submitFetch.text);
+        const res = NextResponse.json(
+          { error: `Failed to submit test: ${submitFetch.text}` },
+          { status: submitFetch.response.status }
         );
+        return attachSetCookie(res, submitFetch.setCookie);
       }
 
-      const data = await res.json();
+      let data: any;
+      try {
+        data = submitFetch.text ? JSON.parse(submitFetch.text) : null;
+      } catch {
+        data = submitFetch.text;
+      }
 
-      return NextResponse.json(data, {status: 200});
+      const res = NextResponse.json(data, { status: 200 });
+      return attachSetCookie(res, submitFetch.setCookie);
     } catch (err: any) {
-      console.error(`[Route] Attempt ${attempt + 1} failed:`, err.message);
+      console.error(`[Route] Attempt ${attempt + 1} failed:`, err?.message ?? err);
       attempt++;
+
       if (attempt === maxRetries) {
         return NextResponse.json(
-          {error: "Failed after retries", details: err.message},
-          {status: 500}
+          { error: "Failed after retries", details: err?.message ?? String(err) },
+          { status: 500 }
         );
       }
+
       await new Promise((resolve) =>
         setTimeout(resolve, 1000 * Math.pow(2, attempt))
       );
     }
   }
+
+  // Unreachable, but TypeScript likes it:
+  return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
 }

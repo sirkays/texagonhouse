@@ -121,6 +121,7 @@ interface TeacherTestMini {
 interface CBTTest {
   id: string;
   title: string;
+  mode: "online" | "offline";
   course_id: string,
   description: string;
   instructions: string;
@@ -341,6 +342,7 @@ export function TeacherCBTCreator() {
   const [currentTest, setCurrentTest] = useState<CBTTest>({
     id: "",
     title: "",
+    mode: "online", // ✅ NEW
     course_id: "",
     description: "",
     instructions: "",
@@ -1034,6 +1036,7 @@ export function TeacherCBTCreator() {
       id: data.test.id || "",
       course_id: data.test.course_id || "",
       title: data.test.title || "",
+      mode: (data.test.mode === "offline" ? "offline" : "online"),
       description: data.test.description || "",
       instructions: data.test.instructions || "",
       duration: data.test.duration || 30,
@@ -1225,6 +1228,7 @@ export function TeacherCBTCreator() {
         instructions: currentTest.instructions,
         duration: currentTest.duration,
         difficulty: currentTest.difficulty,
+        mode: currentTest.mode, // ✅ NEW
         ...(startISO ? { start_at: startISO } : {}),
         ...(endISO ? { end_at: endISO } : {}),
         total_marks: currentTest.total_marks,
@@ -1235,6 +1239,7 @@ export function TeacherCBTCreator() {
       instructions: currentTest.instructions,
       duration: currentTest.duration,
       difficulty: currentTest.difficulty,
+      mode: currentTest.mode, // ✅ NEW
       course_id: Number.parseInt(currentTest.courseId || "0"),
       category: currentTest.category || "General",
       ...(startISO ? { start_at: startISO } : {}),
@@ -1693,6 +1698,7 @@ export function TeacherCBTCreator() {
     setCurrentTest({
       id: "",
       title: "",
+      mode: "online",
       description: "",
       instructions: "",
       duration: 30,
@@ -1833,7 +1839,34 @@ export function TeacherCBTCreator() {
                       </SelectContent>
                     </Select>
                   </div>
+
                 </div>
+                <div className="space-y-2">
+                  <Label>Test Type</Label>
+                  <Select
+                    value={currentTest.mode}
+                    onValueChange={(value: "online" | "offline") =>
+                      setCurrentTest((prev) => ({ ...prev, mode: value }))
+                    }
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="online">Online</SelectItem>
+                      <SelectItem value="offline">Offline</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {currentTest.mode === "offline" && (
+                    <p className="text-xs text-amber-600">
+                      Offline tests can be accessed once downloaded. Use only when you can monitor
+                      the session or accept lower security.
+                    </p>
+                  )}
+                </div>
+
 
                 {/* Better Date UI */}
                 <DateTimePicker
@@ -2359,6 +2392,10 @@ export function TeacherCBTCreator() {
                       </Badge>
                       <Badge variant="outline">{test.difficulty}</Badge>
                       <Badge variant="outline">{test.category}</Badge>
+                      <Badge variant="outline">
+                        {test.mode === "offline" ? "Offline" : "Online"}
+                      </Badge>
+
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">

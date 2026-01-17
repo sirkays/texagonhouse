@@ -1,42 +1,15 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-const BASE_URL = "http://127.0.0.1:9098";
-//const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  "X-Session-Token": sessionToken,
-});
+// texagon_academy\texagonui\app\api\teacher\assessments\tests\create\route.ts
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function POST(
   req: Request,
-  {params}: {params: {path?: string[]}}
+  { params }: { params: { path?: string[] } }
 ) {
   noStore();
+
   const endpoint = "/assessments/api/teacher/tests/create/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
 
   try {
     const body = await req.json();
@@ -55,85 +28,59 @@ export async function POST(
       total_marks: body.total_marks || 0,
     };
 
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "POST",
-      headers: headers(session.user.sessionToken),
       body: JSON.stringify(processedBody),
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
+
+    const baseHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    };
+    if (setCookie) baseHeaders["Set-Cookie"] = setCookie;
 
     if (!response.ok) {
-      console.error(
-        "[TestCreateAPI] Request failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
+      console.error("[TestCreateAPI] Request failed:", response.status, text.slice(0, 100));
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        return NextResponse.json({ error: "Session expired" }, { status: 401, headers: baseHeaders });
       }
       if (response.status === 404) {
         return NextResponse.json(
-          {error: "Test creation endpoint not found"},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+          { error: "Test creation endpoint not found" },
+          { status: 404, headers: baseHeaders }
         );
       }
+
       return NextResponse.json(
-        {error: "Failed to create test"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Failed to create test" },
+        { status: response.status, headers: baseHeaders }
       );
     }
 
     if (!contentType.includes("application/json")) {
       console.error("[TestCreateAPI] Non-JSON response received:", contentType);
       return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: baseHeaders }
       );
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = JSON.parse(text);
     } catch (parseError) {
       console.error("[TestCreateAPI] Failed to parse JSON:", parseError);
       return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Invalid response format" },
+        { status: 500, headers: baseHeaders }
       );
     }
 
@@ -176,20 +123,11 @@ export async function POST(
       message: data.message || "Test created successfully.",
     };
 
-    return NextResponse.json(processedData, {
-      status: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    return NextResponse.json(processedData, { status: 201, headers: baseHeaders });
   } catch (error) {
     console.error("[TestCreateAPI] Request error:", error);
     return NextResponse.json(
-      {error: "Failed to create test", details: (error as Error).message},
+      { error: "Failed to create test", details: (error as Error).message },
       {
         status: 500,
         headers: {
@@ -201,8 +139,9 @@ export async function POST(
   }
 }
 
-export async function PUT(req: Request, {params}: {params: {path: string[]}}) {
+export async function PUT(req: Request, { params }: { params: { path: string[] } }) {
   noStore();
+
   const [segment1, testId, segment2, questionId] = params.path || [];
   let endpoint: string;
   let logPrefix: string;
@@ -215,7 +154,7 @@ export async function PUT(req: Request, {params}: {params: {path: string[]}}) {
     logPrefix = "[TestUpdateAPI]";
   } else {
     return NextResponse.json(
-      {error: "Invalid endpoint"},
+      { error: "Invalid endpoint" },
       {
         status: 400,
         headers: {
@@ -226,31 +165,12 @@ export async function PUT(req: Request, {params}: {params: {path: string[]}}) {
     );
   }
 
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
-
   try {
     const body = await req.json();
 
     // Process request body
-    let processedBody = body;
+    let processedBody: any = body;
+
     if (endpoint.includes("/tests/") && !endpoint.includes("/questions/")) {
       processedBody = {
         start_at: body.start_at || null,
@@ -274,94 +194,67 @@ export async function PUT(req: Request, {params}: {params: {path: string[]}}) {
       };
     }
 
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "PUT",
-      headers: headers(session.user.sessionToken),
       body: JSON.stringify(processedBody),
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
+
+    const baseHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    };
+    if (setCookie) baseHeaders["Set-Cookie"] = setCookie;
 
     if (!response.ok) {
-      console.error(
-        `${logPrefix} Request failed:`,
-        response.status,
-        rawResponse.slice(0, 100)
-      );
+      console.error(`${logPrefix} Request failed:`, response.status, text.slice(0, 100));
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        return NextResponse.json({ error: "Session expired" }, { status: 401, headers: baseHeaders });
       }
       if (response.status === 404) {
         return NextResponse.json(
-          {error: `Endpoint not found: ${endpoint}`},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+          { error: `Endpoint not found: ${endpoint}` },
+          { status: 404, headers: baseHeaders }
         );
       }
+
       return NextResponse.json(
         {
-          error: `Failed to ${
-            endpoint.includes("/questions/") ? "update question" : "update test"
-          }`,
+          error: `Failed to ${endpoint.includes("/questions/") ? "update question" : "update test"}`,
         },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: response.status, headers: baseHeaders }
       );
     }
 
     if (!contentType.includes("application/json")) {
       console.error(`${logPrefix} Non-JSON response received:`, contentType);
       return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: baseHeaders }
       );
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = JSON.parse(text);
     } catch (parseError) {
       console.error(`${logPrefix} Failed to parse JSON:`, parseError);
       return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Invalid response format" },
+        { status: 500, headers: baseHeaders }
       );
     }
 
     // Process response
-    let processedData = data;
+    let processedData: any = data;
+
     if (endpoint.includes("/tests/") && !endpoint.includes("/questions/")) {
       processedData = {
         test: {
@@ -422,23 +315,12 @@ export async function PUT(req: Request, {params}: {params: {path: string[]}}) {
       };
     }
 
-    return NextResponse.json(processedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    return NextResponse.json(processedData, { status: 200, headers: baseHeaders });
   } catch (error) {
     console.error(`${logPrefix} Request error:`, error);
     return NextResponse.json(
       {
-        error: `Failed to ${
-          endpoint.includes("/questions/") ? "update question" : "update test"
-        }`,
+        error: `Failed to ${endpoint.includes("/questions/") ? "update question" : "update test"}`,
         details: (error as Error).message,
       },
       {

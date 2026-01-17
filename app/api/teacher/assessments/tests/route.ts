@@ -1,170 +1,61 @@
+//texagon_academy\texagonui\app\api\teacher\assessments\tests\route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
-});
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function GET(req: Request) {
   noStore();
-  const endpoint = "/assessments/api/teacher/tests/";
-  const { searchParams } = new URL(req.url);
-  const queryString = searchParams.toString();
-  const fullUrl = `${BASE_URL}${endpoint}${queryString ? `?${queryString}` : ""}`;
 
-  const session = await getServerSession(authOptions);
+  const url = new URL(req.url);
+  const page = url.searchParams.get("page") ?? "1";
+  const limit = url.searchParams.get("limit") ?? "10";
 
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      { error: "Not authenticated" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
+  // Adjust this path to your actual Django list endpoint
+  const path = `/assessments/api/teacher/tests/?page=${encodeURIComponent(
+    page
+  )}&limit=${encodeURIComponent(limit)}`;
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(session.user.sessionToken),
-    });
-
+    const { response, text, setCookie } = await djangoFetch(path, { method: "GET" });
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
+
+    const baseHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    };
+    if (setCookie) baseHeaders["Set-Cookie"] = setCookie;
 
     if (!response.ok) {
-      console.error("[TeacherTestsAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
-
       if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired" },
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        return NextResponse.json({ error: "Session expired" }, { status: 401, headers: baseHeaders });
       }
-
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: "Teacher tests endpoint not found" },
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-
       return NextResponse.json(
-        { error: "Failed to fetch teacher tests" },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Failed to fetch tests" },
+        { status: response.status, headers: baseHeaders }
       );
     }
 
     if (!contentType.includes("application/json")) {
-      console.error("[TeacherTestsAPI] Non-JSON response received:", contentType);
       return NextResponse.json(
         { error: "Invalid response format, expected JSON" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 500, headers: baseHeaders }
       );
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[TeacherTestsAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        { error: "Invalid response format" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+      data = JSON.parse(text);
+    } catch {
+      return NextResponse.json({ error: "Invalid response format" }, { status: 500, headers: baseHeaders });
     }
 
-    const processedData = {
-      tests: Array.isArray(data.tests)
-        ? data.tests.map((test: any) => ({
-            id: test.id || "",
-            title: test.title || "",
-            instructions: test.instructions || "",
-            duration: test.duration || 0,
-            total_marks: test.total_marks || 0,
-            totalPoints: test.totalPoints || 0,
-            difficulty: test.difficulty || "Medium",
-            category: test.category || "",
-            isPublished: test.isPublished || false,
-            questionsCount: test.questionsCount || 0,
-            createdAt: test.createdAt || "",
-            updatedAt: test.updatedAt || "",
-            start_at: test.start_at || null,
-            end_at: test.end_at || null,
-          }))
-        : [],
-      pagination: {
-        page: data.pagination?.page || 1,
-        limit: data.pagination?.limit || 20,
-        total: data.pagination?.total || 0,
-        pages: data.pagination?.pages || 0,
-      },
-    };
-
-    return NextResponse.json(processedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    return NextResponse.json(data, { status: 200, headers: baseHeaders });
   } catch (error) {
-    console.error("[TeacherTestsAPI] Fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch teacher tests", details: (error as Error).message },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to fetch tests", details: (error as Error).message },
+      { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
     );
   }
 }
