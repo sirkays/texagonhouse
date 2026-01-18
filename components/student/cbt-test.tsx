@@ -720,26 +720,19 @@ export function CBTTest() {
   function getOrCreateDeviceId(userId?: string | number) {
     if (typeof window === "undefined") return "";
 
-    const STORAGE_KEY = "cbtDeviceId";
-
-    // ✅ If user is logged in, bind device ID to that user
-    if (userId) {
-      const userBoundId = `cbt-${userId}`;
-
-      localStorage.setItem(STORAGE_KEY, userBoundId);
-      return userBoundId;
-    }
+    const STORAGE_KEY = "cbtDeviceId"
 
     // ✅ Fallback: anonymous / pre-login device ID
     let deviceId = localStorage.getItem(STORAGE_KEY);
 
     if (!deviceId) {
-      deviceId = `cbt-${crypto.randomUUID()}`;
+      deviceId = `cbt-${userId}-${crypto.randomUUID()}`;
       localStorage.setItem(STORAGE_KEY, deviceId);
     }
 
     return deviceId;
   }
+  
   function TruncatedDescription({
     text,
     limit = 500,
