@@ -2,7 +2,7 @@
 /* Modified for offline support: cache data, queue submissions, sync when online */
 /* ✅ NOW USES TEST ID AS KEY IN pendingCBTSubmissions FOR UNIQUENESS & FAST CHECKS */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -148,19 +148,51 @@ export function CBTTest() {
   const [startingTestIds, setStartingTestIds] = useState<Record<string, boolean>>(
     {}
   );
+  const [onlineAttemptId, setOnlineAttemptId] = useState<number | null>(null);
+  const [onlineExpiresAt, setOnlineExpiresAt] = useState<string | null>(null); // ISO from server
+  const submitInFlightRef = useRef(false);
+  const submittedRef = useRef(false);
+  const autoSubmitTriggeredRef = useRef(false);
 
-  const [showSubmittedAnswersModal, setShowSubmittedAnswersModal] =
-    useState(false);
-  const [pastAttemptModalId, setPastAttemptModalId] = useState<string | null>(
-    null
-  );
+
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<"available" | "past">("available");
+
   const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">(
     "date"
   );
   const [justSyncedTestId, setJustSyncedTestId] = useState<string | null>(null);
   const STARTING_KEY = "cbtStartingTestIds";
   const ATTEMPT_LOCK_KEY = "cbtAttemptLocks"; // { [testId]: { status, startedAt } }
+  // ✅ add these near your states
+  const suspiciousRef = useRef(0);
+  const lastSuspiciousAtRef = useRef(0);
+  const warningOpenRef = useRef(false);
+  const submitTestRef = useRef<null | (() => void)>(null);
+
+
+  const bumpSuspicious = useCallback((reason?: string) => {
+    const now = Date.now();
+
+    // ✅ throttle to avoid blur + visibility firing together
+    if (now - lastSuspiciousAtRef.current < 800) return;
+    lastSuspiciousAtRef.current = now;
+
+    suspiciousRef.current += 1;
+    setSuspiciousActivity(suspiciousRef.current);
+
+    if (!warningOpenRef.current) {
+      warningOpenRef.current = true;
+      setShowSecurityWarning(true);
+    }
+
+    if (suspiciousRef.current >= 3 && !autoSubmitTriggeredRef.current) {
+      autoSubmitTriggeredRef.current = true;
+      submitTestRef.current?.();
+    }
+
+  }, []);
+
 
   // ✅ NEW: store in-progress snapshot per test
   const INPROGRESS_PREFIX = "cbtInProgress:"; // cbtInProgress:<testId>
@@ -176,6 +208,20 @@ export function CBTTest() {
       return null;
     }
   };
+  // ✅ ADD THIS NEAR TOP OF cbt-test.tsx
+  const normalizeType = (t: string) => {
+    const x = (t || "").toLowerCase();
+
+    if (x === "scq") return "single-choice";
+    if (x === "mcq") return "multiple-choice";
+    if (x === "tf" || x === "truefalse" || x === "true-false") return "true-false";
+    if (x === "short" || x === "short_answer" || x === "short-answer")
+      return "short-answer";
+    if (x === "essay" || x === "long" || x === "long_answer" || x === "long-answer")
+      return "essay";
+
+    return x; // Django already normalized most cases
+  };
 
   const writeInProgress = (testId: string, payload: any) => {
     if (typeof window === "undefined") return;
@@ -185,6 +231,20 @@ export function CBTTest() {
   const clearInProgress = (testId: string) => {
     if (typeof window === "undefined") return;
     localStorage.removeItem(getInProgressKey(testId));
+  };
+
+  const purgeAllInProgress = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(INPROGRESS_PREFIX)) keys.push(k);
+      }
+      keys.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      // ignore
+    }
   };
 
   const readAttemptLocks = (): Record<string, any> => {
@@ -217,6 +277,58 @@ export function CBTTest() {
   const getAttemptLock = (testId: string) => {
     const locks = readAttemptLocks();
     return locks[testId] || null;
+  };
+  // ✅ single place to reset secure counters
+  const resetSecurityState = () => {
+    setIsSecureMode(true);
+    suspiciousRef.current = 0;
+    setSuspiciousActivity(0);
+    warningOpenRef.current = false;
+    lastSuspiciousAtRef.current = 0;
+
+    // ✅ add these
+    submitInFlightRef.current = false;
+    submittedRef.current = false;
+    autoSubmitTriggeredRef.current = false;
+  };
+
+
+  // ✅ map API/test.items questions to one format
+  const mapQuestions = (list: any[]) =>
+    (list || []).map((q: any) => ({
+      id: q.id,
+      type: normalizeType(q.type),
+      question: q.question,
+      options:
+        normalizeType(q.type) === "true-false"
+          ? [
+            { id: "true", text: "True" },
+            { id: "false", text: "False" },
+          ]
+          : (q.choices || []).map((c: any) => ({ id: c.id, text: c.text })),
+      points: q.points,
+    }));
+
+  // ✅ pending submissions helpers (single source of truth)
+  const PENDING_KEY = "pendingCBTSubmissions";
+
+  const readPending = (): Record<string, any> => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(localStorage.getItem(PENDING_KEY) || "{}");
+    } catch {
+      localStorage.removeItem(PENDING_KEY);
+      return {};
+    }
+  };
+
+  const writePending = (pending: Record<string, any>) => {
+    if (typeof window === "undefined") return;
+    if (!pending || Object.keys(pending).length === 0) {
+      localStorage.removeItem(PENDING_KEY);
+    } else {
+      localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    }
   };
 
   const readStartingMap = (): Record<string, boolean> => {
@@ -286,163 +398,167 @@ export function CBTTest() {
     };
   }, []);
 
-useEffect(() => {
-  if (!isOnline) return;
-  if (!sessionToken) return;
-
-  // ✅ NEW: auto-submit any locally locked "in_progress" tests
-  autoSubmitAbandonedLocks();
-
-  // ✅ existing: sync queued pending submissions
-  syncPendingSubmissions();
-}, [isOnline, sessionToken]);
-
-// ✅ NEW: if a test is locally locked "in_progress" but user closed tab,
-// auto-submit it immediately when they are online again.
-const autoSubmitAbandonedLocks = async () => {
-  if (typeof window === "undefined") return;
-  if (!sessionToken) return;
-  if (!navigator.onLine) return;
-
-  const locks = readAttemptLocks();
-  const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
-
-  // avoid double-submitting if already queued
-  let pending: Record<string, any> = {};
-  try {
-    pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "{}");
-  } catch {
-    pending = {};
-  }
-
-  for (const testId of Object.keys(locks)) {
-    const lock = locks[testId];
-
-    // only auto-submit active locks
-    if (lock?.status !== "in_progress") continue;
-
-    // if already queued, syncPendingSubmissions will handle it
-    if (pending[testId]) continue;
-
-    // if results already exist, mark it submitted locally
-    if (testResults?.[testId]) {
-      lockAttempt(testId, "submitted");
-      clearInProgress(testId);
-      continue;
+  useEffect(() => {
+    // ✅ when viewing Available Tests list, remove ALL cbtInProgress:* (e.g. cbtInProgress:19)
+    if (activeTab === "available" && !currentTest) {
+      purgeAllInProgress();
     }
+  }, [activeTab, currentTest]);
 
-    const snap = readInProgress(testId);
 
-    const qs = Array.isArray(snap?.questions) ? snap.questions : [];
-    const ansMap = snap?.answers || {};
-    const startedAt = snap?.started_at || lock?.at || new Date().toISOString();
+  useEffect(() => {
+    if (!isOnline) return;
+    if (!sessionToken) return;
 
-    const initial = Number(snap?.initialTime ?? 0);
-    const left = Number(snap?.timeLeft ?? 0);
-    const durationSeconds = initial > 0 ? Math.max(0, initial - left) : 0;
+    // ✅ NEW: auto-submit any locally locked "in_progress" tests
+    autoSubmitAbandonedLocks();
 
-    const submitAnswers: any[] = [];
-    for (let i = 0; i < qs.length; i++) {
-      const q = qs[i];
-      const ans = ansMap[i];
-      if (ans === undefined) continue;
+    // ✅ existing: sync queued pending submissions
+    syncPendingSubmissions();
+  }, [isOnline, sessionToken]);
 
-      const entry: any = { question: q.id };
+  // ✅ NEW: if a test is locally locked "in_progress" but user closed tab,
+  // auto-submit it immediately when they are online again.
+  const autoSubmitAbandonedLocks = async () => {
+    if (typeof window === "undefined") return;
+    if (!sessionToken) return;
+    if (!navigator.onLine) return;
 
-      if (Array.isArray(ans)) {
-        entry.choices = ans.map((a: any) => (isNaN(Number(a)) ? a : Number(a)));
-      } else if (q.type === "essay" || q.type === "short-answer") {
-        entry.text = ans;
-      } else if (q.type === "true-false") {
-        const option = q.options?.find(
-          (opt: any) => (opt.text || "").toLowerCase() === (ans || "").toLowerCase()
-        );
-        entry.choice = option ? option.id : ans;
-      } else {
-        const numeric = Number(ans);
-        entry.choice = isNaN(numeric) ? ans : numeric;
-      }
+    const locks = readAttemptLocks();
+    const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
 
-      submitAnswers.push(entry);
-    }
-
-    const body = {
-      answers: submitAnswers,
-      started_at: startedAt,
-      duration_seconds: durationSeconds,
-      suspicious_activity: Number(snap?.suspiciousActivity ?? 0),
-      currentTest: testId,
-      auto_submitted: true,
-    };
-
+    // avoid double-submitting if already queued
+    let pending: Record<string, any> = {};
     try {
-      const res = await fetchWithTimeout(
-        "/api/student/cbt",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
-          },
-          body: JSON.stringify(body),
-        },
-        40000
-      );
+      pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "{}");
+    } catch {
+      pending = {};
+    }
 
-      if (res.ok) {
-        const data = await res.json().catch(() => null);
+    for (const testId of Object.keys(locks)) {
+      const lock = locks[testId];
 
+      // only auto-submit active locks
+      if (lock?.status !== "in_progress") continue;
+
+      // if already queued, syncPendingSubmissions will handle it
+      if (pending[testId]) continue;
+
+      // if results already exist, mark it submitted locally
+      if (testResults?.[testId]) {
         lockAttempt(testId, "submitted");
         clearInProgress(testId);
+        continue;
+      }
 
-        if (data) {
-          const test = (availableTests || []).find((t) => t.pk?.toString() === testId);
-          setTestResults((prev) => ({
-            ...prev,
-            [testId]: { ...data, title: test?.title },
-          }));
+      const snap = readInProgress(testId);
+      const mode = snap?.mode || "offline";
+      if (mode === "online") {
+        // online tests must not be queued; just unlock and force user to rejoin online
+        unlockAttempt(testId);
+        clearInProgress(testId);
+        continue;
+      }
+
+      const qs = Array.isArray(snap?.questions) ? snap.questions : [];
+      const ansMap = snap?.answers || {};
+      const startedAt = snap?.started_at || lock?.at || new Date().toISOString();
+
+      const initial = Number(snap?.initialTime ?? 0);
+      const left = Number(snap?.timeLeft ?? 0);
+      const durationSeconds = initial > 0 ? Math.max(0, initial - left) : 0;
+
+      const submitAnswers: any[] = [];
+      for (let i = 0; i < qs.length; i++) {
+        const q = qs[i];
+        const ans = ansMap[i];
+        if (ans === undefined) continue;
+
+        const entry: any = { question: q.id };
+
+        if (Array.isArray(ans)) {
+          entry.choices = ans.map((a: any) => (isNaN(Number(a)) ? a : Number(a)));
+        } else if (q.type === "essay" || q.type === "short-answer") {
+          entry.text = ans;
+        } else if (q.type === "true-false") {
+          const option = q.options?.find(
+            (opt: any) => (opt.text || "").toLowerCase() === (ans || "").toLowerCase()
+          );
+          entry.choice = option ? option.id : ans;
+        } else {
+          const numeric = Number(ans);
+          entry.choice = isNaN(numeric) ? ans : numeric;
         }
-      } else {
-        const text = await res.text().catch(() => "");
 
-        if (
-          res.status === 400 &&
-          (text.includes("already performed") || text.includes("already submitted"))
-        ) {
+        submitAnswers.push(entry);
+      }
+
+      const body = {
+        answers: submitAnswers,
+        started_at: startedAt,
+        duration_seconds: durationSeconds,
+        suspicious_activity: Number(snap?.suspiciousActivity ?? 0),
+        currentTest: testId,
+        auto_submitted: true,
+      };
+
+      try {
+        const res = await fetchWithTimeout(
+          "/api/student/cbt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+              ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+            },
+            body: JSON.stringify(body),
+          },
+          40000
+        );
+
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+
           lockAttempt(testId, "submitted");
           clearInProgress(testId);
+
+          if (data) {
+            const test = (availableTests || []).find((t) => t.pk?.toString() === testId);
+            setTestResults((prev) => ({
+              ...prev,
+              [testId]: { ...data, title: test?.title },
+            }));
+          }
         } else {
-          lockAttempt(testId, "pending_sync");
-          queueAsPending(body);
+          const text = await res.text().catch(() => "");
+
+          if (
+            res.status === 400 &&
+            (text.includes("already performed") || text.includes("already submitted"))
+          ) {
+            lockAttempt(testId, "submitted");
+            clearInProgress(testId);
+          } else {
+            lockAttempt(testId, "pending_sync");
+            queueAsPending(body);
+          }
         }
+      } catch {
+        lockAttempt(testId, "pending_sync");
+        queueAsPending(body);
       }
-    } catch {
-      lockAttempt(testId, "pending_sync");
-      queueAsPending(body);
     }
-  }
-};
+  };
 
   /* ✅ REWRITTEN: pendingCBTSubmissions is now { [testId: string]: payload } */
   const syncPendingSubmissions = async () => {
     if (typeof window === "undefined") return;
     if (!sessionToken) return;
-
-    const raw = localStorage.getItem("pendingCBTSubmissions");
-    if (!raw) return;
-
     const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
-
-    let pending: Record<string, any> = {};
-    try {
-      pending = JSON.parse(raw);
-    } catch {
-      localStorage.removeItem("pendingCBTSubmissions");
-      return;
-    }
-
+    let pending = readPending();
     if (Object.keys(pending).length === 0) return;
+
 
     setIsSyncing(true);
     let anySuccess = false;
@@ -520,22 +636,19 @@ const autoSubmitAbandonedLocks = async () => {
               setJustSyncedTestId(testId);
             }
           } else {
-            console.error("[CBTTest] Sync failed (will keep pending)", testId, res.status, text);
+            console.log("[CBTTest] Sync failed (will keep pending)", testId, res.status, text);
           }
         }
 
       } catch (err) {
-        console.error("[CBTTest] Sync failed for test", testId, err);
+        console.log("[CBTTest] Sync failed for test", testId, err);
         // keep in pending for next retry
       }
     }
 
     // Save updated pending state
-    if (Object.keys(pending).length > 0) {
-      localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
-    } else {
-      localStorage.removeItem("pendingCBTSubmissions");
-    }
+    writePending(pending);
+
 
     if (anySuccess) {
       // still okay to refresh attempts / tests
@@ -548,30 +661,21 @@ const autoSubmitAbandonedLocks = async () => {
   const queueAsPending = (cleanedBody: any) => {
     if (typeof window === "undefined") return;
 
-    let pending: Record<string, any> = {};
-    const raw = localStorage.getItem("pendingCBTSubmissions");
-    if (raw) {
-      try {
-        pending = JSON.parse(raw);
-      } catch {
-        // corrupted → start fresh
-      }
-    }
+    let pending = readPending();
 
     pending[cleanedBody.currentTest] = {
       ...cleanedBody,
       queuedAt: new Date().toISOString(),
     };
 
-    localStorage.setItem("pendingCBTSubmissions", JSON.stringify(pending));
+    writePending(pending);
+
     if (cleanedBody?.currentTest) {
       lockAttempt(cleanedBody.currentTest.toString(), "pending_sync");
     }
 
-    // If we're online, immediately try to sync (good for temporary network hiccups)
-    if (navigator.onLine) {
-      syncPendingSubmissions();
-    }
+    if (navigator.onLine) syncPendingSubmissions();
+
   };
 
   /* ---------- Auto-reload after completion ---------- */
@@ -727,6 +831,7 @@ const autoSubmitAbandonedLocks = async () => {
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
+          submitInFlightRef.current = false; // ✅ add
           setError("Session expired");
           setLoading(false);
           return;
@@ -741,9 +846,13 @@ const autoSubmitAbandonedLocks = async () => {
         : Array.isArray((d as any).available_tests)
           ? (d as any).available_tests
           : [];
-
       setAvailableTests(tests);
       setTestResults((d as any).results || {});
+
+      // ✅ cache ONLY offline tests (online tests must not be cached)
+      const offlineOnlyTests = (tests || []).filter(
+        (t: any) => (t?.mode || "online") === "offline"
+      );
 
       const rawAttempts =
         (d as any).attempts && typeof (d as any).attempts === "object"
@@ -769,7 +878,8 @@ const autoSubmitAbandonedLocks = async () => {
       localStorage.setItem(
         "cachedCBTData",
         JSON.stringify({
-          tests,
+          // ✅ only offline tests are cached
+          tests: offlineOnlyTests,
           results: (d as any).results || {},
           attempts: rawAttempts,
         })
@@ -780,7 +890,7 @@ const autoSubmitAbandonedLocks = async () => {
       if (!isOnline) {
         loadCachedData();
       } else {
-        console.error("[CBTTest] fetchData error:", err);
+        console.log("[CBTTest] fetchData error:", err);
         setError(err.message || "Failed to load assessments");
       }
     } finally {
@@ -824,6 +934,12 @@ const autoSubmitAbandonedLocks = async () => {
       unlockStart(testId);
       return;
     }
+    // ✅ hard block: online test cannot start while offline
+    if ((test.mode || "online") === "online" && !navigator.onLine) {
+      showErrorModal("Offline", "This test is online-only. Please connect to start.");
+      unlockStart(testId);
+      return;
+    }
 
     if (test.requiresSubscription && !isSubscriber) {
       setShowStartDialog(true);
@@ -842,53 +958,38 @@ const autoSubmitAbandonedLocks = async () => {
   };
 
   const handleStartTestProceed = async (testPk: string | number) => {
-    const test = (availableTests || []).find(
-      (t) => t.pk?.toString() === testPk?.toString()
-    );
+    const test = (availableTests || []).find((t) => t.pk?.toString() === testPk?.toString());
     if (!test) return;
 
-    const items = Array.isArray(test.items)
-      ? test.items
-      : test.items
-        ? Object.values(test.items)
-        : [];
-    const mappedQuestions = items.map((item: any) => ({
-      id: item.id,
-      type: item.type === "scq" ? "single-choice" : item.type,
-      question: item.question,
-      options:
-        item.type === "true-false"
-          ? [
-            { id: "true", text: "True" },
-            { id: "false", text: "False" },
-          ]
-          : item.choices
-            ? item.choices.map((c: any) => ({ id: c.id, text: c.text }))
-            : [],
-      points: item.points,
-    }));
-    setQuestions(mappedQuestions);
-    setCurrentTest(testPk?.toString());
-    if (testPk) lockAttempt(testPk.toString(), "in_progress");
+    const mode = (test.mode || "online") as "online" | "offline";
 
-    setCurrentQuestion(0);
-    setAnswers({});
+    // ✅ OFFLINE: current behavior (use test.items)
+    if (mode === "offline") {
+      const items = Array.isArray(test.items)
+        ? test.items
+        : test.items
+          ? Object.values(test.items)
+          : [];
 
-    const duration = parseInt(test.duration) * 60 || 1800;
-    setInitialTime(duration);
-    setTimeLeft(duration);
+      const mappedQuestions = mapQuestions(items);
+      const startedIso = new Date().toISOString();
+      const duration = parseInt(test.duration) * 60 || 1800;
 
-    const startedIso = new Date().toISOString();
-    setStartTime(startedIso);
+      setQuestions(mappedQuestions);
+      setCurrentTest(testPk.toString());
 
-    setSuspiciousActivity(0);
-    setIsSecureMode(true);
+      resetSecurityState();
 
-    // ✅ NEW: create initial snapshot so if tab closes we can auto-submit later
-    if (testPk) {
-      const tid = testPk.toString();
-      writeInProgress(tid, {
-        testId: tid,
+
+      lockAttempt(testPk.toString(), "in_progress");
+      setCurrentQuestion(0);
+      setAnswers({});
+      setInitialTime(duration);
+      setTimeLeft(duration);
+      setStartTime(startedIso);
+
+      writeInProgress(testPk.toString(), {
+        testId: testPk.toString(),
         questions: mappedQuestions,
         answers: {},
         started_at: startedIso,
@@ -896,10 +997,82 @@ const autoSubmitAbandonedLocks = async () => {
         timeLeft: duration,
         suspiciousActivity: 0,
         lastSavedAt: startedIso,
+
+        // ✅ ADD THIS LINE (EXACTLY HERE)
+        mode: "offline",
       });
+
+      return;
     }
 
-    if (test.type === "exam") setExamAttempts((p) => p + 1);
+
+    // ✅ ONLINE: must be online and must call server to start + fetch questions + server started_at
+    if (!navigator.onLine) {
+      showErrorModal("Offline", "This test is online-only. Please connect to the internet to start.");
+      unlockStart(testPk.toString());
+      return;
+    }
+
+    try {
+      const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
+
+      const res = await fetchWithTimeout("/api/student/cbt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+          ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+        },
+        body: JSON.stringify({ action: "start", currentTest: testPk.toString() }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        showErrorModal("Cannot start test", parseApiErrorMessage(txt || `HTTP ${res.status}`));
+        unlockStart(testPk.toString());
+        return;
+      }
+
+      const data = await res.json();
+
+      const mappedQuestions = mapQuestions(data.questions || []);
+
+
+      const serverStartedAt = data.started_at;             // ✅ server-controlled
+      const durationSeconds = Number(data.duration_seconds || 1800);
+
+      setOnlineAttemptId(Number(data.attempt_id ?? null));
+      setOnlineExpiresAt(data.expires_at ?? null);
+
+      setQuestions(mappedQuestions);
+      setCurrentTest(testPk.toString());
+
+      resetSecurityState();
+
+
+      lockAttempt(testPk.toString(), "in_progress");
+      setCurrentQuestion(0);
+      setAnswers({});
+      setInitialTime(durationSeconds);
+      setTimeLeft(durationSeconds);
+      setStartTime(serverStartedAt);
+
+      // Optional: cache snapshot, but online mode doesn't need offline submit queue
+      writeInProgress(testPk.toString(), {
+        testId: testPk.toString(),
+        questions: mappedQuestions,
+        answers: {},
+        started_at: serverStartedAt,
+        initialTime: durationSeconds,
+        timeLeft: durationSeconds,
+        suspiciousActivity: 0,
+        lastSavedAt: new Date().toISOString(),
+        mode: "online",
+      });
+    } catch (e) {
+      showErrorModal("Network error", "Unable to start online test. Please try again.");
+      unlockStart(testPk.toString());
+    }
   };
 
   /* ---------- timer ---------- */
@@ -908,9 +1081,10 @@ const autoSubmitAbandonedLocks = async () => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          submitTest();
+          submitTestRef.current?.(); // ✅ uses same lock/guard
           return 0;
         }
+
         return prev - 1;
       });
     }, 1000);
@@ -922,7 +1096,10 @@ const autoSubmitAbandonedLocks = async () => {
     if (!currentTest) return;
 
     const testId = currentTest.toString();
+    const prevSnap = readInProgress(testId) || {};
+
     const snapshot = {
+      ...prevSnap, // ✅ preserves mode / expires_at / attempt_id etc
       testId,
       questions,
       answers,
@@ -932,6 +1109,7 @@ const autoSubmitAbandonedLocks = async () => {
       suspiciousActivity,
       lastSavedAt: new Date().toISOString(),
     };
+
 
     const t = setTimeout(() => writeInProgress(testId, snapshot), 250);
     return () => clearTimeout(t);
@@ -944,71 +1122,62 @@ const autoSubmitAbandonedLocks = async () => {
     timeLeft,
     suspiciousActivity,
   ]);
-// ✅ NEW: last-chance save if the user closes the tab / refreshes
-useEffect(() => {
-  const handler = () => {
-    if (!currentTest) return;
-    const testId = currentTest.toString();
+  // ✅ NEW: last-chance save if the user closes the tab / refreshes
+  useEffect(() => {
+    const handler = () => {
+      if (!currentTest) return;
+      const testId = currentTest.toString();
 
-    writeInProgress(testId, {
-      testId,
-      questions,
-      answers,
-      started_at: startTime,
-      initialTime,
-      timeLeft,
-      suspiciousActivity,
-      lastSavedAt: new Date().toISOString(),
-    });
-  };
+      const prevSnap = readInProgress(testId) || {};
+      writeInProgress(testId, {
+        ...prevSnap,
+        testId,
+        questions,
+        answers,
+        started_at: startTime,
+        initialTime,
+        timeLeft,
+        suspiciousActivity,
+        lastSavedAt: new Date().toISOString(),
+      });
 
-  window.addEventListener("beforeunload", handler);
-  return () => window.removeEventListener("beforeunload", handler);
-}, [currentTest, questions, answers, startTime, initialTime, timeLeft, suspiciousActivity]);
+    };
+
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [currentTest, questions, answers, startTime, initialTime, timeLeft, suspiciousActivity]);
 
   /* ---------- suspicious activity detection ---------- */
   useEffect(() => {
-    if (!isSecureMode) return;
+    if (!currentTest || !isSecureMode) return;
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setSuspiciousActivity((prev) => prev + 1);
-        setShowSecurityWarning(true);
-      }
+    const onVis = () => {
+      if (document.hidden) bumpSuspicious("visibility");
     };
 
-    const handleBlur = () => {
-      setSuspiciousActivity((prev) => prev + 1);
-      setShowSecurityWarning(true);
-    };
+    const onBlur = () => bumpSuspicious("blur");
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.ctrlKey &&
-        ["c", "v", "p", "a", "s"].includes(e.key.toLowerCase())
-      ) {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey) return;
+      const k = e.key.toLowerCase();
+      if (["c", "v", "p", "a", "s"].includes(k)) {
         e.preventDefault();
-        setSuspiciousActivity((prev) => prev + 1);
-        setShowSecurityWarning(true);
+        bumpSuspicious(`ctrl+${k}`);
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleBlur);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("keydown", onKeyDown);
     };
-  }, [isSecureMode]);
+  }, [currentTest, isSecureMode, bumpSuspicious]);
 
-  useEffect(() => {
-    if (suspiciousActivity >= 3) {
-      submitTest();
-    }
-  }, [suspiciousActivity]);
+
 
   // ✅ helper: try to extract a user-friendly message from API responses
   const parseApiErrorMessage = (raw: string) => {
@@ -1052,11 +1221,37 @@ useEffect(() => {
   const submitTest = async () => {
     if (!currentTest) return;
 
+    // ✅ prevent double submit (manual + timer + suspicious)
+    if (submittedRef.current || submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
+
+    const test = availableTests.find((t) => t.pk.toString() === currentTest);
+    const mode = (test?.mode || "online") as "online" | "offline";
+
+    // ✅ ONLINE: must be online
+    if (mode === "online" && !navigator.onLine) {
+      submitInFlightRef.current = false; // ✅ add
+      showErrorModal("Offline", "This is an online-only test. Submission requires internet.");
+      return;
+    }
+
+    // ✅ ONLINE: enforce time window (frontend check — server also enforces)
+    if (mode === "online" && !isOnlineSubmissionStillValid()) {
+      submitInFlightRef.current = false; // ✅ add
+      showErrorModal(
+        "Time elapsed",
+        "The allowed time for this test has elapsed. Submission cannot be accepted."
+      );
+      // optional: kick them back to list
+      handleResetToList();
+      return;
+    }
+
+    // ---- build answers (unchanged) ----
     const submitAnswers: any[] = [];
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const ans = answers[i];
-
       if (ans === undefined) continue;
 
       const entry: any = { question: q.id };
@@ -1084,91 +1279,124 @@ useEffect(() => {
       duration_seconds: initialTime - timeLeft,
       suspicious_activity: suspiciousActivity || 0,
       currentTest: currentTest,
-    };
 
-    setTestCompleted(true);
-    setIsSecureMode(false);
-    // leave suspiciousActivity as-is so we can show it in the completed screen
+      // optional extra context (safe to send; Django ignores unless you use it)
+      attempt_id: onlineAttemptId,
+      expires_at: onlineExpiresAt,
+      mode,
+    };
 
     const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
 
-    if (isOnline) {
-      try {
-        const res = await fetchWithTimeout(
-          "/api/student/cbt",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-Token": sessionToken,
-              ...(deviceId ? { "X-Device-Id": deviceId } : {}),
-            },
-            body: JSON.stringify(cleanedBody),
+    // ✅ OFFLINE: keep your existing behavior (complete instantly + queue)
+    if (!isOnline) {
+      submittedRef.current = true;          // ✅ mark done
+      submitInFlightRef.current = false;    // ✅ release lock
+      setTestCompleted(true);
+      setIsSecureMode(false);
+      lockAttempt(currentTest!, "pending_sync");
+      queueAsPending(cleanedBody);
+      return;
+    }
+
+    // ✅ ONLINE/ONLINE-STARTED: only mark completed after success (or after queue if you want)
+    try {
+      const res = await fetchWithTimeout(
+        "/api/student/cbt",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken,
+            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
           },
-          40000
-        );
-        if (res.ok) {
-          const data = await res.json();
-          lockAttempt(currentTest!, "submitted");
-          
-          clearInProgress(currentTest!); // ✅ NEW: remove snapshot
+          body: JSON.stringify(cleanedBody),
+        },
+        40000
+      );
 
+      if (res.ok) {
+        const data = await res.json();
+        submittedRef.current = true;        // ✅ mark done
+        submitInFlightRef.current = false;  // ✅ release lock
 
-          const test = availableTests.find(
-            (t) => t.pk.toString() === currentTest
-          );
-          setTestResults((prev) => ({
-            ...prev,
-            [currentTest!]: { ...data, title: test?.title },
-          }));
-          setAttemptsPage(1);
-          fetchData();
-        } else {
-          const text = await res.text().catch(() => "");
+        setTestCompleted(true);
+        setIsSecureMode(false);
 
-          // ✅ show modal for already-performed test (don’t scare user with raw JSON)
-          if (
-            res.status === 400 &&
-            (text.includes("User already performed this test") ||
-              text.includes("already performed") ||
-              text.includes("already submitted"))
-          ) {
-            showErrorModal(
-              "Test already submitted",
-              "You’ve already completed this test, so a new submission can’t be accepted."
-            );
-            clearInProgress(currentTest!); // ✅ NEW
-            // Optional: don’t queue this one because it will never succeed
-            // (If you prefer idempotency, you can treat it as “success” and not queue.)
-            return;
-          }
+        lockAttempt(currentTest!, "submitted");
+        clearInProgress(currentTest!);
 
-          // ✅ other errors: show modal + queue as pending (your current behavior)
-          const msg = parseApiErrorMessage(text || `HTTP ${res.status}`);
-          showErrorModal("Failed to submit test", msg);
+        const test = availableTests.find((t) => t.pk.toString() === currentTest);
+        setTestResults((prev) => ({
+          ...prev,
+          [currentTest!]: { ...data, title: test?.title },
+        }));
 
-          console.error(`HTTP ${res.status}: ${text}`);
-          lockAttempt(currentTest!, "pending_sync");
-
-          queueAsPending(cleanedBody);
-        }
-      } catch (err: any) {
-        console.error("[CBTTest] Submit failed:", err);
-        showErrorModal(
-          "Network error",
-          "We couldn’t submit your test right now. Your submission has been saved and will sync when you’re online."
-        );
-        lockAttempt(currentTest!, "pending_sync");
-
-        queueAsPending(cleanedBody);
+        setAttemptsPage(1);
+        fetchData();
+        return;
       }
 
-    } else {
-      lockAttempt(currentTest!, "pending_sync");
+      const text = await res.text().catch(() => "");
 
-      queueAsPending(cleanedBody);
+      // ✅ Online-only: if server says time elapsed, don’t queue
+      if (text.includes("Time elapsed") || text.includes("Submission rejected")) {
+        submitInFlightRef.current = false; // ✅ add
+        showErrorModal("Time elapsed", "The allowed time for this test has elapsed. Submission rejected.");
+        clearInProgress(currentTest!);
+        handleResetToList();
+        return;
+      }
+
+      // already submitted
+      if (
+        res.status === 400 &&
+        (text.includes("User already performed this test") ||
+          text.includes("already performed") ||
+          text.includes("already submitted"))
+      ) {
+        showErrorModal(
+          "Test already submitted",
+          "You’ve already completed this test, so a new submission can’t be accepted."
+        );
+        clearInProgress(currentTest!);
+        return;
+      }
+
+      // other errors:
+      const msg = parseApiErrorMessage(text || `HTTP ${res.status}`);
+      showErrorModal("Failed to submit test", msg);
+      submitInFlightRef.current = false;
+
+      // ✅ Offline-mode can queue; online-mode should NOT queue (your requirement)
+      if (mode === "offline") {
+        setTestCompleted(true);
+        setIsSecureMode(false);
+        lockAttempt(currentTest!, "pending_sync");
+        queueAsPending(cleanedBody);
+      }
+    } catch (err) {
+      submitInFlightRef.current = false;
+
+      // ✅ Offline-mode can queue; online-mode should NOT queue (your requirement)
+      if (mode === "offline") {
+        setTestCompleted(true);
+        setIsSecureMode(false);
+        lockAttempt(currentTest!, "pending_sync");
+        queueAsPending(cleanedBody);
+        return;
+      }
+
+      showErrorModal(
+        "Network error",
+        "Unable to submit this online test right now. Please reconnect and try again."
+      );
     }
   };
+
+  useEffect(() => {
+    submitTestRef.current = submitTest;
+  }, [submitTest]);
 
   const handleResetToList = () => {
     if (currentTest) unlockStart(currentTest); // ✅ release lock on exit
@@ -1183,6 +1411,9 @@ useEffect(() => {
     setStartTime(null);
     setSuspiciousActivity(0);
     setIsSecureMode(false);
+    suspiciousRef.current = 0;
+    warningOpenRef.current = false;
+    lastSuspiciousAtRef.current = 0;
   };
 
 
@@ -1191,6 +1422,19 @@ useEffect(() => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+
+  const isOnlineSubmissionStillValid = () => {
+    // Only enforce in online mode
+    if (!onlineExpiresAt) return true; // if missing, don't block UX (server still enforces)
+    const nowMs = Date.now();
+    const expiresMs = Date.parse(onlineExpiresAt);
+    if (Number.isNaN(expiresMs)) return true;
+
+    // small grace for clock drift / network delay
+    const GRACE_MS = 30_000; // 30 seconds
+    return nowMs <= (expiresMs + GRACE_MS);
   };
 
   function handleAnswerChangeLocal(value: any) {
@@ -1272,13 +1516,8 @@ useEffect(() => {
     const result = testResults[currentTest ?? ""] ?? null;
 
     // Read pending fresh for accurate status
-    const pendingSubmissionsRaw =
-      typeof window !== "undefined"
-        ? localStorage.getItem("pendingCBTSubmissions")
-        : null;
-    const hasPendingForThisTest = pendingSubmissionsRaw
-      ? !!JSON.parse(pendingSubmissionsRaw ?? "{}")[currentTest ?? ""]
-      : false;
+    const hasPendingForThisTest = !!readPending()[currentTest ?? ""];
+
 
     // ✅ new: detect “just synced”
     const isJustSynced =
@@ -1417,7 +1656,11 @@ useEffect(() => {
             <DialogFooter className="mt-4 flex justify-end">
               <Button
                 className="h-9 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                onClick={() => setShowSecurityWarning(false)}>
+                onClick={() => {
+                  warningOpenRef.current = false;
+                  setShowSecurityWarning(false);
+                }}
+              >
                 I Understand
               </Button>
             </DialogFooter>
@@ -1691,19 +1934,8 @@ useEffect(() => {
     Array.isArray(availableTests) && (availableTests?.length || 0) > 0;
 
   /* ✅ NEW: pending submissions keyed by test ID */
-  const pendingSubmissions: Record<string, any> =
-    typeof window !== "undefined"
-      ? (() => {
-        const raw = localStorage.getItem("pendingCBTSubmissions");
-        if (!raw) return {};
-        try {
-          return JSON.parse(raw);
-        } catch (e) {
-          localStorage.removeItem("pendingCBTSubmissions");
-          return {};
-        }
-      })()
-      : {};
+  const pendingSubmissions = readPending();
+
 
   return (
     <div className="space-y-6">
@@ -1726,12 +1958,19 @@ useEffect(() => {
               Syncing...
             </div>
           )}
+
           <Badge
-            className="bg-[#EF7B55] hover:bg-[#EF7B55]/80 text-white"
-            variant={isOnline ? "default" : "destructive"}>
-            {isOnline ? "Online" : "Offline"}
+            variant="outline"
+            className={
+              isOnline
+                ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+                : "border-red-300 text-red-700 bg-red-50"
+            }
+          >
+            {isOnline ? "ONLINE MODE" : "OFFLINE MODE"}
           </Badge>
         </div>
+
       </div>
 
       {error && error.startsWith("Offline") && (
@@ -1740,7 +1979,7 @@ useEffect(() => {
         </div>
       )}
 
-      <Tabs defaultValue="available" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="available"
@@ -1812,6 +2051,17 @@ useEffect(() => {
 
                         </div>
                         <div className="flex gap-2">
+                          <Badge
+                            variant="outline"
+                            className={
+                              (test.mode || "online") === "offline"
+                                ? "border-emerald-200 text-emerald-700"
+                                : "border-blue-200 text-blue-700"
+                            }
+                          >
+                            {(test.mode || "online").toUpperCase()}
+                          </Badge>
+
                           <Badge
                             variant={
                               test.difficulty === "Beginner"

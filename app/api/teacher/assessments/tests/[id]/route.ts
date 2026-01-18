@@ -71,6 +71,7 @@ export async function GET(
       test: {
         id: data.test?.id || "",
         course_id: data.test?.course_id || "",
+        mode: data.test?.mode || "",
         courseId: data.test?.course_id || "",
         title: data.test?.title || "",
         instructions: data.test?.instructions || "",

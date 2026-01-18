@@ -1032,11 +1032,14 @@ export function TeacherCBTCreator() {
       ? toLocalInputValue(parseToDate(data.test.end_at))
       : "";
 
+    const mode = String(data.test.mode ?? "").trim().toLowerCase();
+ console.log(mode, " dmdmvfkmlfkmfklmvlfkmv")
+ 
     return {
       id: data.test.id || "",
       course_id: data.test.course_id || "",
       title: data.test.title || "",
-      mode: (data.test.mode === "offline" ? "offline" : "online"),
+      mode: mode === "offline" ? "offline" : "online",
       description: data.test.description || "",
       instructions: data.test.instructions || "",
       duration: data.test.duration || 30,
@@ -1851,13 +1854,15 @@ export function TeacherCBTCreator() {
                     disabled={isSaving}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select test type" />
                     </SelectTrigger>
+
                     <SelectContent>
                       <SelectItem value="online">Online</SelectItem>
                       <SelectItem value="offline">Offline</SelectItem>
                     </SelectContent>
                   </Select>
+
 
                   {currentTest.mode === "offline" && (
                     <p className="text-xs text-amber-600">

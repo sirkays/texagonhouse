@@ -19,6 +19,15 @@ function attachSetCookie(res: NextResponse, setCookie?: string) {
   return res;
 }
 
+function safeJsonParse(text: any) {
+  try {
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 export async function GET(request: Request) {
   const deviceId = request.headers.get("x-device-id") || undefined;
 
@@ -40,20 +49,19 @@ export async function GET(request: Request) {
     t1.clear();
 
     if (!testsFetch.response.ok) {
-      console.error("[Route] External API error response (tests):", testsFetch.text);
-      const res = NextResponse.json(
-        { error: `Failed to fetch tests: ${testsFetch.text}` },
-        { status: testsFetch.response.status }
-      );
+      const status = testsFetch.response.status;
+
+      const msg =
+        [500, 502, 503, 504].includes(status)
+          ? { error: "Connection error", details: "Unable to reach the server. Please try again." }
+          : { error: `Failed to fetch tests: ${testsFetch.text}` };
+
+      const res = NextResponse.json(msg, { status });
       return attachSetCookie(res, testsFetch.setCookie);
     }
 
-    let testsData: any;
-    try {
-      testsData = testsFetch.text ? JSON.parse(testsFetch.text) : null;
-    } catch {
-      testsData = testsFetch.text;
-    }
+
+    const testsData = safeJsonParse(testsFetch.text);
 
     // 2) Student test attempts (paginated)
     const t2 = withTimeout(120_000);
@@ -70,24 +78,19 @@ export async function GET(request: Request) {
     t2.clear();
 
     if (!attemptsFetch.response.ok) {
-      console.error(
-        "[Route] External API error response (attempts):",
-        attemptsFetch.text
-      );
-      const res = NextResponse.json(
-        { error: `Failed to fetch attempts: ${attemptsFetch.text}` },
-        { status: attemptsFetch.response.status }
-      );
-      // Prefer forwarding the newest set-cookie we got (attempts), fallback to tests
+      const status = attemptsFetch.response.status;
+
+      const msg =
+        [500, 502, 503, 504].includes(status)
+          ? { error: "Connection error", details: "Unable to reach the server. Please try again." }
+          : { error: `Failed to fetch attempts: ${attemptsFetch.text}` };
+
+      const res = NextResponse.json(msg, { status });
       return attachSetCookie(res, attemptsFetch.setCookie ?? testsFetch.setCookie);
     }
 
-    let attemptsData: any;
-    try {
-      attemptsData = attemptsFetch.text ? JSON.parse(attemptsFetch.text) : null;
-    } catch {
-      attemptsData = attemptsFetch.text;
-    }
+
+    const attemptsData = safeJsonParse(attemptsFetch.text);
 
     // 🔹 Normalize tests
     let tests: any[] = [];
@@ -95,18 +98,18 @@ export async function GET(request: Request) {
 
     if (Array.isArray(testsData)) {
       tests = testsData;
-    } else if (Array.isArray(testsData?.tests)) {
-      tests = testsData.tests;
-    } else if (Array.isArray(testsData?.results)) {
-      tests = testsData.results;
+    } else if (Array.isArray((testsData as any)?.tests)) {
+      tests = (testsData as any).tests;
+    } else if (Array.isArray((testsData as any)?.results)) {
+      tests = (testsData as any).results;
     }
 
     if (
       !Array.isArray(testsData) &&
-      testsData?.results &&
-      !Array.isArray(testsData.results)
+      (testsData as any)?.results &&
+      !Array.isArray((testsData as any).results)
     ) {
-      results = testsData.results;
+      results = (testsData as any).results;
     }
 
     // 🔹 Normalize attempts into { count, page, page_size, results }
@@ -119,14 +122,20 @@ export async function GET(request: Request) {
         page_size: Number(searchParams.get("page_size") || attemptsData.length),
         results: attemptsData,
       };
-    } else if (Array.isArray(attemptsData?.results)) {
+    } else if (Array.isArray((attemptsData as any)?.results)) {
       attempts = {
-        count: Number(attemptsData.count ?? attemptsData.results.length ?? 0),
-        page: Number(attemptsData.page ?? 1),
-        page_size: Number(
-          attemptsData.page_size ?? attemptsData.results.length ?? 20
+        count: Number(
+          (attemptsData as any).count ??
+          (attemptsData as any).results.length ??
+          0
         ),
-        results: attemptsData.results,
+        page: Number((attemptsData as any).page ?? 1),
+        page_size: Number(
+          (attemptsData as any).page_size ??
+          (attemptsData as any).results.length ??
+          20
+        ),
+        results: (attemptsData as any).results,
       };
     } else {
       attempts = { count: 0, page: 1, page_size: 20, results: [] };
@@ -140,10 +149,14 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error("[Route] Error fetching data:", error);
     return NextResponse.json(
-      { error: "Internal server error", details: error?.message ?? String(error) },
+      {
+        error: "Connection error",
+        details: "Unable to reach the server. Please check your internet connection and try again.",
+      },
       { status: 500 }
     );
   }
+
 }
 
 export async function POST(request: Request) {
@@ -163,6 +176,79 @@ export async function POST(request: Request) {
     );
   }
 
+  /**
+   * ✅ ONLINE START MODE
+   * Frontend sends: { action: "start", currentTest: <id> }
+   * This proxies to Django: POST /assessments/api/tests/<id>/start/
+   */
+  if (body?.action === "start") {
+    const startTestId = body.test || body.testPk || body.currentTest;
+    if (!startTestId) {
+      return NextResponse.json(
+        { error: "Missing test ID for start (test/testPk/currentTest)" },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const t = withTimeout(180_000);
+
+      const startFetch = await djangoFetch(
+        `/assessments/api/tests/${startTestId}/start/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+          },
+          body: JSON.stringify({}),
+          signal: t.signal,
+        }
+      );
+
+      t.clear();
+
+      if (!startFetch.response.ok) {
+        const status = startFetch.response.status;
+
+        const msg =
+          [500, 502, 503, 504].includes(status)
+            ? {
+              error: "Connection error",
+              details:
+                "Unable to reach the server. Please check your internet connection and try again.",
+            }
+            : {
+              error: `Failed to start test: ${startFetch.text}`,
+            };
+
+        console.error("[Route] External API error response (start):", startFetch.text);
+
+        const res = NextResponse.json(msg, { status });
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const data = safeJsonParse(startFetch.text);
+      const res = NextResponse.json(data, { status: 200 });
+      return attachSetCookie(res, startFetch.setCookie);
+    } catch (err: any) {
+      console.error("[Route] Start test failed:", err?.message ?? err);
+      return NextResponse.json(
+        {
+          error: "Connection error",
+          details: "Unable to reach the server. Please check your internet connection and try again.",
+        },
+        { status: 500 }
+      );
+    }
+
+  }
+
+  /**
+   * ✅ SUBMIT MODE (existing behaviour)
+   * Frontend sends answers payload to /api/student/cbt
+   * This proxies to Django: POST /assessments/api/tests/<id>/submit/
+   */
   const testId = body.test || body.testPk || body.currentTest;
   if (!testId) {
     console.error("[Route] Missing test ID in request body");
@@ -210,7 +296,7 @@ export async function POST(request: Request) {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json", // djangoFetch sets it too, but OK to be explicit
+            "Content-Type": "application/json",
             ...(deviceId ? { "X-Device-Id": deviceId } : {}),
           },
           body: JSON.stringify(payload),
@@ -221,33 +307,38 @@ export async function POST(request: Request) {
       t.clear();
 
       if (!submitFetch.response.ok) {
-        console.error("[Route] External API error response:", submitFetch.text);
-        const res = NextResponse.json(
-          { error: `Failed to submit test: ${submitFetch.text}` },
-          { status: submitFetch.response.status }
-        );
+        const status = submitFetch.response.status;
+
+        const msg =
+          [500, 502, 503, 504].includes(status)
+            ? { error: "Connection error", details: "Unable to reach the server. Please try again." }
+            : { error: `Failed to submit test: ${submitFetch.text}` };
+
+        const res = NextResponse.json(msg, { status });
         return attachSetCookie(res, submitFetch.setCookie);
       }
 
-      let data: any;
-      try {
-        data = submitFetch.text ? JSON.parse(submitFetch.text) : null;
-      } catch {
-        data = submitFetch.text;
-      }
 
+      const data = safeJsonParse(submitFetch.text);
       const res = NextResponse.json(data, { status: 200 });
       return attachSetCookie(res, submitFetch.setCookie);
     } catch (err: any) {
-      console.error(`[Route] Attempt ${attempt + 1} failed:`, err?.message ?? err);
+      console.error(
+        `[Route] Attempt ${attempt + 1} failed:`,
+        err?.message ?? err
+      );
       attempt++;
 
       if (attempt === maxRetries) {
         return NextResponse.json(
-          { error: "Failed after retries", details: err?.message ?? String(err) },
+          {
+            error: "Connection error",
+            details: "Unable to reach the server. Please check your internet connection and try again.",
+          },
           { status: 500 }
         );
       }
+
 
       await new Promise((resolve) =>
         setTimeout(resolve, 1000 * Math.pow(2, attempt))
