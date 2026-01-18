@@ -88,7 +88,7 @@ type Submission = {
   score: string | null;
   feedback: string;
   correction_code: string;
-  graded_by: number | null;
+  graded_by_name: number | null;
   graded_at: string | null;
   created_at: string;
   updated_at: string;
@@ -237,8 +237,8 @@ export function CodeEditor() {
           selectedLanguage === "html"
             ? htmlCode
             : selectedLanguage === "css"
-            ? cssCode
-            : code,
+              ? cssCode
+              : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
       if (activeSnippetId) {
@@ -369,8 +369,8 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-          ? cssCode
-          : code,
+            ? cssCode
+            : code,
     };
     const res = await fetch(
       `/api/code-ide/submissions/${editingSubmissionId}`,
@@ -468,12 +468,12 @@ export function CodeEditor() {
           extension === "py"
             ? "python"
             : extension === "js"
-            ? "javascript"
-            : extension === "html"
-            ? "html"
-            : extension === "css"
-            ? "css"
-            : "javascript",
+              ? "javascript"
+              : extension === "html"
+                ? "html"
+                : extension === "css"
+                  ? "css"
+                  : "javascript",
       };
       let language = languageMap[contentType] || "javascript";
       if (contentType === "text/plain" && extension && languageMap[extension]) {
@@ -544,8 +544,8 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-          ? cssCode
-          : code,
+            ? cssCode
+            : code,
     };
     const res = await fetch("/api/code-ide/submissions/create", {
       method: "POST",
@@ -581,7 +581,7 @@ export function CodeEditor() {
     return updated;
   };
   const handleLogout = async () => {
-    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
+    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => { });
     document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
     document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
     window.location.href = "/login";
@@ -591,8 +591,8 @@ export function CodeEditor() {
       selectedLanguage === "html"
         ? htmlCode
         : selectedLanguage === "css"
-        ? cssCode
-        : code;
+          ? cssCode
+          : code;
     navigator.clipboard.writeText(text);
   };
   const downloadCode = () => {
@@ -608,8 +608,8 @@ export function CodeEditor() {
       selectedLanguage === "html"
         ? htmlCode
         : selectedLanguage === "css"
-        ? cssCode
-        : code;
+          ? cssCode
+          : code;
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
@@ -907,8 +907,7 @@ export function CodeEditor() {
       }
     } catch (error) {
       showCustomAlert(
-        `${editingSubmissionId ? "Update" : "Submission"} failed: ${
-          (error as Error).message
+        `${editingSubmissionId ? "Update" : "Submission"} failed: ${(error as Error).message
         }`
       );
     }
@@ -979,12 +978,12 @@ export function CodeEditor() {
       }),
       fetchSubmissions()
         .then(setMySubmissions)
-        .catch(() => {}),
+        .catch(() => { }),
       fetch("/api/code-ide/uploads")
         .then((res) => (res.ok ? res.json() : []))
         .then(setUploadedFiles)
         .catch(() => setUploadedFiles([])),
-    ]).catch(() => {});
+    ]).catch(() => { });
   }, [status]);
   useEffect(() => {
     if (!session || isImagePreview) return;
@@ -994,8 +993,8 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-          ? cssCode
-          : code,
+            ? cssCode
+            : code,
       htmlCode: selectedLanguage === "html" ? code : htmlCode,
       cssCode: selectedLanguage === "css" ? code : cssCode,
       lesson: selectedLesson,
@@ -1501,21 +1500,20 @@ export function CodeEditor() {
                   </div>
                 ) : (
                   <div
-                    className={`codemirror-container ${
-                      syntaxError ? "error-line" : ""
-                    }`}
+                    className={`codemirror-container ${syntaxError ? "error-line" : ""
+                      }`}
                   >
                     <CodeMirror
                       value={
                         selectedLanguage === "html"
                           ? htmlCode
                           : selectedLanguage === "css"
-                          ? cssCode
-                          : code
+                            ? cssCode
+                            : code
                       }
                       extensions={
                         codeMirrorExtensions[
-                          selectedLanguage as keyof typeof codeMirrorExtensions
+                        selectedLanguage as keyof typeof codeMirrorExtensions
                         ] as any
                       }
                       theme={monokai}
@@ -1619,7 +1617,7 @@ export function CodeEditor() {
                   </Alert>
                 )}
                 {(selectedLanguage === "html" || selectedLanguage === "css") &&
-                htmlPreview ? (
+                  htmlPreview ? (
                   <Tabs defaultValue="preview" className="h-full flex flex-col">
                     <TabsList className="grid grid-cols-2 gap-2">
                       <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -1841,11 +1839,10 @@ export function CodeEditor() {
                             {/* File Info */}
                             <div className="flex-1 min-w-0">
                               <h4
-                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${
-                                  fileLoading === file.id
+                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${fileLoading === file.id
                                     ? "opacity-50 cursor-wait"
                                     : ""
-                                }`}
+                                  }`}
                                 onClick={() =>
                                   !loading && !fileLoading && loadFile(file)
                                 }
@@ -2158,7 +2155,7 @@ function SubmissionTab({
                 <div className="space-y-1">
                   <Label className="text-muted-foreground">Graded By</Label>
                   <p>
-                    {viewing.graded_by ? `User ${viewing.graded_by}` : "N/A"}
+                    {viewing.graded_by_name ? `${viewing.graded_by_name}` : "N/A"}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -2294,7 +2291,7 @@ function SubmissionTab({
                       <div
                         key={s.id}
                         className="flex flex-col gap-3 p-4 hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between"
-                        // onClick={() => viewDetail(s)}
+                      // onClick={() => viewDetail(s)}
                       >
                         {/* Left info */}
                         <div className="space-y-1 min-w-0">
@@ -2317,18 +2314,33 @@ function SubmissionTab({
                             </p>
                           </div>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onLoadToEditor(s);
-                            }}
-                            className="w-full sm:w-auto"
-                          >
-                            View Code
-                          </Button>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onLoadToEditor(s);
+                              }}
+                              className="w-full sm:w-auto"
+                            >
+                              View Code
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                viewDetail(s); // <-- opens the detail (comments + code)
+                              }}
+                              className="w-full sm:w-auto"
+                            >
+                              Details
+                            </Button>
+                          </div>
                         </div>
+
                       </div>
                     ))}
                   </div>
