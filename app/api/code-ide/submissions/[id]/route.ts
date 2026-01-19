@@ -1,129 +1,153 @@
-// app/api/ide/submissions/[id]/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// app/api/code-ide/submissions/[id]/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098/code-ide/api/ide";
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+// Helper: add a timeout to djangoFetch (via AbortController)
+async function djangoFetchWithTimeout(
+  path: string,
+  init: RequestInit = {},
+  timeoutMs = 20000
+) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(url, {
-      ...options,
+    return await djangoFetch(path, {
+      ...init,
       signal: controller.signal,
     });
+  } finally {
     clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
   }
 }
 
-export async function GET(request: Request, {params}: {params: {id: string}}) {
-  console.log(
-    `[Route] Received GET request to /api/ide/submissions/${params.id}`
-  );
-  const session = await getServerSession(authOptions);
+function safeJsonParse(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
 
-  if (!session?.user?.sessionToken) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> } // ✅ params is async in newer Next
+) {
+  const { id } = await params; // ✅ FIXES: "params should be awaited"
+
+  console.log(`[Route] Received GET request to /api/code-ide/submissions/${id}`);
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !("sessionToken" in session.user) || !session.user.sessionToken) {
     console.error("[Route] No session token found, session:", session);
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   try {
-    const url = `${BASE_URL}/submissions/${params.id}/`;
+    // proxy.ts BASE_URL already points to https://texagonbackend.onrender.com
+    // so pass the full Django path from root:
+    const path = `/code-ide/api/ide/submissions/${id}/`;
 
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 18000,
-    });
+    const { response, text, setCookie } = await djangoFetchWithTimeout(
+      path,
+      { method: "GET" },
+      18000
+    );
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
+    if (!response.ok) {
+      console.error("[Route] External API error response:", text);
       return NextResponse.json(
-        {error: `Failed to fetch data: ${errorText}`},
-        {status: res.status}
+        { error: `Failed to fetch data: ${text}` },
+        { status: response.status }
       );
     }
 
-    const data = await res.json();
+    const data = safeJsonParse(text) ?? text;
 
-    return NextResponse.json(data, {status: 200});
+    const nextRes = NextResponse.json(data, { status: 200 });
+
+    // Forward Django cookies if present (optional but helpful)
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+
+    return nextRes;
   } catch (error) {
-    console.error("[Route] Error fetching data:", (error as Error).message);
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
+
+    console.error("[Route] Error fetching data:", message);
+
+    // AbortController timeout shows as AbortError sometimes
+    const status = message.includes("AbortError") ? 504 : 500;
+
     return NextResponse.json(
-      {error: "Internal server error", details: (error as Error).message},
-      {status: 500}
+      { error: "Internal server error", details: message },
+      { status }
     );
   }
 }
 
 export async function PATCH(
   request: Request,
-  {params}: {params: {id: string}}
+  { params }: { params: Promise<{ id: string }> } // ✅ params is async
 ) {
-  const session = await getServerSession(authOptions);
+  const { id } = await params; // ✅ FIXES: "params should be awaited"
 
-  if (!session?.user?.sessionToken) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !("sessionToken" in session.user) || !session.user.sessionToken) {
     console.error("[Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
-  let body;
-
+  let body: unknown;
   try {
     body = await request.json();
   } catch (err) {
-    console.error(
-      "[Route] Error parsing request body:",
-      (err as Error).message
-    );
+    const message = err instanceof Error ? err.message : "Invalid JSON";
+    console.error("[Route] Error parsing request body:", message);
     return NextResponse.json(
-      {error: "Invalid request body", details: (err as Error).message},
-      {status: 400}
+      { error: "Invalid request body", details: message },
+      { status: 400 }
     );
   }
 
   try {
-    const url = `${BASE_URL}/submissions/${params.id}/student-update/`;
+    const path = `/code-ide/api/ide/submissions/${id}/student-update/`;
 
-    const res = await fetchWithTimeout(url, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
+    const { response, text, setCookie } = await djangoFetchWithTimeout(
+      path,
+      {
+        method: "PATCH",
+        // djangoFetch already sets Content-Type: application/json
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-      timeout: 20000,
-    });
+      20000
+    );
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
+    if (!response.ok) {
+      console.error("[Route] External API error response:", text);
       return NextResponse.json(
-        {error: `Failed to update submission: ${errorText}`},
-        {status: res.status}
+        { error: `Failed to update submission: ${text}` },
+        { status: response.status }
       );
     }
 
-    const data = await res.json();
+    const data = safeJsonParse(text) ?? text;
 
-    return NextResponse.json(data, {status: 200});
+    const nextRes = NextResponse.json(data, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+
+    return nextRes;
   } catch (err) {
-    console.error("[Route] Error updating submission:", (err as Error).message);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[Route] Error updating submission:", message);
+
+    const status = message.includes("AbortError") ? 504 : 500;
+
     return NextResponse.json(
-      {error: "Internal server error", details: (err as Error).message},
-      {status: 500}
+      { error: "Internal server error", details: message },
+      { status }
     );
   }
 }

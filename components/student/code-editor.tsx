@@ -126,6 +126,8 @@ export function CodeEditor() {
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
     null
   );
+  const [isSubmittingEditor, setIsSubmittingEditor] = useState(false);
+
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [htmlCode, setHtmlCode] = useState("<h1>Hello</h1>");
   const [cssCode, setCssCode] = useState("body { color: red; }");
@@ -895,8 +897,11 @@ export function CodeEditor() {
       }
     }
   };
-  const handleSubmit = async () => {
+  const handleEditorSubmit = async () => {
     if (!selectedLesson) return showCustomAlert("Please select a lesson");
+    if (isSubmittingEditor) return; // prevent double-click
+
+    setIsSubmittingEditor(true);
     try {
       if (editingSubmissionId) {
         await updateSubmission();
@@ -910,8 +915,23 @@ export function CodeEditor() {
         `${editingSubmissionId ? "Update" : "Submission"} failed: ${(error as Error).message
         }`
       );
+    } finally {
+      setIsSubmittingEditor(false);
     }
   };
+
+  const handleSubmissionTabSubmit = async () => {
+    if (!selectedLesson) return showCustomAlert("Please select a lesson");
+
+    try {
+      // IMPORTANT: always create from Submission tab
+      await createSubmission();
+      showCustomAlert("Submitted successfully");
+    } catch (error) {
+      showCustomAlert(`Submission failed: ${(error as Error).message}`);
+    }
+  };
+
   const handleNewFileCreate = () => {
     if (!newFileTitle.trim()) return showCustomAlert("Title required");
     setActiveSnippetId(null);
@@ -1553,10 +1573,12 @@ export function CodeEditor() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleSubmit}
-                    disabled={!selectedLesson || loading || isImagePreview}
+                    onClick={handleEditorSubmit}
+                    disabled={
+                      !selectedLesson || loading || isImagePreview || isSubmittingEditor
+                    }
                   >
-                    {loading ? (
+                    {isSubmittingEditor ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {editingSubmissionId ? "Updating..." : "Submitting..."}
@@ -1567,6 +1589,8 @@ export function CodeEditor() {
                       "Submit"
                     )}
                   </Button>
+
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -1840,8 +1864,8 @@ export function CodeEditor() {
                             <div className="flex-1 min-w-0">
                               <h4
                                 className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${fileLoading === file.id
-                                    ? "opacity-50 cursor-wait"
-                                    : ""
+                                  ? "opacity-50 cursor-wait"
+                                  : ""
                                   }`}
                                 onClick={() =>
                                   !loading && !fileLoading && loadFile(file)
@@ -1965,7 +1989,7 @@ export function CodeEditor() {
               setSelectedLesson={setSelectedLesson}
               submissionTitle={submissionTitle}
               setSubmissionTitle={setSubmissionTitle}
-              onSubmit={handleSubmit}
+              onSubmit={handleSubmissionTabSubmit}   // ✅ changed
               role={session?.user?.role || undefined}
               submissions={mySubmissions}
               onGrade={async (id, upd) => {
@@ -1978,6 +2002,7 @@ export function CodeEditor() {
               onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
               showCustomAlert={showCustomAlert}
             />
+
           </TabsContent>
         </Tabs>
       </div>

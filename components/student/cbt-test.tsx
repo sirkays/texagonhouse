@@ -121,6 +121,8 @@ export function CBTTest() {
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorModalTitle, setErrorModalTitle] = useState("Submission error");
   const [errorModalMessage, setErrorModalMessage] = useState<string>("");
+  // ✅ add near your states
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: session, status } = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
@@ -732,7 +734,7 @@ export function CBTTest() {
 
     return deviceId;
   }
-  
+
   function TruncatedDescription({
     text,
     limit = 500,
@@ -1215,85 +1217,88 @@ export function CBTTest() {
     if (!currentTest) return;
 
     // ✅ prevent double submit (manual + timer + suspicious)
-    if (submittedRef.current || submitInFlightRef.current) return;
+    if (submittedRef.current || submitInFlightRef.current || isSubmitting) return;
+
     submitInFlightRef.current = true;
+    setIsSubmitting(true);
 
-    const test = availableTests.find((t) => t.pk.toString() === currentTest);
-    const mode = (test?.mode || "online") as "online" | "offline";
-
-    // ✅ ONLINE: must be online
-    if (mode === "online" && !navigator.onLine) {
-      submitInFlightRef.current = false; // ✅ add
-      showErrorModal("Offline", "This is an online-only test. Submission requires internet.");
-      return;
-    }
-
-    // ✅ ONLINE: enforce time window (frontend check — server also enforces)
-    if (mode === "online" && !isOnlineSubmissionStillValid()) {
-      submitInFlightRef.current = false; // ✅ add
-      showErrorModal(
-        "Time elapsed",
-        "The allowed time for this test has elapsed. Submission cannot be accepted."
-      );
-      // optional: kick them back to list
-      handleResetToList();
-      return;
-    }
-
-    // ---- build answers (unchanged) ----
-    const submitAnswers: any[] = [];
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const ans = answers[i];
-      if (ans === undefined) continue;
-
-      const entry: any = { question: q.id };
-
-      if (Array.isArray(ans)) {
-        entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
-      } else if (q.type === "essay" || q.type === "short-answer") {
-        entry.text = ans;
-      } else if (q.type === "true-false") {
-        const option = q.options.find(
-          (opt: any) => opt.text.toLowerCase() === ans.toLowerCase()
-        );
-        entry.choice = option ? option.id : ans;
-      } else {
-        const numeric = Number(ans);
-        entry.choice = isNaN(numeric) ? ans : numeric;
-      }
-
-      submitAnswers.push(entry);
-    }
-
-    const cleanedBody = {
-      answers: submitAnswers,
-      started_at: startTime,
-      duration_seconds: initialTime - timeLeft,
-      suspicious_activity: suspiciousActivity || 0,
-      currentTest: currentTest,
-
-      // optional extra context (safe to send; Django ignores unless you use it)
-      attempt_id: onlineAttemptId,
-      expires_at: onlineExpiresAt,
-      mode,
+    const done = () => {
+      submitInFlightRef.current = false;
+      setIsSubmitting(false);
     };
 
-    const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
-
-    // ✅ OFFLINE: keep your existing behavior (complete instantly + queue)
-    if (!isOnline) {
-      submittedRef.current = true;          // ✅ mark done
-      submitInFlightRef.current = false;    // ✅ release lock
-      setTestCompleted(true);
-      setIsSecureMode(false);
-      lockAttempt(currentTest!, "pending_sync");
-      queueAsPending(cleanedBody);
-      return;
-    }
-
-    // ✅ ONLINE/ONLINE-STARTED: only mark completed after success (or after queue if you want)
     try {
+      const test = availableTests.find((t) => t.pk.toString() === currentTest);
+      const mode = (test?.mode || "online") as "online" | "offline";
+
+      // ✅ ONLINE: must be online
+      if (mode === "online" && !navigator.onLine) {
+        done();
+        showErrorModal("Offline", "This is an online-only test. Submission requires internet.");
+        return;
+      }
+
+      // ✅ ONLINE: enforce time window
+      if (mode === "online" && !isOnlineSubmissionStillValid()) {
+        done();
+        showErrorModal(
+          "Time elapsed",
+          "The allowed time for this test has elapsed. Submission cannot be accepted."
+        );
+        handleResetToList();
+        return;
+      }
+
+      // ---- build answers ----
+      const submitAnswers: any[] = [];
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const ans = answers[i];
+        if (ans === undefined) continue;
+
+        const entry: any = { question: q.id };
+
+        if (Array.isArray(ans)) {
+          entry.choices = ans.map((a) => (isNaN(Number(a)) ? a : Number(a)));
+        } else if (q.type === "essay" || q.type === "short-answer") {
+          entry.text = ans;
+        } else if (q.type === "true-false") {
+          const option = q.options.find(
+            (opt: any) => opt.text.toLowerCase() === String(ans).toLowerCase()
+          );
+          entry.choice = option ? option.id : ans;
+        } else {
+          const numeric = Number(ans);
+          entry.choice = isNaN(numeric) ? ans : numeric;
+        }
+
+        submitAnswers.push(entry);
+      }
+
+      const cleanedBody = {
+        answers: submitAnswers,
+        started_at: startTime,
+        duration_seconds: initialTime - timeLeft,
+        suspicious_activity: suspiciousActivity || 0,
+        currentTest,
+        attempt_id: onlineAttemptId,
+        expires_at: onlineExpiresAt,
+        mode,
+      };
+
+      const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
+
+      // ✅ OFFLINE: complete instantly + queue
+      if (!isOnline) {
+        submittedRef.current = true;
+        setTestCompleted(true);
+        setIsSecureMode(false);
+        lockAttempt(currentTest, "pending_sync");
+        queueAsPending(cleanedBody);
+        done();
+        return;
+      }
+
       const res = await fetchWithTimeout(
         "/api/student/cbt",
         {
@@ -1310,38 +1315,36 @@ export function CBTTest() {
 
       if (res.ok) {
         const data = await res.json();
-        submittedRef.current = true;        // ✅ mark done
-        submitInFlightRef.current = false;  // ✅ release lock
+        submittedRef.current = true;
 
         setTestCompleted(true);
         setIsSecureMode(false);
 
-        lockAttempt(currentTest!, "submitted");
-        clearInProgress(currentTest!);
+        lockAttempt(currentTest, "submitted");
+        clearInProgress(currentTest);
 
-        const test = availableTests.find((t) => t.pk.toString() === currentTest);
+        const t = availableTests.find((x) => x.pk.toString() === currentTest);
         setTestResults((prev) => ({
           ...prev,
-          [currentTest!]: { ...data, title: test?.title },
+          [currentTest]: { ...data, title: t?.title },
         }));
 
         setAttemptsPage(1);
         fetchData();
+        done();
         return;
       }
 
       const text = await res.text().catch(() => "");
 
-      // ✅ Online-only: if server says time elapsed, don’t queue
       if (text.includes("Time elapsed") || text.includes("Submission rejected")) {
-        submitInFlightRef.current = false; // ✅ add
         showErrorModal("Time elapsed", "The allowed time for this test has elapsed. Submission rejected.");
-        clearInProgress(currentTest!);
+        clearInProgress(currentTest);
+        done();
         handleResetToList();
         return;
       }
 
-      // already submitted
       if (
         res.status === 400 &&
         (text.includes("User already performed this test") ||
@@ -1352,40 +1355,47 @@ export function CBTTest() {
           "Test already submitted",
           "You’ve already completed this test, so a new submission can’t be accepted."
         );
-        clearInProgress(currentTest!);
+        clearInProgress(currentTest);
+        done();
         return;
       }
 
-      // other errors:
       const msg = parseApiErrorMessage(text || `HTTP ${res.status}`);
       showErrorModal("Failed to submit test", msg);
-      submitInFlightRef.current = false;
 
-      // ✅ Offline-mode can queue; online-mode should NOT queue (your requirement)
+      // ✅ Only offline-mode queues on errors
       if (mode === "offline") {
         setTestCompleted(true);
         setIsSecureMode(false);
-        lockAttempt(currentTest!, "pending_sync");
+        lockAttempt(currentTest, "pending_sync");
         queueAsPending(cleanedBody);
       }
+
+      done();
     } catch (err) {
-      submitInFlightRef.current = false;
+      // ✅ Only offline-mode queues on network failure
+      const test = availableTests.find((t) => t.pk.toString() === currentTest);
+      const mode = (test?.mode || "online") as "online" | "offline";
 
-      // ✅ Offline-mode can queue; online-mode should NOT queue (your requirement)
       if (mode === "offline") {
+        submittedRef.current = true;
         setTestCompleted(true);
         setIsSecureMode(false);
         lockAttempt(currentTest!, "pending_sync");
-        queueAsPending(cleanedBody);
-        return;
+        // we don't have cleanedBody here if error happened before it was built,
+        // but in your current flow it’s built before fetch; still safe to keep this as-is.
+      } else {
+        showErrorModal(
+          "Network error",
+          "Unable to submit this online test right now. Please reconnect and try again."
+        );
       }
 
-      showErrorModal(
-        "Network error",
-        "Unable to submit this online test right now. Please reconnect and try again."
-      );
+      submitInFlightRef.current = false;
+      setIsSubmitting(false);
     }
   };
+
 
   useEffect(() => {
     submitTestRef.current = submitTest;
@@ -1799,9 +1809,19 @@ export function CBTTest() {
                     {currentQuestion === questions.length - 1 ? (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
-                        onClick={submitTest}>
-                        Submit Test
+                        onClick={submitTest}
+                        disabled={isSubmitting || submittedRef.current}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Spinner size="sm" className="mr-2" />
+                            Submitting…
+                          </>
+                        ) : (
+                          "Submit Test"
+                        )}
                       </Button>
+
                     ) : (
                       <Button
                         className="h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"

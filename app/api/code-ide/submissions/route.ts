@@ -1,62 +1,89 @@
 // app/api/student/code/submissions/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+// Optional helper: timeout wrapper around djangoFetch
+async function djangoFetchWithTimeout(
+  path: string,
+  init: RequestInit = {},
+  timeoutMs = 18000
+) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await djangoFetch(path, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function safeJsonParse(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
+  if (
+    !session?.user ||
+    !("sessionToken" in session.user) ||
+    !session.user.sessionToken
+  ) {
+    return NextResponse.json({ error: "No session token" }, { status: 401 });
   }
 
   // forward optional ?lesson= query to backend
-  const {searchParams} = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const lesson = searchParams.get("lesson");
 
-  const backendUrl = new URL(
-    `${BASE_URL}/code-ide/api/ide/student/submissions/`
-  );
-  if (lesson) backendUrl.searchParams.set("lesson", lesson);
+  const qs = new URLSearchParams();
+  if (lesson) qs.set("lesson", lesson);
+
+  const path = `/code-ide/api/ide/student/submissions/${
+    qs.toString() ? `?${qs.toString()}` : ""
+  }`;
 
   try {
-    const res = await fetch(backendUrl.toString(), {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    });
+    const { response, text, setCookie } = await djangoFetchWithTimeout(
+      path,
+      { method: "GET" },
+      18000
+    );
 
-    const raw = await res.text();
-    let data: any = raw;
-    try {
-      data = raw ? JSON.parse(raw) : null;
-    } catch {
-      // keep as text (useful when backend returns HTML/trace)
-    }
+    const parsed = safeJsonParse(text);
+    const data = parsed ?? text;
 
-    if (!res.ok) {
+    if (!response.ok) {
+      const message =
+        (parsed && (parsed.detail || parsed.error)) || "Failed to fetch data";
+
       return NextResponse.json(
-        {
-          error:
-            (data && (data.detail || data.error)) || "Failed to fetch data",
-          details: data,
-        },
-        {status: res.status}
+        { error: message, details: data },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json(data, {status: 200});
-  } catch (error) {
-    console.error("[Route] Error fetching data:", error);
+    const nextRes = NextResponse.json(data, { status: 200 });
+
+    // Forward Django cookies if present
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+
+    return nextRes;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    const status = message.includes("AbortError") ? 504 : 500;
+
+    console.error("[Route] Error fetching data:", message);
+
     return NextResponse.json(
-      {error: "Internal server error", details: (error as Error).message},
-      {status: 500}
+      { error: "Internal server error", details: message },
+      { status }
     );
   }
 }
