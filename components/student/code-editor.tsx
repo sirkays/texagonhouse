@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import {useState, useRef, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {Loader2} from "lucide-react";
 import {
   Play,
   Download,
@@ -18,7 +18,7 @@ import {
   Upload,
   Save,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import {Alert, AlertDescription} from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -27,10 +27,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSession } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
+import {useSession} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
+import {Input} from "@/components/ui/input";
+import {Progress} from "@/components/ui/progress";
 import {
   Select,
   SelectTrigger,
@@ -38,15 +38,15 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import {Label} from "@/components/ui/label";
 import CodeMirror from "@uiw/react-codemirror";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
+import {javascript} from "@codemirror/lang-javascript";
+import {python} from "@codemirror/lang-python";
 // import {java} from "@codemirror/lang-java";
 // import {cpp} from "@codemirror/lang-cpp";
-import { html } from "@codemirror/lang-html";
-import { css } from "@codemirror/lang-css";
-import { monokai } from "@uiw/codemirror-theme-monokai";
+import {html} from "@codemirror/lang-html";
+import {css} from "@codemirror/lang-css";
+import {monokai} from "@uiw/codemirror-theme-monokai";
 const codeMirrorExtensions = {
   javascript: [javascript()],
   python: [python()],
@@ -109,18 +109,18 @@ export function CodeEditor() {
       judgeId: 63,
       template: `console.log("Hello, World!");`,
     },
-    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
+    python: {name: "Python", judgeId: 71, template: `print("Hello, World!")`},
     // java: {
     // name: "Java",
     // judgeId: 62,
     // template: `System.out.println("Hello");`,
     // },
     // cpp: {name: "C++", judgeId: 54, template: `std::cout << "Hello";`},
-    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
-    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
+    html: {name: "HTML", judgeId: null, template: `<h1>Hello</h1>`},
+    css: {name: "CSS", judgeId: null, template: `body { color: red; }`},
   } as const;
   // Session and authentication
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   // State variables
   const [submissionTitle, setSubmissionTitle] = useState("");
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
@@ -149,6 +149,7 @@ export function CodeEditor() {
     // java: languages.java.template,
     // cpp: languages.cpp.template,
   });
+  const [isRotating, setIsRotating] = useState(false);
   const [isImagePreview, setIsImagePreview] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -167,7 +168,7 @@ export function CodeEditor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
+  const [lessons, setLessons] = useState<{id: string; title: string}[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -239,8 +240,8 @@ export function CodeEditor() {
           selectedLanguage === "html"
             ? htmlCode
             : selectedLanguage === "css"
-              ? cssCode
-              : code,
+            ? cssCode
+            : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
       if (activeSnippetId) {
@@ -283,7 +284,7 @@ export function CodeEditor() {
         try {
           const res = await fetch(`/api/code-ide/snippets/${id}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
+            headers: {"Content-Type": "application/json"},
           });
           if (!res.ok) throw new Error("Delete failed");
           setMySnippets((prev) => prev.filter((s) => s.id !== id));
@@ -371,14 +372,14 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-            ? cssCode
-            : code,
+          ? cssCode
+          : code,
     };
     const res = await fetch(
       `/api/code-ide/submissions/${editingSubmissionId}`,
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(body),
       }
     );
@@ -424,7 +425,7 @@ export function CodeEditor() {
           if (!res.ok) {
             const error = await res
               .json()
-              .catch(() => ({ error: "Delete failed" }));
+              .catch(() => ({error: "Delete failed"}));
             throw new Error(error.error || "Delete failed");
           }
           setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
@@ -458,7 +459,7 @@ export function CodeEditor() {
       }
       setIsImagePreview(false);
       const content = await fetchFileContent(file);
-      const languageMap: { [key: string]: string } = {
+      const languageMap: {[key: string]: string} = {
         "text/x-python": "python",
         "application/javascript": "javascript",
         "text/javascript": "javascript",
@@ -470,12 +471,12 @@ export function CodeEditor() {
           extension === "py"
             ? "python"
             : extension === "js"
-              ? "javascript"
-              : extension === "html"
-                ? "html"
-                : extension === "css"
-                  ? "css"
-                  : "javascript",
+            ? "javascript"
+            : extension === "html"
+            ? "html"
+            : extension === "css"
+            ? "css"
+            : "javascript",
       };
       let language = languageMap[contentType] || "javascript";
       if (contentType === "text/plain" && extension && languageMap[extension]) {
@@ -513,7 +514,7 @@ export function CodeEditor() {
   const fetchSubmissions = async (lessonId?: string) => {
     const u = new URL("/api/code-ide/submissions", window.location.origin);
     if (lessonId) u.searchParams.set("lesson", lessonId);
-    const r = await fetch(u, { cache: "no-store" });
+    const r = await fetch(u, {cache: "no-store"});
     if (!r.ok) throw new Error("Failed to fetch submissions");
     return r.json() as Promise<Submission[]>;
   };
@@ -529,8 +530,8 @@ export function CodeEditor() {
       `/api/code-ide/submissions/${submissionId}/comments`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message}),
       }
     );
     if (!res.ok) throw new Error("Comment failed");
@@ -546,12 +547,12 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-            ? cssCode
-            : code,
+          ? cssCode
+          : code,
     };
     const res = await fetch("/api/code-ide/submissions/create", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -574,7 +575,7 @@ export function CodeEditor() {
   ) => {
     const res = await fetch(`/api/code-ide/submissions/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error("Grading failed");
@@ -583,7 +584,7 @@ export function CodeEditor() {
     return updated;
   };
   const handleLogout = async () => {
-    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => { });
+    await fetch("/api/auth/logout-route", {method: "POST"}).catch(() => {});
     document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
     document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
     window.location.href = "/login";
@@ -593,8 +594,8 @@ export function CodeEditor() {
       selectedLanguage === "html"
         ? htmlCode
         : selectedLanguage === "css"
-          ? cssCode
-          : code;
+        ? cssCode
+        : code;
     navigator.clipboard.writeText(text);
   };
   const downloadCode = () => {
@@ -610,9 +611,9 @@ export function CodeEditor() {
       selectedLanguage === "html"
         ? htmlCode
         : selectedLanguage === "css"
-          ? cssCode
-          : code;
-    const blob = new Blob([content], { type: "text/plain" });
+        ? cssCode
+        : code;
+    const blob = new Blob([content], {type: "text/plain"});
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
@@ -912,7 +913,8 @@ export function CodeEditor() {
       }
     } catch (error) {
       showCustomAlert(
-        `${editingSubmissionId ? "Update" : "Submission"} failed: ${(error as Error).message
+        `${editingSubmissionId ? "Update" : "Submission"} failed: ${
+          (error as Error).message
         }`
       );
     } finally {
@@ -998,12 +1000,12 @@ export function CodeEditor() {
       }),
       fetchSubmissions()
         .then(setMySubmissions)
-        .catch(() => { }),
+        .catch(() => {}),
       fetch("/api/code-ide/uploads")
         .then((res) => (res.ok ? res.json() : []))
         .then(setUploadedFiles)
         .catch(() => setUploadedFiles([])),
-    ]).catch(() => { });
+    ]).catch(() => {});
   }, [status]);
   useEffect(() => {
     if (!session || isImagePreview) return;
@@ -1013,8 +1015,8 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-            ? cssCode
-            : code,
+          ? cssCode
+          : code,
       htmlCode: selectedLanguage === "html" ? code : htmlCode,
       cssCode: selectedLanguage === "css" ? code : cssCode,
       lesson: selectedLesson,
@@ -1096,8 +1098,7 @@ export function CodeEditor() {
               </Label>
               <Select
                 value={selectedLesson}
-                onValueChange={(value) => setSelectedLesson(value)}
-              >
+                onValueChange={(value) => setSelectedLesson(value)}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select lesson (optional)" />
                 </SelectTrigger>
@@ -1119,15 +1120,13 @@ export function CodeEditor() {
                 setSaveFileName("");
                 setPrepopulatedSaveData(null);
               }}
-              disabled={isSaving}
-            >
+              disabled={isSaving}>
               Cancel
             </Button>
             <Button
               onClick={saveAsFile}
               disabled={!saveFileName.trim() || isSaving}
-              className="bg-[#EF7B55] hover:bg-[#F79771]"
-            >
+              className="bg-[#EF7B55] hover:bg-[#F79771]">
               {isSaving ? (
                 <Spinner size="sm" className="mr-2" />
               ) : (
@@ -1186,15 +1185,13 @@ export function CodeEditor() {
                 setShowNewFileModal(false);
                 setNewFileTitle("");
                 setNewFileLesson("");
-              }}
-            >
+              }}>
               Cancel
             </Button>
             <Button
               onClick={handleNewFileCreate}
               disabled={!newFileTitle.trim()}
-              className="bg-[#EF7B55] hover:bg-[#F79771]"
-            >
+              className="bg-[#EF7B55] hover:bg-[#F79771]">
               <FilePlus className="mr-2 h-4 w-4" />
               Create
             </Button>
@@ -1226,8 +1223,7 @@ export function CodeEditor() {
               onClick={async () => {
                 if (onConfirmCallback) await onConfirmCallback();
                 setShowConfirm(false);
-              }}
-            >
+              }}>
               Yes
             </Button>
           </DialogFooter>
@@ -1452,88 +1448,101 @@ export function CodeEditor() {
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="main-tabs"
-        >
-          <TabsList className="tabs-list bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          className="main-tabs">
+          <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-3 sm:mb-14">
             <TabsTrigger
               value="editor"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
               Editor
             </TabsTrigger>
             <TabsTrigger
               value="output"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
               Output
             </TabsTrigger>
             <TabsTrigger
               value="files"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
               Files
             </TabsTrigger>
             <TabsTrigger
               value="submission"
-              className="tabs-trigger bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            >
+              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
               Submission
             </TabsTrigger>
           </TabsList>
           <TabsContent value="editor" className="tab-content">
-            <Card className="flex flex-col w-full">
-              <CardHeader>
-                <div className="flex items-center justify-between">
+            <Card className="flex flex-col w-full border-none">
+              <CardHeader className="p-0 py-4 sm:py-4">
+                {/* <div className="flex items-center justify-between">
                   <CardTitle className="text-lg sm:text-xl">
                     Code Editor
                   </CardTitle>
                   <Button variant="outline" size="sm" onClick={resetCode}>
                     <RotateCcw className="h-4 w-4" />
                   </Button>
+                </div> */}
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg sm:text-xl">
+                    Code Editor
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    className="hover:bg-[#EF7855]/20"
+                    size="sm"
+                    onClick={() => {
+                      setIsRotating(true);
+                      resetCode();
+                      setTimeout(() => setIsRotating(false), 1000); // Match animation duration
+                    }}>
+                    <RotateCcw
+                      className={`h-4 w-4 ${
+                        isRotating ? "animate-spin-ccw" : ""
+                      }`}
+                    />
+                  </Button>
                 </div>
                 <Tabs
                   value={selectedLanguage}
                   onValueChange={handleLanguageChange}
-                  className="language-tabs"
-                >
-                  <TabsList className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  className="language-tabs">
+                  <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-3 sm:mb-14">
                     {Object.entries(languages).map(([key, lang]) => (
                       <TabsTrigger
                         key={key}
                         value={key}
-                        className="tab-trigger"
-                      >
+                        className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
                         {lang.name}
                       </TabsTrigger>
                     ))}
                   </TabsList>
                 </Tabs>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
+              <CardContent className="flex-1 flex flex-col px-0">
                 {isImagePreview ? (
                   <div className="image-preview">
                     <img
                       src={imagePreviewUrl}
                       alt="Uploaded image"
-                      style={{ maxWidth: "100%", height: "auto" }}
+                      style={{maxWidth: "100%", height: "auto"}}
                     />
                   </div>
                 ) : (
                   <div
-                    className={`codemirror-container ${syntaxError ? "error-line" : ""
-                      }`}
-                  >
+                    className={`codemirror-container ${
+                      syntaxError ? "error-line" : ""
+                    }`}>
                     <CodeMirror
                       value={
                         selectedLanguage === "html"
                           ? htmlCode
                           : selectedLanguage === "css"
-                            ? cssCode
-                            : code
+                          ? cssCode
+                          : code
                       }
                       extensions={
                         codeMirrorExtensions[
-                        selectedLanguage as keyof typeof codeMirrorExtensions
+                          selectedLanguage as keyof typeof codeMirrorExtensions
                         ] as any
                       }
                       theme={monokai}
@@ -1556,28 +1565,31 @@ export function CodeEditor() {
                   <Button
                     onClick={runCode}
                     disabled={isRunning || !!error || loading}
-                    className="bg-[#EF7B55] hover:bg-[#F79771]"
-                  >
+                    className="bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
+                    size="sm">
                     <Play className="mr-2 h-4 w-4" />
                     {isRunning ? "Executing..." : "Run Code"}
                   </Button>
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={() => setShowSaveModal(true)}
-                    disabled={loading || isImagePreview}
-                  >
+                    disabled={loading || isImagePreview}>
                     <Save className="mr-2 h-4 w-4" />
                     Save As...
                   </Button>
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={handleEditorSubmit}
                     disabled={
-                      !selectedLesson || loading || isImagePreview || isSubmittingEditor
-                    }
-                  >
+                      !selectedLesson ||
+                      loading ||
+                      isImagePreview ||
+                      isSubmittingEditor
+                    }>
                     {isSubmittingEditor ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1590,29 +1602,28 @@ export function CodeEditor() {
                     )}
                   </Button>
 
-
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={copyCode}
-                    disabled={loading || isImagePreview}
-                  >
+                    disabled={loading || isImagePreview}>
                     <Copy className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={downloadCode}
-                    disabled={loading || isImagePreview}
-                  >
+                    disabled={loading || isImagePreview}>
                     <Download className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={resetCode}
-                    disabled={loading}
-                  >
+                    disabled={loading}>
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1641,7 +1652,7 @@ export function CodeEditor() {
                   </Alert>
                 )}
                 {(selectedLanguage === "html" || selectedLanguage === "css") &&
-                  htmlPreview ? (
+                htmlPreview ? (
                   <Tabs defaultValue="preview" className="h-full flex flex-col">
                     <TabsList className="grid grid-cols-2 gap-2">
                       <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -1683,22 +1694,22 @@ export function CodeEditor() {
                     <AlertDescription>{uploadSuccessMessage}</AlertDescription>
                   </Alert>
                 )}
-                <div className="flex flex-wrap gap-2">
+                <div className="w-full flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={() => setShowNewFileModal(true)}
-                    disabled={uploading}
-                  >
+                    disabled={uploading}>
                     <FilePlus className="h-4 w-4 mr-2" />
                     New Snippet
                   </Button>
                   <Button
                     variant="outline"
+                    className="hover:bg-[#EF7B55]/20"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                  >
+                    disabled={uploading}>
                     {uploading ? (
                       <Spinner size="sm" className="mr-2" />
                     ) : (
@@ -1736,9 +1747,17 @@ export function CodeEditor() {
                   disabled={uploading}
                 />
                 <Tabs defaultValue="saved" className="flex-1">
-                  <TabsList className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                    <TabsTrigger value="saved">Saved Snippets</TabsTrigger>
-                    <TabsTrigger value="uploads">Other Uploads</TabsTrigger>
+                  <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row items-center w-full gap-2 mb-14">
+                    <TabsTrigger
+                      value="saved"
+                      className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+                      Saved Snippets
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="uploads"
+                      className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+                      Other Uploads
+                    </TabsTrigger>
                   </TabsList>
                   {/* Saved Snippets */}
                   <TabsContent value="saved" className="space-y-4">
@@ -1760,8 +1779,7 @@ export function CodeEditor() {
                               {/* Title */}
                               <span
                                 className="font-medium cursor-pointer hover:text-primary truncate w-full sm:max-w-[60%]"
-                                title="Click to load into editor"
-                              >
+                                title="Click to load into editor">
                                 {s.title}
                               </span>
 
@@ -1776,8 +1794,7 @@ export function CodeEditor() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => copySnippetUrl(s.id)}
-                                    title="Copy snippet URL"
-                                  >
+                                    title="Copy snippet URL">
                                     <Link className="h-4 w-4" />
                                   </Button>
 
@@ -1786,29 +1803,30 @@ export function CodeEditor() {
                                     size="sm"
                                     onClick={() => deleteSnippet(s.id)}
                                     title="Delete snippet"
-                                    className="text-destructive hover:text-destructive"
-                                  >
+                                    className="text-destructive hover:text-destructive">
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Lesson */}
-                            {s.lesson && (
-                              <p className="text-xs text-muted-foreground mt-1 truncate">
-                                Lesson {s.lesson}
-                              </p>
-                            )}
-
-                            {/* View Button */}
-                            <div className="mt-3">
-                              <Button
-                                className="w-full sm:w-auto bg-transparent"
-                                onClick={() => loadSnippet(s)}
-                              >
-                                View
-                              </Button>
+                            <div className="flex items-center justify-between mt-2 sm:mt-0 sm:flex-row gap-2">
+                              {/* Lesson */}
+                              {s.lesson && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  Lesson {s.lesson}
+                                </p>
+                              )}
+                              {/* View Button */}
+                              <div className="mt-3">
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  className="w-full sm:w-auto px-3 py-1.5 bg-transparent hover:bg-[#EF7B55]/20"
+                                  onClick={() => loadSnippet(s)}>
+                                  View
+                                </Button>
+                              </div>
                             </div>
                           </Card>
                         ))
@@ -1819,8 +1837,8 @@ export function CodeEditor() {
                       <Button
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage((p) => p - 1)}
-                        className="w-full sm:w-auto"
-                      >
+                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
+                        size="sm">
                         Previous
                       </Button>
 
@@ -1832,8 +1850,8 @@ export function CodeEditor() {
                       <Button
                         disabled={currentPage === totalSnippetPages}
                         onClick={() => setCurrentPage((p) => p + 1)}
-                        className="w-full sm:w-auto"
-                      >
+                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
+                        size="sm">
                         Next
                       </Button>
                     </div>
@@ -1857,16 +1875,16 @@ export function CodeEditor() {
                       paginatedUploads.map((file) => (
                         <Card
                           key={file.id}
-                          className="p-3 sm:p-4 overflow-hidden"
-                        >
+                          className="p-3 sm:p-4 overflow-hidden">
                           <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
                             {/* File Info */}
                             <div className="flex-1 min-w-0">
                               <h4
-                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${fileLoading === file.id
-                                  ? "opacity-50 cursor-wait"
-                                  : ""
-                                  }`}
+                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${
+                                  fileLoading === file.id
+                                    ? "opacity-50 cursor-wait"
+                                    : ""
+                                }`}
                                 onClick={() =>
                                   !loading && !fileLoading && loadFile(file)
                                 }
@@ -1874,8 +1892,7 @@ export function CodeEditor() {
                                   fileLoading === file.id
                                     ? "Loading..."
                                     : "Click to load into editor"
-                                }
-                              >
+                                }>
                                 {file.label || file.original_name}
                                 {fileLoading === file.id && (
                                   <Spinner size="sm" className="inline ml-2" />
@@ -1895,21 +1912,10 @@ export function CodeEditor() {
                               </p>
 
                               {/* URL — mobile-safe wrapping */}
-                              <div className="flex flex-wrap items-start gap-2 text-xs text-muted-foreground mt-1 min-w-0">
+                              <div className="items-start gap-2 text-xs text-muted-foreground mt-1 min-w-0">
                                 <span className="break-all flex-1 min-w-0">
                                   {file.url}
                                 </span>
-
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyFileUrl(file)}
-                                  title="Copy file URL"
-                                  disabled={loading || fileLoading === file.id}
-                                  className="shrink-0"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
                               </div>
                             </div>
 
@@ -1921,11 +1927,19 @@ export function CodeEditor() {
                                 onClick={() => copyFileUrl(file)}
                                 title="Copy file URL"
                                 disabled={loading || fileLoading === file.id}
-                                className="flex-1 sm:flex-none"
-                              >
+                                className="flex-1 sm:flex-none">
                                 <Link className="h-4 w-4" />
                               </Button>
 
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyFileUrl(file)}
+                                title="Copy file URL"
+                                disabled={loading || fileLoading === file.id}
+                                className="shrink-0">
+                                <Copy className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1940,8 +1954,7 @@ export function CodeEditor() {
                                   loading ||
                                   fileLoading === file.id ||
                                   deletingFileId === file.id
-                                }
-                              >
+                                }>
                                 {deletingFileId === file.id ? (
                                   <Spinner size="sm" className="h-4 w-4" />
                                 ) : (
@@ -1958,8 +1971,7 @@ export function CodeEditor() {
                         variant="outline"
                         disabled={currentPage === 1 || uploading}
                         onClick={() => setCurrentPage((p) => p - 1)}
-                        className="w-full sm:w-auto"
-                      >
+                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90">
                         Previous
                       </Button>
 
@@ -1972,8 +1984,7 @@ export function CodeEditor() {
                         variant="outline"
                         disabled={currentPage === totalUploadPages || uploading}
                         onClick={() => setCurrentPage((p) => p + 1)}
-                        className="w-full sm:w-auto"
-                      >
+                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90">
                         Next
                       </Button>
                     </div>
@@ -1989,7 +2000,7 @@ export function CodeEditor() {
               setSelectedLesson={setSelectedLesson}
               submissionTitle={submissionTitle}
               setSubmissionTitle={setSubmissionTitle}
-              onSubmit={handleSubmissionTabSubmit}   // ✅ changed
+              onSubmit={handleSubmissionTabSubmit} // ✅ changed
               role={session?.user?.role || undefined}
               submissions={mySubmissions}
               onGrade={async (id, upd) => {
@@ -2002,7 +2013,6 @@ export function CodeEditor() {
               onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
               showCustomAlert={showCustomAlert}
             />
-
           </TabsContent>
         </Tabs>
       </div>
@@ -2024,7 +2034,7 @@ function SubmissionTab({
   onLoadToEditor,
   showCustomAlert,
 }: {
-  lessons: { id: string; title: string }[];
+  lessons: {id: string; title: string}[];
   selectedLesson: string;
   setSelectedLesson: (v: string) => void;
   submissionTitle: string;
@@ -2101,12 +2111,11 @@ function SubmissionTab({
         <CardTitle className="text-lg sm:text-xl">Code Submission</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-6">
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label
               htmlFor="lesson-select"
-              className="block mb-2 text-sm font-medium"
-            >
+              className="block mb-2 text-sm font-medium">
               Select Lesson
             </Label>
             <Select value={selectedLesson} onValueChange={setSelectedLesson}>
@@ -2125,8 +2134,7 @@ function SubmissionTab({
           <div>
             <Label
               htmlFor="submission-title"
-              className="block mb-2 text-sm font-medium"
-            >
+              className="block mb-2 text-sm font-medium">
               Submission Title (optional)
             </Label>
             <Input
@@ -2140,11 +2148,53 @@ function SubmissionTab({
         <Button
           onClick={handleSubmitClick}
           disabled={!selectedLesson || isSubmitting}
-          className="w-full md:w-auto"
-        >
-          {isSubmitting && <Spinner size="sm" className="mr-2" />}
+          className="w-full md:w-auto bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90">
+          {isSubmitting && <Spinner size="sm" className="mr-2 " />}
           {isSubmitting ? "Submitting..." : "Submit Code"}
-        </Button>
+        </Button> */}
+
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+          <div className="w-full">
+            <Label
+              htmlFor="lesson-select"
+              className="block mb-2 text-sm font-medium">
+              Select Lesson
+            </Label>
+            <Select value={selectedLesson} onValueChange={setSelectedLesson}>
+              <SelectTrigger id="lesson-select">
+                <SelectValue placeholder="Select a lesson" />
+              </SelectTrigger>
+              <SelectContent>
+                {lessons.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full">
+            <Label
+              htmlFor="submission-title"
+              className="block mb-2 text-sm font-medium">
+              Submission Title (optional)
+            </Label>
+            <Input
+              id="submission-title"
+              placeholder="Enter submission title"
+              value={submissionTitle}
+              onChange={(e) => setSubmissionTitle(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={handleSubmitClick}
+            disabled={!selectedLesson || isSubmitting}
+            className="w-full md:w-auto bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90">
+            {isSubmitting && <Spinner size="sm" className="mr-2 " />}
+            {isSubmitting ? "Submitting..." : "Submit Code"}
+          </Button>
+        </div>
+
         {viewing ? (
           <Card className="border rounded-md flex-1 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -2154,8 +2204,7 @@ function SubmissionTab({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setViewing(null)}
-              >
+                onClick={() => setViewing(null)}>
                 Back to List
               </Button>
             </CardHeader>
@@ -2180,7 +2229,9 @@ function SubmissionTab({
                 <div className="space-y-1">
                   <Label className="text-muted-foreground">Graded By</Label>
                   <p>
-                    {viewing.graded_by_name ? `${viewing.graded_by_name}` : "N/A"}
+                    {viewing.graded_by_name
+                      ? `${viewing.graded_by_name}`
+                      : "N/A"}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -2203,8 +2254,7 @@ function SubmissionTab({
                     variant="ghost"
                     size="sm"
                     onClick={() => copySubmissionCode(viewing.code_text)}
-                    title="Copy code"
-                  >
+                    title="Copy code">
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -2230,8 +2280,7 @@ function SubmissionTab({
                       onClick={() =>
                         copySubmissionCode(viewing.correction_code)
                       }
-                      title="Copy correction code"
-                    >
+                      title="Copy correction code">
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -2249,8 +2298,7 @@ function SubmissionTab({
                   {viewing.comments.map((c) => (
                     <div
                       key={c.id}
-                      className="bg-muted p-3 rounded-md space-y-1"
-                    >
+                      className="bg-muted p-3 rounded-md space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold">
                           {c.author_name} ({c.author_role})
@@ -2286,8 +2334,7 @@ function SubmissionTab({
                   onClick={(e) => {
                     e.stopPropagation();
                     onLoadToEditor(viewing);
-                  }}
-                >
+                  }}>
                   Load to Editor
                 </Button>
               </div>
@@ -2316,7 +2363,7 @@ function SubmissionTab({
                       <div
                         key={s.id}
                         className="flex flex-col gap-3 p-4 hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between"
-                      // onClick={() => viewDetail(s)}
+                        // onClick={() => viewDetail(s)}
                       >
                         {/* Left info */}
                         <div className="space-y-1 min-w-0">
@@ -2347,8 +2394,7 @@ function SubmissionTab({
                                 e.stopPropagation();
                                 onLoadToEditor(s);
                               }}
-                              className="w-full sm:w-auto"
-                            >
+                              className="w-full sm:w-auto">
                               View Code
                             </Button>
 
@@ -2359,13 +2405,11 @@ function SubmissionTab({
                                 e.stopPropagation();
                                 viewDetail(s); // <-- opens the detail (comments + code)
                               }}
-                              className="w-full sm:w-auto"
-                            >
+                              className="w-full sm:w-auto">
                               Details
                             </Button>
                           </div>
                         </div>
-
                       </div>
                     ))}
                   </div>
@@ -2376,8 +2420,7 @@ function SubmissionTab({
                   variant="outline"
                   size="sm"
                   disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                >
+                  onClick={() => setCurrentPage((p) => p - 1)}>
                   Previous
                 </Button>
                 <span>
@@ -2388,8 +2431,7 @@ function SubmissionTab({
                   variant="outline"
                   size="sm"
                   disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                >
+                  onClick={() => setCurrentPage((p) => p + 1)}>
                   Next
                 </Button>
               </div>
