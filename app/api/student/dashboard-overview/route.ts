@@ -1,40 +1,37 @@
 // app/api/student/dashboard-overview/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function GET() {
   try {
-    const res = await fetch(`${BASE_URL}/accounts/api/dashboard/overview/`, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
+    const { response, text, setCookie } = await djangoFetch(
+      "/accounts/api/dashboard/overview/",
+      { method: "GET" }
+    );
 
-    const data = await res.json();
+    // If backend sets cookies (like sessionid), forward them to the browser
+    const headers = new Headers();
+    if (setCookie) headers.set("Set-Cookie", setCookie);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: "Failed to fetch data"},
-        {status: res.status}
-      );
+    // Try to return JSON if possible, otherwise return raw text
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = text ? JSON.parse(text) : null;
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: "Failed to fetch data", backend: data },
+          { status: response.status, headers }
+        );
+      }
+
+      return NextResponse.json(data, { status: response.status, headers });
     }
 
-    return NextResponse.json(data);
+    // Non-JSON fallback
+    return new NextResponse(text, { status: response.status, headers });
   } catch (error) {
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

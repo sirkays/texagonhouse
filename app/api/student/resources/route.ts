@@ -1,212 +1,171 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+// ✅ export it
+export const BASE_URL =
+  process.env.STORE_BASE_URL || "http://127.0.0.1:9098";
+
+
+
 
 function normalizeMedia(media: any) {
   if (!media) return null;
-  const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
+  const cleaned = String(media).replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
   return `${BASE_URL}/media/${cleaned}`;
 }
 
-const headers = (sessionToken: any) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
-
-export async function GET(req: any) {
+export async function GET(req: Request) {
   noStore();
+
   const endpoint = "/learning/api/academics/resources/";
-  const {searchParams} = new URL(req.url);
+  const { searchParams } = new URL(req.url);
+
   const courseId = searchParams.get("course_id");
   const moduleId = searchParams.get("module_id");
   const query = searchParams.get("q");
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
-    );
-  }
 
   const queryParams = new URLSearchParams();
   if (query) queryParams.append("q", query);
   if (moduleId) queryParams.append("module_id", moduleId);
 
-  // Default to first course if no course_id is provided
+  // If no course_id provided, try to fetch courses and use the first one.
   if (!courseId) {
-    // Fetch available courses to get the first course ID
     try {
-      const coursesResponse = await fetch(
-        `${BASE_URL}/learning/api/academics/courses/`,
-        {
-          method: "GET",
-          headers: headers(session.user.sessionToken),
+      const { response: coursesRes, text: coursesText, setCookie: coursesSetCookie } =
+        await djangoFetch("/learning/api/student/courses/", { method: "GET" });
+
+      // Note: we won't early-return here on auth failure, we just proceed without course_id
+      // (same as your previous behavior).
+      if (coursesRes.ok) {
+        let coursesData: any = {};
+        try {
+          coursesData = coursesText ? JSON.parse(coursesText) : {};
+        } catch {
+          coursesData = {};
         }
-      );
-      if (!coursesResponse.ok) {
-        console.error(
-          "[ResourcesRoute] Failed to fetch courses:",
-          coursesResponse.status
-        );
-        throw new Error("Failed to fetch courses");
-      }
-      const coursesData = await coursesResponse.json();
-      const firstCourseId = coursesData.courses?.[0]?.id;
-      if (firstCourseId) {
-        queryParams.append("course_id", firstCourseId.toString());
-        console.log(
-          "[ResourcesRoute] No course_id provided, using first course ID:",
-          firstCourseId
-        );
+
+        const firstCourseId = coursesData?.courses?.[0]?.id;
+        if (firstCourseId) {
+          queryParams.append("course_id", String(firstCourseId));
+          console.log(
+            "[ResourcesRoute] No course_id provided, using first course ID:",
+            firstCourseId
+          );
+        } else {
+          console.log("[ResourcesRoute] No courses found, proceeding without course_id");
+        }
       } else {
-        console.log(
-          "[ResourcesRoute] No courses found, proceeding without course_id"
-        );
+        console.error("[ResourcesRoute] Failed to fetch courses:", coursesRes.status);
       }
+
+      // (Optional) if courses call sets cookie, it will be forwarded on the *main* response below
+      // via outHeaders (we merge only the final setCookie).
+      void coursesSetCookie;
     } catch (error) {
       console.error("[ResourcesRoute] Error fetching courses:", error);
-      // Proceed without course_id if courses cannot be fetched
+      // Proceed without course_id
     }
   } else {
     queryParams.append("course_id", courseId);
   }
 
-  const fullUrl = `${BASE_URL}${endpoint}?${queryParams}`;
+  const path = `${endpoint}?${queryParams.toString()}`;
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(session.user.sessionToken),
+    const { response, text, setCookie } = await djangoFetch(path, { method: "GET" });
+
+    const outHeaders = new Headers({
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
     });
+    if (setCookie) outHeaders.set("Set-Cookie", setCookie);
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[ResourcesRoute] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        // mirrors your previous behavior
+        return NextResponse.json({ error: "Session expired" }, { status: 401, headers: outHeaders });
       }
       if (response.status === 404) {
         return NextResponse.json(
-          {error: "Resources endpoint not found"},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+          { error: "Resources endpoint not found" },
+          { status: 404, headers: outHeaders }
         );
       }
-      return NextResponse.json(
-        {error: "Failed to fetch resources"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
+
+      // If backend returned JSON, include it (handy for debugging)
+      if (contentType.includes("application/json")) {
+        try {
+          const backend = text ? JSON.parse(text) : null;
+          return NextResponse.json(
+            { error: "Failed to fetch resources", backend },
+            { status: response.status, headers: outHeaders }
+          );
+        } catch {
+          // ignore
         }
+      }
+
+      return NextResponse.json(
+        { error: "Failed to fetch resources" },
+        { status: response.status, headers: outHeaders }
       );
     }
 
     if (!contentType.includes("application/json")) {
-      console.error(
-        "[ResourcesRoute] Non-JSON response received:",
-        contentType
-      );
+      console.error("[ResourcesRoute] Non-JSON response received:", contentType);
       return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: outHeaders }
       );
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? JSON.parse(text) : {};
     } catch (parseError) {
       console.error("[ResourcesRoute] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+      return NextResponse.json({ error: "Invalid response format" }, { status: 500, headers: outHeaders });
     }
+
+    const safeArr = (v: any) => (Array.isArray(v) ? v : []);
 
     const normalizedData = {
       ...data,
-      pdfs: data.pdfs.map((pdf: any) => ({
+      pdfs: safeArr(data?.pdfs).map((pdf: any) => ({
         ...pdf,
-        pdfUrl: normalizeMedia(pdf.pdfUrl),
+        pdfUrl: normalizeMedia(pdf?.pdfUrl),
       })),
-      videos: data.videos.map((video: any) => ({
+      videos: safeArr(data?.videos).map((video: any) => ({
         ...video,
-        videoUrl: normalizeMedia(video.videoUrl),
+        videoUrl: normalizeMedia(video?.videoUrl),
       })),
-      audio: data.audio.map((audio: any) => ({
+      audio: safeArr(data?.audio).map((audio: any) => ({
         ...audio,
-        audioUrl: normalizeMedia(audio.audioUrl),
+        audioUrl: normalizeMedia(audio?.audioUrl),
       })),
-      journals: data.journals.map((journal: any) => ({
+      journals: safeArr(data?.journals).map((journal: any) => ({
         ...journal,
-        url: journal.url ? normalizeMedia(journal.url) : null,
+        url: journal?.url ? normalizeMedia(journal.url) : null,
       })),
     };
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
-  } catch (error) {
+    return NextResponse.json(normalizedData, { status: 200, headers: outHeaders });
+  } catch (error: any) {
     console.error("[ResourcesRoute] Fetch error:", error);
     return NextResponse.json(
-      {error: "Failed to fetch resources", details: ""},
+      { error: "Failed to fetch resources", details: error?.message ?? "" },
       {
         status: 500,
         headers: {
