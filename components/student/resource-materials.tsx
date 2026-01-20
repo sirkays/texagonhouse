@@ -828,7 +828,35 @@ export function ResourceMaterials() {
                             </div>
 
                             <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
-                              {/* ... your existing title/category/meta ... */}
+                              <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
+                                <div className="space-y-0.5">
+                                  <CardTitle className="text-base font-semibold line-clamp-2">
+                                    {video.title}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs text-muted-foreground">
+                                    by {video.instructor || "Unknown"}
+                                  </CardDescription>
+                                </div>
+
+                                <Badge
+                                  variant="secondary"
+                                  className="self-start sm:self-auto text-xs px-2 py-0.5"
+                                >
+                                  {video.category}
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mt-2">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {video.duration || "—"}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Eye className="h-3.5 w-3.5" />
+                                  {video.views || 0} views
+                                </div>
+                              </div>
+
 
                               <Button
                                 size="sm"
@@ -923,7 +951,35 @@ export function ResourceMaterials() {
                             </div>
 
                             <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
-                              {/* ... your existing title/category/meta ... */}
+                              <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
+                                <div className="space-y-0.5">
+                                  <CardTitle className="text-base font-semibold line-clamp-2">
+                                    {audio.title}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs text-muted-foreground">
+                                    by {audio.speaker || "Unknown"}
+                                  </CardDescription>
+                                </div>
+
+                                <Badge
+                                  variant="secondary"
+                                  className="self-start sm:self-auto text-xs px-2 py-0.5"
+                                >
+                                  {audio.category}
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mt-2">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {audio.duration || "—"}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Headphones className="h-3.5 w-3.5" />
+                                  {audio.listens || 0} listens
+                                </div>
+                              </div>
+
 
                               <Button
                                 size="sm"

@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -26,13 +26,13 @@ import {
   Download,
   Trash,
 } from "lucide-react";
-import {VideoModal} from "./video-modal";
-import {NoteEditor} from "./note-editor";
-import {BookmarkManager} from "./bookmark-manager";
-import {AudioPlayer} from "./audio-player";
-import {useSession} from "next-auth/react";
-import {useRouter} from "next/navigation";
-import {Spinner} from "@/components/ui/spinner";
+import { VideoModal } from "./video-modal";
+import { NoteEditor } from "./note-editor";
+import { BookmarkManager } from "./bookmark-manager";
+import { AudioPlayer } from "./audio-player";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Note {
   id: number;
@@ -54,6 +54,7 @@ interface SavedItem {
     progress: number;
     thumbnail: string | null;
     videoUrl: string;
+    blur?: boolean; // ✅ add
   }[];
   pdfs: {
     id: string;
@@ -62,16 +63,19 @@ interface SavedItem {
     pages: number | null;
     size: string | null;
     downloadUrl: string;
+    blur?: boolean; // ✅ add
   }[];
   audio: {
     id: string;
     title: string;
     speaker: string;
     duration: string;
-    beprogress: number;
+    progress: number;   // ✅ FIX (was beprogress)
     audioUrl: string;
+    blur?: boolean; // ✅ add
   }[];
 }
+
 
 interface Bookmark {
   id: number;
@@ -90,7 +94,7 @@ interface Lesson {
 }
 
 export function MyMaterials() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
@@ -121,11 +125,24 @@ export function MyMaterials() {
     [session?.user?.sessionToken]
   );
 
+const isLockedVideo = (v: any) => !!v?.blur || !v?.videoUrl;
+const isLockedPdf = (p: any) => !!p?.blur || !p?.downloadUrl;
+const isLockedAudio = (a: any) => !!a?.blur || !a?.audioUrl;
+
+const LockedOverlay = ({ label }: { label: string }) => (
+  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+    <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs font-medium shadow-sm">
+      <span className="text-[#EF7B55]">●</span>
+      <span>{label}</span>
+    </div>
+  </div>
+);
+
   const defaultThumbnail =
     "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
 
   const emptyData = {
-    saved: {videos: [], pdfs: [], audio: []},
+    saved: { videos: [], pdfs: [], audio: [] },
     notes: [],
     bookmarks: [],
   };
@@ -134,7 +151,7 @@ export function MyMaterials() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       const data = await response.json();
       if (!response.ok) {
@@ -152,7 +169,7 @@ export function MyMaterials() {
     }
   };
 
-  const fetchData = async (qOverride?: string, opts?: {initial?: boolean}) => {
+  const fetchData = async (qOverride?: string, opts?: { initial?: boolean }) => {
     const q = (qOverride ?? appliedQuery ?? "").trim();
     const initial = !!opts?.initial;
 
@@ -194,7 +211,7 @@ export function MyMaterials() {
         );
 
         setData({
-          saved: {videos: [], pdfs: [], audio: []},
+          saved: { videos: [], pdfs: [], audio: [] },
           notes: [],
           bookmarks: [],
         });
@@ -217,7 +234,7 @@ export function MyMaterials() {
     } catch (e: any) {
       setError(e?.message || "Failed to fetch materials");
       setData({
-        saved: {videos: [], pdfs: [], audio: []},
+        saved: { videos: [], pdfs: [], audio: [] },
         notes: [],
         bookmarks: [],
       });
@@ -235,7 +252,7 @@ export function MyMaterials() {
   }, [searchQuery]);
   useEffect(() => {
     if (status === "authenticated" && sessionToken) {
-      fetchData("", {initial: true});
+      fetchData("", { initial: true });
     }
   }, [sessionToken, status]);
   // Extract lessons from videos
@@ -268,23 +285,7 @@ export function MyMaterials() {
 
     try {
       let response;
-      if (selectedNote) {
-        response = await fetch("/api/student/notes", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken || "",
-          },
-          body: JSON.stringify({
-            id: normalizedNote.id,
-            title: normalizedNote.title,
-            lesson: normalizedNote.lesson,
-            content: normalizedNote.content,
-            is_private: normalizedNote.is_private,
-            student: session?.user?.id,
-          }),
-        });
-      } else {
+
         response = await fetch("/api/student/notes", {
           method: "POST",
           headers: {
@@ -299,7 +300,7 @@ export function MyMaterials() {
             student: session?.user?.id,
           }),
         });
-      }
+      
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -307,15 +308,21 @@ export function MyMaterials() {
       }
 
       const savedNote = await response.json();
-      setData((prev) => ({
-        ...prev!,
-        notes: selectedNote
-          ? prev!.notes.map((n) => (n.id === savedNote.id ? savedNote : n))
-          : [...prev!.notes, savedNote],
-      }));
 
-      setNoteEditorOpen(false);
-      setSelectedNote(null);
+      setData((prev) => {
+        if (!prev) return prev;
+
+        const exists = prev.notes.some((n) => n.id === savedNote.id);
+
+        return {
+          ...prev,
+          notes: exists
+            ? prev.notes.map((n) => (n.id === savedNote.id ? savedNote : n))
+            : [savedNote, ...prev.notes], // or [...prev.notes, savedNote]
+        };
+      });
+
+
       setError(null);
     } catch (err: any) {
       console.error("[MyMaterials] Save error:", err);
@@ -336,7 +343,7 @@ export function MyMaterials() {
           "Content-Type": "application/json",
           "X-Session-Token": sessionToken || "",
         },
-        body: JSON.stringify({id: noteId}),
+        body: JSON.stringify({ id: noteId }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -400,7 +407,7 @@ export function MyMaterials() {
       setData((prev) => {
         if (!prev) return prev;
 
-        const newSaved = {...prev.saved};
+        const newSaved = { ...prev.saved };
 
         if (type === "videos") {
           newSaved.videos = newSaved.videos.filter((x) => x.id !== item.id);
@@ -410,7 +417,7 @@ export function MyMaterials() {
           newSaved.audio = newSaved.audio.filter((x) => x.id !== item.id);
         }
 
-        return {...prev, saved: newSaved};
+        return { ...prev, saved: newSaved };
       });
 
       setError(null);
@@ -489,29 +496,20 @@ export function MyMaterials() {
   const bookmarks = data?.bookmarks ?? emptyData.bookmarks;
 
   const handleWatchVideo = (video: any) => {
+    if (isLockedVideo(video)) return;
     setSelectedVideo(video);
     setVideoModalOpen(true);
   };
 
+
   const handlePreviewPdf = (pdf: any) => {
-    if (!pdf.downloadUrl) {
-      console.error(
-        "[MyMaterials] No downloadUrl provided for PDF:",
-        pdf.title
-      );
-      return;
-    }
+    if (isLockedPdf(pdf)) return;
     window.open(pdf.downloadUrl, "_blank");
   };
 
-  const handlePlayAudio = (audio: {
-    id: string;
-    title: string;
-    speaker: string;
-    duration: string;
-    progress: number;
-    audioUrl: string;
-  }) => {
+
+  const handlePlayAudio = (audio: any) => {
+    if (isLockedAudio(audio)) return;
     setSelectedAudio(audio);
     setAudioPlayerOpen(true);
   };
@@ -618,7 +616,7 @@ export function MyMaterials() {
             {dataLoading ? (
               // ✅ Only the data area loads (search bar stays visible)
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({length: 6}).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <Card
                     key={`video-skel-${i}`}
                     className="hover:shadow-lg transition-shadow flex flex-col h-full overflow-hidden">
@@ -654,91 +652,80 @@ export function MyMaterials() {
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {currentVideos.map((video) => (
-                    <Card
-                      key={video.id}
-                      className="hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md">
-                      {/* <div className="relative"> */}
-                      <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
-                        {video.thumbnail &&
-                        video.thumbnail !== defaultThumbnail ? (
-                          <>
-                            <img
-                              src={
-                                video.thumbnail.startsWith("http")
-                                  ? video.thumbnail
-                                  : `https://texagonbackend.onrender.com${video.thumbnail}`
-                              }
-                              alt={video.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                e.currentTarget.parentElement
-                                  ?.querySelector(".fallback-icon")
-                                  ?.classList.remove("hidden");
-                              }}
-                            />
-                            <div className="fallback-icon absolute inset-0 flex items-center justify-center hidden">
-                              <Video className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                          </>
-                        ) : (
-                          <Video className="h-8 w-8 text-muted-foreground" />
-                        )}
-                      </div>
-                      {/* Video Info - reduced padding & spacing */}
-                      <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
-                        {" "}
-                        {/* ← reduced from p-4 sm:p-3 */}
-                        <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
-                          {" "}
-                          {/* tighter */}
-                          <div className="space-y-0.5">
-                            {" "}
-                            {/* ← was space-y-1 */}
-                            <CardTitle className="text-base font-semibold line-clamp-2">
-                              {" "}
-                              {/* ← text-lg → text-base */}
-                              {video.title}
-                            </CardTitle>
-                            <CardDescription className="text-xs text-muted-foreground">
-                              {" "}
-                              {/* ← text-sm → text-xs */}
-                              by {video.instructor || "Unknown"}
-                            </CardDescription>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors" // ← added text-xs + tighter padding
-                            onClick={() => handleWatchVideo(video)}>
-                            <Play className="h-3.5 w-3.5 flex-shrink-0" />{" "}
-                            {/* smaller icon */}
-                            Play
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleDeleteSavedItem("videos", video)
-                            }
-                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors" // ← added text-xs + tighter padding
-                            disabled={deletingIds.has(`videos-${video.id}`)}>
-                            {deletingIds.has(`videos-${video.id}`) ? (
-                              "Deleting..."
+                  {currentVideos.map((video) => {
+                    const locked = isLockedVideo(video);
+
+                    return (
+                      <Card
+                        key={video.id}
+                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${locked ? "cursor-not-allowed" : ""
+                          }`}
+                      >
+                        {/* BLUR WRAPPER */}
+                        <div className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
+                          <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
+                            {video.thumbnail && video.thumbnail !== defaultThumbnail ? (
+                              <img
+                                src={
+                                  video.thumbnail.startsWith("http")
+                                    ? video.thumbnail
+                                    : `https://texagonbackend.onrender.com${video.thumbnail}`
+                                }
+                                alt={video.title}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
-                              <>
-                                <Trash className="mr-2 h-3 w-3" />
-                                Delete
-                              </>
+                              <Video className="h-8 w-8 text-muted-foreground" />
                             )}
-                          </Button>
+                          </div>
+
+                          <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
+                            <div className="space-y-0.5">
+                              <CardTitle className="text-base font-semibold line-clamp-2">
+                                {video.title}
+                              </CardTitle>
+                              <CardDescription className="text-xs text-muted-foreground">
+                                by {video.instructor || "Unknown"}
+                              </CardDescription>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={locked}
+                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                onClick={() => handleWatchVideo(video)}
+                              >
+                                <Play className="h-3.5 w-3.5 flex-shrink-0" />
+                                Play
+                              </Button>
+
+                              {/* Delete stays allowed even when locked (recommended) */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteSavedItem("videos", video)}
+                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                disabled={deletingIds.has(`videos-${video.id}`)}
+                              >
+                                {deletingIds.has(`videos-${video.id}`) ? "Deleting..." : (
+                                  <>
+                                    <Trash className="mr-2 h-3 w-3" />
+                                    Delete
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </CardContent>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+
+                        {/* OVERLAY */}
+                        {locked && <LockedOverlay label="Locked video — subscribe to unlock" />}
+                      </Card>
+                    );
+                  })}
+
                 </div>
 
                 {totalPagesVideos > 1 && (
@@ -770,7 +757,7 @@ export function MyMaterials() {
 
             {dataLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({length: 6}).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <Card
                     key={`pdf-skel-${i}`}
                     className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -804,60 +791,68 @@ export function MyMaterials() {
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {currentPdfs.map((pdf) => (
-                    <Card
-                      key={pdf.id}
-                      className="hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md">
-                      {/* PDF Placeholder — same dimensions as video thumbnail */}
-                      <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
-                        <FileText className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
-                        <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
-                          <div className="space-y-0.5">
-                            <CardTitle className="text-base font-semibold line-clamp-2">
-                              {pdf.title}
-                            </CardTitle>
-                            <CardDescription className="text-xs text-muted-foreground">
-                              by {pdf.author || "Unknown"}
-                            </CardDescription>
+                  {currentPdfs.map((pdf) => {
+                    const locked = isLockedPdf(pdf);
+
+                    return (
+                      <Card
+                        key={pdf.id}
+                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${locked ? "cursor-not-allowed" : ""
+                          }`}
+                      >
+                        <div className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
+                          <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
+                            <FileText className="h-8 w-8 text-muted-foreground" />
                           </div>
+
+                          <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
+                            <div className="space-y-0.5">
+                              <CardTitle className="text-base font-semibold line-clamp-2">
+                                {pdf.title}
+                              </CardTitle>
+                              <CardDescription className="text-xs text-muted-foreground">
+                                by {pdf.author || "Unknown"}
+                              </CardDescription>
+                            </div>
+
+                            <div className="mt-2 text-sm text-muted-foreground">
+                              {pdf.pages ?? "—"} pages • {pdf.size ?? "—"}
+                            </div>
+
+                            <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={locked}
+                                className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                onClick={() => handlePreviewPdf(pdf)}
+                              >
+                                Preview
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteSavedItem("pdfs", pdf)}
+                                className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                disabled={deletingIds.has(`pdfs-${pdf.id}`)}
+                              >
+                                {deletingIds.has(`pdfs-${pdf.id}`) ? "Deleting..." : (
+                                  <>
+                                    <Trash className="mr-2 h-3 w-3" />
+                                    Delete
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </CardContent>
                         </div>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            {pdf.pages ?? "—"} pages • {pdf.size ?? "—"}
-                          </div>
-                        </div>
-                        {/* No duration/views for PDFs — so we leave this area empty or can add file size/pages later if available */}
-                        <div className="mt-2 h-5" />{" "}
-                        {/* spacer to keep vertical rhythm consistent */}
-                        <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                            onClick={() => handlePreviewPdf(pdf)}>
-                            Preview
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteSavedItem("pdfs", pdf)}
-                            className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                            disabled={deletingIds.has(`pdfs-${pdf.id}`)}>
-                            {deletingIds.has(`pdfs-${pdf.id}`) ? (
-                              "Deleting..."
-                            ) : (
-                              <>
-                                <Trash className="mr-2 h-3 w-3" />
-                                Delete
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+
+                        {locked && <LockedOverlay label="Locked PDF — subscribe to unlock" />}
+                      </Card>
+                    );
+                  })}
+
                 </div>
 
                 {totalPagesPdfs > 1 && (
@@ -889,7 +884,7 @@ export function MyMaterials() {
 
             {dataLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({length: 6}).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <Card
                     key={`audio-skel-${i}`}
                     className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -922,58 +917,65 @@ export function MyMaterials() {
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {currentAudio.map((audio) => (
-                    <Card
-                      key={audio.id}
-                      className="hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md">
-                      {/* Audio Placeholder / Icon Area — same size as video thumbnail */}
-                      <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
-                        <Headphones className="h-8 w-8 text-muted-foreground" />
-                      </div>
+                  {currentAudio.map((audio) => {
+                    const locked = isLockedAudio(audio);
 
-                      <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
-                        <div className="flex flex-col sm:justify-between sm:items-start gap-1.5 sm:gap-2.5">
-                          <div className="space-y-0.5">
-                            <CardTitle className="text-base font-semibold line-clamp-2">
-                              {audio.title}
-                            </CardTitle>
-                            <CardDescription className="text-xs text-muted-foreground">
-                              by {audio.speaker || "Unknown"}
-                            </CardDescription>
+                    return (
+                      <Card
+                        key={audio.id}
+                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${locked ? "cursor-not-allowed" : ""
+                          }`}
+                      >
+                        <div className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
+                          <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
+                            <Headphones className="h-8 w-8 text-muted-foreground" />
                           </div>
+
+                          <CardContent className="flex flex-col flex-1 p-3 sm:p-2.5">
+                            <div className="space-y-0.5">
+                              <CardTitle className="text-base font-semibold line-clamp-2">
+                                {audio.title}
+                              </CardTitle>
+                              <CardDescription className="text-xs text-muted-foreground">
+                                by {audio.speaker || "Unknown"}
+                              </CardDescription>
+                            </div>
+
+                            <div className="mt-auto pt-4 flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={locked}
+                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                onClick={() => handlePlayAudio(audio)}
+                              >
+                                <Play className="mr-2 h-3 w-3" />
+                                Play
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteSavedItem("audio", audio)}
+                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                disabled={deletingIds.has(`audio-${audio.id}`)}
+                              >
+                                {deletingIds.has(`audio-${audio.id}`) ? "Deleting..." : (
+                                  <>
+                                    <Trash className="mr-2 h-3 w-3" />
+                                    Delete
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </CardContent>
                         </div>
 
-                        <div className="mt-auto pt-4 flex items-center justify-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                            onClick={() => handlePlayAudio(audio)}>
-                            <Play className="mr-2 h-3 w-3" />
-                            Play
-                          </Button>
+                        {locked && <LockedOverlay label="Locked audio — subscribe to unlock" />}
+                      </Card>
+                    );
+                  })}
 
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleDeleteSavedItem("audio", audio)
-                            }
-                            className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                            disabled={deletingIds.has(`audio-${audio.id}`)}>
-                            {deletingIds.has(`audio-${audio.id}`) ? (
-                              "Deleting..."
-                            ) : (
-                              <>
-                                <Trash className="mr-2 h-3 w-3" />
-                                Delete
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
                 </div>
 
                 {totalPagesAudio > 1 && (
