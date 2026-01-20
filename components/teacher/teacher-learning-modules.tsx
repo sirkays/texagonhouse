@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import {useState, useRef, useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -18,10 +18,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,8 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -56,16 +56,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {getSession} from "next-auth/react";
-import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import {Spinner} from "../ui/spinner";
+import { getSession } from "next-auth/react";
+import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import { Spinner } from "../ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {MoreVertical} from "lucide-react";
+import { MoreVertical } from "lucide-react";
 
 // Interfaces
 interface Course {
@@ -92,7 +92,7 @@ interface Lesson {
   order?: number;
   active?: boolean;
   remove_cover: boolean; // NEW: Flag to indicate cover removal
-  meta?: {description: string; tags: string[]};
+  meta?: { description: string; tags: string[] };
 }
 
 interface Module {
@@ -111,7 +111,7 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: {id?: string; name: string};
+  course: { id?: string; name: string };
 }
 
 interface APIModule {
@@ -119,12 +119,12 @@ interface APIModule {
   title: string;
   description: string;
   difficulty: string;
-  category: {id: string | number; name: string} | null;
+  category: { id: string | number; name: string } | null;
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: {id: string | number; name: string} | null;
+  course: { id: string | number; name: string } | null;
   createdAt: string | null;
   updatedAt: string | null;
   lessons: any[];
@@ -141,14 +141,24 @@ interface APIError {
   error: string;
   redirect?: string;
 }
-
+type TeacherCourse = {
+  id: string;
+  name: string;
+  subject: string;
+  classroom: string;
+  description: string;
+  isActive: boolean;
+  course_type?: string;
+  general_activation?: boolean;
+  general_activation_date?: string | null;
+};
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
 // Utilities
@@ -210,6 +220,12 @@ const normalizeModuleType = (t?: string): Module["type"] => {
 };
 
 export function TeacherLearningModules() {
+
+
+  const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("create");
   const [previewModule, setPreviewModule] = useState<Module | null>(null);
@@ -230,7 +246,7 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: {id: undefined, name: ""},
+    course: { id: undefined, name: "" },
   };
   const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -252,7 +268,7 @@ export function TeacherLearningModules() {
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
   const [loadingModuleId, setLoadingModuleId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<{
-    aggregates: {total_enrollments: number; completion_rate: number};
+    aggregates: { total_enrollments: number; completion_rate: number };
     pagination: {
       total_count: number;
       total_pages: number;
@@ -277,6 +293,75 @@ export function TeacherLearningModules() {
     title: "",
     description: "",
   });
+  const [gaDialogOpen, setGaDialogOpen] = useState(false);
+  const [gaCourse, setGaCourse] = useState<TeacherCourse | null>(null);
+  const [gaEnabled, setGaEnabled] = useState(false);
+  const [gaDateLocal, setGaDateLocal] = useState<string>(""); // datetime-local
+  const [gaSaving, setGaSaving] = useState(false);
+
+  const isoToLocalInput = (iso?: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    // datetime-local expects "YYYY-MM-DDTHH:mm"
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const openGA = (course: TeacherCourse) => {
+    const isPrivate = (course.course_type || "").toLowerCase() === "private";
+    if (isPrivate) {
+      openFeedback("Private course", "General access is not available for private courses.");
+      return;
+    }
+
+    setGaCourse(course);
+    setGaEnabled(Boolean(course.general_activation));
+    setGaDateLocal(isoToLocalInput(course.general_activation_date));
+    setGaDialogOpen(true);
+  };
+
+  const saveGA = async () => {
+    if (!gaCourse?.id) return;
+    setGaSaving(true);
+    try {
+      const payload = {
+        general_activation: gaEnabled,
+        general_activation_date: gaEnabled
+          ? (gaDateLocal ? new Date(gaDateLocal).toISOString() : null)
+          : null,
+      };
+
+      const res = await fetch(`/api/teacher/courses/${gaCourse.id}/general-activation`, {
+        method: "PATCH",
+        headers: headers(sessionToken),
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || data?.error || "Update failed");
+
+      // Update local list
+      setTeacherCourses((prev) =>
+        prev.map((c) =>
+          c.id === gaCourse.id
+            ? {
+              ...c,
+              general_activation: data.general_activation,
+              general_activation_date: data.general_activation_date,
+            }
+            : c
+        )
+      );
+
+      setGaDialogOpen(false);
+      openFeedback("Saved", "General activation updated successfully.");
+    } catch (e: any) {
+      setCoursesError(e?.message || "Update failed");
+    } finally {
+      setGaSaving(false);
+    }
+  };
 
   const openFeedback = (title: string, description?: string) => {
     setFeedbackDialog({
@@ -332,7 +417,7 @@ export function TeacherLearningModules() {
         }
         let data: Course[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({...c, id: String(c.id)}));
+        data = data.map((c) => ({ ...c, id: String(c.id) }));
         setCourses(data);
       } catch (err) {
         setError(
@@ -361,12 +446,12 @@ export function TeacherLearningModules() {
         }
         let data: Category[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({...c, id: String(c.id)}));
+        data = data.map((c) => ({ ...c, id: String(c.id) }));
         setCategories(data);
       } catch (err) {
         setError(
           (err as Error).message ||
-            "An error occurred while fetching categories"
+          "An error occurred while fetching categories"
         );
       } finally {
         setIsLoadingCategories(false);
@@ -378,6 +463,37 @@ export function TeacherLearningModules() {
       fetchCategories();
     }
   }, [sessionToken]);
+  useEffect(() => {
+    if (activeTab !== "course-access" || !sessionToken) return;
+
+    const load = async () => {
+      setCoursesLoading(true);
+      setCoursesError(null);
+      try {
+        const res = await fetch("/api/teacher/courses", {
+          method: "GET",
+          headers: headers(sessionToken),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail || data?.error || "Failed to load courses");
+
+        setTeacherCourses(
+          (data ?? []).map((c: any) => ({
+            ...c,
+            id: String(c.id),
+            general_activation: Boolean(c.general_activation),
+            general_activation_date: c.general_activation_date ?? null,
+          }))
+        );
+      } catch (e: any) {
+        setCoursesError(e?.message || "Failed to load courses");
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    load();
+  }, [activeTab, sessionToken]);
 
   // Fetch modules
   useEffect(() => {
@@ -521,7 +637,7 @@ export function TeacherLearningModules() {
           currentModule.course.id,
           sessionToken
         );
-        setCurrentModule((prev) => ({...prev, order: nextOrder}));
+        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
       }
     };
     autoSetOrder();
@@ -587,7 +703,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An error occurred while fetching module details"
+        "An error occurred while fetching module details"
       );
       return null;
     }
@@ -630,11 +746,11 @@ export function TeacherLearningModules() {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? {...lesson, ...updates} : lesson
+        lesson.id === lessonId ? { ...lesson, ...updates } : lesson
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
+      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
     }
   };
 
@@ -672,10 +788,10 @@ export function TeacherLearningModules() {
         prev.map((m) =>
           m.id === currentModule.id
             ? {
-                ...m,
-                lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
-                lessonCount: m.lessonCount - 1,
-              }
+              ...m,
+              lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
+              lessonCount: m.lessonCount - 1,
+            }
             : m
         )
       );
@@ -699,7 +815,7 @@ export function TeacherLearningModules() {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({active}),
+        body: JSON.stringify({ active }),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -712,10 +828,10 @@ export function TeacherLearningModules() {
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m))
+        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m))
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({...prev, isPublished: active}));
+        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
       }
       openFeedback(
         `Module ${active ? "published" : "unpublished"}`,
@@ -724,9 +840,8 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          `An error occurred while ${
-            active ? "publishing" : "unpublishing"
-          } the module`
+        `An error occurred while ${active ? "publishing" : "unpublishing"
+        } the module`
       );
     }
   };
@@ -768,7 +883,7 @@ export function TeacherLearningModules() {
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({course_id: courseId});
+      const query = new URLSearchParams({ course_id: courseId });
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -945,7 +1060,7 @@ export function TeacherLearningModules() {
         }
         throw new Error(
           errorData.error ||
-            "Failed to create module. Please check the details and try again."
+          "Failed to create module. Please check the details and try again."
         );
       }
       const data: APIModule = await response.json();
@@ -1009,7 +1124,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An unexpected error occurred while saving the module. Please try again."
+        "An unexpected error occurred while saving the module. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -1097,11 +1212,11 @@ export function TeacherLearningModules() {
         }
         throw new Error(
           errorData.error ||
-            "Failed to update module. Please check the details and try again."
+          "Failed to update module. Please check the details and try again."
         );
       }
 
-      const data: {module: APIModule} = await response.json();
+      const data: { module: APIModule } = await response.json();
 
       const updatedModule: Module = {
         id: String(data.module.id),
@@ -1145,7 +1260,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An unexpected error occurred while updating the module. Please try again."
+        "An unexpected error occurred while updating the module. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -1349,7 +1464,7 @@ export function TeacherLearningModules() {
         throw new Error(errorData.error || "Failed to create lesson");
       }
 
-      const data: {lesson: Lesson} = JSON.parse(responseText);
+      const data: { lesson: Lesson } = JSON.parse(responseText);
 
       // Refresh module data to sync with server
       const moduleData = await getModuleDetails(currentModule.id);
@@ -1532,7 +1647,7 @@ export function TeacherLearningModules() {
           }
           return lesson;
         });
-        setCurrentModule({...moduleData, lessons: syncedLessons});
+        setCurrentModule({ ...moduleData, lessons: syncedLessons });
       }
 
       openFeedback("Lesson updated", "Lesson was updated successfully.");
@@ -1624,7 +1739,93 @@ export function TeacherLearningModules() {
             className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
             Module Analytics
           </TabsTrigger>
+          <TabsTrigger
+            value="course-access"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+          >
+            Course Access
+          </TabsTrigger>
+
         </TabsList>
+        <TabsContent value="course-access" className="space-y-3 xs:space-y-4">
+          {coursesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Spinner size="md" />
+            </div>
+          ) : coursesError ? (
+            <div className="text-center py-8 text-red-500">{coursesError}</div>
+          ) : (
+            <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {teacherCourses.map((c) => {
+                const expired =
+                  c.general_activation &&
+                  c.general_activation_date &&
+                  new Date(c.general_activation_date).getTime() < Date.now();
+                const isPrivate = (c.course_type || "").toLowerCase() === "private";
+
+                return (
+                  <Card
+                    key={c.id}
+                    className="flex flex-col h-full min-h-[240px]"
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                        {c.name}
+                      </CardTitle>
+                      <CardDescription className="text-xs sm:text-sm line-clamp-1">
+                        {c.subject} • {c.classroom}
+                        {c.course_type ? ` • ${c.course_type}` : ""}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col gap-3 flex-1">
+                      <div className="flex gap-2 min-h-[32px]">
+                        {!isPrivate && (
+                          <> <Badge
+                            variant={c.general_activation ? "default" : "secondary"}
+                            className={c.general_activation ? "bg-[#EF7B55]" : "bg-gray-500 text-white"}
+                          >
+                            {c.general_activation ? "General Access ON" : "General Access OFF"}
+                          </Badge>  </>
+                        )}
+                        {isPrivate && (
+                          <Badge className="bg-gray-700 text-white">Private</Badge>
+                        )}
+
+                        {c.general_activation && (
+                          <Badge variant="outline">
+                            Expiry:{" "}
+                            {c.general_activation_date
+                              ? new Date(c.general_activation_date).toLocaleDateString()
+                              : "No expiry"}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {c.general_activation &&
+                        c.general_activation_date &&
+                        new Date(c.general_activation_date).getTime() < Date.now() && (
+                          <Badge className="bg-red-600 text-white w-fit">Expired</Badge>
+                        )}
+
+                      <Button
+                        onClick={() => openGA(c)}
+                        disabled={isPrivate}
+                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${isPrivate ? "opacity-50 cursor-not-allowed" : "bg-[#f79771] hover:bg-gray-300"
+                          }`}
+                      >
+                        {isPrivate ? "Not available for private courses" : "Update Access"}
+                      </Button>
+
+                    </CardContent>
+                  </Card>
+
+                );
+              })}
+            </div>
+          )}
+
+        </TabsContent>
 
         <TabsContent value="create" className="space-y-3 xs:space-y-4">
           {isLoadingCourses || isLoadingCategories ? (
@@ -1871,8 +2072,8 @@ export function TeacherLearningModules() {
                       {isSaving
                         ? "Saving..."
                         : currentModule.id
-                        ? "Update Module"
-                        : "Save Module"}
+                          ? "Update Module"
+                          : "Save Module"}
                     </Button>
                     <Button
                       onClick={() =>
@@ -1929,11 +2130,10 @@ export function TeacherLearningModules() {
                       return (
                         <div
                           key={lesson.id}
-                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
-                            editingLesson?.id === lesson.id
-                              ? "border-primary bg-primary/5"
-                              : "hover:bg-muted/50"
-                          }`}
+                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${editingLesson?.id === lesson.id
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-muted/50"
+                            }`}
                           onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -1951,17 +2151,17 @@ export function TeacherLearningModules() {
                                 {normalizeCoverImageUrl(
                                   lesson.coverImageUrl
                                 ) && (
-                                  <img
-                                    src={normalizeCoverImageUrl(
-                                      lesson.coverImageUrl
-                                    )}
-                                    alt="Cover"
-                                    onError={(e) => {
-                                      e.currentTarget.src = "/placeholder.jpg";
-                                    }}
-                                    className="w-6 h-4 object-cover rounded ml-1"
-                                  />
-                                )}
+                                    <img
+                                      src={normalizeCoverImageUrl(
+                                        lesson.coverImageUrl
+                                      )}
+                                      alt="Cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/placeholder.jpg";
+                                      }}
+                                      className="w-6 h-4 object-cover rounded ml-1"
+                                    />
+                                  )}
                               </div>
                               <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
                                 {lesson.title || "Untitled lesson"}
@@ -2010,8 +2210,8 @@ export function TeacherLearningModules() {
                           Cover Image
                         </Label>
                         {editingLesson.coverImageUrl &&
-                        !editingLesson.coverImage &&
-                        !editingLesson.remove_cover ? (
+                          !editingLesson.coverImage &&
+                          !editingLesson.remove_cover ? (
                           <div className="flex items-center gap-2">
                             <img
                               src={normalizeCoverImageUrl(
@@ -2138,10 +2338,9 @@ export function TeacherLearningModules() {
                         <Label
                           htmlFor="lesson-title"
                           className="text-xs xs:text-sm sm:text-base font-medium">
-                          {`Lesson ${
-                            editingLesson.type.charAt(0).toUpperCase() +
+                          {`Lesson ${editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
-                          }`}
+                            }`}
                         </Label>
                         <Input
                           id="lesson-title"
@@ -2390,7 +2589,7 @@ export function TeacherLearningModules() {
                       <Button
                         onClick={() =>
                           typeof editingLesson.id === "string" &&
-                          editingLesson.id.startsWith("temp")
+                            editingLesson.id.startsWith("temp")
                             ? saveLesson()
                             : updateLesson(editingLesson.id)
                         }
@@ -2408,8 +2607,8 @@ export function TeacherLearningModules() {
                           ? "Saving..."
                           : typeof editingLesson.id === "string" &&
                             editingLesson.id.startsWith("temp")
-                          ? "Save Lesson"
-                          : "Update Lesson"}
+                            ? "Save Lesson"
+                            : "Update Lesson"}
                       </Button>
                     </div>
                   ) : (
@@ -2758,7 +2957,7 @@ export function TeacherLearningModules() {
               </div>
 
               {getPaginatedModules(modules, currentPageManage).totalCount ===
-              0 ? (
+                0 ? (
                 <div className="text-center py-8 xs:py-12">
                   <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
@@ -2814,8 +3013,8 @@ export function TeacherLearningModules() {
                       }
                       className={
                         currentPageManage ===
-                        getPaginatedModules(modules, currentPageManage)
-                          .totalPages
+                          getPaginatedModules(modules, currentPageManage)
+                            .totalPages
                           ? "pointer-events-none opacity-50"
                           : ""
                       }
@@ -2927,7 +3126,7 @@ export function TeacherLearningModules() {
                           }
                         />
                         {Array.from(
-                          {length: analytics.pagination.total_pages},
+                          { length: analytics.pagination.total_pages },
                           (_, i) => (
                             <PaginationItem key={i + 1}>
                               <PaginationLink
@@ -2946,7 +3145,7 @@ export function TeacherLearningModules() {
                           }
                           className={
                             currentPageAnalytics ===
-                            analytics.pagination.total_pages
+                              analytics.pagination.total_pages
                               ? "pointer-events-none opacity-50"
                               : ""
                           }
@@ -2972,7 +3171,7 @@ export function TeacherLearningModules() {
       {/* Feedback Dialog */}
       <AlertDialog
         open={feedbackDialog.open}
-        onOpenChange={(open) => setFeedbackDialog((prev) => ({...prev, open}))}>
+        onOpenChange={(open) => setFeedbackDialog((prev) => ({ ...prev, open }))}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{feedbackDialog.title}</AlertDialogTitle>
@@ -2985,7 +3184,7 @@ export function TeacherLearningModules() {
           <AlertDialogFooter>
             <AlertDialogAction
               onClick={() =>
-                setFeedbackDialog((prev) => ({...prev, open: false}))
+                setFeedbackDialog((prev) => ({ ...prev, open: false }))
               }>
               OK
             </AlertDialogAction>
@@ -3019,6 +3218,51 @@ export function TeacherLearningModules() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={gaDialogOpen} onOpenChange={setGaDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Course general access</AlertDialogTitle>
+            <AlertDialogDescription>
+              {gaCourse ? (
+                <>
+                  Configure general access for <b>{gaCourse.name}</b>.
+                  <br />
+                  Students can log in without subscription when enabled, but lesson access stops after expiry.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Enable general activation</Label>
+              <input
+                type="checkbox"
+                checked={gaEnabled}
+                onChange={(e) => setGaEnabled(e.target.checked)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Expiry date (optional)</Label>
+              <Input
+                type="datetime-local"
+                value={gaDateLocal}
+                onChange={(e) => setGaDateLocal(e.target.value)}
+                disabled={!gaEnabled}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={gaSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={saveGA} disabled={gaSaving}>
+              {gaSaving ? "Saving..." : "Save"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

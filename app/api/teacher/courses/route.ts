@@ -10,7 +10,11 @@ interface Course {
   classroom: string;
   description: string;
   isActive: boolean;
+  course_type?: string;
+  general_activation?: boolean;
+  general_activation_date?: string | null;
 }
+
 
 export async function GET(req: Request) {
   noStore();
@@ -49,6 +53,9 @@ export async function GET(req: Request) {
       classroom: course.classroom || "",
       description: course.description || "",
       isActive: course.isActive ?? true,
+      course_type: course.course_type ?? "",
+      general_activation: Boolean(course.general_activation),
+      general_activation_date: course.general_activation_date ?? null,
     }));
 
     const res = NextResponse.json(normalizedData, { status: 200 });
