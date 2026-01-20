@@ -14,6 +14,7 @@ export type CertificateListItem = {
   description?: string;
 
   student_id: number;
+  admission_no: string;
   student_name: string;
 
   enrollment_id: number;
@@ -29,6 +30,7 @@ export type CertificateListItem = {
 
 export type CertificateListResponse = {
   student_id: number;
+  admission_no: string;
   count: number;
   results: CertificateListItem[];
   signatures?: Record<string, OrgSignature>;
@@ -43,6 +45,7 @@ export async function fetchStudentCertificates(params?: {
   status?: string;
   limit?: number;
   student_id?: string | number; // only if staffish; for student can omit
+  admission_no?: string;
 }) {
   const qs = new URLSearchParams();
 
@@ -69,8 +72,6 @@ export async function fetchStudentCertificates(params?: {
 }
 
 export async function fetchCertificateById(id: string | number) {
-  // Since your endpoint can behave as detail, we can filter by id.
-  // If Django does not support ?id=, change to whatever filter it supports (e.g. cert_id=).
   const qs = new URLSearchParams({ id: String(id), limit: "1" });
 
   const res = await fetch(`${BASE}?${qs.toString()}`, {
@@ -85,6 +86,16 @@ export async function fetchCertificateById(id: string | number) {
     throw new Error(data?.error ?? "Failed to fetch certificate");
   }
 
-  const first = (data?.results?.[0] ?? null) as CertificateListItem | null;
+  const rawFirst = (data?.results?.[0] ?? null) as CertificateListItem | null;
+
+  const first = rawFirst
+    ? ({
+        ...rawFirst,
+        // prefer item.admission_no, fallback to top-level admission_no
+        admission_no: rawFirst.admission_no ?? data?.admission_no ?? "",
+      } as CertificateListItem)
+    : null;
+
   return { raw: data as CertificateListResponse, certificate: first };
 }
+

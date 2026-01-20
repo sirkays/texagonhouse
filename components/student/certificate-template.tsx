@@ -48,7 +48,7 @@ export const CertificateTemplate = forwardRef<
     } as const;
 
     const studentName = studentNameOverride ?? certificate.student_name ?? "";
-    const courseName = certificate.course_name ?? "";
+    const courseName = certificate.title ?? "";
 
     return (
       <div

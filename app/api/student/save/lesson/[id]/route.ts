@@ -1,138 +1,85 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
-
-export async function POST(req: Request, {params}: {params: {id: string}}) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   noStore();
+
   const lessonId = params.id;
-  const endpoint = `/learning/api/save/lesson/${lessonId}/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
+  const path = `/learning/api/save/lesson/${lessonId}/`;
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(path, {
       method: "POST",
-      headers: headers(session.user.sessionToken),
+      // keep same behavior: empty JSON body
       body: JSON.stringify({}),
     });
 
+    const outHeaders = new Headers({
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
+    if (setCookie) outHeaders.set("Set-Cookie", setCookie);
+
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[SaveLessonAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        return NextResponse.json({ error: "Session expired" }, { status: 401, headers: outHeaders });
       }
       if (response.status === 404) {
-        return NextResponse.json(
-          {error: "Lesson not found"},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        return NextResponse.json({ error: "Lesson not found" }, { status: 404, headers: outHeaders });
       }
-      return NextResponse.json(
-        {error: "Failed to save lesson"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
+
+      // If backend returned JSON, include it for debugging
+      if (contentType.includes("application/json")) {
+        try {
+          const backend = text ? JSON.parse(text) : null;
+          return NextResponse.json(
+            { error: "Failed to save lesson", backend },
+            { status: response.status, headers: outHeaders }
+          );
+        } catch {
+          // ignore
         }
+      }
+
+      return NextResponse.json(
+        { error: "Failed to save lesson" },
+        { status: response.status, headers: outHeaders }
       );
     }
 
     if (!contentType.includes("application/json")) {
       console.error("[SaveLessonAPI] Non-JSON response received:", contentType);
       return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: outHeaders }
       );
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? JSON.parse(text) : {};
     } catch (parseError) {
       console.error("[SaveLessonAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+      return NextResponse.json({ error: "Invalid response format" }, { status: 500, headers: outHeaders });
     }
 
-    return NextResponse.json(data, {
-      status: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
-  } catch (error) {
+    // Keep your original 201
+    return NextResponse.json(data, { status: 201, headers: outHeaders });
+  } catch (error: any) {
     console.error("[SaveLessonAPI] Fetch error:", error);
     return NextResponse.json(
-      {error: "Failed to save lesson", details: error.message},
+      { error: "Failed to save lesson", details: error?.message },
       {
         status: 500,
         headers: {

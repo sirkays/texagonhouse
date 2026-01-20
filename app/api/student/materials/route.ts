@@ -1,19 +1,18 @@
 // app/api/<wherever-this-route-lives>/route.ts
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { djangoFetch } from "@/app/api/_lib/proxy";
 
-// (kept) You can keep these helpers if your UI uses them elsewhere.
-// Note: BASE_URL/API_KEY/headers are no longer needed here.
+// ✅ No getServerSession/authOptions here anymore.
+// djangoFetch already:
+// - reads NextAuth session and sends X-Session-Token (if present)
+// - forwards incoming cookies to Django
+// - returns Django set-cookie so we can forward it back
 
 function normalizeMedia(media: any) {
   if (!media) return null;
-  const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
+  const cleaned = String(media).replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
-  // If you still want this, consider moving BASE_URL into proxy.ts and exporting it,
-  // or just return cleaned and let the client build full URLs.
   return `/media/${cleaned}`;
 }
 
@@ -51,7 +50,11 @@ function normalizeBookmark(b: any) {
   };
 }
 
-function jsonNoStore(body: any, status = 200, extraHeaders: Record<string, string> = {}) {
+function jsonNoStore(
+  body: any,
+  status = 200,
+  extraHeaders: Record<string, string> = {}
+) {
   return NextResponse.json(body, {
     status,
     headers: {
@@ -67,15 +70,8 @@ function jsonNoStore(body: any, status = 200, extraHeaders: Record<string, strin
 export async function GET(req: Request) {
   noStore();
 
-  // Keep your strict auth behavior (same as before)
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return jsonNoStore({ error: "Not authenticated" }, 401);
-  }
-
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
-
   const path = `/learning/api/materials/mine/${q ? `?q=${encodeURIComponent(q)}` : ""}`;
 
   try {
@@ -84,21 +80,30 @@ export async function GET(req: Request) {
     const extraHeaders: Record<string, string> = {};
     if (setCookie) extraHeaders["Set-Cookie"] = setCookie;
 
+    // 🔒 If user isn't authenticated, djangoFetch won't include X-Session-Token.
+    // Treat upstream 401 as "Not authenticated" like before.
+    if (response.status === 401) {
+      return jsonNoStore({ error: "Not authenticated" }, 401, extraHeaders);
+    }
+
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { raw: text };
+    }
+
     if (!response.ok) {
       return jsonNoStore(
-        { error: "Failed to fetch materials", details: text },
+        { error: "Failed to fetch materials", details: data },
         response.status,
         extraHeaders
       );
     }
 
-    let data: any = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      // If backend ever returns non-JSON, don’t crash
-      data = { raw: text };
-    }
+    // (Optional) normalize things here if you actually use these helpers:
+    // data.notes = Array.isArray(data.notes) ? data.notes.map(normalizeNote) : data.notes;
+    // data.bookmarks = Array.isArray(data.bookmarks) ? data.bookmarks.map(normalizeBookmark) : data.bookmarks;
 
     return jsonNoStore(data, 200, extraHeaders);
   } catch (error: any) {
@@ -111,12 +116,6 @@ export async function GET(req: Request) {
 
 export async function DELETE(req: Request) {
   noStore();
-
-  // Keep your strict auth behavior (same as before)
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return jsonNoStore({ error: "Not authenticated" }, 401);
-  }
 
   const body = await req.json().catch(() => ({}));
   const lesson_id = body.lesson_id ?? null;
@@ -132,14 +131,16 @@ export async function DELETE(req: Request) {
     const { response, text, setCookie } = await djangoFetch(path, {
       method: "DELETE",
       body: JSON.stringify({ lesson_id, material_id }),
-      // optional: you can add headers here; proxy.ts already sets JSON Content-Type
-      // headers: { "Content-Type": "application/json" },
     });
 
     const extraHeaders: Record<string, string> = {};
     if (setCookie) extraHeaders["Set-Cookie"] = setCookie;
 
-    let data: any = {};
+    if (response.status === 401) {
+      return jsonNoStore({ error: "Not authenticated" }, 401, extraHeaders);
+    }
+
+    let data: any;
     try {
       data = text ? JSON.parse(text) : {};
     } catch {

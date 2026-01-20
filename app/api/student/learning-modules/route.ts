@@ -1,187 +1,136 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+// app/api/student/learning-modules/route.ts (or wherever this file lives)
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
+
+// ✅ export it
+export const BASE_URL =
+  process.env.STORE_BASE_URL || "http://127.0.0.1:9098";
 
 
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
-function normalizeMedia(media) {
+function normalizeMedia(media: string | null | undefined) {
   if (!media) return null;
   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
   if (cleaned.startsWith("http")) return cleaned;
   return `${BASE_URL}/media/${cleaned}`;
 }
 
-const headers = (sessionToken) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  "Access-Control-Allow-Origin": "*", // Enable CORS
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
-
-export async function GET(req) {
+export async function GET(req: Request) {
   noStore();
-  const endpoint = "/learning/api/modules/learning/";
+
   const url = new URL(req.url);
-
   const qs = url.searchParams.toString(); // e.g. module_id=12
-  const fullUrl = `${BASE_URL}${endpoint}${qs ? `?${qs}` : ""}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
-    );
-  }
+  const path = `/learning/api/modules/learning/${qs ? `?${qs}` : ""}`;
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(path, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
+      // If you still want this, keep it. Otherwise you can remove it.
+      headers: { "Access-Control-Allow-Origin": "*" } as any,
     });
 
-    const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
+    // Forward Django cookies (sessionid, etc.) back to browser
+    const outHeaders = new Headers({
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+      "Access-Control-Allow-Origin": "*",
+    });
+    if (setCookie) outHeaders.set("Set-Cookie", setCookie);
 
+    const contentType = response.headers.get("content-type") || "";
+
+    // Handle non-OK responses similarly to your original code
     if (!response.ok) {
       console.error(
         "[LearningModulesAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
+        return NextResponse.json({ error: "Session expired" }, { status: 401, headers: outHeaders });
       }
       if (response.status === 404) {
         return NextResponse.json(
-          {error: "Learning modules endpoint not found"},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
+          { error: "Learning modules endpoint not found" },
+          { status: 404, headers: outHeaders }
         );
       }
-      return NextResponse.json(
-        {error: "Failed to fetch learning modules"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*",
-          },
+
+      // Try to pass backend JSON if it is JSON
+      if (contentType.includes("application/json")) {
+        try {
+          const backend = text ? JSON.parse(text) : null;
+          return NextResponse.json(
+            { error: "Failed to fetch learning modules", backend },
+            { status: response.status, headers: outHeaders }
+          );
+        } catch {
+          // fall through
         }
+      }
+
+      return NextResponse.json(
+        { error: "Failed to fetch learning modules" },
+        { status: response.status, headers: outHeaders }
       );
     }
 
+    // Ensure JSON
     if (!contentType.includes("application/json")) {
-      console.error(
-        "[LearningModulesAPI] Non-JSON response received:",
-        contentType
-      );
+      console.error("[LearningModulesAPI] Non-JSON response received:", contentType);
       return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: outHeaders }
       );
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? JSON.parse(text) : null;
     } catch (parseError) {
       console.error("[LearningModulesAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
+      return NextResponse.json({ error: "Invalid response format" }, { status: 500, headers: outHeaders });
     }
+
+    const safeArr = (v: any) => (Array.isArray(v) ? v : []);
 
     const normalizedData = {
       ...data,
-      videos: data.videos.map((video) => ({
+      videos: safeArr(data?.videos).map((video: any) => ({
         ...video,
-        url: normalizeMedia(video.url),
+        url: normalizeMedia(video?.url),
       })),
-      audio: data.audio.map((audio) => ({
+      audio: safeArr(data?.audio).map((audio: any) => ({
         ...audio,
-        url: normalizeMedia(audio.url),
+        url: normalizeMedia(audio?.url),
       })),
-      pdfs: data.pdfs.map((pdf) => ({
+      pdfs: safeArr(data?.pdfs).map((pdf: any) => ({
         ...pdf,
-        url: normalizeMedia(pdf.url),
+        url: normalizeMedia(pdf?.url),
       })),
-      docs: data.docs.map((doc) => ({
+      docs: safeArr(data?.docs).map((doc: any) => ({
         ...doc,
-        url: normalizeMedia(doc.url),
+        url: normalizeMedia(doc?.url),
       })),
-      links: data.links.map((link) => ({
+      links: safeArr(data?.links).map((link: any) => ({
         ...link,
-        url: normalizeMedia(link.url),
+        url: normalizeMedia(link?.url),
       })),
-      tutorials: data.tutorials.map((tutorial) => ({
+      tutorials: safeArr(data?.tutorials).map((tutorial: any) => ({
         ...tutorial,
-        url: normalizeMedia(tutorial.url),
+        url: normalizeMedia(tutorial?.url),
       })),
     };
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
-  } catch (error) {
+    return NextResponse.json(normalizedData, { status: 200, headers: outHeaders });
+  } catch (error: any) {
     console.error("[LearningModulesAPI] Fetch error:", error);
     return NextResponse.json(
-      {error: "Failed to fetch learning modules", details: error.message},
+      { error: "Failed to fetch learning modules", details: error?.message },
       {
         status: 500,
         headers: {
