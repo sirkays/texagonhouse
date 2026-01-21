@@ -1,18 +1,9 @@
-//texagon_academy\texagonui\app\api\store\orders\route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098/store/api";
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+// texagon_academy/texagonui/app/api/store/orders/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface Customer {
   id?: string | null;
@@ -33,11 +24,11 @@ interface Address {
 }
 
 interface OrderItem {
-  id?: string; // ✅ add
+  id?: string;
   title: string;
   qty: number;
   price: string;
-  sku?: string;       // ✅ add
+  sku?: string;
   product_slug: string;
 }
 
@@ -47,9 +38,12 @@ interface Order {
   grand_total: string;
   created_at: string;
 
-  customer?: Customer; // ✅ add
-  shipping_address?: Address | null; // ✅ add
-  billing_address?: Address | null; // ✅ add
+  shipments_count?: string;
+  has_shipment?: boolean;
+
+  customer?: Customer;
+  shipping_address?: Address | null;
+  billing_address?: Address | null;
 
   items: OrderItem[];
 
@@ -69,59 +63,76 @@ interface CreateOrderResponse {
   id: string;
 }
 
+function withForwardedCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) {
+    // Forward Django session cookies back to browser
+    res.headers.set("Set-Cookie", setCookie);
+  }
+  return res;
+}
+
 export async function GET(req: Request) {
   noStore();
-  const session = await getServerSession(authOptions);
 
+  // keep the same auth behavior you had
+  const session = await getServerSession(authOptions);
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
+      { error: "Not authenticated", redirect: "/login" },
+      { status: 401 }
     );
   }
 
-  const sessionToken = session.user.sessionToken;
-
   const url = new URL(req.url);
-  const status = url.searchParams.get("status"); // "paid" etc.
+  const status = url.searchParams.get("status");
 
-  const fullUrl = status
-    ? `${BASE_URL}/orders/?status=${encodeURIComponent(status)}`
-    : `${BASE_URL}/orders/`;
+  const path = status
+    ? `/store/api/orders/?status=${encodeURIComponent(status)}`
+    : `/store/api/orders/`;
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(path, {
       method: "GET",
-      headers: headers(sessionToken),
     });
 
-    const rawResponse = await response.text();
-
     if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+      if (response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json({error: "Orders not found"}, {status: 404});
-      return NextResponse.json(
-        {error: "Failed to fetch orders"},
-        {status: response.status}
+        return withForwardedCookie(res, setCookie);
+      }
+      if (response.status === 403) {
+        const res = NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return withForwardedCookie(res, setCookie);
+      }
+      if (response.status === 404) {
+        const res = NextResponse.json(
+          { error: "Orders not found" },
+          { status: 404 }
+        );
+        return withForwardedCookie(res, setCookie);
+      }
+
+      const res = NextResponse.json(
+        { error: "Failed to fetch orders" },
+        { status: response.status }
       );
+      return withForwardedCookie(res, setCookie);
     }
 
     let data: OrdersResponse;
     try {
-      data = JSON.parse(rawResponse);
+      data = JSON.parse(text);
     } catch {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+      const res = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
       );
+      return withForwardedCookie(res, setCookie);
     }
+
     const normalizedData: OrdersResponse = {
       results: (data.results || []).map((item: any) => ({
         id: item.id || "",
@@ -129,10 +140,9 @@ export async function GET(req: Request) {
         grand_total: item.grand_total || "0",
         created_at: item.created_at || "",
 
-        shipments_count: item.shipments_count || "0",
-        has_shipment: item.has_shipment || false,
+        shipments_count: String(item.shipments_count ?? "0"),
+        has_shipment: !!item.has_shipment,
 
-        // ✅ pass through customer + addresses
         customer: item.customer
           ? {
               id: String(item.customer.id ?? ""),
@@ -169,11 +179,11 @@ export async function GET(req: Request) {
           : null,
 
         items: (item.items || []).map((subItem: any) => ({
-          id: String(subItem.id ?? ""), // ✅ now included
+          id: String(subItem.id ?? ""),
           title: String(subItem.title ?? ""),
           qty: Number(subItem.qty ?? 0),
           price: String(subItem.price ?? "0"),
-          sku: String(subItem.sku ?? ""),         // ✅ now included
+          sku: String(subItem.sku ?? ""),
           product_slug: String(subItem.product_slug ?? ""),
         })),
 
@@ -185,74 +195,76 @@ export async function GET(req: Request) {
         remaining_payments: item.remaining_payments ?? null,
       })),
     };
-    return NextResponse.json(normalizedData, {
+
+    const res = NextResponse.json(normalizedData, {
       status: 200,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
+    return withForwardedCookie(res, setCookie);
   } catch {
-    return NextResponse.json({error: "Failed to fetch orders"}, {status: 500});
+    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   noStore();
-  const session = await getServerSession(authOptions);
 
+  // keep the same auth behavior you had
+  const session = await getServerSession(authOptions);
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
+      { error: "Not authenticated", redirect: "/login" },
+      { status: 401 }
     );
   }
 
-  const sessionToken = session.user.sessionToken;
-
   const body = await req.json();
 
-  const fullUrl = `${BASE_URL}/orders/`;
-
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(`/store/api/orders/`, {
       method: "POST",
-      headers: headers(sessionToken),
       body: JSON.stringify(body),
     });
 
-    const rawResponse = await response.text();
-
     if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+      if (response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      return NextResponse.json(
-        {error: "Failed to create order"},
-        {status: response.status}
+        return withForwardedCookie(res, setCookie);
+      }
+      if (response.status === 403) {
+        const res = NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return withForwardedCookie(res, setCookie);
+      }
+
+      const res = NextResponse.json(
+        { error: "Failed to create order" },
+        { status: response.status }
       );
+      return withForwardedCookie(res, setCookie);
     }
 
     let data: CreateOrderResponse;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+      data = JSON.parse(text);
+    } catch {
+      const res = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
       );
+      return withForwardedCookie(res, setCookie);
     }
 
-    const normalizedData: CreateOrderResponse = {
-      id: data.id || "",
-    };
+    const normalizedData: CreateOrderResponse = { id: data.id || "" };
 
-    return NextResponse.json(normalizedData, {
+    const res = NextResponse.json(normalizedData, {
       status: 200,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    return NextResponse.json({error: "Failed to create order"}, {status: 500});
+    return withForwardedCookie(res, setCookie);
+  } catch {
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }

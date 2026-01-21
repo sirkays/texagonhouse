@@ -1,16 +1,9 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+// app/api/orders/[order_id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface OrderItem {
   title: string;
@@ -51,7 +44,7 @@ export async function GET(
 ) {
   noStore();
 
-  const { order_id } = await params; // ✅ await params
+  const { order_id } = await params;
   const orderId = order_id;
 
   if (!orderId) {
@@ -61,6 +54,7 @@ export async function GET(
     );
   }
 
+  // Keep your explicit auth response (even though proxy.ts also reads session)
   const session = await getServerSession(authOptions);
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
@@ -69,39 +63,62 @@ export async function GET(
     );
   }
 
-  const sessionToken = session.user.sessionToken;
-  const fullUrl = `${BASE_URL}/orders/${orderId}`;
-
-  const response = await fetch(fullUrl, {
-    method: "GET",
-    headers: headers(sessionToken),
-  });
-
-  const rawResponse = await response.text();
+  // IMPORTANT:
+  // proxy.ts BASE_URL is just the host, so include the full API path here.
+  const { response, text, setCookie } = await djangoFetch(
+    `/store/api/orders/${orderId}`,
+    { method: "GET" }
+  );
 
   if (!response.ok) {
-    if (response.status === 401)
-      return NextResponse.json(
+    if (response.status === 401) {
+      const res = NextResponse.json(
         { error: "Session expired", redirect: "/login" },
         { status: 401 }
       );
-    if (response.status === 403)
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    if (response.status === 404)
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    return NextResponse.json(
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
+    }
+
+    if (response.status === 403) {
+      const res = NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
+    }
+
+    if (response.status === 404) {
+      const res = NextResponse.json({ error: "Order not found" }, { status: 404 });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
+    }
+
+    const res = NextResponse.json(
       { error: "Failed to fetch order" },
       { status: response.status }
     );
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   }
 
   let data: OrderDetailResponse;
   try {
-    data = JSON.parse(rawResponse);
+    data = JSON.parse(text);
   } catch {
-    return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
+    const res = NextResponse.json(
+      { error: "Invalid response format" },
+      { status: 500 }
+    );
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   }
 
-  // normalize + return...
-  return NextResponse.json(data, { status: 200, headers: { "Cache-Control": "no-store" } });
+  const res = NextResponse.json(data, {
+    status: 200,
+    headers: { "Cache-Control": "no-store" },
+  });
+
+  // Forward Django session cookie back to browser
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+
+  return res;
 }

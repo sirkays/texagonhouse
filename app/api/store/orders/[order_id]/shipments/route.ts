@@ -8,11 +8,20 @@ export async function GET(
 ) {
   const { order_id } = await params;
 
-  const { res, text } = await djangoFetch(
+  const { response, text, setCookie } = await djangoFetch(
     `/store/api/orders/${order_id}/shipments/`,
     { method: "GET" }
   );
 
+  const nextRes = new NextResponse(text, {
+    status: response.status,
+    headers: {
+      "Content-Type": response.headers.get("content-type") ?? "application/json",
+      "Cache-Control": "no-store",
+    },
+  });
 
-  return new NextResponse(text, { status: res.status });
+  if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+
+  return nextRes;
 }

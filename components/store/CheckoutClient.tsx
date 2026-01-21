@@ -730,77 +730,86 @@ export default function CheckoutPage() {
     }
   };
 
-  const confirmPayment = async (
-    tx_ref: string,
-    transaction_id: string,
-    invoice_id?: string
-  ) => {
-    if (hasConfirmedRef.current) return;
-    hasConfirmedRef.current = true;
+const confirmPayment = async (
+  tx_ref: string,
+  transaction_id: string,
+  invoice_id?: string
+) => {
+  if (hasConfirmedRef.current) return;
+  hasConfirmedRef.current = true;
 
-    setIsPlacingOrder(true);
-    try {
-      const payload: any = {status: "completed", tx_ref, transaction_id};
-      if (invoice_id) payload.invoice_id = invoice_id;
+  setIsPlacingOrder(true);
+  try {
+    const payload: any = { tx_ref, transaction_id };
+    if (invoice_id) payload.invoice_id = invoice_id;
 
-      const res = await fetch("/api/billing?action=confirm", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload),
-      });
+    const res = await fetch("/api/billing?action=confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        hasConfirmedRef.current = false;
-        toast({
-          variant: "destructive",
-          title: "Payment confirmation failed",
-          description:
-            data?.detail || data?.error || "Could not confirm payment",
-        });
-        return;
-      }
-
-      toast({
-        title: "Payment Confirmed!",
-        description: "Your request has been submitted successfully.",
-      });
-
-      localStorage.removeItem("checkout_invoice_id");
-      setBuyNowProduct(null);
-
-      const clean = new URL(window.location.href);
-      clean.searchParams.delete("status");
-      clean.searchParams.delete("tx_ref");
-      clean.searchParams.delete("transaction_id");
-
-      router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
-      setTimeout(() => router.push("/store"), 1200);
-    } catch (err: any) {
+    if (!res.ok) {
       hasConfirmedRef.current = false;
       toast({
         variant: "destructive",
-        title: "Something went wrong",
-        description: err?.message || "Could not confirm payment",
+        title: "Payment confirmation failed",
+        description: data?.detail || data?.error || "Could not confirm payment",
       });
-    } finally {
-      setIsPlacingOrder(false);
+      return;
     }
-  };
 
-  // ✅ Confirm payment callback
-  useEffect(() => {
-    const status = searchParams.get("status");
-    const tx_ref = searchParams.get("tx_ref");
-    const transaction_id = searchParams.get("transaction_id");
+    toast({
+      title: "Payment Confirmed!",
+      description: "Your request has been submitted successfully.",
+    });
 
-    if (status === "completed" && tx_ref && transaction_id) {
-      const invoice_id = localStorage.getItem("checkout_invoice_id");
-      confirmPayment(tx_ref, transaction_id, invoice_id || undefined);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    localStorage.removeItem("checkout_invoice_id");
+    setBuyNowProduct(null);
+
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("status");
+    clean.searchParams.delete("tx_ref");
+    clean.searchParams.delete("transaction_id");
+    router.replace(`${clean.pathname}?${clean.searchParams.toString()}`);
+
+    setTimeout(() => router.push("/store?tab=orders"), 1200);
+  } catch (err: any) {
+    hasConfirmedRef.current = false;
+    toast({
+      variant: "destructive",
+      title: "Something went wrong",
+      description: err?.message || "Could not confirm payment",
+    });
+  } finally {
+    setIsPlacingOrder(false);
+  }
+};
+
+
+// ✅ Confirm payment callback (Flutterwave redirect)
+useEffect(() => {
+  const statusRaw = (searchParams.get("status") || "").toLowerCase();
+  const tx_ref = searchParams.get("tx_ref") || "";
+  const transaction_id = searchParams.get("transaction_id") || "";
+
+  // Flutterwave can send: successful / cancelled / failed (etc.)
+  const isCancelled =
+    statusRaw === "cancelled" || statusRaw === "canceled";
+
+  // If cancelled -> show toast and clean URL (you already do this)
+  if (isCancelled) return;
+
+  // If we have a transaction_id (best) or tx_ref, attempt server confirmation.
+  // IMPORTANT: we do not rely on statusRaw === "completed" anymore.
+  if ((transaction_id || tx_ref) && !hasConfirmedRef.current) {
+    const invoice_id = localStorage.getItem("checkout_invoice_id") || undefined;
+    confirmPayment(tx_ref, transaction_id, invoice_id);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [searchParams]);
 
   const bnplPayNowText = useMemo(() => {
     const payNow = safeNum(bnplBreakdown?.breakdown?.downpayment_now, 0);
