@@ -4,8 +4,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 import type { Session, User } from "next-auth";
 
-const BASE_URL = "http://127.0.0.1:9098"
-//const BASE_URL = "https://texagonbackend.onrender.com";
+//const BASE_URL = "http://127.0.0.1:9098"
+const BASE_URL = "https://texagonbackend.onrender.com";
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken?: string) => ({
