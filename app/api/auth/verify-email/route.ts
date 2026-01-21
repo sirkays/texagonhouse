@@ -1,52 +1,58 @@
-import {NextResponse} from "next/server";
-
-const BASE_URL = "http://127.0.0.1:9098";
-//const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+// app/api/accounts/verify-email/route.ts  (adjust path to your actual file)
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function POST(request: Request) {
   console.log(`[Verify Route] Received POST request`);
 
   try {
     const body = await request.json();
-    const backendUrl = `${BASE_URL}/accounts/api/auth/verify-email/`;
 
-    const res = await fetch(backendUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    const { response, text, setCookie } = await djangoFetch(
+      "/accounts/api/auth/verify-email/",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
 
-    // FIX: Read text first to prevent crashes on non-JSON responses
-    const responseText = await res.text();
-
-    let data;
+    // Read text -> parse JSON safely (handles HTML/timeouts)
+    let data: any = null;
     try {
-      data = JSON.parse(responseText);
+      data = JSON.parse(text);
     } catch (error) {
       console.error(
         "[Verify Route] Failed to parse JSON. Raw response:",
-        responseText.slice(0, 200)
+        text.slice(0, 200)
       );
-      return NextResponse.json(
-        {error: "Backend Error: Received invalid response from server."},
-        {status: res.status || 500}
+
+      const res = NextResponse.json(
+        { error: "Backend Error: Received invalid response from server." },
+        { status: response.status || 500 }
       );
+
+      // Forward Django cookie if present
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+
+      return res;
     }
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to verify email"},
-        {status: res.status}
+    if (!response.ok) {
+      const res = NextResponse.json(
+        { error: data?.detail || data?.error || "Failed to verify email" },
+        { status: response.status }
       );
+
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+
+      return res;
     }
 
-    return NextResponse.json(data, {status: 200});
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
     console.error("[Verify Route] Internal Server Error:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
