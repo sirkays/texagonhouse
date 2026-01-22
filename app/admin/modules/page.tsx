@@ -78,6 +78,7 @@ export default function ModulesPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  const [courseSearch, setCourseSearch] = useState("");
 
   const fetchModules = useCallback(
     async (
@@ -354,17 +355,53 @@ export default function ModulesPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={courseFilter} onValueChange={handleCourseChange}>
+                <Select
+                  value={courseFilter}
+                  onValueChange={handleCourseChange}
+                  onOpenChange={(open) => {
+                    if (!open) setCourseSearch(""); // Clear search on close
+                  }}
+                >
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter course" />
                   </SelectTrigger>
+                  
                   <SelectContent>
-                    <SelectItem value="All">All Courses</SelectItem>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.id.toString()}>
-                        {course.name}
-                      </SelectItem>
-                    ))}
+                    {/* Sticky Search Header */}
+                    <div className="p-2 sticky top-0 bg-popover z-10 border-b">
+                      <Input
+                        placeholder="Search courses..."
+                        value={courseSearch}
+                        onChange={(e) => setCourseSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+
+                    {/* Scrollable List */}
+                    <div className="max-h-[200px] overflow-y-auto mt-1">
+                      {/* Always keep 'All Courses' visible at the top */}
+                      <SelectItem value="All">All Courses</SelectItem>
+                      
+                      {courses
+                        .filter((course) =>
+                          course.name.toLowerCase().includes(courseSearch.toLowerCase())
+                        )
+                        .map((course) => (
+                          <SelectItem key={course.id} value={course.id.toString()}>
+                            {course.name}
+                          </SelectItem>
+                        ))}
+
+                      {/* Empty State */}
+                      {courses.filter((course) =>
+                        course.name.toLowerCase().includes(courseSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          No courses found
+                        </div>
+                      )}
+                    </div>
                   </SelectContent>
                 </Select>
 
