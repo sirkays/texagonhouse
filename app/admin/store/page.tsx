@@ -408,7 +408,7 @@ qs.append("page_size", "20");
       toast({ title: "Products", description: isEdit ? "Product updated" : "Product created" });
       setProductModalOpen(false);
       setEditingProduct(null);
-      loadProducts(1);
+      loadProducts(productsPage);
     } catch (e: any) {
       toast({
         title: "Products",
@@ -427,7 +427,7 @@ qs.append("page_size", "20");
       const raw = await res.text();
       if (!res.ok && res.status !== 204) throw new Error(raw || "Failed to delete");
       toast({ title: "Products", description: "Product deleted" });
-      loadProducts(1);
+      loadProducts(productsPage);
     } catch (e: any) {
       toast({ title: "Products", description: e?.message || "Delete failed", variant: "destructive" });
     }
