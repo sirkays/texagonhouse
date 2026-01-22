@@ -2,28 +2,43 @@
 import { NextResponse } from "next/server";
 import { djangoFetch } from "@/app/api/_lib/proxy";
 
+type Params = { shipment_id: string };
+
+function normalizeShipmentId(id: unknown) {
+  const s = typeof id === "string" ? id : "";
+  if (!s || s === "undefined" || s === "null") return null;
+  return s;
+}
+
 /* =========================
    GET – list tracking events
    ========================= */
 export async function GET(
   _req: Request,
-  { params }: { params: { shipment_id: string } }
+  { params }: { params: Promise<Params> }
 ) {
-  const shipmentId = params.shipment_id;
+  const { shipment_id } = await params;
+  const shipmentId = normalizeShipmentId(shipment_id);
 
-  if (!shipmentId || shipmentId === "undefined") {
+  if (!shipmentId) {
     return NextResponse.json(
-      { detail: "Missing shipment_id in route params", params },
+      { detail: "Missing shipment_id in route params" },
       { status: 400 }
     );
   }
 
-  const { res, text } = await djangoFetch(
+  const { response, text, setCookie } = await djangoFetch(
     `/store/api/shipments/${shipmentId}/events/`,
     { method: "GET" }
   );
 
-  return new NextResponse(text, { status: res.status });
+  const res = new NextResponse(text, { status: response.status });
+
+  const ct = response.headers.get("content-type");
+  if (ct) res.headers.set("content-type", ct);
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+
+  return res;
 }
 
 /* =========================
@@ -31,13 +46,14 @@ export async function GET(
    ========================= */
 export async function POST(
   req: Request,
-  { params }: { params: { shipment_id: string } }
+  { params }: { params: Promise<Params> }
 ) {
-  const shipmentId = params.shipment_id;
+  const { shipment_id } = await params;
+  const shipmentId = normalizeShipmentId(shipment_id);
 
-  if (!shipmentId || shipmentId === "undefined") {
+  if (!shipmentId) {
     return NextResponse.json(
-      { detail: "Missing shipment_id in route params", params },
+      { detail: "Missing shipment_id in route params" },
       { status: 400 }
     );
   }
@@ -46,20 +62,13 @@ export async function POST(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { detail: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Forward payload exactly as Django expects
-  const { res, text } = await djangoFetch(
+  const { response, text, setCookie } = await djangoFetch(
     `/store/api/shipments/${shipmentId}/events/`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
         event_code: body.event_code,
         description: body.description,
@@ -73,5 +82,11 @@ export async function POST(
     }
   );
 
-  return new NextResponse(text, { status: res.status });
+  const res = new NextResponse(text, { status: response.status });
+
+  const ct = response.headers.get("content-type");
+  if (ct) res.headers.set("content-type", ct);
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+
+  return res;
 }
