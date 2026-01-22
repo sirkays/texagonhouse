@@ -10,11 +10,11 @@ export async function POST(
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const { res, text } = await djangoFetch(`/store/api/orders/${order_id}/shipments/create/`, {
+  const { response, text } = await djangoFetch(`/store/api/orders/${order_id}/shipments/create/`, {
     method: "POST",
     body: JSON.stringify(body),
   });
 
   // pass-through response
-  return new NextResponse(text, { status: res.status });
+  return new NextResponse(text, { status: response.status });
 }
