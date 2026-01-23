@@ -1,16 +1,8 @@
 // app/api/store/shipments/[shipment_id]/set-tracking/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+type Params = { shipment_id: string };
 
 interface ShipmentItem {
   order_item_id: string;
@@ -60,90 +52,131 @@ interface Shipment {
   events: ShipmentEvent[];
 }
 
+function normalizeShipmentId(id: unknown) {
+  const s = typeof id === "string" ? id : "";
+  if (!s || s === "undefined" || s === "null") return null;
+  return s;
+}
+
 export async function POST(
   req: Request,
-  {params}: {params: {shipment_id: string}}
+  { params }: { params: Promise<Params> }
 ) {
-  const body = await req.json();
-  const fullUrl = `${BASE_URL}/shipments/${params.shipment_id}/set-tracking/`;
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
+  // ✅ Next.js requires awaiting params
+  const { shipment_id } = await params;
+  const shipmentId = normalizeShipmentId(shipment_id);
+
+  if (!shipmentId) {
+    return NextResponse.json(
+      { error: "Missing shipment_id in route params" },
+      { status: 400 }
+    );
+  }
+
+  let body: any;
   try {
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(sessionToken ? sessionToken : undefined),
-      body: JSON.stringify(body),
-    });
-    const rawResponse = await response.text();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  try {
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/shipments/${shipmentId}/set-tracking/`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
+
+    // Handle common status codes like your old route
     if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+      let details: any = null;
+      try {
+        details = text ? JSON.parse(text) : null;
+      } catch {
+        // ignore
+      }
+
+      let res: NextResponse;
+      if (response.status === 401) {
+        res = NextResponse.json(
+          { error: "Session expired", redirect: "/login", details },
+          { status: 401 }
         );
-      if (response.status === 400)
-        return NextResponse.json({error: "Invalid request"}, {status: 400});
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json({error: "Shipment not found"}, {status: 404});
-      return NextResponse.json(
-        {error: "Failed to set tracking"},
-        {status: response.status}
-      );
+      } else if (response.status === 400) {
+        res = NextResponse.json({ error: "Invalid request", details }, { status: 400 });
+      } else if (response.status === 403) {
+        res = NextResponse.json({ error: "Forbidden", details }, { status: 403 });
+      } else if (response.status === 404) {
+        res = NextResponse.json({ error: "Shipment not found", details }, { status: 404 });
+      } else {
+        res = NextResponse.json(
+          { error: "Failed to set tracking", details },
+          { status: response.status }
+        );
+      }
+
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
+
+    // Parse + normalize response
     let data: Shipment;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
-      );
+      data = JSON.parse(text);
+    } catch {
+      const res = NextResponse.json({ error: "Invalid response format" }, { status: 500 });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
+
     const normalizedData: Shipment = {
-      id: data.id || "",
-      order_id: data.order_id || "",
-      status: data.status || "",
-      carrier: data.carrier || null,
-      method: data.method || null,
-      tracking_number: data.tracking_number || "",
-      tracking_url: data.tracking_url || null,
-      label_url: data.label_url || null,
-      label_cost: data.label_cost || "0",
-      currency: data.currency || "",
+      id: data?.id || "",
+      order_id: data?.order_id || "",
+      status: data?.status || "",
+      carrier: data?.carrier ?? null,
+      method: data?.method ?? null,
+      tracking_number: data?.tracking_number || "",
+      tracking_url: data?.tracking_url ?? null,
+      label_url: data?.label_url ?? null,
+      label_cost: data?.label_cost || "0",
+      currency: data?.currency || "",
       to: {
-        name: data.to.name || "",
-        line1: data.to.line1 || "",
-        line2: data.to.line2 || "",
-        city: data.to.city || "",
-        state: data.to.state || "",
-        postal_code: data.to.postal_code || "",
-        country: data.to.country || "",
-        phone: data.to.phone || "",
-        email: data.to.email || "",
+        name: data?.to?.name || "",
+        line1: data?.to?.line1 || "",
+        line2: data?.to?.line2 || "",
+        city: data?.to?.city || "",
+        state: data?.to?.state || "",
+        postal_code: data?.to?.postal_code || "",
+        country: data?.to?.country || "",
+        phone: data?.to?.phone || "",
+        email: data?.to?.email || "",
       },
-      shipped_at: data.shipped_at || null,
-      delivered_at: data.delivered_at || null,
-      items: data.items.map((item) => ({
-        order_item_id: item.order_item_id || "",
-        title: item.title || "",
-        quantity: item.quantity || 0,
+      shipped_at: data?.shipped_at ?? null,
+      delivered_at: data?.delivered_at ?? null,
+      items: (data?.items || []).map((item) => ({
+        order_item_id: item?.order_item_id || "",
+        title: item?.title || "",
+        quantity: item?.quantity || 0,
       })),
-      events: data.events.map((event) => ({
-        id: event.id || "",
-        code: event.code || "",
-        desc: event.desc || "",
-        occurred_at: event.occurred_at || "",
-        city: event.city || "",
-        state: event.state || "",
-        country: event.country || "",
-        postal_code: event.postal_code || "",
-        carrier_status: event.carrier_status || "",
+      events: (data?.events || []).map((event) => ({
+        id: event?.id || "",
+        code: event?.code || "",
+        desc: event?.desc || "",
+        occurred_at: event?.occurred_at || "",
+        city: event?.city || "",
+        state: event?.state || "",
+        country: event?.country || "",
+        postal_code: event?.postal_code || "",
+        carrier_status: event?.carrier_status || "",
       })),
     };
-    return NextResponse.json(normalizedData, {status: 200});
-  } catch (error) {
-    return NextResponse.json({error: "Failed to set tracking"}, {status: 500});
+
+    const res = NextResponse.json(normalizedData, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
+  } catch {
+    return NextResponse.json({ error: "Failed to set tracking" }, { status: 500 });
   }
 }

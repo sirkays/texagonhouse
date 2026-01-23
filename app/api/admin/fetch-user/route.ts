@@ -1,65 +1,57 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+// app/api/.../fetch-user/route.ts  (wherever this POST route lives)
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BACKEND_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    const sessionToken = (session?.user as any)?.sessionToken;
-    const userRole = (session?.user as any)?.role;
-    const userEmail = (session?.user as any)?.email;
-
-    if (!sessionToken) {
-      return NextResponse.json(
-        {detail: "Session token not found. Please log in."},
-        {status: 401}
-      );
-    }
-
     const body = await request.json();
 
     // Validate required fields
-    if (!body.email) {
+    if (!body?.email) {
       return NextResponse.json(
-        {detail: "Email field is required."},
-        {status: 400}
+        { detail: "Email field is required." },
+        { status: 400 }
       );
     }
 
-    // Forward request to backend
-    const response = await fetch(
-      `${BACKEND_URL}/accounts/api/auth/fetch-user/`,
+    // Your proxy already handles:
+    // - Api-Key
+    // - X-Session-Token (from NextAuth session)
+    // - Cookies forwarding
+    const { response, text, setCookie } = await djangoFetch(
+      `/accounts/api/auth/fetch-user/`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Api-Key ${API_KEY}`,
-          "X-Session-Token": sessionToken,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(body),
       }
     );
 
-    const data = await response.json();
+    const data = safeJson(text);
 
-    if (!response.ok) {
-      console.error("Backend API Error:", {
-        status: response.status,
-        statusText: response.statusText,
-        data: data,
-      });
-      return NextResponse.json(data, {status: response.status});
-    }
+    const res = NextResponse.json(
+      response.ok
+        ? (data ?? { raw: text })
+        : (data ?? { detail: "Backend request failed" }),
+      { status: response.status }
+    );
 
-    return NextResponse.json(data);
+    // Forward Django cookies (sessionid, etc.)
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+
+    return res;
   } catch (error: any) {
     console.error("Error in fetch-user API:", error);
     return NextResponse.json(
-      {detail: error.message || "Internal server error"},
-      {status: 500}
+      { detail: error?.message || "Internal server error" },
+      { status: 500 }
     );
   }
 }

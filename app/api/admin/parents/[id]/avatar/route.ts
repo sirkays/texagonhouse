@@ -1,62 +1,57 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
-}
+// app/api/orgs/api/parents/[id]/avatar/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function POST(
   request: NextRequest,
-  {params}: {params: {id: string}}
+  { params }: { params: { id: string } }
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
   try {
+    const { id } = params;
+
     const formData = await request.formData();
-    const avatarFile = formData.get("avatar") as File;
+    const avatarFile = formData.get("avatar") as File | null;
 
     if (!avatarFile) {
       return NextResponse.json(
-        {error: "Avatar file is required"},
-        {status: 400}
+        { error: "Avatar file is required" },
+        { status: 400 }
       );
     }
 
+    // Re-create FormData to forward to Django
     const uploadFormData = new FormData();
     uploadFormData.append("avatar", avatarFile);
 
-    const url = `${BASE_URL}/api/parents/${id}/`;
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: uploadFormData,
-    });
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/parents/${id}/`,
+      {
+        method: "PATCH",
+        body: uploadFormData, // proxy.ts correctly avoids forcing JSON headers
+      }
+    );
 
-    const data = await res.json();
+    // Safe JSON parsing
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
 
-    if (!res.ok) {
+    if (!response.ok) {
       return NextResponse.json(
-        {error: data.detail || "Failed to upload avatar"},
-        {status: res.status}
+        { error: data?.detail || "Failed to upload avatar" },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json(data);
+    // Forward Django cookies if present
+    const res = NextResponse.json(data, { status: response.status });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
     console.error("[Route] Error uploading avatar:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,122 +1,109 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function withForwardedCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 async function handleRequest(
   request: NextRequest,
-  method: string,
-  id: string,
-  sessionToken: string
+  method: "GET" | "PATCH" | "DELETE",
+  id: string
 ) {
   const contentType = request.headers.get("content-type") || "";
-  let fetchBody: BodyInit | null = null;
-  let headers: HeadersInit = {
-    Authorization: `Api-Key ${API_KEY}`,
-    "X-Session-Token": sessionToken,
-  };
+  let init: RequestInit = { method };
 
-  if (method === "DELETE") {
-    // No body or additional headers for DELETE
-  } else if (contentType.includes("multipart/form-data")) {
-    const formData = await request.formData();
-    fetchBody = formData;
-  } else if (method === "PATCH") {
-    const jsonBody = await request.json();
-    fetchBody = JSON.stringify(jsonBody);
-    headers["Content-Type"] = "application/json";
+  // PATCH: optional body (json or multipart)
+  if (method === "PATCH") {
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      init = { ...init, body: formData };
+      // IMPORTANT: don't set Content-Type manually for FormData
+    } else {
+      const jsonBody = await request.json();
+      init = {
+        ...init,
+        body: JSON.stringify(jsonBody),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
   }
 
-  const url = `${BASE_URL}/api/parents/${id}/`;
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: fetchBody,
-  });
+  const { response, text, setCookie } = await djangoFetch(
+    `/orgs/api/parents/${id}/`,
+    init
+  );
 
-  if (!res.ok) {
-    const data = await res.json();
-    return NextResponse.json(
-      {error: data.detail || `Failed to ${method.toLowerCase()} parent`},
-      {status: res.status}
+  if (!response.ok) {
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      // ignore parse errors
+    }
+
+    const errMsg =
+      data?.detail ||
+      data?.error ||
+      `Failed to ${method.toLowerCase()} parent`;
+
+    return withForwardedCookie(
+      NextResponse.json({ error: errMsg }, { status: response.status }),
+      setCookie
     );
   }
 
   if (method === "DELETE") {
-    return new NextResponse(null, {status: 204});
+    return withForwardedCookie(new NextResponse(null, { status: 204 }), setCookie);
   }
 
-  const data = await res.json();
-  return NextResponse.json(data);
+  // GET/PATCH should return JSON
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+
+  return withForwardedCookie(NextResponse.json(data), setCookie);
 }
 
 export async function GET(
   request: NextRequest,
-  {params}: {params: {id: string}}
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
   try {
-    return await handleRequest(request, "GET", id, session.user.sessionToken);
+    const { id } = await params;
+    return await handleRequest(request, "GET", id);
   } catch (error) {
     console.error("[Route] Error fetching parent:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PATCH(
   request: NextRequest,
-  {params}: {params: {id: string}}
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
   try {
-    return await handleRequest(request, "PATCH", id, session.user.sessionToken);
+    const { id } = await params;
+    return await handleRequest(request, "PATCH", id);
   } catch (error) {
     console.error("[Route] Error updating parent:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  {params}: {params: {id: string}}
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
   try {
-    return await handleRequest(
-      request,
-      "DELETE",
-      id,
-      session.user.sessionToken
-    );
+    const { id } = await params;
+    return await handleRequest(request, "DELETE", id);
   } catch (error) {
     console.error("[Route] Error deleting parent:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

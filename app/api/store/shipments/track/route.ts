@@ -10,10 +10,10 @@ export async function GET(req: Request) {
   if (tracking_number) qs.set("tracking_number", tracking_number);
   if (last4) qs.set("last4", last4);
 
-  const { res, text } = await djangoFetch(
+  const { response, text } = await djangoFetch(
     `/store/api/shipments/track/?${qs.toString()}/`,
     { method: "GET" }
   );
 
-  return new NextResponse(text, { status: res.status });
+  return new NextResponse(text, { status: response.status });
 }

@@ -1,51 +1,39 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function withForwardedCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 export async function POST(
   request: NextRequest,
-  {params}: {params: Promise<{id: string}>} // Type params as a Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    // Await params to resolve the Promise
-    const {id} = await params;
+    const { id } = await params;
 
-    const res = await fetch(
-      `${BASE_URL}/api/parents/${id}/generate_invoices/`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Api-Key ${API_KEY}`,
-          "X-Session-Token": session.user.sessionToken,
-        },
-      }
+    const { response, text, setCookie } = await djangoFetch(
+      `/billing/api/parent/${id}/generate-invoice/`,
+      { method: "POST" }
     );
 
-    const data = await res.json();
+    // Django should return JSON
+    const data = text ? JSON.parse(text) : null;
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to generate invoices"},
-        {status: res.status}
+    if (!response.ok) {
+      const errMsg =
+        data?.detail || data?.error || "Failed to generate invoices";
+
+      return withForwardedCookie(
+        NextResponse.json({ error: errMsg }, { status: response.status }),
+        setCookie
       );
     }
 
-    return NextResponse.json(data);
+    return withForwardedCookie(NextResponse.json(data), setCookie);
   } catch (error) {
     console.error("[Route] Error generating invoices:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

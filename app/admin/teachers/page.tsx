@@ -93,14 +93,14 @@ function TeacherModal({
   useEffect(() => {
     if (teacher && teacher.id) {
       setFormData({
-        name: teacher.name,
-        email: teacher.email,
-        phone: teacher.phone || "",
-        experience: teacher.experience,
-        bio: teacher.bio || "",
-        specialties: teacher.specialties || [],
+        name: teacher.name ?? "",
+        email: teacher.email ?? "",
+        phone: teacher.phone ?? "",
+        experience: Number.isFinite(teacher.experience) ? teacher.experience : 0,
+        bio: teacher.bio ?? "",
+        specialties: Array.isArray(teacher.specialties) ? teacher.specialties : [],
       });
-      setPreview(teacher.profilePicture || null);
+      setPreview(teacher.profilePicture ?? null);
       setAvatarFile(null);
     } else {
       setFormData({
@@ -116,6 +116,7 @@ function TeacherModal({
     }
     setErrors({});
   }, [teacher]);
+
 
   const toggleSpecialty = (spec: string) => {
     if (loading) return; // Prevent toggling while loading
@@ -171,9 +172,9 @@ function TeacherModal({
   const subtitle = !isEditing ? "Add a new teacher to the system" : undefined;
   const initials = formData.name
     ? formData.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
     : "?";
 
   return (
@@ -205,11 +206,10 @@ function TeacherModal({
                 htmlFor="profile-picture"
                 className={`
               relative cursor-pointer rounded-full border-2 border-dashed transition-all duration-200 flex items-center justify-center
-              ${
-                preview
-                  ? "w-24 h-24 sm:w-28 sm:h-28 border-gray-200 bg-white"
-                  : "w-20 h-20 sm:w-24 sm:h-24 border-gray-300 bg-gray-50 hover:bg-gray-100"
-              }
+              ${preview
+                    ? "w-24 h-24 sm:w-28 sm:h-28 border-gray-200 bg-white"
+                    : "w-20 h-20 sm:w-24 sm:h-24 border-gray-300 bg-gray-50 hover:bg-gray-100"
+                  }
             `}
               >
                 {preview ? (
@@ -693,9 +693,8 @@ export default function TeachersPage() {
 
         toast({
           title: selectedTeacher ? "Teacher Updated" : "Teacher Added",
-          description: `${teacherData.name} has been ${
-            selectedTeacher ? "updated" : "added"
-          } successfully.`,
+          description: `${teacherData.name} has been ${selectedTeacher ? "updated" : "added"
+            } successfully.`,
         });
 
         // Close modal on success

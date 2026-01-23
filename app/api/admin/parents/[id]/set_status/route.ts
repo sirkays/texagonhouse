@@ -1,62 +1,50 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
-}
+// app/api/admin/parents/[id]/set_status/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function POST(
   request: NextRequest,
-  {params}: {params: {id: string}}
+  { params }: { params: Promise<{ id: string }> } // 👈 params is a Promise
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {id} = params;
+    const { id } = await params; // 👈 await before reading id
     const body = await request.json();
 
     if (!body.status) {
-      return NextResponse.json({error: "status is required"}, {status: 400});
+      return NextResponse.json({ error: "status is required" }, { status: 400 });
     }
 
     if (!["active", "inactive", "suspended"].includes(body.status)) {
-      return NextResponse.json({error: "Invalid status value"}, {status: 400});
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
     }
 
-    console.log(
-      "[Route] Setting status at",
-      `${BASE_URL}/api/parents/${id}/set_status/`
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/parents/${id}/set_status/`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
     );
-    const res = await fetch(`${BASE_URL}/api/parents/${id}/set_status/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: JSON.stringify(body),
-    });
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
 
-    if (!res.ok) {
+    if (!response.ok) {
       return NextResponse.json(
-        {error: data.detail || "Failed to set status"},
-        {status: res.status}
+        { error: data?.detail || "Failed to set status" },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: response.status });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
     console.error("[Route] Error setting status:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

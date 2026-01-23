@@ -1,100 +1,99 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function withForwardedCookie(
+  res: NextResponse,
+  setCookie?: string
+): NextResponse {
+  if (setCookie) {
+    res.headers.set("set-cookie", setCookie);
+  }
+  return res;
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
-    const queryString = searchParams.toString();
-    const url = queryString
-      ? `${BASE_URL}/api/parents/?${queryString}`
-      : `${BASE_URL}/api/parents/`;
+    // Preserve query params
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
 
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
+    const path = qs ? `/orgs/api/parents/?${qs}` : `/orgs/api/parents/`;
+
+    const { response, text, setCookie } = await djangoFetch(path, {
+      method: "GET",
     });
 
-    const data = await res.json();
+    // Try parse JSON (Django should return JSON)
+    const data = text ? JSON.parse(text) : null;
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch parents"},
-        {status: res.status}
+    if (!response.ok) {
+      const errMsg =
+        data?.detail || data?.error || "Failed to fetch parents";
+      return withForwardedCookie(
+        NextResponse.json({ error: errMsg }, { status: response.status }),
+        setCookie
       );
     }
 
-    return NextResponse.json(data);
+    return withForwardedCookie(NextResponse.json(data), setCookie);
   } catch (error) {
     console.error("[Route] Error fetching parents:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
     const contentType = request.headers.get("content-type") || "";
-    let fetchBody: BodyInit | null = null;
-    const headers: HeadersInit = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "X-Session-Token": session.user.sessionToken,
-    };
+
+    let init: RequestInit = { method: "POST" };
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
+
       if (!formData.get("email")) {
-        return NextResponse.json({error: "Email is required"}, {status: 400});
+        return NextResponse.json({ error: "Email is required" }, { status: 400 });
       }
-      fetchrena: fetchBody = formData;
+
+      init = {
+        ...init,
+        body: formData, // ✅ FIXED (was "fetchrena")
+      };
     } else {
       const jsonBody = await request.json();
 
-      if (!jsonBody.email) {
-        return NextResponse.json({error: "Email is required"}, {status: 400});
+      if (!jsonBody?.email) {
+        return NextResponse.json({ error: "Email is required" }, { status: 400 });
       }
-      fetchBody = JSON.stringify(jsonBody);
-      headers["Content-Type"] = "application/json";
+
+      init = {
+        ...init,
+        body: JSON.stringify(jsonBody),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      };
     }
 
-    const res = await fetch(`${BASE_URL}/api/parents/`, {
-      method: "POST",
-      headers,
-      body: fetchBody,
-    });
+    const { response, text, setCookie } = await djangoFetch(`/orgs/api/parents/`, init);
 
-    const data = await res.json();
+    const data = text ? JSON.parse(text) : null;
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to create parent"},
-        {status: res.status}
+    if (!response.ok) {
+      const errMsg =
+        data?.detail || data?.error || "Failed to create parent";
+      return withForwardedCookie(
+        NextResponse.json({ error: errMsg }, { status: response.status }),
+        setCookie
       );
     }
 
-    return NextResponse.json(data, {status: 201});
+    return withForwardedCookie(
+      NextResponse.json(data, { status: 201 }),
+      setCookie
+    );
   } catch (error) {
     console.error("[Route] Error creating parent:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

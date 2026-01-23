@@ -1,68 +1,63 @@
+// app/api/admin/courses/[courseId]/route.ts (or wherever this PATCH lives)
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function safeJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export async function PATCH(
   request: NextRequest,
-  {params}: {params: Promise<{courseId: string}>}
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
-  const {courseId} = await params;
- 
-  const session = await getSession();
-
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+  const { courseId } = await params;
 
   try {
     const contentType = request.headers.get("content-type") || "";
-    let fetchBody: BodyInit | null = null;
-    const headers: HeadersInit = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "X-Session-Token": session.user.sessionToken,
-    };
+
+    // Build body for upstream (djangoFetch sets JSON Content-Type unless FormData)
+    let body: BodyInit;
 
     if (contentType.includes("multipart/form-data")) {
-      const formData = await request.formData();
-      fetchBody = formData;
+      body = await request.formData();
     } else {
       const jsonBody = await request.json();
-      fetchBody = JSON.stringify(jsonBody);
-      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(jsonBody);
     }
 
-    const {searchParams} = new URL(request.url);
-    const queryString = searchParams.toString();
-    const url = queryString
-      ? `${BASE_URL}/api/admin/courses/${courseId}/update/?${queryString}`
-      : `${BASE_URL}/api/admin/courses/${courseId}/update/?org_id=1`;
-    const res = await fetch(url, {
+    // Preserve any query params from the incoming request,
+    // otherwise default org_id=1 like your original code
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
+
+    const path = qs
+      ? `/orgs/api/admin/courses/${courseId}/update/?${qs}`
+      : `/orgs/api/admin/courses/${courseId}/update/?org_id=1`;
+
+    const { response, text, setCookie } = await djangoFetch(path, {
       method: "PATCH",
-      headers,
-      body: fetchBody,
+      body,
     });
-    
-    const data = await res.json();
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to update course"},
-        {status: res.status}
-      );
-    }
+    const data = safeJson(text);
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(
+      response.ok
+        ? (data ?? { raw: text })
+        : { error: data?.detail || data || "Failed to update course" },
+      { status: response.status }
+    );
+
+    // Forward Django cookies back to browser (sessionid, etc.)
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+
+    return res;
   } catch (error) {
     console.error("[Courses Route] Error updating course:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

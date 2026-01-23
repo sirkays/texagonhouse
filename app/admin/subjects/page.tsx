@@ -276,13 +276,13 @@ export default function SubjectsPage() {
                       >
                         <Edit className="h-3 w-3" />
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteSubject(subject)}
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      </Button> */}
                     </div>
                   </div>
                 </CardContent>
