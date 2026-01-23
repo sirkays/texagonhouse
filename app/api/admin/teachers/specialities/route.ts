@@ -1,47 +1,39 @@
 // app/api/admin/teachers/specialties/route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
-}
-
-export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function GET(_request: NextRequest) {
   try {
-    const url = `${BASE_URL}/api/subjects/`;
-
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
+    // Your proxy BASE_URL already points to the backend,
+    // so we only pass the backend path here.
+    const { response, text, setCookie } = await djangoFetch(`/api/subjects/`, {
+      method: "GET",
     });
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
 
-    if (!res.ok) {
+    if (!response.ok) {
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+        { error: (data && data.detail) || "Failed to fetch data" },
+        { status: response.status }
       );
     }
 
     // Map to array of names
-    const specialties = data.map((item: any) => item.name);
+    const specialties = Array.isArray(data)
+      ? data.map((item: any) => item?.name).filter(Boolean)
+      : [];
 
-    return NextResponse.json(specialties);
+    const nextRes = NextResponse.json(specialties, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    return nextRes;
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Route] Error fetching specialties:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

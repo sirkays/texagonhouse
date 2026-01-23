@@ -2,9 +2,9 @@
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL =
-  process.env.STORE_BASE_URL || "https://texagonbackend.onrender.com";
+const BASE_URL = "http://127.0.0.1:9098";
+// const BASE_URL =
+//   process.env.STORE_BASE_URL || "https://texagonbackend.onrender.com";
 
 const API_KEY =
   process.env.STORE_API_KEY ||
@@ -38,16 +38,24 @@ export async function djangoFetch(
   const cookieHeader =
     cookieStore.getAll().length > 0
       ? cookieStore
-          .getAll()
-          .map((c) => `${c.name}=${c.value}`)
-          .join("; ")
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ")
       : undefined;
 
   // --- Base headers ---
   const baseHeaders: Record<string, string> = {
     Authorization: `Api-Key ${API_KEY}`,
-    "Content-Type": "application/json",
   };
+
+  // only default to JSON if caller didn't provide FormData
+  const isFormData =
+    typeof FormData !== "undefined" && init.body instanceof FormData;
+
+  if (!isFormData) {
+    baseHeaders["Content-Type"] = "application/json";
+  }
+
 
   if (sessionToken) {
     baseHeaders["X-Session-Token"] = sessionToken;
@@ -92,9 +100,9 @@ export async function djangoFetchRaw(
   const cookieHeader =
     cookieStore.getAll().length > 0
       ? cookieStore
-          .getAll()
-          .map((c) => `${c.name}=${c.value}`)
-          .join("; ")
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ")
       : undefined;
 
   const baseHeaders: Record<string, string> = {

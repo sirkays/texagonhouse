@@ -496,14 +496,14 @@ export default function CoursesPage() {
                     </Button>
 
                     {/* DELETE: Square button */}
-                    <Button
+                    {/* <Button
                       variant="outline"
                       size="sm"
                       className="px-3 hover:bg-red-50 hover:text-red-600 border-red-200"
                       onClick={() => handleDeleteCourse(course)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    </Button> */}
 
                     {/* CRITERIA: Grows to fill space. On tiny screens, this wraps to a new line and becomes full width */}
                     <Button

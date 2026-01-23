@@ -1,46 +1,43 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// app/api/admin/courses/options/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function safeJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
-    const queryString = searchParams.toString();
-    const url = queryString
-      ? `${BASE_URL}/api/admin/courses/options/?${queryString}`
-      : `${BASE_URL}/api/admin/courses/options/?org_id=1`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
+
+    const path = qs
+      ? `/orgs/api/admin/courses/options/?${qs}`
+      : `/orgs/api/admin/courses/options/?org_id=1`;
+
+    const { response, text, setCookie } = await djangoFetch(path, {
+      method: "GET",
     });
 
-    const data = await res.json();
+    const data = safeJson(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch course options"},
-        {status: res.status}
-      );
-    }
+    const res = NextResponse.json(
+      response.ok
+        ? (data ?? { raw: text })
+        : { error: data?.detail || data || "Failed to fetch course options" },
+      { status: response.status }
+    );
 
-    return NextResponse.json(data);
+    // Forward Django cookies (sessionid, etc.)
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+
+    return res;
   } catch (error) {
-    console.error("[Courses Route] Error fetching course options:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Courses Options Route] Error fetching course options:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

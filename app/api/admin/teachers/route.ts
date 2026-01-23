@@ -1,101 +1,125 @@
 // app/api/admin/teachers/route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
-
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
-}
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
-    const queryString = searchParams.toString();
-    const url = queryString
-      ? `${BASE_URL}/api/admin/teachers/?${queryString}`
-      : `${BASE_URL}/api/admin/teachers/`;
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
 
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
+    const path = qs
+      ? `/orgs/api/admin/teachers/?${qs}`
+      : `/orgs/api/admin/teachers/`;
+
+    const { response, text, setCookie } = await djangoFetch(path, {
+      method: "GET",
     });
 
-    const data = await res.json();
+    // Try parse JSON; if not JSON, fall back to raw text
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
 
-    if (!res.ok) {
+    if (!response.ok) {
       return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+        { error: (data && data.detail) || "Failed to fetch data" },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json(data);
+    const nextRes = NextResponse.json(data, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    return nextRes;
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Route] Error fetching teachers:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
     const contentType = request.headers.get("content-type") || "";
-    let fetchBody: BodyInit | null = null;
-    const headers: HeadersInit = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "X-Session-Token": session.user.sessionToken,
-    };
 
+    // If multipart, we must NOT force application/json.
+    // Your djangoFetch currently sets Content-Type: application/json by default,
+    // so we override/remove it by setting it to empty and letting fetch handle FormData.
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
-      if (!formData.get("email")) {
-        return NextResponse.json({error: "Email is required"}, {status: 400});
-      }
-      fetchBody = formData;
-    } else {
-      const jsonBody = await request.json();
 
-      if (!jsonBody.email) {
-        return NextResponse.json({error: "Email is required"}, {status: 400});
+      if (!formData.get("email")) {
+        return NextResponse.json({ error: "Email is required" }, { status: 400 });
       }
-      fetchBody = JSON.stringify(jsonBody);
-      headers["Content-Type"] = "application/json";
+
+      const { response, text, setCookie } = await djangoFetch(
+        `/orgs/api/admin/teachers/`,
+        {
+          method: "POST",
+          body: formData,
+          headers: {
+            // override the default "Content-Type": "application/json"
+            // so the browser/node sets the correct multipart boundary
+            "Content-Type": "",
+          },
+        }
+      );
+
+      let data: any = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: (data && data.detail) || "Failed to create teacher" },
+          { status: response.status }
+        );
+      }
+
+      const nextRes = NextResponse.json(data, { status: 201 });
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      return nextRes;
     }
 
-    const res = await fetch(`${BASE_URL}/api/admin/teachers/`, {
-      method: "POST",
-      headers,
-      body: fetchBody,
-    });
+    // JSON case
+    const jsonBody = await request.json();
 
-    const data = await res.json();
+    if (!jsonBody?.email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
 
-    if (!res.ok) {
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/admin/teachers/`,
+      {
+        method: "POST",
+        body: JSON.stringify(jsonBody),
+        // no need to set Content-Type here; djangoFetch already sets JSON
+      }
+    );
+
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+
+    if (!response.ok) {
       return NextResponse.json(
-        {error: data.detail || "Failed to create teacher"},
-        {status: res.status}
+        { error: (data && data.detail) || "Failed to create teacher" },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json(data, {status: 201});
+    const nextRes = NextResponse.json(data, { status: 201 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    return nextRes;
   } catch (error) {
     console.error("[Route] Error creating teacher:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

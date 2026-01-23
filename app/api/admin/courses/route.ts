@@ -1,102 +1,92 @@
-//texagon_academy\texagonui\app\api\admin\courses\route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+// texagon_academy/texagonui/app/api/admin/courses/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098/orgs";
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function safeJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
-    const queryString = searchParams.toString();
-    const url = queryString
-      ? `${BASE_URL}/api/admin/courses/?${queryString}`
-      : `${BASE_URL}/api/admin/courses/`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
+    const searchParams = new URL(request.url).searchParams;
+    const qs = searchParams.toString();
+
+    const path = qs
+      ? `/orgs/api/admin/courses/?${qs}`
+      : `/orgs/api/admin/courses/`;
+
+    const { response, text, setCookie } = await djangoFetch(path, {
+      method: "GET",
     });
 
-    const data = await res.json();
+    const data = safeJson(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch courses"},
-        {status: res.status}
-      );
-    }
+    // Forward Django session cookie to browser (if any)
+    const res = NextResponse.json(
+      response.ok
+        ? (data ?? { raw: text })
+        : { error: data?.detail || data || "Failed to fetch courses" },
+      { status: response.status }
+    );
 
-    return NextResponse.json(data);
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
     console.error("[Courses Route] Error fetching courses:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
     const contentType = request.headers.get("content-type") || "";
-    let fetchBody: BodyInit | null = null;
-    const headers: HeadersInit = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "X-Session-Token": session.user.sessionToken,
-    };
+
+    // Build body for upstream (djangoFetch will set JSON Content-Type unless FormData)
+    let body: BodyInit;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
+
       if (!formData.get("name")) {
-        return NextResponse.json({error: "Name is required"}, {status: 400});
+        return NextResponse.json({ error: "Name is required" }, { status: 400 });
       }
-      fetchBody = formData;
+
+      body = formData;
     } else {
       const jsonBody = await request.json();
-      if (!jsonBody.name) {
-        return NextResponse.json({error: "Name is required"}, {status: 400});
+
+      if (!jsonBody?.name) {
+        return NextResponse.json({ error: "Name is required" }, { status: 400 });
       }
-      fetchBody = JSON.stringify(jsonBody);
-      headers["Content-Type"] = "application/json";
+
+      body = JSON.stringify(jsonBody);
     }
 
-    const url = new URL(`${BASE_URL}/api/admin/courses/create/`);
-    url.searchParams.append("org_id", "1");
-    const res = await fetch(url.toString(), {
+    // Keep your org_id=1 behavior
+    const path = `/orgs/api/admin/courses/create/?org_id=1`;
+
+    const { response, text, setCookie } = await djangoFetch(path, {
       method: "POST",
-      headers,
-      body: fetchBody,
+      body,
     });
 
-    const data = await res.json();
+    const data = safeJson(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to create course"},
-        {status: res.status}
-      );
-    }
+    const res = NextResponse.json(
+      response.ok
+        ? (data ?? { raw: text })
+        : { error: data?.detail || data || "Failed to create course" },
+      { status: response.ok ? 201 : response.status }
+    );
 
-    return NextResponse.json(data, {status: 201});
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
     console.error("[Courses Route] Error creating course:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

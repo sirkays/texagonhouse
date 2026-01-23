@@ -1,57 +1,50 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
-}
+// app/api/orgs/api/parents/[id]/link_child/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function POST(
   request: NextRequest,
-  {params}: {params: {id: string}}
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {id} = params;
+    const { id } = await params; // ✅ await params first
     const body = await request.json();
 
-    if (!body.student_id) {
+    
+    if (!body.student_id && !body.student_email) {
       return NextResponse.json(
-        {error: "student_id is required"},
-        {status: 400}
+        { error: "student_id or student_email is required" },
+        { status: 400 }
+      );
+    }
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/parents/${id}/link_child/`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
+
+    // parse JSON safely
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data?.detail || "Failed to link child" },
+        { status: response.status }
       );
     }
 
-    const res = await fetch(`${BASE_URL}/api/parents/${id}/link_child/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to link child"},
-        {status: res.status}
-      );
-    }
-
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: response.status });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
     console.error("[Route] Error linking child:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
