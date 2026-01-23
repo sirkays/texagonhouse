@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import React, {useState, useEffect} from "react";
+import {Button} from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,13 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Spinner } from "../ui/spinner";
+import {ChevronLeft, ChevronRight} from "lucide-react";
+import {Spinner} from "../ui/spinner";
 
 interface Submission {
   id: number;
-  title?: string | null;        // ✅ added
-  created_at?: string;          // ✅ added
+  title?: string | null; // ✅ added
+  created_at?: string; // ✅ added
   status: "graded" | "submitted" | "revised";
   student_name: string;
   lesson_title: string;
@@ -46,8 +46,8 @@ const SubmissionList: React.FC = () => {
   const fetchDetailForId = async (
     id: number
   ): Promise<{
-    course?: { id: number; name: string };
-    classroom?: { id: number; name: string };
+    course?: {id: number; name: string};
+    classroom?: {id: number; name: string};
   } | null> => {
     try {
       const res = await fetch(`/api/teacher/code/submissions/${id}`);
@@ -72,7 +72,7 @@ const SubmissionList: React.FC = () => {
       if (!sampleSub) return null;
       const detail = await fetchDetailForId(sampleSub.id);
       if (detail?.course) {
-        return { id: detail.course.id, name };
+        return {id: detail.course.id, name};
       }
       return null;
     });
@@ -82,16 +82,16 @@ const SubmissionList: React.FC = () => {
       if (!sampleSub) return null;
       const detail = await fetchDetailForId(sampleSub.id);
       if (detail?.classroom) {
-        return { id: detail.classroom.id, name };
+        return {id: detail.classroom.id, name};
       }
       return null;
     });
 
     const courseResults = (await Promise.all(coursePromises)).filter(
-      (c): c is { id: number; name: string } => c !== null
+      (c): c is {id: number; name: string} => c !== null
     );
     const classResults = (await Promise.all(classPromises)).filter(
-      (c): c is { id: number; name: string } => c !== null
+      (c): c is {id: number; name: string} => c !== null
     );
 
     setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
@@ -149,7 +149,8 @@ const SubmissionList: React.FC = () => {
         params.append("classroom_id", filters.classroom_id.toString());
 
       // ✅ your backend filter keys already use created_at__gte / created_at__lte
-      if (filters.startDate) params.append("created_at__gte", filters.startDate);
+      if (filters.startDate)
+        params.append("created_at__gte", filters.startDate);
       if (filters.endDate) params.append("created_at__lte", filters.endDate);
 
       params.append("page", currentPage.toString());
@@ -187,7 +188,7 @@ const SubmissionList: React.FC = () => {
   };
 
   const handleDateChange = (key: "startDate" | "endDate", value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value || undefined }));
+    setFilters((prev) => ({...prev, [key]: value || undefined}));
     setCurrentPage(1);
   };
 
@@ -200,9 +201,218 @@ const SubmissionList: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    // <div className="space-y-6">
+    //   {/* Filters */}
+    //   <div className="flex flex-col sm:flex-row gap-3">
+    //     <Select
+    //       value={filters.classroom_id?.toString() ?? ""}
+    //       onValueChange={(v) => {
+    //         setFilters((prev) => ({
+    //           ...prev,
+    //           classroom_id: v ? Number(v) : undefined,
+    //         }));
+    //         setCurrentPage(1);
+    //       }}
+    //     >
+    //       <SelectTrigger className="w-full sm:w-48">
+    //         <SelectValue placeholder="All Classes" />
+    //       </SelectTrigger>
+    //       <SelectContent>
+    //         <SelectItem value="All Classes">All Classes</SelectItem>
+    //         {classes.map((c) => (
+    //           <SelectItem key={c.id} value={c.id.toString()}>
+    //             {c.name}
+    //           </SelectItem>
+    //         ))}
+    //       </SelectContent>
+    //     </Select>
+
+    //     <Select
+    //       value={filters.course_id?.toString() ?? ""}
+    //       onValueChange={(v) => {
+    //         setFilters((prev) => ({
+    //           ...prev,
+    //           course_id: v ? Number(v) : undefined,
+    //         }));
+    //         setCurrentPage(1);
+    //       }}
+    //     >
+    //       <SelectTrigger className="w-full sm:w-48">
+    //         <SelectValue placeholder="All Courses" />
+    //       </SelectTrigger>
+    //       <SelectContent>
+    //         <SelectItem value="All Courses">All Courses</SelectItem>
+    //         {courses.map((c) => (
+    //           <SelectItem key={c.id} value={c.id.toString()}>
+    //             {c.name}
+    //           </SelectItem>
+    //         ))}
+    //       </SelectContent>
+    //     </Select>
+
+    //     <div className="flex gap-3 items-center justify-center self-start">
+    //       <p>Start Date</p>
+    //       <input
+    //         type="date"
+    //         value={filters.startDate || ""}
+    //         onChange={(e) => handleDateChange("startDate", e.target.value)}
+    //         className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
+    //         placeholder="Start Date"
+    //       />
+    //     </div>
+
+    //     <div className="flex gap-3 items-center justify-center self-start">
+    //       <p>End Date</p>
+    //       <input
+    //         type="date"
+    //         value={filters.endDate || ""}
+    //         onChange={(e) => handleDateChange("endDate", e.target.value)}
+    //         className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
+    //         placeholder="End Date"
+    //       />
+    //     </div>
+    //   </div>
+
+    //   {/* Table */}
+    //   <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
+    //     <table className="w-full min-w-[760px] table-auto">
+    //       <thead className="bg-[#EF7B55]/5">
+    //         <tr>
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Student
+    //           </th>
+
+    //           {/* ✅ Title column */}
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Title
+    //           </th>
+
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Lesson
+    //           </th>
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Class
+    //           </th>
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Course
+    //           </th>
+
+    //           {/* ✅ Date submitted column */}
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Submitted
+    //           </th>
+
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Status
+    //           </th>
+    //           <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
+    //             Actions
+    //           </th>
+    //         </tr>
+    //       </thead>
+
+    //       <tbody className="divide-y divide-[#EF7B55]/10">
+    //         {submissions.map((s) => (
+    //           <tr key={s.id} className="hover:bg-[#EF7B55]/5 transition-colors">
+    //             <td className="px-4 py-3 text-sm text-slate-800">
+    //               {s.student_name}
+    //             </td>
+
+    //             {/* ✅ show title only if present */}
+    //             <td className="px-4 py-3 text-sm text-slate-800">
+    //               {s.title ? s.title : "-"}
+    //             </td>
+
+    //             <td className="px-4 py-3 text-sm text-slate-800">
+    //               {s.lesson_title}
+    //             </td>
+    //             <td className="px-4 py-3 text-sm text-slate-600">
+    //               {s.class_name ?? "-"}
+    //             </td>
+    //             <td className="px-4 py-3 text-sm text-slate-600">
+    //               {s.course_name}
+    //             </td>
+
+    //             {/* ✅ created_at in table */}
+    //             <td className="px-4 py-3 text-sm text-slate-600">
+    //               {formatDate(s.created_at)}
+    //             </td>
+
+    //             <td className="px-4 py-3">
+    //               <span
+    //                 className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+    //                   s.status
+    //                 )}`}
+    //               >
+    //                 {s.status}
+    //               </span>
+    //             </td>
+
+    //             <td className="px-4 py-3 text-sm">
+    //               <div className="flex gap-2">
+    //                 <Button
+    //                   size="sm"
+    //                   variant="ghost"
+    //                   className="text-[#EF7B55] hover:bg-[#EF7B55]/10"
+    //                   asChild
+    //                 >
+    //                   <a href={`/teacher/submissions/${s.id}/code`}>View</a>
+    //                 </Button>
+
+    //                 {s.status !== "graded" && (
+    //                   <Button
+    //                     size="sm"
+    //                     className="bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white"
+    //                     asChild
+    //                   >
+    //                     <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+    //                   </Button>
+    //                 )}
+    //               </div>
+    //             </td>
+    //           </tr>
+    //         ))}
+    //       </tbody>
+    //     </table>
+
+    //     {submissions.length === 0 && !loading && (
+    //       <div className="text-center py-8 text-muted-foreground">
+    //         No submissions found.
+    //       </div>
+    //     )}
+    //   </div>
+
+    //   {/* Pagination */}
+    //   {submissions.length > 0 && (
+    //     <div className="flex items-center justify-between">
+    //       <p className="text-sm text-muted-foreground">Page {currentPage}</p>
+    //       <div className="flex items-center gap-1">
+    //         <Button
+    //           variant="outline"
+    //           size="icon"
+    //           onClick={() => setCurrentPage((p) => p - 1)}
+    //           disabled={currentPage === 1}
+    //           className="h-8 w-8"
+    //         >
+    //           <ChevronLeft className="h-4 w-4" />
+    //         </Button>
+    //         <Button
+    //           variant="outline"
+    //           size="icon"
+    //           onClick={() => setCurrentPage((p) => p + 1)}
+    //           disabled={!hasNext}
+    //           className="h-8 w-8"
+    //         >
+    //           <ChevronRight className="h-4 w-4" />
+    //         </Button>
+    //       </div>
+    //     </div>
+    //   )}
+    // </div>
+
+    <div className="space-y-4 sm:space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <Select
           value={filters.classroom_id?.toString() ?? ""}
           onValueChange={(v) => {
@@ -211,8 +421,7 @@ const SubmissionList: React.FC = () => {
               classroom_id: v ? Number(v) : undefined,
             }));
             setCurrentPage(1);
-          }}
-        >
+          }}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Classes" />
           </SelectTrigger>
@@ -234,8 +443,7 @@ const SubmissionList: React.FC = () => {
               course_id: v ? Number(v) : undefined,
             }));
             setCurrentPage(1);
-          }}
-        >
+          }}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Courses" />
           </SelectTrigger>
@@ -249,159 +457,217 @@ const SubmissionList: React.FC = () => {
           </SelectContent>
         </Select>
 
-        <div className="flex gap-3 items-center justify-center self-start">
-          <p>Start Date</p>
+        <div className="flex flex-col gap-1 w-full sm:w-auto">
+          <p className="text-xs text-muted-foreground">Start Date</p>
           <input
             type="date"
             value={filters.startDate || ""}
             onChange={(e) => handleDateChange("startDate", e.target.value)}
             className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
-            placeholder="Start Date"
           />
         </div>
 
-        <div className="flex gap-3 items-center justify-center self-start">
-          <p>End Date</p>
+        <div className="flex flex-col gap-1 w-full sm:w-auto">
+          <p className="text-xs text-muted-foreground">End Date</p>
           <input
             type="date"
             value={filters.endDate || ""}
             onChange={(e) => handleDateChange("endDate", e.target.value)}
             className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
-            placeholder="End Date"
           />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
-        <table className="w-full min-w-[760px] table-auto">
-          <thead className="bg-[#EF7B55]/5">
-            <tr>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Student
-              </th>
-
-              {/* ✅ Title column */}
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Title
-              </th>
-
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Lesson
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Class
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Course
-              </th>
-
-              {/* ✅ Date submitted column */}
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Submitted
-              </th>
-
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-[#EF7B55]/10">
-            {submissions.map((s) => (
-              <tr key={s.id} className="hover:bg-[#EF7B55]/5 transition-colors">
-                <td className="px-4 py-3 text-sm text-slate-800">
-                  {s.student_name}
-                </td>
-
-                {/* ✅ show title only if present */}
-                <td className="px-4 py-3 text-sm text-slate-800">
-                  {s.title ? s.title : "-"}
-                </td>
-
-                <td className="px-4 py-3 text-sm text-slate-800">
-                  {s.lesson_title}
-                </td>
-                <td className="px-4 py-3 text-sm text-slate-600">
-                  {s.class_name ?? "-"}
-                </td>
-                <td className="px-4 py-3 text-sm text-slate-600">
-                  {s.course_name}
-                </td>
-
-                {/* ✅ created_at in table */}
-                <td className="px-4 py-3 text-sm text-slate-600">
+      {/* ================= MOBILE CARDS ================= */}
+      <div className="space-y-4 sm:hidden">
+        {submissions.map((s) => (
+          <div
+            key={s.id}
+            className="rounded-xl border border-[#EF7B55]/20 p-4 shadow-sm space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium text-slate-800">{s.student_name}</p>
+                <p className="text-xs text-muted-foreground">
                   {formatDate(s.created_at)}
-                </td>
+                </p>
+              </div>
 
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                      s.status
-                    )}`}
-                  >
-                    {s.status}
-                  </span>
-                </td>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                  s.status
+                )}`}>
+                {s.status}
+              </span>
+            </div>
 
-                <td className="px-4 py-3 text-sm">
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-[#EF7B55] hover:bg-[#EF7B55]/10"
-                      asChild
-                    >
-                      <a href={`/teacher/submissions/${s.id}/code`}>View</a>
-                    </Button>
+            <div className="text-sm space-y-1">
+              <p>
+                <span className="text-muted-foreground">Title:</span>{" "}
+                {s.title || "-"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Lesson:</span>{" "}
+                {s.lesson_title}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Class:</span>{" "}
+                {s.class_name ?? "-"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Course:</span>{" "}
+                {s.course_name}
+              </p>
+            </div>
 
-                    {s.status !== "graded" && (
-                      <Button
-                        size="sm"
-                        className="bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white"
-                        asChild
-                      >
-                        <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 text-[#EF7B55] border-[#EF7B55]/30"
+                asChild>
+                <a href={`/teacher/submissions/${s.id}/code`}>View</a>
+              </Button>
+
+              {s.status !== "graded" && (
+                <Button
+                  size="sm"
+                  className="flex-1 bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90 text-white"
+                  asChild>
+                  <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
 
         {submissions.length === 0 && !loading && (
-          <div className="text-center py-8 text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground py-6">
             No submissions found.
-          </div>
+          </p>
         )}
+      </div>
+
+      {/* ================= DESKTOP TABLE ================= */}
+      <div className="hidden sm:block">
+        <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
+          <table className="w-full min-w-[760px] table-auto">
+            <thead className="bg-[#EF7B55]/5">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Student
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Title
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Lesson
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Class
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Course
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Submitted
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-[#EF7B55]/10">
+              {submissions.map((s) => (
+                <tr
+                  key={s.id}
+                  className="hover:bg-[#EF7B55]/5 transition-colors">
+                  <td className="px-4 py-3 text-sm">{s.student_name}</td>
+
+                  <td className="px-4 py-3 text-sm">{s.title || "-"}</td>
+
+                  <td className="px-4 py-3 text-sm">{s.lesson_title}</td>
+
+                  <td className="px-4 py-3 text-sm text-slate-600">
+                    {s.class_name ?? "-"}
+                  </td>
+
+                  <td className="px-4 py-3 text-sm text-slate-600">
+                    {s.course_name}
+                  </td>
+
+                  <td className="px-4 py-3 text-sm text-slate-600">
+                    {formatDate(s.created_at)}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                        s.status
+                      )}`}>
+                      {s.status}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-[#EF7B55] hover:bg-[#EF7B55]/10"
+                        asChild>
+                        <a href={`/teacher/submissions/${s.id}/code`}>View</a>
+                      </Button>
+
+                      {s.status !== "graded" && (
+                        <Button
+                          size="sm"
+                          className="bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90 text-white"
+                          asChild>
+                          <a href={`/teacher/submissions/${s.id}/grade`}>
+                            Grade
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {submissions.length === 0 && !loading && (
+            <div className="text-center py-8 text-muted-foreground">
+              No submissions found.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Pagination */}
       {submissions.length > 0 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">Page {currentPage}</p>
-          <div className="flex items-center gap-1">
+
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={() => setCurrentPage((p) => p - 1)}
               disabled={currentPage === 1}
-              className="h-8 w-8"
-            >
+              className="h-9 w-9">
               <ChevronLeft className="h-4 w-4" />
             </Button>
+
             <Button
               variant="outline"
               size="icon"
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={!hasNext}
-              className="h-8 w-8"
-            >
+              className="h-9 w-9">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

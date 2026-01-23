@@ -1,4 +1,4 @@
-import { Module } from "@/types";
+import {Module} from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -7,10 +7,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, Users, Star, Video, Headphones, FileText, BookOpen } from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {ScrollArea} from "@/components/ui/scroll-area";
+import {
+  Clock,
+  Users,
+  Star,
+  Video,
+  Headphones,
+  FileText,
+  BookOpen,
+} from "lucide-react";
 
 interface PreviewModalProps {
   module: Module | null;
@@ -18,7 +26,7 @@ interface PreviewModalProps {
   onClose: () => void;
 }
 
-export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
+export function PreviewModal({module, isOpen, onClose}: PreviewModalProps) {
   if (!module) return null;
 
   const getTypeIcon = (type: string) => {
@@ -57,22 +65,32 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
           <div className="flex-1 min-h-0 overflow-hidden px-6 py-4 space-y-6">
             {/* Module Details */}
             <div className="space-y-2">
-              <h3 className="text-sm xs:text-base sm:text-lg font-semibold">Module Details</h3>
+              <h3 className="text-sm xs:text-base sm:text-lg font-semibold">
+                Module Details
+              </h3>
               <p className="text-[0.85rem] xs:text-xs sm:text-sm break-words">
                 {module.description}
               </p>
 
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
+                <Badge
+                  variant="outline"
+                  className="text-[0.85rem] xs:text-xs sm:text-sm">
                   {module.type.charAt(0).toUpperCase() + module.type.slice(1)}
                 </Badge>
-                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
+                <Badge
+                  variant="outline"
+                  className="text-[0.85rem] xs:text-xs sm:text-sm">
                   {module.difficulty}
                 </Badge>
-                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
+                <Badge
+                  variant="outline"
+                  className="text-[0.85rem] xs:text-xs sm:text-sm">
                   {module.category || "Uncategorized"}
                 </Badge>
-                <Badge variant="outline" className="text-[0.85rem] xs:text-xs sm:text-sm">
+                <Badge
+                  variant="outline"
+                  className="text-[0.85rem] xs:text-xs sm:text-sm">
                   {module.course.name}
                 </Badge>
               </div>
@@ -96,7 +114,9 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
 
             {/* Lessons (Scrollable) */}
             <div className="space-y-3 min-h-0">
-              <h3 className="text-sm xs:text-base sm:text-lg font-semibold">Lessons</h3>
+              <h3 className="text-sm xs:text-base sm:text-lg font-semibold">
+                Lessons
+              </h3>
 
               {module.lessons.length === 0 ? (
                 <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
@@ -105,8 +125,10 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
               ) : (
                 <ScrollArea className="h-[36vh] xs:h-[42vh] sm:h-[50vh] pr-2">
                   <div className="space-y-2">
-                    {module.lessons.map((lesson, index) => (
-                      <div key={lesson.id} className="p-2 xs:p-3 rounded-lg border bg-muted/50">
+                    {module.lessons.map((lesson: any, index: any) => (
+                      <div
+                        key={lesson.id}
+                        className="p-2 xs:p-3 rounded-lg border bg-muted/50">
                         <div className="flex items-center gap-2">
                           {getTypeIcon(lesson.type)}
                           <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
@@ -114,8 +136,7 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
                           </span>
                           <Badge
                             variant="outline"
-                            className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs capitalize"
-                          >
+                            className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs capitalize">
                             {lesson.type}
                           </Badge>
                         </div>
@@ -153,8 +174,7 @@ export function PreviewModal({ module, isOpen, onClose }: PreviewModalProps) {
               <Button
                 variant="outline"
                 onClick={onClose}
-                className="text-xs xs:text-sm sm:text-base"
-              >
+                className="text-xs xs:text-sm sm:text-base">
                 Close
               </Button>
             </DialogFooter>

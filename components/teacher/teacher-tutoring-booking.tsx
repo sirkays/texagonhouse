@@ -693,28 +693,28 @@ export function TeacherTutoringBooking() {
     switch (status) {
       case "Confirmed":
         return (
-          <Badge className="bg-green-100 text-green-800">
+          <Badge className="bg-green-100 hover:bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
             Confirmed
           </Badge>
         );
       case "Pending":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800">
+          <Badge className="bg-yellow-100 hover:bg-yellow-100 text-yellow-800">
             <Clock className="w-3 h-3 mr-1" />
             Pending
           </Badge>
         );
       case "Completed":
         return (
-          <Badge className="bg-blue-100 text-blue-800">
+          <Badge className="bg-blue-100 hover:bg-blue-100 text-blue-800">
             <CheckCircle className="w-3 h-3 mr-1" />
             Completed
           </Badge>
         );
       case "Cancelled":
         return (
-          <Badge className="bg-red-100 text-red-800">
+          <Badge className="bg-red-100 hover:bg-red-100 text-red-800">
             <AlertCircle className="w-3 h-3 mr-1" />
             Cancelled
           </Badge>
@@ -1026,7 +1026,7 @@ export function TeacherTutoringBooking() {
         <div className="flex gap-2">
           <Button
             onClick={() => router.push("/teacher/tutoring/create")}
-            className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white">
+            className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55]/70 text-[#EF7B55] hover:bg-[#F79771]/70 hover:text-white">
             <Plus className="h-4 w-4" />
             Create Private Session
           </Button>
@@ -1143,17 +1143,17 @@ export function TeacherTutoringBooking() {
         className="space-y-4 xs:space-y-6">
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
             value="upcoming">
             Current Private Session
           </TabsTrigger>
           <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
             value="private">
             Private Sessions
           </TabsTrigger>
           <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
             value="past">
             Past Sessions
           </TabsTrigger>
@@ -1237,7 +1237,7 @@ export function TeacherTutoringBooking() {
                             </Button>
                             <Button
                               size="sm"
-                              className="h-8 bg-blue-600 hover:bg-blue-700"
+                              className="h-8 bg-green-600 hover:bg-green-700"
                               onClick={() =>
                                 openConfirmAction("complete", session)
                               }
@@ -1263,17 +1263,6 @@ export function TeacherTutoringBooking() {
                               <AlertCircle className="h-3 w-3 mr-1" />
                               Cancel
                             </Button>
-
-                            {/* <Button
-                              size="sm"
-                              className="h-8 bg-red-600 hover:bg-red-700"
-                              onClick={() =>
-                                handleDeleteSession(session, "upcoming")
-                              }
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Delete
-                            </Button> */}
                           </div>
                         </div>
                       </div>
