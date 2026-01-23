@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -113,6 +114,7 @@ export default function ChildrenProgress() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [childSearch, setChildSearch] = useState("");
   useEffect(() => {
     const fetchStaticData = async () => {
       setIsInitialLoading(true);
@@ -322,19 +324,57 @@ const refreshAll = async () => {
                 <label className="text-xs sm:text-sm font-medium">
                   Select Child
                 </label>
-                <Select value={selectedChild} onValueChange={setSelectedChild}>
+             
+                <Select 
+                  value={selectedChild} 
+                  onValueChange={setSelectedChild}
+                  onOpenChange={(open) => {
+                    if (!open) setChildSearch(""); // Clear search on close
+                  }}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose child" />
                   </SelectTrigger>
+                  
                   <SelectContent>
-                    <SelectItem value="all">All Children</SelectItem>
-                    {children.map((child) => (
-                      <SelectItem key={child.id} value={child.id.toString()}>
-                        {child.name}
-                      </SelectItem>
-                    ))}
+                    {/* Sticky Search Header */}
+                    <div className="p-2 sticky top-0 bg-popover z-10 border-b">
+                      <Input
+                        placeholder="Search children..."
+                        value={childSearch}
+                        onChange={(e) => setChildSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+
+                    {/* Scrollable List */}
+                    <div className="max-h-[200px] overflow-y-auto mt-1">
+                      {/* Always keep 'All Children' visible at the top */}
+                      <SelectItem value="all">All Children</SelectItem>
+                      
+                      {children
+                        .filter((child) =>
+                          child.name.toLowerCase().includes(childSearch.toLowerCase())
+                        )
+                        .map((child) => (
+                          <SelectItem key={child.id} value={child.id.toString()}>
+                            {child.name}
+                          </SelectItem>
+                        ))}
+
+                      {/* Empty State */}
+                      {children.filter((child) =>
+                        child.name.toLowerCase().includes(childSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          No children found
+                        </div>
+                      )}
+                    </div>
                   </SelectContent>
                 </Select>
+      
               </div>
               <div className="flex-1 space-y-2">
                 <label className="text-xs sm:text-sm font-medium">

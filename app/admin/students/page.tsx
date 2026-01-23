@@ -44,6 +44,7 @@ export default function StudentsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
+  const [classroomSearch, setClassroomSearch] = useState("");
 
   /* -------------------- Effects -------------------- */
   useEffect(() => {
@@ -289,21 +290,52 @@ export default function StudentsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-
               <Select
                 value={filterClassroom}
                 onValueChange={setFilterClassroom}
+                onOpenChange={(open) => {
+                  if (!open) setClassroomSearch(""); // Clear search on close
+                }}
               >
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Classroom" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Classrooms</SelectItem>
-                  {classrooms.map((c) => (
-                    <SelectItem key={c.id} value={c.name}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  {/* Sticky Search Header */}
+                  <div className="p-2 sticky top-0 bg-popover z-10 border-b">
+                    <Input
+                      placeholder="Search..."
+                      value={classroomSearch}
+                      onChange={(e) => setClassroomSearch(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  {/* Scrollable List */}
+                  <div className="max-h-[200px] overflow-y-auto mt-1">
+                    {/* Always keep 'All Classrooms' visible at the top */}
+                    <SelectItem value="all">All Classrooms</SelectItem>
+                    
+                    {classrooms
+                      .filter((c) =>
+                        c.name.toLowerCase().includes(classroomSearch.toLowerCase())
+                      )
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.name}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+
+                    {/* Empty State */}
+                    {classrooms.filter((c) =>
+                      c.name.toLowerCase().includes(classroomSearch.toLowerCase())
+                    ).length === 0 && (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        No classrooms found
+                      </div>
+                    )}
+                  </div>
                 </SelectContent>
               </Select>
 
