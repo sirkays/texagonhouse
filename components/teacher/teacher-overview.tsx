@@ -294,16 +294,6 @@ export function TeacherOverview() {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Student Satisfaction</span>
-                <span>{data.performance.student_satisfaction}/5</span>
-              </div>
-              <Progress
-                value={(data.performance.student_satisfaction / 5) * 100}
-                className="h-2"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
                 <span>Test Pass Rate</span>
                 <span>{data.performance.test_pass_rate}%</span>
               </div>
