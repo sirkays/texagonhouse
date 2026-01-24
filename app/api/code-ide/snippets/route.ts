@@ -1,169 +1,147 @@
 // app/api/ide/snippets/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const { searchParams } = new URL(request.url);
+  const lesson = searchParams.get("lesson");
 
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found, session:", session);
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+  const path =
+    `/code-ide/api/ide/snippets/` + (lesson ? `?lesson=${encodeURIComponent(lesson)}` : "");
 
+  const t = withTimeout(8000);
   try {
-    const {searchParams} = new URL(request.url);
-    const lesson = searchParams.get("lesson");
-    let url = `${BASE_URL}/snippets/`;
-    if (lesson) url += `?lesson=${lesson}`;
-
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 8000,
+    const startFetch = await djangoFetch(path, {
+      method: "GET",
+      signal: t.signal,
+      // headers/session/cookies handled by proxy.ts
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
-      return NextResponse.json(
-        {error: `Failed to fetch data: ${errorText}`},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      console.error("[Route] External API error response (GET):", startFetch.text);
+      const res = NextResponse.json(
+        { error: `Failed to fetch data: ${startFetch.text}` },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    const data = await res.json();
-
-    return NextResponse.json(data, {status: 200});
-  } catch (error) {
-    console.error("[Route] Error fetching data:", (error as Error).message);
-    return NextResponse.json(
-      {error: "Internal server error", details: (error as Error).message},
-      {status: 500}
+    const data = startFetch.text ? JSON.parse(startFetch.text) : null;
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (err: any) {
+    // AbortController timeout lands here too
+    const isTimeout = err?.name === "AbortError";
+    const res = NextResponse.json(
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: err?.message || String(err),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+    return res;
+  } finally {
+    t.clear();
   }
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  let body;
-
+  let body: any;
   try {
     body = await request.json();
-  } catch (err) {
-    console.error(
-      "[Route] Error parsing request body:",
-      (err as Error).message
-    );
+  } catch (err: any) {
     return NextResponse.json(
-      {error: "Invalid request body", details: (err as Error).message},
-      {status: 400}
+      { error: "Invalid request body", details: err?.message || String(err) },
+      { status: 400 }
     );
   }
 
+  const t = withTimeout(20000);
   try {
-    const url = `${BASE_URL}/snippets/create/`;
-
-    const res = await fetchWithTimeout(url, {
+    const startFetch = await djangoFetch(`/code-ide/api/ide/snippets/create/`, {
       method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
+      signal: t.signal,
       body: JSON.stringify(body),
-      timeout: 20000,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
-      return NextResponse.json(
-        {error: `Failed to create snippet: ${errorText}`},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      console.error("[Route] External API error response (POST):", startFetch.text);
+      const res = NextResponse.json(
+        { error: `Failed to create snippet: ${startFetch.text}` },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    const data = await res.json();
-
-    return NextResponse.json(data, {status: 201});
-  } catch (err) {
-    console.error("[Route] Error creating snippet:", (err as Error).message);
+    const data = startFetch.text ? JSON.parse(startFetch.text) : null;
+    const res = NextResponse.json(data, { status: 201 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (err: any) {
+    const isTimeout = err?.name === "AbortError";
     return NextResponse.json(
-      {error: "Internal server error", details: (err as Error).message},
-      {status: 500}
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: err?.message || String(err),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t.clear();
   }
 }
 
 export async function DELETE(
   request: Request,
-  {params}: {params: {id: string}}
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  // Next.js 15+ can pass params as a Promise
+  const { id } = await params;
 
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "Unauthorized"}, {status: 401});
-  }
-
-  // Note: In Next.js 15+, you might need to await params: const { id } = await params;
-  const {id} = params;
-
+  const t = withTimeout(12000);
   try {
-    // Construct the backend URL: /snippets/{id}/delete/
-    const url = `${BASE_URL}/snippets/${id}/delete/`;
-
-    const res = await fetch(url, {
+    const startFetch = await djangoFetch(`/code-ide/api/ide/snippets/${id}/delete/`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
+      signal: t.signal,
+      // body not needed
     });
 
-    // 204 means success with no content
-    if (res.status === 204) {
-      return new NextResponse(null, {status: 204});
+    if (startFetch.response.status === 204) {
+      // No content success
+      const res = new NextResponse(null, { status: 204 });
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      return NextResponse.json(
-        {error: `Delete failed: ${errorText}`},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      const res = NextResponse.json(
+        { error: `Delete failed: ${startFetch.text}` },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    return new NextResponse(null, {status: 204});
-  } catch (error) {
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    const res = new NextResponse(null, { status: 204 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (err: any) {
+    const isTimeout = err?.name === "AbortError";
+    return NextResponse.json(
+      { error: isTimeout ? "Connection timeout" : "Internal server error", details: err?.message || String(err) },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
   }
 }

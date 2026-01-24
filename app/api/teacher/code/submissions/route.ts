@@ -1,85 +1,120 @@
 // app/code-ide/api/teacher/submissions/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse<T = unknown>(text: string): T | null {
+  try {
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
 
-async function fetchWithRetry(
-  url: string,
-  options: any,
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
+
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+async function djangoFetchWithRetry(
+  pathWithQuery: string,
+  init: RequestInit,
   retries = 5,
-  delay = 2000
+  delayMs = 2000,
+  timeoutMs = 20000
 ) {
-  for (let i = 0; i <= retries; i++) {
+  let lastErr: any = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const t = withTimeout(timeoutMs);
+
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout per attempt
-
-      const res = await fetch(url, {
-        ...options,
-        signal: controller.signal,
+      const res = await djangoFetch(pathWithQuery, {
+        ...init,
+        signal: t.signal,
       });
+      t.clear();
 
-      clearTimeout(timeoutId);
+      // Retry only on 5xx (cold starts / transient backend errors)
+      if (res.response.status >= 500 && res.response.status <= 599 && attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
 
-      // Successfully connected
       return res;
     } catch (err: any) {
-      console.error(`[Fetch] Attempt ${i + 1} failed:`, err.message);
+      t.clear();
+      lastErr = err;
 
-      // Only retry on network errors (fetch failed) or 5xx server errors
-      // If it's the last attempt, throw
-      if (i === retries) throw err;
-
-      // Wait before retrying (exponential backoff optional, here simple constant)
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      // AbortError / network errors -> retry (unless last attempt)
+      if (attempt >= retries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs));
     }
   }
-  throw new Error("Filtered out by loop logic");
+
+  // should never hit
+  throw lastErr || new Error("Retry loop exited unexpectedly");
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const backendUrl = new URL(`${BASE_URL}/code-ide/api/teacher/submissions/`);
-    const {searchParams} = new URL(request.url);
+    // Forward query params
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
+    const path = `/code-ide/api/teacher/submissions/${qs ? `?${qs}` : ""}`;
 
-    searchParams.forEach((value, key) => {
-      backendUrl.searchParams.append(key, value);
-    });
-
-    // Use retry logic for cold starts (Render.com)
-    const res = await fetchWithRetry(backendUrl.toString(), {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken, // Fixed syntax error here too
-        "Content-Type": "application/json",
+    const startFetch = await djangoFetchWithRetry(
+      path,
+      {
+        method: "GET",
+        headers: {
+          // ensure JSON response expectations
+          "Content-Type": "application/json",
+        },
       },
-    });
+      5,
+      2000,
+      20000
+    );
 
-    const data = await res.json();
+    const raw = startFetch.text || "";
+    const data = safeJsonParse<any>(raw);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      const msg = data?.detail || data?.error || "Failed to fetch data";
+      const res = NextResponse.json(
+        { error: msg, raw },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    return NextResponse.json(data);
+    if (data === null) {
+      const res = NextResponse.json(
+        { error: "External API returned non-JSON response", raw: raw.slice(0, 500) },
+        { status: 502 }
+      );
+      return attachSetCookie(res, startFetch.setCookie);
+    }
+
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
   } catch (error: any) {
-    console.error("[Route] Error fetching data:", error);
+    const isTimeout = error?.name === "AbortError";
+    console.error("[TeacherSubmissionsRoute] Error fetching data:", error);
+
     return NextResponse.json(
-      {error: "Internal server error", details: error.message},
-      {status: 500}
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
   }
 }

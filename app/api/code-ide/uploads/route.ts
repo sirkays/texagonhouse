@@ -1,82 +1,75 @@
 // app/api/code-ide/uploads/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
-
   try {
-    const url = new URL(`${BASE_URL}/files/`);
-    const lesson = request.nextUrl.searchParams.get("lesson");
-    if (lesson) url.searchParams.set("lesson", lesson);
+    const { searchParams } = new URL(request.url);
+    const lesson = searchParams.get("lesson");
 
-    const res = await fetchWithTimeout(url.toString(), {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 10000,
-    });
+    const path =
+      `/code-ide/api/ide/files/` + (lesson ? `?lesson=${encodeURIComponent(lesson)}` : "");
 
-    if (!res.ok) {
-      const errorText = await res.text();
+    const t = withTimeout(10000);
+    try {
+      const startFetch = await djangoFetch(path, {
+        method: "GET",
+        signal: t.signal,
+        // headers/session/cookies handled by proxy.ts
+      });
+
+      if (!startFetch.response.ok) {
+        const res = NextResponse.json(
+          { error: `Failed to fetch files: ${startFetch.text}` },
+          { status: startFetch.response.status }
+        );
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const data = startFetch.text ? JSON.parse(startFetch.text) : null;
+      const res = NextResponse.json(data, { status: 200 });
+      return attachSetCookie(res, startFetch.setCookie);
+    } catch (err: any) {
+      const isTimeout = err?.name === "AbortError";
       return NextResponse.json(
-        { error: `Failed to fetch files: ${errorText}` },
-        { status: res.status }
+        {
+          error: isTimeout ? "Connection timeout" : "Internal server error",
+          details: err?.message || String(err),
+        },
+        { status: isTimeout ? 504 : 500 }
       );
+    } finally {
+      t.clear();
     }
-
-    const data = await res.json();
-    return NextResponse.json(data, { status: 200 });
-  } catch (error) {
-    console.error("[Upload Route] Error fetching files:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error("[Upload Route] Error fetching files:", error?.message || String(error));
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
-
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const lesson = formData.get("lesson") as string;
-    const label = formData.get("label") as string;
+    const file = formData.get("file") as File | null;
+    const lesson = (formData.get("lesson") as string | null) || "";
+    const label = (formData.get("label") as string | null) || "";
 
     if (!file) {
-      return NextResponse.json(
-        { error: "File is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
     const backendFormData = new FormData();
@@ -84,32 +77,42 @@ export async function POST(request: Request) {
     if (lesson) backendFormData.append("lesson", lesson);
     if (label) backendFormData.append("label", label);
 
-    const res = await fetchWithTimeout(`${BASE_URL}/files/upload/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: backendFormData,
-      timeout: 30000, // Longer timeout for file upload
-    });
+    const t = withTimeout(30000);
+    try {
+      // IMPORTANT: djangoFetch won't force Content-Type when body is FormData
+      const startFetch = await djangoFetch(`/code-ide/api/ide/files/upload/`, {
+        method: "POST",
+        signal: t.signal,
+        body: backendFormData,
+      });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Upload Route] Backend error:", errorText);
+      if (!startFetch.response.ok) {
+        console.error("[Upload Route] Backend error:", startFetch.text);
+        const res = NextResponse.json(
+          { error: `Upload failed: ${startFetch.text}` },
+          { status: startFetch.response.status }
+        );
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const data = startFetch.text ? JSON.parse(startFetch.text) : null;
+      const res = NextResponse.json(data, { status: 201 });
+      return attachSetCookie(res, startFetch.setCookie);
+    } catch (err: any) {
+      const isTimeout = err?.name === "AbortError";
+      console.error("[Upload Route] Error uploading file:", err?.message || String(err));
       return NextResponse.json(
-        { error: `Upload failed: ${errorText}` },
-        { status: res.status }
+        {
+          error: isTimeout ? "Connection timeout" : "Internal server error during upload",
+          details: err?.message || String(err),
+        },
+        { status: isTimeout ? 504 : 500 }
       );
+    } finally {
+      t.clear();
     }
-
-    const data = await res.json();
-    return NextResponse.json(data, { status: 201 });
-  } catch (error) {
-    console.error("[Upload Route] Error uploading file:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error during upload" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error("[Upload Route] Error uploading file:", error?.message || String(error));
+    return NextResponse.json({ error: "Internal server error during upload" }, { status: 500 });
   }
 }

@@ -1,16 +1,26 @@
 // app/api/store/shipments/[shipmentId]/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse<T = unknown>(text: string): T | null {
+  try {
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
 
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 interface ShipmentItem {
   order_item_id: string;
@@ -62,47 +72,66 @@ interface Shipment {
 
 export async function GET(
   _req: Request,
-  {params}: {params: {shipmentId: string}}
+  { params }: { params: { shipmentId: string } | Promise<{ shipmentId: string }> }
 ) {
-  const {shipmentId} = params;
-  const fullUrl = `${BASE_URL}/shipments/${shipmentId}/`;
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
+  const { shipmentId } = await params;
+
+  const t = withTimeout(15000);
+
   try {
-    const response = await fetch(fullUrl, {
+    const startFetch = await djangoFetch(`/store/api/shipments/${shipmentId}/`, {
       method: "GET",
-      headers: headers(sessionToken ? sessionToken : undefined),
+      signal: t.signal,
     });
-    const rawResponse = await response.text();
-    if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+
+    if (!startFetch.response.ok) {
+      if (startFetch.response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
-      if (response.status === 404)
-        return NextResponse.json({error: "Not found"}, {status: 404});
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      return NextResponse.json(
-        {error: "Failed to fetch shipment"},
-        {status: response.status}
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      if (startFetch.response.status === 404) {
+        const res = NextResponse.json({ error: "Not found" }, { status: 404 });
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      if (startFetch.response.status === 403) {
+        const res = NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const res = NextResponse.json(
+        { error: "Failed to fetch shipment", raw: startFetch.text },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
-    let data: Shipment;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+
+    const data = safeJsonParse<Shipment>(startFetch.text);
+
+    if (data === null) {
+      const res = NextResponse.json(
+        { error: "Invalid response format", raw: (startFetch.text || "").slice(0, 300) },
+        { status: 502 }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
-    return NextResponse.json(data, {status: 200});
-  } catch (error) {
+
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     return NextResponse.json(
-      {error: "Failed to fetch shipment"},
-      {status: 500}
+      {
+        error: isTimeout ? "Connection timeout" : "Failed to fetch shipment",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t.clear();
   }
 }

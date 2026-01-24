@@ -1,122 +1,72 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface RouteParams {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }> | { id: string };
 }
 
-export async function GET(request: Request, {params}: RouteParams) {
-  // Await the params for Next.js 15
-  const {id} = await params;
-
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
-
-  if (!sessionToken) {
-    console.warn("[Admin Module Lessons] No session token found");
-    return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
-    );
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
   }
+}
+
+export async function GET(_request: Request, ctx: RouteParams) {
+  // ✅ Next.js 15-safe (params can be a Promise)
+  const { id } = await Promise.resolve(ctx.params);
 
   try {
     // Validate module ID
-    if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({detail: "Invalid module ID"}, {status: 400});
+    const moduleIdNum = Number.parseInt(id, 10);
+    if (!id || Number.isNaN(moduleIdNum)) {
+      return NextResponse.json({ detail: "Invalid module ID" }, { status: 400 });
     }
 
-    const endpoint = `${BASE_URL}/api/admin/module/lessons/${id}/`;
+    // NOTE: this is an /orgs endpoint (matches your original BASE_URL=/orgs)
+    const path = `/orgs/api/admin/module/lessons/${encodeURIComponent(id)}/`;
 
-    const headers: HeadersInit = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "Content-Type": "application/json",
-    };
-
-    // Add session token as both header options
-    headers["X-Session-Key"] = sessionToken;
-    headers["Session-Token"] = sessionToken;
-    headers["X-Session-Token"] = sessionToken;
-
-    const res = await fetchWithRetry(endpoint, {
+    const { response, text, setCookie } = await djangoFetch(path, {
       method: "GET",
-      headers: headers,
+      // IMPORTANT: do NOT add X-Session-Key / Session-Token / X-Session-Token here.
+      // djangoFetch already attaches X-Session-Token consistently.
     });
 
-    const text = await res.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      console.error("[Admin Module Lessons] Non-JSON response:", text);
-      return NextResponse.json(
-        {detail: "Invalid response format from backend"},
-        {status: 500}
+    const data = parseJsonSafely(text);
+
+    if (!response.ok) {
+      if (response.status === 403) {
+        const res = NextResponse.json(
+          { detail: data?.detail || "Authentication failed" },
+          { status: 403 }
+        );
+        if (setCookie) res.headers.set("set-cookie", setCookie);
+        return res;
+      }
+
+      if (response.status === 404) {
+        const res = NextResponse.json(
+          { detail: data?.detail || "Module not found" },
+          { status: 404 }
+        );
+        if (setCookie) res.headers.set("set-cookie", setCookie);
+        return res;
+      }
+
+      const res = NextResponse.json(
+        { detail: data?.detail || "Failed to fetch module lessons" },
+        { status: response.status }
       );
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    if (!res.ok) {
-      console.error("[Admin Module Lessons] Backend error:", data);
-      if (res.status === 403) {
-        return NextResponse.json(
-          {detail: data.detail || "Authentication failed"},
-          {status: 403}
-        );
-      }
-      if (res.status === 404) {
-        return NextResponse.json(
-          {detail: data.detail || "Module not found"},
-          {status: 404}
-        );
-      }
-      return NextResponse.json(
-        {detail: data.detail || "Failed to fetch module lessons"},
-        {status: res.status}
-      );
-    }
-
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error(
-      "[Admin Module Lessons] Error fetching module lessons:",
-      error
-    );
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    console.error("[Admin Module Lessons] Error fetching module lessons:", error);
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
-}
-
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  retries = 3,
-  timeout = 30000
-) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-      clearTimeout(id);
-      return response;
-    } catch (err: any) {
-      console.error(
-        "[Admin Module Lessons] Fetch attempt",
-        i + 1,
-        "failed:",
-        err.message
-      );
-      if (i === retries - 1) throw err;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
-    }
-  }
-  throw new Error("Max retries reached");
 }

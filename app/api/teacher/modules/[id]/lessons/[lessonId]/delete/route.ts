@@ -1,144 +1,80 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 export async function DELETE(
   req: Request,
-  {params}: {params: {id: string; lessonId: string}}
+  context: { params: Promise<{ id: string; lessonId: string }> }
 ) {
   noStore();
-  const moduleId = params.id;
-  const lessonId = params.lessonId;
+
+  const { id: moduleId, lessonId } = await context.params;
   const endpoint = `/learning/api/teacher/modules/${moduleId}/lessons/${lessonId}/delete/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/auth/signin"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "DELETE",
-      headers: headers(session.user.sessionToken),
     });
 
-    const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
 
     if (!response.ok) {
-      console.error(
-        "[LessonDeleteAPI] Fetch failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/auth/signin"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+        return attachSetCookie(
+          NextResponse.json(
+            { error: "Session expired", redirect: "/auth/signin" },
+            { status: 401 }
+          ),
+          setCookie
         );
       }
+
       if (response.status === 404) {
-        return NextResponse.json(
-          {error: `Lesson with ID ${lessonId} not found in module ${moduleId}`},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+        return attachSetCookie(
+          NextResponse.json(
+            { error: `Lesson with ID ${lessonId} not found` },
+            { status: 404 }
+          ),
+          setCookie
         );
       }
-      return NextResponse.json(
-        {error: "Failed to delete lesson"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
+
+      return attachSetCookie(
+        NextResponse.json(
+          {
+            error: "Failed to delete lesson",
+            details: typeof text === "string" ? text.slice(0, 200) : data,
           },
-        }
+          { status: response.status }
+        ),
+        setCookie
       );
     }
 
-    if (!contentType.includes("application/json")) {
-      console.error(
-        "[LessonDeleteAPI] Non-JSON response received:",
-        contentType
-      );
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[LessonDeleteAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    return NextResponse.json(data, {
+    const res = NextResponse.json(data, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
     });
+    return attachSetCookie(res, setCookie);
   } catch (error) {
     console.error("[LessonDeleteAPI] Fetch error:", error);
     return NextResponse.json(
-      {error: "Failed to delete lesson", details: (error as Error).message},
+      { error: "Failed to delete lesson", details: (error as Error).message },
       {
         status: 500,
         headers: {

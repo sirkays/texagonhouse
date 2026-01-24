@@ -1,101 +1,86 @@
 // File: app/api/reset-password/route.ts
-import {NextResponse} from "next/server";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-interface Headers {
-  [key: string]: string;
+function safeJsonParse<T = any>(text: string): T | null {
+  try {
+    return text ? (JSON.parse(text) as T) : null;
+  } catch {
+    return null;
+  }
 }
 
-const headers = (): Headers => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-});
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
 
-interface ResetPasswordRequest {
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
+
+type ResetPasswordRequest = {
   resetToken: string;
   new_password: string;
   re_new_password: string;
   issue_session_hours?: number;
-}
+};
 
-interface ResetPasswordResponseData {
+type ResetPasswordResponseData = {
   detail?: string;
   sessionToken?: string;
   expiresAt?: string;
   userId?: number;
-}
+};
 
 export async function POST(request: Request): Promise<NextResponse> {
+  let payload: ResetPasswordRequest;
+
   try {
-    const {
-      resetToken,
-      new_password,
-      re_new_password,
-      issue_session_hours,
-    }: ResetPasswordRequest = await request.json();
-
-    if (!resetToken) {
-      return NextResponse.json(
-        {message: "Reset token is required"},
-        {status: 400}
-      );
-    }
-
-    if (!new_password || new_password !== re_new_password) {
-      return NextResponse.json(
-        {message: "Passwords do not match"},
-        {status: 400}
-      );
-    }
-
-    const body: any = {
-      resetToken,
-      new_password,
-      re_new_password,
-    };
-
-    if (issue_session_hours !== undefined) {
-      body.issue_session_hours = issue_session_hours;
-    }
-
-    const response: Response = await fetch(
-      `${BASE_URL}/api/auth/reset-password/`,
-      {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify(body),
-      }
+    payload = (await request.json()) as ResetPasswordRequest;
+  } catch (e: any) {
+    return NextResponse.json(
+      { message: "Invalid JSON body", details: e?.message || String(e) },
+      { status: 400 }
     );
+  }
 
-    const rawResponse: string = await response.text();
+  const { resetToken, new_password, re_new_password, issue_session_hours } = payload;
 
-    let data: ResetPasswordResponseData = {};
-    if (rawResponse) {
-      try {
-        data = JSON.parse(rawResponse) as ResetPasswordResponseData;
-      } catch (parseError) {
-        console.error(
-          "[ResetPasswordRoute] Failed to parse reset JSON:",
-          parseError
-        );
-        data = {detail: "Invalid response format"};
-      }
-    } else {
-      data = {detail: "Password has been reset successfully."};
-    }
+  if (!resetToken) {
+    return NextResponse.json({ message: "Reset token is required" }, { status: 400 });
+  }
 
-    if (!response.ok) {
-      console.error(
-        "[ResetPasswordRoute] Reset failed:",
-        response.status,
-        data
+  if (!new_password || new_password !== re_new_password) {
+    return NextResponse.json({ message: "Passwords do not match" }, { status: 400 });
+  }
+
+  const body: any = { resetToken, new_password, re_new_password };
+  if (issue_session_hours !== undefined) body.issue_session_hours = issue_session_hours;
+
+  const t = withTimeout(15000);
+
+  try {
+    const startFetch = await djangoFetch(`/api/auth/reset-password/`, {
+      method: "POST",
+      signal: t.signal,
+      body: JSON.stringify(body),
+      // Api-Key handled by proxy.ts
+    });
+
+    const data =
+      safeJsonParse<ResetPasswordResponseData>(startFetch.text) ??
+      ({ detail: startFetch.text ? "Invalid response format" : "Password has been reset successfully." } as ResetPasswordResponseData);
+
+    if (!startFetch.response.ok) {
+      console.error("[ResetPasswordRoute] Reset failed:", startFetch.response.status, data);
+      const res = NextResponse.json(
+        { message: data.detail || "Failed to reset password" },
+        { status: 400 }
       );
-      return NextResponse.json(
-        {message: data.detail || "Failed to reset password"},
-        {status: 400}
-      );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
     const res = NextResponse.json(
@@ -108,15 +93,16 @@ export async function POST(request: Request): Promise<NextResponse> {
           userId: data.userId,
         }),
       },
-      {status: 200}
+      { status: 200 }
     );
 
-    // If a session token was issued, set the NextAuth cookie (assuming integration with NextAuth)
+    // Preserve any backend Set-Cookie too (if backend issues it)
+    attachSetCookie(res, startFetch.setCookie);
+
+    // Keep your local cookie behavior (only if you really want NextAuth cookie set here)
     if (data.sessionToken) {
       res.cookies.set("next-auth.session-token", data.sessionToken, {
-        maxAge: issue_session_hours
-          ? issue_session_hours * 60 * 60
-          : 24 * 60 * 60,
+        maxAge: issue_session_hours ? issue_session_hours * 60 * 60 : 24 * 60 * 60,
         path: "/",
         httpOnly: true,
         secure: true,
@@ -125,11 +111,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     return res;
-  } catch (error) {
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[ResetPasswordRoute] Error:", error);
+
     return NextResponse.json(
-      {message: "Failed to reset password"},
-      {status: 500}
+      {
+        message: isTimeout ? "Connection timeout" : "Failed to reset password",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t.clear();
   }
 }

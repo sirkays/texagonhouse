@@ -1,92 +1,101 @@
-// app/api/media/route.ts (unchanged)
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "../auth/[...nextauth]/route";
+// app/api/media/route.ts
+import { NextResponse } from "next/server";
+import { djangoFetchRaw } from "@/app/api/_lib/proxy";
 
-const ALLOWED_HOST = "texagonbackend.onrender.com";
-const ALLOWED_ORIGIN = "http://localhost:3000"; // Adjust for production
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+// IMPORTANT: compare hostnames, not full URLs
+const ALLOWED_HOSTNAME = "texagonbackend.onrender.com";
 
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+      "Access-Control-Allow-Origin": `https://${ALLOWED_HOSTNAME}`,
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Range, Content-Type, Accept, Authorization",
+      "Access-Control-Allow-Headers": "Range, Content-Type, Accept, Authorization",
       "Access-Control-Max-Age": "86400",
     },
   });
 }
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
   try {
-    const {searchParams} = new URL(req.url);
+    const { searchParams } = new URL(req.url);
     const rawUrl = searchParams.get("url");
+
     if (!rawUrl) {
-      return NextResponse.json({error: "Missing url param"}, {status: 400});
+      return NextResponse.json({ error: "Missing url param" }, { status: 400 });
     }
 
     let remoteUrl: URL;
     try {
       remoteUrl = new URL(rawUrl);
     } catch {
-      return NextResponse.json({error: "Invalid URL"}, {status: 400});
+      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    if (remoteUrl.hostname !== ALLOWED_HOST) {
-      return NextResponse.json({error: "Host not allowed"}, {status: 403});
+    // Only allow the specific backend host
+    if (remoteUrl.hostname !== ALLOWED_HOSTNAME) {
+      return NextResponse.json({ error: "Host not allowed" }, { status: 403 });
     }
 
-    const upstreamHeaders: Record<string, string> = {
-      Authorization: `Api-Key ${API_KEY}`,
-    };
+    // If your backend `url` is absolute, we can't pass it directly to djangoFetchRaw
+    // because proxy.ts expects a PATH (relative). So we convert the remoteUrl to a path.
+    // This works as long as the media is served by the same backend BASE_URL.
+    const path = `${remoteUrl.pathname}${remoteUrl.search || ""}`;
 
-    if (session?.user?.sessionToken) {
-      upstreamHeaders["X-Session-Token"] = session.user.sessionToken;
-    }
-
-    const upstream = await fetch(remoteUrl.toString(), {
-      headers: upstreamHeaders,
+    const upstream = await djangoFetchRaw(path, {
       method: "GET",
+      // session/api-key/cookies handled by proxy.ts
+      // Range header: forward it for streaming/seek support
+      headers: req.headers.get("range") ? { Range: req.headers.get("range") as string } : {},
     });
 
-    if (!upstream.ok) {
+    if (!upstream.response.ok) {
+      const details = await upstream.response.text().catch(() => upstream.response.statusText);
       console.error(
-        `Upstream fetch failed for ${remoteUrl}: ${upstream.status} - ${upstream.statusText}`
+        `Upstream fetch failed for ${remoteUrl.toString()}: ${upstream.response.status} - ${details}`
       );
       return NextResponse.json(
         {
           error: "Upstream fetch failed",
-          status: upstream.status,
-          details: upstream.statusText,
+          status: upstream.response.status,
+          details,
         },
-        {status: upstream.status}
+        { status: upstream.response.status }
       );
     }
 
+    // Mirror relevant upstream headers
     const headers = new Headers();
-    const contentType = upstream.headers.get("content-type");
-    const contentLength = upstream.headers.get("content-length");
+
+    const contentType = upstream.response.headers.get("content-type");
+    const contentLength = upstream.response.headers.get("content-length");
+    const acceptRanges = upstream.response.headers.get("accept-ranges");
+    const contentRange = upstream.response.headers.get("content-range");
+
     if (contentType) headers.set("content-type", contentType);
     if (contentLength) headers.set("content-length", contentLength);
-
-    headers.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-    headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    const acceptRanges = upstream.headers.get("accept-ranges");
     if (acceptRanges) headers.set("accept-ranges", acceptRanges);
+    if (contentRange) headers.set("content-range", contentRange);
 
-    return new NextResponse(upstream.body, {
-      status: upstream.status,
+    // CORS headers (if you actually need them)
+    headers.set("Access-Control-Allow-Origin", `https://${ALLOWED_HOSTNAME}`);
+    headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+
+    // Forward set-cookie (if backend sets any session cookies)
+    const res = new NextResponse(upstream.response.body, {
+      status: upstream.response.status,
       headers,
     });
-  } catch (err) {
+
+    if (upstream.setCookie) res.headers.set("set-cookie", upstream.setCookie);
+
+    return res;
+  } catch (err: any) {
     console.error("[MEDIA PROXY ERROR]", err);
     return NextResponse.json(
-      {error: "Server error", details: err.message},
-      {status: 500}
+      { error: "Server error", details: err?.message || String(err) },
+      { status: 500 }
     );
   }
 }

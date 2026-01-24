@@ -1,32 +1,35 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
 
-const headers = (sessionToken: string) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 // DELETE: Delete a live session
 export async function DELETE(
-  req: Request,
-  context: {params: Promise<{meetingId: string}>}
+  _req: Request,
+  context: { params: Promise<{ meetingId: string }> }
 ) {
   noStore();
-  const params = await context.params;
-  const endpoint = `/live/api/delete-live-session/${params.meetingId}/delete/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
+  const { meetingId } = await context.params;
+
+  // Keep your existing role gate (this is local logic, not duplicated headers)
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.sessionToken) {
     return NextResponse.json(
-      {error: "Not authenticated"},
+      { error: "Not authenticated" },
       {
         status: 401,
         headers: {
@@ -37,9 +40,9 @@ export async function DELETE(
     );
   }
 
-  if (session.user.role !== "teacher") {
+  if ((session.user as any)?.role !== "teacher") {
     return NextResponse.json(
-      {error: "Unauthorized: Only teachers can delete live sessions"},
+      { error: "Unauthorized: Only teachers can delete live sessions" },
       {
         status: 403,
         headers: {
@@ -50,17 +53,27 @@ export async function DELETE(
     );
   }
 
-  try {
-    const response = await fetch(fullUrl, {
-      method: "DELETE",
-      headers: headers(session.user.sessionToken),
-    });
+  const t = withTimeout(20000);
 
-    if (!response.ok) {
-      console.error("[LiveSessionDeleteAPI] Request failed:", response.status);
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
+  try {
+    const startFetch = await djangoFetch(
+      `/live/api/delete-live-session/${meetingId}/delete/`,
+      {
+        method: "DELETE",
+        signal: t.signal,
+      }
+    );
+
+    if (!startFetch.response.ok) {
+      console.error(
+        "[LiveSessionDeleteAPI] Request failed:",
+        startFetch.response.status,
+        startFetch.text?.slice(0, 120)
+      );
+
+      if (startFetch.response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired" },
           {
             status: 401,
             headers: {
@@ -69,42 +82,50 @@ export async function DELETE(
             },
           }
         );
+        return attachSetCookie(res, startFetch.setCookie);
       }
-      return NextResponse.json(
-        {error: "Failed to delete live session"},
+
+      const res = NextResponse.json(
+        { error: "Failed to delete live session", details: startFetch.text || "" },
         {
-          status: response.status,
+          status: startFetch.response.status,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    return new NextResponse(null, {
+    // Backend likely returns 204; always respond 204 from proxy
+    const res = new NextResponse(null, {
       status: 204,
       headers: {
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
     });
-  } catch (error) {
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[LiveSessionDeleteAPI] Request error:", error);
+
     return NextResponse.json(
       {
-        error: "Failed to delete live session",
-        details: error instanceof Error ? error.message : String(error),
+        error: isTimeout ? "Connection timeout" : "Failed to delete live session",
+        details: error?.message || String(error),
       },
       {
-        status: 500,
+        status: isTimeout ? 504 : 500,
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
         },
       }
     );
+  } finally {
+    t.clear();
   }
 }

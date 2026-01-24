@@ -1,136 +1,104 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+type Ctx = { params: Promise<{ id: string }> | { id: string } };
 
-async function getSession() {
-  return await getServerSession(authOptions);
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
-async function handleRequest(
-  request: NextRequest,
-  method: string,
-  id: string,
-  sessionToken: string
-) {
+async function handleRequest(request: NextRequest, method: "GET" | "PATCH" | "DELETE", id: string) {
+  if (!id) {
+    return NextResponse.json({ error: "Subject ID is required" }, { status: 400 });
+  }
+
   const contentType = request.headers.get("content-type") || "";
-  let fetchBody: BodyInit | null = null;
 
-  let headers: HeadersInit = {
-    Authorization: `Api-Key ${API_KEY}`,
-    "X-Session-Token": sessionToken,
-  };
+  let body: BodyInit | undefined = undefined;
 
-  if (method === "DELETE") {
-    // DELETE doesn’t need body or extra headers
-  } else if (contentType.includes("multipart/form-data")) {
-    const formData = await request.formData();
-    fetchBody = formData;
-  } else if (method === "PATCH") {
-    const jsonBody = await request.json();
-    fetchBody = JSON.stringify(jsonBody);
-    headers["Content-Type"] = "application/json";
-  }
-
-  const url = `${BASE_URL}/api/subjects/${id}/`;
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: fetchBody,
-  });
-
-  if (!res.ok) {
-    let data: any;
-    try {
-      data = await res.json();
-    } catch {
-      data = {};
+  if (method === "PATCH") {
+    if (contentType.includes("multipart/form-data")) {
+      // forward multipart
+      body = await request.formData();
+    } else {
+      // default to JSON patch
+      let jsonBody: unknown;
+      try {
+        jsonBody = await request.json();
+      } catch {
+        return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+      }
+      body = JSON.stringify(jsonBody);
     }
+  }
 
-    return NextResponse.json(
-      {error: data.detail || `Failed to ${method.toLowerCase()} subject`},
-      {status: res.status}
-    );
+  const { response, text, setCookie } = await djangoFetch(
+    `/orgs/api/subjects/${encodeURIComponent(id)}/`,
+    {
+      method,
+      ...(method === "PATCH" ? { body } : {}),
+    }
+  );
+
+  if (!response.ok) {
+    const data = parseJsonSafely(text);
+    const msg =
+      data?.detail ||
+      data?.error ||
+      data?.message ||
+      `Failed to ${method.toLowerCase()} subject`;
+
+    const res = NextResponse.json({ error: msg }, { status: response.status });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   }
 
   if (method === "DELETE") {
-    return new NextResponse(null, {status: 204});
+    const res = new NextResponse(null, { status: 204 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   }
 
-  const data = await res.json();
-  return NextResponse.json(data);
+  const data = parseJsonSafely(text) ?? { detail: text };
+
+  const res = NextResponse.json(data, { status: 200 });
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 // GET: Retrieve Subject by ID
-export async function GET(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function GET(request: NextRequest, ctx: Ctx) {
   try {
-    return await handleRequest(
-      request,
-      "GET",
-      params.id,
-      session.user.sessionToken
-    );
+    const { id } = await Promise.resolve(ctx.params);
+    return await handleRequest(request, "GET", id);
   } catch (error) {
-    console.error("[Subjects Route] Error fetching subject:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Subjects GET] Error fetching subject:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 // PATCH: Update Subject
-export async function PATCH(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function PATCH(request: NextRequest, ctx: Ctx) {
   try {
-    return await handleRequest(
-      request,
-      "PATCH",
-      params.id,
-      session.user.sessionToken
-    );
+    const { id } = await Promise.resolve(ctx.params);
+    return await handleRequest(request, "PATCH", id);
   } catch (error) {
-    console.error("[Subjects Route] Error updating subject:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Subjects PATCH] Error updating subject:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 // DELETE: Delete Subject
-export async function DELETE(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function DELETE(request: NextRequest, ctx: Ctx) {
   try {
-    return await handleRequest(
-      request,
-      "DELETE",
-      params.id,
-      session.user.sessionToken
-    );
+    const { id } = await Promise.resolve(ctx.params);
+    return await handleRequest(request, "DELETE", id);
   } catch (error) {
-    console.error("[Subjects Route] Error deleting subject:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Subjects DELETE] Error deleting subject:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

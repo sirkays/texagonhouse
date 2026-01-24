@@ -1,18 +1,7 @@
-// texagon_academy\texagonui\app\api\store\bnpl\agreements\[agreement_id]
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098/store/api";
-const BASE_URL =  "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+// texagon_academy/texagonui/app/api/store/bnpl/agreements/[agreement_id]/route.ts
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface Installment {
   id: string;
@@ -35,57 +24,41 @@ interface BnplAgreementResponse {
 }
 
 export async function GET(
-  req: Request,
-  {params}: {params: Promise<{agreement_id: string}>} // 👈 params is async
+  _req: Request,
+  { params }: { params: Promise<{ agreement_id: string }> } // params is async in your codebase
 ) {
   noStore();
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
-  }
-
-  const {agreement_id} = await params; // 👈 await before using
-  const sessionToken = session.user.sessionToken;
-
-  const fullUrl = `${BASE_URL}/bnpl/agreements/${agreement_id}/`;
+  const { agreement_id } = await params;
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(sessionToken),
-    });
-
-    const rawResponse = await response.text();
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/bnpl/agreements/${agreement_id}/`,
+      { method: "GET" }
+    );
 
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
       if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       if (response.status === 404)
-        return NextResponse.json({error: "Agreement not found"}, {status: 404});
+        return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
 
       return NextResponse.json(
-        {error: "Failed to fetch BNPL agreement"},
-        {status: response.status}
+        { error: "Failed to fetch BNPL agreement" },
+        { status: response.status }
       );
     }
 
     let data: BnplAgreementResponse;
     try {
-      data = JSON.parse(rawResponse);
+      data = JSON.parse(text);
     } catch {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
-      );
+      return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
     }
 
     const normalizedData: BnplAgreementResponse = {
@@ -106,14 +79,19 @@ export async function GET(
       })),
     };
 
-    return NextResponse.json(normalizedData, {
+    const res = NextResponse.json(normalizedData, {
       status: 200,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
+
+    // Forward Django cookies (e.g., sessionid) if Django sets any
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+
+    return res;
   } catch {
     return NextResponse.json(
-      {error: "Failed to fetch BNPL agreement"},
-      {status: 500}
+      { error: "Failed to fetch BNPL agreement" },
+      { status: 500 }
     );
   }
 }

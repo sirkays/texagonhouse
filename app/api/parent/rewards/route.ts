@@ -1,58 +1,78 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-//const BASE_URL = "http://127.0.0.1:9098";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const t = withTimeout(12000);
 
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
   try {
-    const backendUrl = new URL(`${BASE_URL}/gamification/api/child/rewards/`);
-    const {searchParams} = new URL(request.url);
-    searchParams.forEach((value, key) => {
-      backendUrl.searchParams.append(key, value);
+    // forward query params
+    const incomingUrl = new URL(request.url);
+    const qs = incomingUrl.searchParams.toString();
+    const path = `/gamification/api/child/rewards/${qs ? `?${qs}` : ""}`;
+
+    const startFetch = await djangoFetch(path, {
+      method: "GET",
+      signal: t.signal,
+      // headers/session/cookies handled by proxy.ts
     });
 
-    const res = await fetch(backendUrl.toString(), {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-        "Content-Type": "application/json",
-      },
-    });
+    const data = safeJsonParse(startFetch.text);
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      const res = NextResponse.json(
+        { error: data?.detail || "Failed to fetch data", raw: startFetch.text },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    // Image normalization: Ensure all avatars are absolute URLs
-
-    if (data.children && Array.isArray(data.children)) {
-      data.children.forEach((child: any, index: number) => {
+    // Image normalization: ensure all avatars are absolute URLs
+    if (data?.children && Array.isArray(data.children)) {
+      data.children.forEach((child: any) => {
         if (
-          child.avatar &&
+          child?.avatar &&
           typeof child.avatar === "string" &&
           child.avatar.startsWith("/")
         ) {
-          child.avatar = `${BASE_URL}${child.avatar}`;
+          // proxy.ts BASE_URL already points to backend
+          child.avatar = `${process.env.STORE_BASE_URL || "https://texagonbackend.onrender.com"}${child.avatar}`;
         }
       });
     }
 
-    return NextResponse.json(data);
-  } catch (error) {
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+
+    return NextResponse.json(
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
   }
 }

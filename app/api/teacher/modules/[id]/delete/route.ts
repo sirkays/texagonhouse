@@ -1,124 +1,81 @@
+// app/api/teacher/modules/[id]/delete/route.ts (or wherever this lives)
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  "Authorization": `Api-Key ${API_KEY}`,
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
-});
-
-export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   noStore();
-  const params = await context.params; // Await params
-  const moduleId = params.id;
+
+  const { id: moduleId } = await context.params;
   const endpoint = `/learning/api/teacher/modules/${moduleId}/delete/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
-  
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      { error: "Not authenticated", redirect: "/auth/signin" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "DELETE",
-      headers: headers(session.user.sessionToken),
     });
 
-  
-    const rawResponse = await response.text();
-  
-    if (!response.ok) {
-      console.error("[ModuleDeleteAPI] Fetch failed:", response.status, rawResponse.slice(0, 100));
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired", redirect: "/auth/signin" },
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: `Module with ID ${moduleId} not found` },
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      return NextResponse.json(
-        { error: "Failed to delete module", details: rawResponse.slice(0, 100) },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    let data;
+    // Parse JSON if possible (some deletes return empty or plain text)
+    let data: any = null;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[ModuleDeleteAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        { error: "Invalid response format" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
     }
 
-    return NextResponse.json(data, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    // Keep your custom error messages
+    if (!response.ok) {
+      if (response.status === 401) {
+        const nextRes = NextResponse.json(
+          { error: "Session expired", redirect: "/auth/signin" },
+          { status: 401 }
+        );
+        if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+        nextRes.headers.set("Cache-Control", "no-store");
+        return nextRes;
+      }
+
+      if (response.status === 404) {
+        const nextRes = NextResponse.json(
+          { error: `Module with ID ${moduleId} not found` },
+          { status: 404 }
+        );
+        if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+        nextRes.headers.set("Cache-Control", "no-store");
+        return nextRes;
+      }
+
+      const nextRes = NextResponse.json(
+        {
+          error: "Failed to delete module",
+          details: typeof text === "string" ? text.slice(0, 100) : data,
+        },
+        { status: response.status }
+      );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
+    }
+
+    // Success response + no-cache headers like your original
+    const nextRes = NextResponse.json(data, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    nextRes.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    nextRes.headers.set("Pragma", "no-cache");
+    nextRes.headers.set("Expires", "0");
+    return nextRes;
   } catch (error) {
     console.error("[ModuleDeleteAPI] Fetch error:", error);
-    return NextResponse.json(
+    const nextRes = NextResponse.json(
       { error: "Failed to delete module", details: (error as Error).message },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { status: 500 }
     );
+    nextRes.headers.set("Cache-Control", "no-store");
+    return nextRes;
   }
 }

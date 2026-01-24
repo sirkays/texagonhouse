@@ -1,16 +1,25 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse<T = any>(text: string): T | null {
+  try {
+    return text ? (JSON.parse(text) as T) : null;
+  } catch {
+    return null;
+  }
+}
 
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 interface BnplStartResponse {
   agreement_id: string;
@@ -19,57 +28,64 @@ interface BnplStartResponse {
 
 export async function POST(
   req: Request,
-  {params}: {params: {order_id: string}}
+  { params }: { params: { order_id: string } | Promise<{ order_id: string }> }
 ) {
   noStore();
-  const session = await getServerSession(authOptions);
 
-  if (!session?.user?.sessionToken) {
+  const { order_id } = await params;
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (error: any) {
     return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
+      { error: "Invalid JSON body", details: error?.message || String(error) },
+      { status: 400 }
     );
   }
 
-  const sessionToken = session.user.sessionToken;
-
-  const body = await req.json();
-
-  const fullUrl = `${BASE_URL}/bnpl/${params.order_id}/start`;
+  const t = withTimeout(20000);
 
   try {
-    const response = await fetch(fullUrl, {
+    // DRF usually expects trailing slash
+    const startFetch = await djangoFetch(`/store/api/bnpl/${order_id}/start/`, {
       method: "POST",
-      headers: headers(sessionToken),
+      signal: t.signal,
       body: JSON.stringify(body),
     });
 
-    const rawResponse = await response.text();
-
-    if (!response.ok) {
-      if (response.status === 401)
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+    if (!startFetch.response.ok) {
+      if (startFetch.response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
-      if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      if (response.status === 404)
-        return NextResponse.json({error: "Order not found"}, {status: 404});
-      return NextResponse.json(
-        {error: "Failed to start BNPL"},
-        {status: response.status}
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+      if (startFetch.response.status === 403) {
+        const res = NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+      if (startFetch.response.status === 404) {
+        const res = NextResponse.json({ error: "Order not found" }, { status: 404 });
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const res = NextResponse.json(
+        { error: "Failed to start BNPL", raw: startFetch.text },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    let data: BnplStartResponse;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+    const data = safeJsonParse<BnplStartResponse>(startFetch.text);
+
+    if (!data) {
+      const res = NextResponse.json(
+        { error: "Invalid response format", raw: startFetch.text?.slice(0, 300) },
+        { status: 502 }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
     const normalizedData: BnplStartResponse = {
@@ -77,11 +93,22 @@ export async function POST(
       status: data.status || "",
     };
 
-    return NextResponse.json(normalizedData, {
+    const res = NextResponse.json(normalizedData, {
       status: 200,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    return NextResponse.json({error: "Failed to start BNPL"}, {status: 500});
+
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    return NextResponse.json(
+      {
+        error: isTimeout ? "Connection timeout" : "Failed to start BNPL",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
   }
 }

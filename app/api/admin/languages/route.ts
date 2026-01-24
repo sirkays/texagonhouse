@@ -1,56 +1,52 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_BACKEND_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
+  const { searchParams } = new URL(request.url);
 
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+  const q = searchParams.get("q") ?? "";
+  const page = searchParams.get("page") ?? "1";
+  const page_size = searchParams.get("page_size") ?? "20";
 
-  const {searchParams} = new URL(request.url);
-  const q = searchParams.get("q") || "";
-  const page = searchParams.get("page") || "1";
-  const page_size = searchParams.get("page_size") || "20";
+  const query = new URLSearchParams();
+  if (q.trim()) query.set("q", q.trim());
+  query.set("page", page);
+  query.set("page_size", page_size);
 
-  // Attempting /api/languages/ (Root + Plural) as per documentation
-  const url = new URL(`${BASE_BACKEND_URL}/api/languages/`);
-  if (q) url.searchParams.append("q", q);
-  url.searchParams.append("page", page);
-  url.searchParams.append("page_size", page_size);
+  // NOTE: this endpoint is NOT under /orgs in your original code
+  const path = `/api/languages/?${query.toString()}`;
 
   try {
-    const res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-        "Content-Type": "application/json",
-      },
+    const { response, text, setCookie } = await djangoFetch(path, {
+      method: "GET",
     });
 
-    const data = await res.json();
+    const data = parseJsonSafely(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch languages"},
-        {status: res.status}
-      );
+    if (!response.ok) {
+      const msg = data?.detail || data?.error || data?.message || "Failed to fetch languages";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error: any) {
     console.error("[Languages Route] Error fetching languages:", error);
     return NextResponse.json(
-      {error: error.message || "Internal server error"},
-      {status: 500}
+      { error: error?.message || "Internal server error" },
+      { status: 500 }
     );
   }
 }

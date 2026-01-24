@@ -1,107 +1,140 @@
 // app/api/code-ide/uploads/[id]/content/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch, djangoFetchRaw } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any = {}) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout || 30000);
-  
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error(`Request timeout after ${options.timeout || 30000}ms`);
-    }
-    throw err;
-  }
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
+  const { id } = await context.params;
 
-  // Await params to fix Next.js dynamic API warning
-  const params = await context.params;
-  const id = params.id;
-
+  // 1) fetch file details (JSON) via djangoFetch
+  const t1 = withTimeout(15000);
   try {
-    // First get file details
-    const detailUrl = `${BASE_URL}/files/${id}/`;
-    console.log(`[Content Route] Fetching file details: ${detailUrl}`);
+    const detailPath = `/code-ide/api/ide/files/${id}/`;
+    console.log(`[Content Route] Fetching file details: ${detailPath}`);
 
-    const detailRes = await fetchWithTimeout(detailUrl, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 15000, // 15s for details
+    const detailFetch = await djangoFetch(detailPath, {
+      method: "GET",
+      signal: t1.signal,
     });
 
-    if (!detailRes.ok) {
-      const errorText = await detailRes.text();
-      console.error(`[Content Route] File details failed ${detailRes.status}:`, errorText);
+    if (!detailFetch.response.ok) {
+      console.error(
+        `[Content Route] File details failed ${detailFetch.response.status}:`,
+        detailFetch.text
+      );
+      const res = NextResponse.json(
+        { error: `File not found: ${detailFetch.text}` },
+        { status: detailFetch.response.status === 404 ? 404 : detailFetch.response.status }
+      );
+      return attachSetCookie(res, detailFetch.setCookie);
+    }
+
+    const fileData = detailFetch.text ? JSON.parse(detailFetch.text) : null;
+    const fileUrl: string | undefined = fileData?.url;
+    const contentType: string = fileData?.content_type || "text/plain";
+
+    if (!fileUrl) {
       return NextResponse.json(
-        { error: `File not found: ${errorText}` },
-        { status: 404 }
+        { error: "File URL missing from backend response" },
+        { status: 502 }
       );
     }
 
-    const fileData = await detailRes.json();
-    console.log(`[Content Route] File details fetched, URL: ${fileData.url}`);
+    console.log(`[Content Route] File details fetched, URL: ${fileUrl}`);
 
-    // Now fetch the actual content
-    const contentRes = await fetchWithTimeout(fileData.url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 20000, // 20s for content (larger files)
-    });
+    // 2) fetch the actual content
+    // If the backend returns a FULL url (e.g. https://.../media/...),
+    // we can hit it directly with fetchRaw so headers/session are still reused.
+    // If it’s a relative path, we normalize to a path and still use djangoFetchRaw.
+    const t2 = withTimeout(20000);
+    try {
+      const isAbsolute = /^https?:\/\//i.test(fileUrl);
 
-    if (!contentRes.ok) {
-      const errorText = await contentRes.text();
-      console.error(`[Content Route] Content fetch failed ${contentRes.status}:`, errorText);
+      const contentFetch = isAbsolute
+        ? await (async () => {
+            // Use fetch directly so we can keep the exact absolute URL.
+            // We still reuse headers via djangoFetchRaw by passing the absolute path through proxy
+            // only if your proxy supports absolute URLs; if not, fallback to direct fetch.
+            // Safe fallback: direct fetch with cookie/token handled by proxy is not possible for absolute URLs.
+            // So we do direct fetch without duplicating headers by calling djangoFetchRaw on a special route? Not available.
+            // => best: if URL is absolute and hosted by your backend, prefer returning a relative "url" from backend.
+            return await fetch(fileUrl, {
+              method: "GET",
+              signal: t2.signal,
+              // NOTE: if this URL is protected, make sure backend allows token/cookie auth on this endpoint
+            });
+          })()
+        : (await djangoFetchRaw(fileUrl, {
+            method: "GET",
+            signal: t2.signal,
+          })).response;
+
+      if (!contentFetch.ok) {
+        const errorText = await contentFetch.text().catch(() => "");
+        console.error(
+          `[Content Route] Content fetch failed ${contentFetch.status}:`,
+          errorText
+        );
+        return NextResponse.json(
+          { error: `Failed to fetch content: ${errorText || contentFetch.statusText}` },
+          { status: 500 }
+        );
+      }
+
+      const contentBuffer = await contentFetch.arrayBuffer();
+      console.log(`[Content Route] Content fetched: ${contentBuffer.byteLength} bytes`);
+
+      // Return raw bytes (works for text + binary)
+      const res = new NextResponse(contentBuffer, {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Length": contentBuffer.byteLength.toString(),
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      });
+
+      // forward cookies from the detail call (if any)
+      return attachSetCookie(res, detailFetch.setCookie);
+    } catch (err: any) {
+      const isTimeout = err?.name === "AbortError";
+      console.error("[Content Route] Content fetch error:", err?.message || String(err));
       return NextResponse.json(
-        { error: `Failed to fetch content: ${errorText}` },
-        { status: 500 }
+        {
+          error: isTimeout ? "Connection timeout" : "Internal server error",
+          details: err?.message || String(err),
+        },
+        { status: isTimeout ? 504 : 500 }
       );
+    } finally {
+      t2.clear();
     }
-
-    // Get content as text or buffer
-    const contentType = fileData.content_type || 'text/plain';
-    const contentBuffer = await contentRes.arrayBuffer();
-
-    console.log(`[Content Route] Content fetched: ${contentBuffer.byteLength} bytes`);
-
-    return new NextResponse(contentBuffer, {
-      headers: {
-        'Content-Type': contentType,
-        'Content-Length': contentBuffer.byteLength.toString(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Access-Control-Allow-Origin': '*', // If needed for CORS
-      },
-    });
-
-  } catch (error) {
-    console.error("[Content Route] Error:", error);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    console.error("[Content Route] Error:", error?.message || String(error));
     return NextResponse.json(
-      { error: `Internal server error: ${(error as Error).message}` },
-      { status: 500 }
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t1.clear();
   }
 }

@@ -1,56 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BACKEND_URL = "http://127.0.0.1:9098";
-const BACKEND_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
+  try {
+    let body: any;
     try {
-        const session = await getServerSession(authOptions);
-        const sessionToken = (session?.user as any)?.sessionToken;
-
-        if (!sessionToken) {
-            return NextResponse.json(
-                { detail: "Session token not found. Please log in." },
-                { status: 401 }
-            );
-        }
-
-        const body = await request.json();
-
-        // Validate required fields
-        if (!body.email) {
-            return NextResponse.json(
-                { detail: "Email field is required." },
-                { status: 400 }
-            );
-        }
-
-        // Forward request to backend
-        const response = await fetch(`${BACKEND_URL}/accounts/api/auth/verify-user/`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Api-Key ${API_KEY}`,
-                "X-Session-Token": sessionToken,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
-        }
-
-        return NextResponse.json(data);
-    } catch (error: any) {
-        console.error("Error in verify-user API:", error);
-        return NextResponse.json(
-            { detail: error.message || "Internal server error" },
-            { status: 500 }
-        );
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ detail: "Invalid JSON in request body" }, { status: 400 });
     }
+
+    // Validate required fields
+    if (!body?.email) {
+      return NextResponse.json({ detail: "Email field is required." }, { status: 400 });
+    }
+
+    // NOTE: this endpoint is NOT under /orgs (it’s /accounts/...)
+    const { response, text, setCookie } = await djangoFetch(
+      "/accounts/api/auth/verify-user/",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
+
+    const data = parseJsonSafely(text) ?? { detail: text };
+
+    const res = NextResponse.json(data, { status: response.status });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
+  } catch (error: any) {
+    console.error("Error in verify-user API:", error);
+    return NextResponse.json(
+      { detail: error?.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

@@ -1,21 +1,7 @@
-// ########################################
-// ### Entitlements Module
-// ########################################
-
 // app/api/store/me/entitlements/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface Entitlement {
   product_id: string;
@@ -26,51 +12,63 @@ interface EntitlementsResponse {
   results: Entitlement[];
 }
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   noStore();
-  const fullUrl = `${BASE_URL}/me/entitlements`;
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
+
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(sessionToken ? sessionToken : undefined),
-    });
-    const rawResponse = await response.text();
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/me/entitlements`,
+      { method: "GET" }
+    );
+
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
       if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
       return NextResponse.json(
-        {error: "Failed to fetch entitlements"},
-        {status: response.status}
+        { error: "Failed to fetch entitlements" },
+        { status: response.status }
       );
     }
+
     let data: EntitlementsResponse;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
+      data = JSON.parse(text);
+    } catch {
       return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+        { error: "Invalid response format" },
+        { status: 500 }
       );
     }
-    const normalizedEntitlements: Entitlement[] = data.results.map((item) => ({
-      product_id: item.product_id || "",
-      title: item.title || "",
-    }));
-    return NextResponse.json(
-      {results: normalizedEntitlements},
-      {status: 200, headers: {"Cache-Control": "no-store"}}
+
+    const normalizedEntitlements: Entitlement[] = (data.results ?? []).map(
+      (item) => ({
+        product_id: item.product_id || "",
+        title: item.title || "",
+      })
     );
-  } catch (error) {
+
+    const res = NextResponse.json(
+      { results: normalizedEntitlements },
+      {
+        status: 200,
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+
+    // Forward Django cookies (e.g., sessionid) if present
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+
+    return res;
+  } catch {
     return NextResponse.json(
-      {error: "Failed to fetch entitlements"},
-      {status: 500}
+      { error: "Failed to fetch entitlements" },
+      { status: 500 }
     );
   }
 }

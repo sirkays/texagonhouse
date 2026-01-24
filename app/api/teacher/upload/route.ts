@@ -1,10 +1,7 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+// app/api/teacher/upload/route.ts (or your current path)
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 const ALLOWED_FILE_TYPES = [
   // Video
@@ -23,37 +20,15 @@ const ALLOWED_FILE_TYPES = [
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
-  // Images (optional, for potential thumbnails or related assets)
+  // Images
   "image/jpeg",
   "image/png",
 ];
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
-
 export async function POST(req: Request) {
   noStore();
-  const endpoint = "/learning/api/upload/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/auth/signin"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
-    );
-  }
 
   try {
     const formData = await req.formData();
@@ -61,14 +36,8 @@ export async function POST(req: Request) {
 
     if (!file) {
       return NextResponse.json(
-        {error: "No file provided"},
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { error: "No file provided" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -79,13 +48,7 @@ export async function POST(req: Request) {
             ", "
           )}`,
         },
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -96,116 +59,88 @@ export async function POST(req: Request) {
             MAX_FILE_SIZE / (1024 * 1024)
           }MB`,
         },
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    // Rebuild FormData (safe + explicit)
     const formDataToSend = new FormData();
     formDataToSend.append("file", file);
 
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(session.user.sessionToken),
-      body: formDataToSend,
-    });
+    // Important: use djangoFetch so we reuse API key + session token + cookies
+    // and DO NOT force Content-Type (FormData boundary must be set by fetch)
+    const { response, text, setCookie } = await djangoFetch(
+      "/learning/api/upload/",
+      {
+        method: "POST",
+        body: formDataToSend,
+      }
+    );
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[FileUploadAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/auth/signin"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      return NextResponse.json(
-        {error: "Failed to upload file"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+
+      const payload =
+        response.status === 401
+          ? { error: "Session expired", redirect: "/auth/signin" }
+          : { error: "Failed to upload file" };
+
+      const nextRes = NextResponse.json(payload, { status: response.status });
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     if (!contentType.includes("application/json")) {
       console.error("[FileUploadAPI] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const nextRes = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
-    let data;
+    let data: any;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? JSON.parse(text) : {};
     } catch (parseError) {
       console.error("[FileUploadAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const nextRes = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
-    // Assuming the backend returns a URL for the uploaded file
-    const fileUrl = data.url || `${BASE_URL}/media/${file.name}`;
+    // Prefer backend URL if provided
+    const fileUrl = data?.url || data?.file_url || "";
 
-    return NextResponse.json(
-      {url: fileUrl},
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
+    const nextRes = NextResponse.json({ url: fileUrl }, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    nextRes.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
     );
+    nextRes.headers.set("Pragma", "no-cache");
+    nextRes.headers.set("Expires", "0");
+    return nextRes;
   } catch (error) {
     console.error("[FileUploadAPI] Error:", error);
-    return NextResponse.json(
-      {error: "Failed to upload file", details: (error as Error).message},
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+    const nextRes = NextResponse.json(
+      { error: "Failed to upload file", details: (error as Error).message },
+      { status: 500 }
     );
+    nextRes.headers.set("Cache-Control", "no-store");
+    return nextRes;
   }
 }

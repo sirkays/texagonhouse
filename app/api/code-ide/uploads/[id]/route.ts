@@ -1,108 +1,111 @@
 // app/api/code-ide/uploads/[id]/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any = {}) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout || 30000); // Increased to 30s
-  
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error(`Request timeout after ${options.timeout || 30000}ms`);
-    }
-    throw err;
-  }
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
+  const { id } = await params;
 
+  const t = withTimeout(20000); // file detail fetch timeout
   try {
-    const url = `${BASE_URL}/files/${params.id}/`;
-    console.log(`[File Detail] Fetching ${url}`); // Debug log
-    
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 20000, // Increased timeout for file detail fetch
+    const path = `/code-ide/api/ide/files/${id}/`;
+    console.log(`[File Detail] Fetching ${path}`);
+
+    const startFetch = await djangoFetch(path, {
+      method: "GET",
+      signal: t.signal,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`[File Detail] Backend error ${res.status}:`, errorText);
-      return NextResponse.json(
-        { error: `Failed to fetch file: ${errorText}` },
-        { status: res.status }
+    if (!startFetch.response.ok) {
+      console.error(`[File Detail] Backend error ${startFetch.response.status}:`, startFetch.text);
+      const res = NextResponse.json(
+        { error: `Failed to fetch file: ${startFetch.text}` },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    const data = await res.json();
-    console.log(`[File Detail] Success for file ${params.id}`); // Debug log
-    return NextResponse.json(data, { status: 200 });
-  } catch (error) {
-    console.error("[File Detail Route] Error:", error);
+    const data = startFetch.text ? JSON.parse(startFetch.text) : null;
+    console.log(`[File Detail] Success for file ${id}`);
+
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    console.error("[File Detail Route] Error:", error?.message || String(error));
+
     return NextResponse.json(
-      { error: `Failed to fetch file details: ${(error as Error).message}` },
-      { status: 500 }
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t.clear();
   }
 }
 
-// DELETE handler remains the same...
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
+  const { id } = await params;
 
+  const t = withTimeout(15000);
   try {
-    const url = `${BASE_URL}/files/${params.id}/delete/`;
-    const res = await fetchWithTimeout(url, {
+    const path = `/code-ide/api/ide/files/${id}/delete/`;
+
+    const startFetch = await djangoFetch(path, {
       method: "DELETE",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 15000,
+      signal: t.signal,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      return NextResponse.json(
-        { error: `Delete failed: ${errorText}` },
-        { status: res.status }
-      );
+    // Some backends return 204 on delete
+    if (startFetch.response.status === 204) {
+      const res = new NextResponse(null, { status: 204 });
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    return new NextResponse(null, { status: 204 });
-  } catch (error) {
-    console.error("[File Delete Route] Error:", error);
+    if (!startFetch.response.ok) {
+      const res = NextResponse.json(
+        { error: `Delete failed: ${startFetch.text}` },
+        { status: startFetch.response.status }
+      );
+      return attachSetCookie(res, startFetch.setCookie);
+    }
+
+    // Normalize to 204 even if backend returns 200
+    const res = new NextResponse(null, { status: 204 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    console.error("[File Delete Route] Error:", error?.message || String(error));
+
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t.clear();
   }
 }

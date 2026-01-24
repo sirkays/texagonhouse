@@ -1,38 +1,47 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+function parseJsonSafely(text: string) {
   try {
-    const res = await fetch(`${BASE_URL}/api/admin/dashboard/summary/`, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
 
-    const data = await res.json();
+export async function GET(_request: Request) {
+  try {
+    // This endpoint lives under /orgs (matches original BASE_URL=/orgs)
+    const { response, text, setCookie } = await djangoFetch(
+      "/orgs/api/admin/dashboard/summary/",
+      { method: "GET" }
+    );
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+    const data = parseJsonSafely(text);
+
+    if (!response.ok) {
+      const msg =
+        data?.detail ||
+        data?.error ||
+        data?.message ||
+        "Failed to fetch data";
+
+      const res = NextResponse.json(
+        { error: msg },
+        { status: response.status }
       );
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Dashboard Summary] Error fetching data:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

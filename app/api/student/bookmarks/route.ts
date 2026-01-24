@@ -1,310 +1,199 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+const NO_STORE_HEADERS = {
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
 
-export async function GET(req) {
-  noStore();
-  const endpoint = "/api/bookmarks/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
+function safeJsonParse<T = any>(raw: string): { ok: true; data: T } | { ok: false } {
+  try {
+    if (!raw) return { ok: true, data: null as any };
+    return { ok: true, data: JSON.parse(raw) as T };
+  } catch {
+    return { ok: false };
   }
+}
+
+function normalizeBookmark(b: any) {
+  if (!b || typeof b !== "object") return b;
+  return { ...b, lessonId: b.lesson, lesson: undefined };
+}
+
+function normalizeBookmarkList(list: any) {
+  if (!Array.isArray(list)) return list;
+  return list.map(normalizeBookmark);
+}
+
+const endpoint = "/api/bookmarks/";
+
+// -------------------------
+// GET
+// -------------------------
+export async function GET(_req: Request) {
+  noStore();
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      headers: headers(session.user.sessionToken),
-    });
-
+    const { response, text, setCookie } = await djangoFetch(endpoint, { method: "GET" });
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
-      console.error(
-        "[Bookmarks API] Fetch failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
+      console.error("[Bookmarks API] Fetch failed:", response.status, (text || "").slice(0, 100));
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
+        const res = NextResponse.json({ error: "Session expired" }, { status: 401, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } });
+        return attachSetCookie(res, setCookie);
       }
+
       if (response.status === 403) {
-        return NextResponse.json(
-          {error: "Forbidden: No student profile"},
-          {
-            status: 403,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+        const res = NextResponse.json(
+          { error: "Forbidden: No student profile" },
+          { status: 403, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
         );
+        return attachSetCookie(res, setCookie);
       }
+
       if (response.status === 404) {
-        return NextResponse.json(
-          {error: "Bookmarks endpoint not found"},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
+        const res = NextResponse.json(
+          { error: "Bookmarks endpoint not found" },
+          { status: 404, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
         );
+        return attachSetCookie(res, setCookie);
       }
-      return NextResponse.json(
-        {error: "Failed to fetch bookmarks"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+
+      const res = NextResponse.json(
+        { error: "Failed to fetch bookmarks" },
+        { status: response.status, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
     if (!contentType.includes("application/json")) {
       console.error("[Bookmarks API] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[Bookmarks API] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+    const parsed = safeJsonParse<any>(text);
+    if (!parsed.ok) {
+      const res = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    // Normalize lesson to lessonId
-    const normalizedData = data.map((bookmark) => ({
-      ...bookmark,
-      lessonId: bookmark.lesson,
-      lesson: undefined, // Remove lesson to avoid confusion
-    }));
+    const normalizedData = normalizeBookmarkList(parsed.data);
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
-  } catch (error) {
+    const res = NextResponse.json(normalizedData, { status: 200, headers: NO_STORE_HEADERS });
+    return attachSetCookie(res, setCookie);
+  } catch (error: any) {
     console.error("[Bookmarks API] Fetch error:", error);
     return NextResponse.json(
-      {error: "Failed to fetch bookmarks", details: error.message},
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to fetch bookmarks", details: error?.message },
+      { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 }
 
-export async function POST(req) {
+// -------------------------
+// POST
+// -------------------------
+export async function POST(req: Request) {
   noStore();
-  const endpoint = "/api/bookmarks/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (error: any) {
     return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Invalid JSON body", details: error?.message },
+      { status: 400, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 
   try {
-    const body = await req.json();
-
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "POST",
-      headers: headers(session.user.sessionToken),
       body: JSON.stringify(body),
     });
 
     const contentType = response.headers.get("content-type") || "";
 
-    const rawResponse = await response.text();
-
     if (!response.ok) {
-      console.error(
-        "[Bookmarks API] POST failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
-      let errorData;
-      try {
-        errorData = JSON.parse(rawResponse);
-      } catch {
-        errorData = {error: "Invalid response format"};
-      }
-      return NextResponse.json(errorData, {
+      console.error("[Bookmarks API] POST failed:", response.status, (text || "").slice(0, 100));
+
+      const parsedErr = safeJsonParse<any>(text);
+      const errPayload = parsedErr.ok && parsedErr.data ? parsedErr.data : { error: "Invalid response format" };
+
+      const res = NextResponse.json(errPayload, {
         status: response.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
+        headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" },
       });
+      return attachSetCookie(res, setCookie);
     }
 
     if (!contentType.includes("application/json")) {
       console.error("[Bookmarks API] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[Bookmarks API] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+    const parsed = safeJsonParse<any>(text);
+    if (!parsed.ok) {
+      const res = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    // Normalize lesson to lessonId
-    const normalizedData = {
-      ...data,
-      lessonId: data.lesson,
-      lesson: undefined,
-    };
+    const normalizedData = normalizeBookmark(parsed.data);
 
-    return NextResponse.json(normalizedData, {
-      status: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
-  } catch (error) {
+    const res = NextResponse.json(normalizedData, { status: 201, headers: NO_STORE_HEADERS });
+    return attachSetCookie(res, setCookie);
+  } catch (error: any) {
     console.error("[Bookmarks API] POST error:", error);
     return NextResponse.json(
-      {error: "Failed to create bookmark", details: error.message},
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to create bookmark", details: error?.message },
+      { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 }
 
-export async function PATCH(req) {
+// -------------------------
+// PATCH
+// -------------------------
+export async function PATCH(req: Request) {
   noStore();
-  const endpoint = "/api/bookmarks/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (error: any) {
     return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Invalid JSON body", details: error?.message },
+      { status: 400, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 
   try {
-    const body = await req.json();
-
-    // Append bookmark ID to URL
-    const response = await fetch(`${fullUrl}${body.id}/`, {
+    const { response, text, setCookie } = await djangoFetch(`${endpoint}${body.id}/`, {
       method: "PATCH",
-      headers: headers(session.user.sessionToken),
       body: JSON.stringify({
         lesson: body.lesson,
         note: body.note,
@@ -314,168 +203,94 @@ export async function PATCH(req) {
 
     const contentType = response.headers.get("content-type") || "";
 
-    const rawResponse = await response.text();
-
     if (!response.ok) {
-      console.error(
-        "[Bookmarks API] PATCH failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
-      let errorData;
-      try {
-        errorData = JSON.parse(rawResponse);
-      } catch {
-        errorData = {error: "Invalid response format"};
-      }
-      return NextResponse.json(errorData, {
+      console.error("[Bookmarks API] PATCH failed:", response.status, (text || "").slice(0, 100));
+
+      const parsedErr = safeJsonParse<any>(text);
+      const errPayload = parsedErr.ok && parsedErr.data ? parsedErr.data : { error: "Invalid response format" };
+
+      const res = NextResponse.json(errPayload, {
         status: response.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
+        headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" },
       });
+      return attachSetCookie(res, setCookie);
     }
 
     if (!contentType.includes("application/json")) {
       console.error("[Bookmarks API] Non-JSON response received:", contentType);
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[Bookmarks API] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+    const parsed = safeJsonParse<any>(text);
+    if (!parsed.ok) {
+      const res = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    // Normalize lesson to lessonId
-    const normalizedData = {
-      ...data,
-      lessonId: data.lesson,
-      lesson: undefined,
-    };
+    const normalizedData = normalizeBookmark(parsed.data);
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
-  } catch (error) {
+    const res = NextResponse.json(normalizedData, { status: 200, headers: NO_STORE_HEADERS });
+    return attachSetCookie(res, setCookie);
+  } catch (error: any) {
     console.error("[Bookmarks API] PATCH error:", error);
     return NextResponse.json(
-      {error: "Failed to update bookmark", details: error.message},
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to update bookmark", details: error?.message },
+      { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 }
 
-export async function DELETE(req) {
+// -------------------------
+// DELETE
+// -------------------------
+export async function DELETE(req: Request) {
   noStore();
-  const endpoint = "/api/bookmarks/";
-  const body = await req.json();
-  const fullUrl = `${BASE_URL}${endpoint}${body.id}/`;
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (error: any) {
     return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Invalid JSON body", details: error?.message },
+      { status: 400, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(`${endpoint}${body.id}/`, {
       method: "DELETE",
-      headers: headers(session.user.sessionToken),
     });
 
-    const contentType = response.headers.get("content-type") || "";
-
-    const rawResponse = await response.text();
-
     if (!response.ok) {
-      console.error(
-        "[Bookmarks API] DELETE failed:",
-        response.status,
-        rawResponse.slice(0, 100)
-      );
-      let errorData;
-      try {
-        errorData = JSON.parse(rawResponse);
-      } catch {
-        errorData = {error: "Invalid response format"};
-      }
-      return NextResponse.json(errorData, {
+      console.error("[Bookmarks API] DELETE failed:", response.status, (text || "").slice(0, 100));
+
+      const parsedErr = safeJsonParse<any>(text);
+      const errPayload = parsedErr.ok && parsedErr.data ? parsedErr.data : { error: "Invalid response format" };
+
+      const res = NextResponse.json(errPayload, {
         status: response.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
+        headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" },
       });
+      return attachSetCookie(res, setCookie);
     }
 
-    return NextResponse.json(
-      {message: "Bookmark deleted successfully"},
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
+    const res = NextResponse.json(
+      { message: "Bookmark deleted successfully" },
+      { status: 200, headers: NO_STORE_HEADERS }
     );
-  } catch (error) {
+    return attachSetCookie(res, setCookie);
+  } catch (error: any) {
     console.error("[Bookmarks API] DELETE error:", error);
     return NextResponse.json(
-      {error: "Failed to delete bookmark", details: error.message},
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { error: "Failed to delete bookmark", details: error?.message },
+      { status: 500, headers: { ...NO_STORE_HEADERS, "Cache-Control": "no-store" } }
     );
   }
 }

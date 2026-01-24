@@ -1,146 +1,123 @@
 // app/api/classrooms/[id]/route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+type Ctx = { params: Promise<{ id: string }> | { id: string } };
 
-async function getSession() {
-  return await getServerSession(authOptions);
-}
-
-export async function GET(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+function parseJsonSafely(text: string) {
   try {
-    const {id} = params;
-
-    if (!id) {
-      return NextResponse.json(
-        {error: "Classroom ID is required"},
-        {status: 400}
-      );
-    }
-
-    const res = await fetch(`${BASE_URL}/api/classrooms/${id}/`, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch classroom"},
-        {status: res.status}
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error("[Route] Error fetching classroom:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function GET(_request: NextRequest, ctx: Ctx) {
   try {
-    const body = await request.json();
-
-    const {id} = params;
+    const { id } = await Promise.resolve(ctx.params);
 
     if (!id) {
-      return NextResponse.json(
-        {error: "Classroom ID is required"},
-        {status: 400}
-      );
+      return NextResponse.json({ error: "Classroom ID is required" }, { status: 400 });
     }
 
-    const res = await fetch(`${BASE_URL}/api/classrooms/${id}/`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: JSON.stringify(body),
-    });
+    // NOTE: not under /orgs
+    const { response, text, setCookie } = await djangoFetch(
+      `/api/classrooms/${encodeURIComponent(id)}/`,
+      { method: "GET" }
+    );
 
-    const data = await res.json();
+    const data = parseJsonSafely(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to update classroom"},
-        {status: res.status}
-      );
+    if (!response.ok) {
+      const msg =
+        data?.detail || data?.error || data?.message || "Failed to fetch classroom";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error("[Route] Error updating classroom:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Classroom GET] Error fetching classroom:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function PATCH(request: NextRequest, ctx: Ctx) {
   try {
-    const {id} = params;
+    const { id } = await Promise.resolve(ctx.params);
 
     if (!id) {
-      return NextResponse.json(
-        {error: "Classroom ID is required"},
-        {status: 400}
-      );
+      return NextResponse.json({ error: "Classroom ID is required" }, { status: 400 });
     }
 
-    const res = await fetch(`${BASE_URL}/api/classrooms/${id}/`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-
-      return NextResponse.json(
-        {error: data.detail || "Failed to delete classroom"},
-        {status: res.status}
-      );
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
 
-    return new NextResponse(null, {status: 204});
+    const { response, text, setCookie } = await djangoFetch(
+      `/api/classrooms/${encodeURIComponent(id)}/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }
+    );
+
+    const data = parseJsonSafely(text);
+
+    if (!response.ok) {
+      const msg =
+        data?.detail || data?.error || data?.message || "Failed to update classroom";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
+    }
+
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error("[Route] Error deleting classroom:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Classroom PATCH] Error updating classroom:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: NextRequest, ctx: Ctx) {
+  try {
+    const { id } = await Promise.resolve(ctx.params);
+
+    if (!id) {
+      return NextResponse.json({ error: "Classroom ID is required" }, { status: 400 });
+    }
+
+    const { response, text, setCookie } = await djangoFetch(
+      `/api/classrooms/${encodeURIComponent(id)}/`,
+      { method: "DELETE" }
+    );
+
+    if (!response.ok) {
+      const data = parseJsonSafely(text);
+      const msg =
+        data?.detail || data?.error || data?.message || "Failed to delete classroom";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
+    }
+
+    // ✅ 204 no content
+    const res = new NextResponse(null, { status: 204 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
+  } catch (error) {
+    console.error("[Classroom DELETE] Error deleting classroom:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

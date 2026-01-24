@@ -1,64 +1,64 @@
 // app/api/students/[id]/avatar/route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+type Ctx = { params: Promise<{ id: string }> | { id: string } };
 
-async function getSession() {
-  return await getServerSession(authOptions);
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
-export async function POST(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function POST(request: NextRequest, ctx: Ctx) {
   try {
-    const {id} = params;
-    const formData = await request.formData();
-    const file = formData.get("image") as File;
+    const { id } = await Promise.resolve(ctx.params);
 
-    if (!file || !id) {
+    if (!id) {
+      return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
+    }
+
+    const formData = await request.formData();
+    const file = formData.get("image") as File | null;
+
+    if (!file) {
       return NextResponse.json(
-        {error: "Student ID and image file are required"},
-        {status: 400}
+        { error: "Student ID and image file are required" },
+        { status: 400 }
       );
     }
 
+    // Rebuild FormData for forwarding
     const uploadFormData = new FormData();
     uploadFormData.append("image", file);
 
-    const res = await fetch(
-      `${BASE_URL}/api/admin/students/${id}/set-avatar/`,
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/admin/students/${encodeURIComponent(id)}/set-avatar/`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Api-Key ${API_KEY}`,
-          "X-Session-Token": session.user.sessionToken,
-        },
         body: uploadFormData,
+        // IMPORTANT: do NOT set Content-Type; fetch will set multipart boundary
       }
     );
 
-    const data = await res.json();
+    const data = parseJsonSafely(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to upload avatar"},
-        {status: res.status}
-      );
+    if (!response.ok) {
+      const msg =
+        data?.detail || data?.error || data?.message || "Failed to upload avatar";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error("[Route] Error uploading avatar:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Student Avatar POST] Error uploading avatar:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,62 +1,52 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-
-//const BASE_URL = "https://127.0.0.1:9098/orgs";
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
-}
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
-    const invoicesPage = searchParams.get("invoices_page") || "1";
-    const invoicesPageSize = searchParams.get("invoices_page_size") || "10";
-    const invoicesSearch = searchParams.get("invoices_search") || "";
+    const { searchParams } = new URL(request.url);
 
-    // Build query parameters
-    const queryParams = new URLSearchParams({
+    const invoicesPage = searchParams.get("invoices_page") ?? "1";
+    const invoicesPageSize = searchParams.get("invoices_page_size") ?? "10";
+    const invoicesSearch = searchParams.get("invoices_search") ?? "";
+
+    const query = new URLSearchParams({
       invoices_page: invoicesPage,
       invoices_page_size: invoicesPageSize,
     });
 
-    if (invoicesSearch) {
-      queryParams.append("invoices_search", invoicesSearch);
+    if (invoicesSearch.trim()) {
+      query.set("invoices_search", invoicesSearch.trim());
     }
 
-    const url = `${BASE_URL}/api/admin/billing/dashboard?${queryParams.toString()}`;
-
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch billing dashboard"},
-        {status: res.status}
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error(
-      "[Billing Dashboard Route] Error fetching billing dashboard:",
-      error
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/admin/billing/dashboard?${query.toString()}`,
+      { method: "GET" }
     );
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+
+    // Try JSON first; fall back to text
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { detail: text };
+    }
+
+    if (!response.ok) {
+      const msg =
+        data?.detail ||
+        data?.error ||
+        "Failed to fetch billing dashboard";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
+    }
+
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
+  } catch (error) {
+    console.error("[Billing Dashboard Route] Error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

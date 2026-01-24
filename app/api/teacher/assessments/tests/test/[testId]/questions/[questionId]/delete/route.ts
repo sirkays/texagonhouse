@@ -1,63 +1,60 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse<T = unknown>(text: string): T | null {
+  try {
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
 
-const headers = (sessionToken: string) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  "X-Session-Token": sessionToken,
-});
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 export async function DELETE(
-  req: Request,
-  context: {params: Promise<{testId: string; questionId: string}>}
+  _req: Request,
+  context: { params: Promise<{ testId: string; questionId: string }> }
 ) {
   noStore();
-  const params = await context.params;
-  const endpoint = `/assessments/api/teacher/tests/${params.testId}/questions/${params.questionId}/delete/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const session = await getServerSession(authOptions);
+  const { testId, questionId } = await context.params;
 
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
+  const t = withTimeout(15000);
 
   try {
-    const response = await fetch(fullUrl, {
-      method: "DELETE",
-      headers: headers(session.user.sessionToken),
-    });
+    const startFetch = await djangoFetch(
+      `/assessments/api/teacher/tests/${testId}/questions/${questionId}/delete/`,
+      {
+        method: "DELETE",
+        signal: t.signal,
+      }
+    );
 
-    const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
+    const contentType =
+      startFetch.response.headers.get("content-type") || "";
+    const rawResponse = startFetch.text || "";
 
-    if (!response.ok) {
+    if (!startFetch.response.ok) {
       console.error(
         "[QuestionDeleteAPI] Request failed:",
-        response.status,
+        startFetch.response.status,
         rawResponse.slice(0, 100)
       );
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
+
+      if (startFetch.response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired" },
           {
             status: 401,
             headers: {
@@ -66,10 +63,12 @@ export async function DELETE(
             },
           }
         );
+        return attachSetCookie(res, startFetch.setCookie);
       }
-      if (response.status === 404) {
-        return NextResponse.json(
-          {error: "Question not found"},
+
+      if (startFetch.response.status === 404) {
+        const res = NextResponse.json(
+          { error: "Question not found" },
           {
             status: 404,
             headers: {
@@ -78,17 +77,26 @@ export async function DELETE(
             },
           }
         );
+        return attachSetCookie(res, startFetch.setCookie);
       }
-      return NextResponse.json(
-        {error: "Failed to delete question"},
+
+      const parsedErr = safeJsonParse<any>(rawResponse);
+      const msg =
+        parsedErr?.detail ||
+        parsedErr?.error ||
+        "Failed to delete question";
+
+      const res = NextResponse.json(
+        { error: msg, raw: rawResponse },
         {
-          status: response.status,
+          status: startFetch.response.status,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
     if (!contentType.includes("application/json")) {
@@ -96,61 +104,68 @@ export async function DELETE(
         "[QuestionDeleteAPI] Non-JSON response received:",
         contentType
       );
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
+
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
         {
-          status: 500,
+          status: 502,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[QuestionDeleteAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
+    const data = safeJsonParse<any>(rawResponse);
+    if (data === null) {
+      const res = NextResponse.json(
+        { error: "Invalid response format", raw: rawResponse.slice(0, 300) },
         {
-          status: 500,
+          status: 502,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    // Validate and transform response
     const processedData = {
       message: data.message || "Question deleted successfully.",
     };
 
-    return NextResponse.json(processedData, {
+    const res = NextResponse.json(processedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
     });
-  } catch (error) {
+
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[QuestionDeleteAPI] Request error:", error);
+
     return NextResponse.json(
-      {error: "Failed to delete question", details: (error as Error).message},
       {
-        status: 500,
+        error: isTimeout ? "Connection timeout" : "Failed to delete question",
+        details: error?.message || String(error),
+      },
+      {
+        status: isTimeout ? 504 : 500,
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
         },
       }
     );
+  } finally {
+    t.clear();
   }
 }

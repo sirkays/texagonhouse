@@ -1,91 +1,81 @@
 // app/api/students/route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function getSession() {
-  return await getServerSession(authOptions);
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
+    const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
-    const url = queryString
-      ? `${BASE_URL}/api/admin/students/?${queryString}`
-      : `${BASE_URL}/api/admin/students/`;
 
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-      },
-    });
+    const path = queryString
+      ? `/orgs/api/admin/students/?${queryString}`
+      : `/orgs/api/admin/students/`;
 
-    const data = await res.json();
+    const { response, text, setCookie } = await djangoFetch(path, { method: "GET" });
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
-      );
+    const data = parseJsonSafely(text);
+
+    if (!response.ok) {
+      const msg =
+        data?.detail || data?.error || data?.message || "Failed to fetch data";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Students GET] Error fetching data:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
     const body = await request.json();
 
-    if (!body.name || !body.email || !body.admissionNo || !body.classroom) {
+    if (!body?.name || !body?.email || !body?.admissionNo || !body?.classroom) {
       return NextResponse.json(
-        {error: "Name, email, admissionNo, and classroom are required"},
-        {status: 400}
+        { error: "Name, email, admissionNo, and classroom are required" },
+        { status: 400 }
       );
     }
 
-    const res = await fetch(`${BASE_URL}/api/admin/students/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      body: JSON.stringify(body),
-    });
+    const { response, text, setCookie } = await djangoFetch(
+      `/orgs/api/admin/students/`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
 
-    const data = await res.json();
+    const data = parseJsonSafely(text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to create student"},
-        {status: res.status}
-      );
+    if (!response.ok) {
+      const msg =
+        data?.detail || data?.error || data?.message || "Failed to create student";
+
+      const res = NextResponse.json({ error: msg }, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
 
-    return NextResponse.json(data, {status: 201});
+    const res = NextResponse.json(data, { status: 201 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   } catch (error) {
-    console.error("[Route] Error creating student:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Students POST] Error creating student:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

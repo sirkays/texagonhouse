@@ -1,55 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { djangoFetch } from "@/app/api/_lib/proxy";
+
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+  try {
+    const body = await req.json();
+    const { email, other_email, action, relationship } = body ?? {};
 
-    if (!session || !session.user || !session.user.sessionToken) {
-        return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+    // Basic validation
+    if (!email || !other_email || !action) {
+      return NextResponse.json(
+        { detail: "Missing required fields: email, other_email, action" },
+        { status: 400 }
+      );
     }
 
-    try {
-        const body = await req.json();
-        const { email, other_email, action, relationship } = body;
+    // NOTE: this endpoint is NOT under /orgs (it’s /accounts/...)
+    const { response, text, setCookie } = await djangoFetch(
+      "/accounts/api/update-parent-child-link/",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          other_email,
+          action,
+          relationship: relationship || "Parent",
+        }),
+      }
+    );
 
-        // Basic validation
-        if (!email || !other_email || !action) {
-            return NextResponse.json(
-                { detail: "Missing required fields: email, other_email, action" },
-                { status: 400 }
-            );
-        }
+    const data = parseJsonSafely(text) ?? { detail: text };
 
-        const apiUrl = "https://texagonbackend.onrender.com/accounts/api/update-parent-child-link/";
-
-        const res = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Api-Key ${process.env.TEXAGON_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"}`,
-                "X-Session-Token": session.user.sessionToken,
-            },
-            body: JSON.stringify({
-                email,
-                other_email,
-                action,
-                relationship: relationship || "Parent", // Default to "Parent" if not provided
-            }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            return NextResponse.json(data, { status: res.status });
-        }
-
-        return NextResponse.json(data, { status: 200 });
-    } catch (error: any) {
-        console.error("Parent-Child Link API Error:", error);
-        return NextResponse.json(
-            { detail: error.message || "Internal Server Error" },
-            { status: 500 }
-        );
+    if (!response.ok) {
+      const res = NextResponse.json(data, { status: response.status });
+      if (setCookie) res.headers.set("set-cookie", setCookie);
+      return res;
     }
+
+    const res = NextResponse.json(data, { status: 200 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
+  } catch (error: any) {
+    console.error("Parent-Child Link API Error:", error);
+    return NextResponse.json(
+      { detail: error?.message || "Internal Server Error" },
+      { status: 500 }
+    );
+  }
 }

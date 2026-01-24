@@ -1,40 +1,35 @@
 // app/api/teacher/overview/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
+export async function GET() {
   try {
-    const res = await fetch(`${BASE_URL}/accounts/api/teacher/overview/`, {
-      headers: {
-        "X-Session-Token": session.user.sessionToken,
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const { response, text, setCookie } = await djangoFetch(
+      "/accounts/api/teacher/overview/",
+      { method: "GET" }
+    );
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: "Failed to fetch data"},
-        {status: res.status}
-      );
+    // Try to parse JSON, but don't crash if backend returns non-JSON
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
     }
 
-    return NextResponse.json(data);
+    const nextRes = NextResponse.json(
+      response.ok ? data : { error: data?.error ?? "Failed to fetch data", details: data },
+      { status: response.status }
+    );
+
+    // Forward Django session cookie back to browser (if present)
+    if (setCookie) {
+      nextRes.headers.set("set-cookie", setCookie);
+    }
+
+    return nextRes;
   } catch (error) {
-    console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[teacher/overview] Error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

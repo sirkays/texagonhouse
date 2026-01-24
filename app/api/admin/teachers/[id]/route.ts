@@ -1,125 +1,103 @@
 // app/api/admin/teachers/[id]/route.ts
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest, NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com/orgs";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+type Ctx = { params: Promise<{ id: string }> | { id: string } };
 
-async function getSession() {
-  return await getServerSession(authOptions);
+function parseJsonSafely(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function handleRequest(
   request: NextRequest,
-  method: string,
-  id: string,
-  sessionToken: string
+  method: "GET" | "PATCH" | "DELETE",
+  id: string
 ) {
+  if (!id) {
+    return NextResponse.json({ error: "Teacher ID is required" }, { status: 400 });
+  }
+
   const contentType = request.headers.get("content-type") || "";
-  let fetchBody: BodyInit | null = null;
-  let headers: HeadersInit = {
-    Authorization: `Api-Key ${API_KEY}`,
-    "X-Session-Token": sessionToken,
-  };
+  let body: BodyInit | undefined = undefined;
 
-  if (method === "DELETE") {
-    // no body or additional headers
-  } else if (contentType.includes("multipart/form-data")) {
-    const formData = await request.formData();
-    fetchBody = formData;
-    // FormData sets its own Content-Type
-  } else if (method !== "GET") {
-    // PATCH json
-    const jsonBody = await request.json();
-    fetchBody = JSON.stringify(jsonBody);
-    headers["Content-Type"] = "application/json";
-  } // GET has no body
+  if (method === "PATCH") {
+    if (contentType.includes("multipart/form-data")) {
+      body = await request.formData();
+    } else {
+      let jsonBody: unknown;
+      try {
+        jsonBody = await request.json();
+      } catch {
+        return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+      }
+      body = JSON.stringify(jsonBody);
+    }
+  }
 
-  const url = `${BASE_URL}/api/admin/teachers/${id}/`;
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: fetchBody,
-  });
+  const { response, text, setCookie } = await djangoFetch(
+    `/orgs/api/admin/teachers/${encodeURIComponent(id)}/`,
+    {
+      method,
+      ...(method === "PATCH" ? { body } : {}),
+    }
+  );
 
-  if (!res.ok) {
-    const data = await res.json();
-    return NextResponse.json(
-      {error: data.detail || `Failed to ${method.toLowerCase()} teacher`},
-      {status: res.status}
-    );
+  if (!response.ok) {
+    const data = parseJsonSafely(text);
+    const msg =
+      data?.detail ||
+      data?.error ||
+      data?.message ||
+      `Failed to ${method.toLowerCase()} teacher`;
+
+    const res = NextResponse.json({ error: msg }, { status: response.status });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   }
 
   if (method === "DELETE") {
-    return new NextResponse(null, {status: 204});
+    const res = new NextResponse(null, { status: 204 });
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+    return res;
   }
 
-  const data = await res.json();
-  return NextResponse.json(data);
+  const data = parseJsonSafely(text) ?? { detail: text };
+
+  const res = NextResponse.json(data, { status: 200 });
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
-export async function GET(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
+export async function GET(request: NextRequest, ctx: Ctx) {
   try {
-    return await handleRequest(request, "GET", id, session.user.sessionToken);
+    const { id } = await Promise.resolve(ctx.params);
+    return await handleRequest(request, "GET", id);
   } catch (error) {
-    console.error("[Route] Error fetching teacher:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Teacher GET] Error fetching teacher:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
+export async function PATCH(request: NextRequest, ctx: Ctx) {
   try {
-    return await handleRequest(request, "PATCH", id, session.user.sessionToken);
+    const { id } = await Promise.resolve(ctx.params);
+    return await handleRequest(request, "PATCH", id);
   } catch (error) {
-    console.error("[Route] Error updating teacher:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Teacher PATCH] Error updating teacher:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  {params}: {params: {id: string}}
-) {
-  const session = await getSession();
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
-  const {id} = params;
-
+export async function DELETE(request: NextRequest, ctx: Ctx) {
   try {
-    return await handleRequest(
-      request,
-      "DELETE",
-      id,
-      session.user.sessionToken
-    );
+    const { id } = await Promise.resolve(ctx.params);
+    return await handleRequest(request, "DELETE", id);
   } catch (error) {
-    console.error("[Route] Error deleting teacher:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    console.error("[Teacher DELETE] Error deleting teacher:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

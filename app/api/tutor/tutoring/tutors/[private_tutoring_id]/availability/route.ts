@@ -1,79 +1,65 @@
 // app/api/tutor/tutoring/tutors/[private_tutoring_id]/availability/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}
 
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+function jsonOrThrow(text: string) {
+  if (!text) return null;
+  return JSON.parse(text);
+}
 
 export async function GET(
   req: Request,
-  {params}: {params: {private_tutoring_id: string}}
+  { params }: { params: { private_tutoring_id: string } }
 ) {
   noStore();
-  const endpoint = `/api/tutor/tutoring/tutors/${params.private_tutoring_id}/availability/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401, headers: {"Cache-Control": "no-store"}}
-    );
-  }
-
   try {
-    const response = await fetch(fullUrl, {
+    const endpoint = `/api/tutor/tutoring/tutors/${params.private_tutoring_id}/availability/`;
+
+    const result = await djangoFetch(endpoint, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
     });
 
-    const contentType = response.headers.get("content-type") || "";
-    const raw = await response.text();
+    const contentType = result.response.headers.get("content-type") || "";
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401, headers: {"Cache-Control": "no-store"}}
+    if (!result.response.ok) {
+      if (result.response.status === 401) {
+        return attachSetCookie(
+          NextResponse.json({ error: "Session expired", redirect: "/login" }, { status: 401 }),
+          result.setCookie
         );
       }
-      if (response.status === 403) {
-        return NextResponse.json(
-          {error: "Access denied. Parent profile required."},
-          {status: 403, headers: {"Cache-Control": "no-store"}}
+      if (result.response.status === 403) {
+        return attachSetCookie(
+          NextResponse.json({ error: "Access denied. Parent profile required." }, { status: 403 }),
+          result.setCookie
         );
       }
-      return NextResponse.json(
-        {error: "Failed to fetch tutor availability"},
-        {status: response.status, headers: {"Cache-Control": "no-store"}}
+      return attachSetCookie(
+        NextResponse.json({ error: "Failed to fetch tutor availability" }, { status: result.response.status }),
+        result.setCookie
       );
     }
 
     if (!contentType.includes("application/json")) {
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500, headers: {"Cache-Control": "no-store"}}
+      return attachSetCookie(
+        NextResponse.json({ error: "Invalid response format" }, { status: 500 }),
+        result.setCookie
       );
     }
 
-    const data = JSON.parse(raw);
-    return NextResponse.json(data, {
-      status: 200,
-      headers: {"Cache-Control": "no-store"},
-    });
+    const data = jsonOrThrow(result.text);
+    return attachSetCookie(NextResponse.json(data, { status: 200 }), result.setCookie);
   } catch (error) {
     return NextResponse.json(
-      {error: "Server error", details: (error as Error).message},
-      {status: 500, headers: {"Cache-Control": "no-store"}}
+      { error: "Server error", details: (error as Error).message },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

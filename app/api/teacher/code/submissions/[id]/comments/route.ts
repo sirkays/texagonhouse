@@ -1,63 +1,85 @@
 // app/code-ide/api/teacher/submissions/[id]/comments/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-export async function GET(request: Request, {params}: {params: {id: string}}) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const backendUrl = `${BASE_URL}/code-ide/api/teacher/submissions/${params.id}/comments/`;
-    const res = await fetch(backendUrl, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-        "Content-Type": "application/json",
-      },
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
-      );
+    const { response, text, setCookie } = await djangoFetch(
+      `/code-ide/api/teacher/submissions/${params.id}/comments/`,
+      { method: "GET" }
+    );
+
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
     }
-    return NextResponse.json(data);
+
+    if (!response.ok) {
+      const res = NextResponse.json(
+        { error: data?.detail || "Failed to fetch data" },
+        { status: response.status }
+      );
+      return attachSetCookie(res, setCookie);
+    }
+
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, setCookie);
   } catch (error) {
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
-export async function POST(request: Request, {params}: {params: {id: string}}) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const body = await request.json();
-    const backendUrl = `${BASE_URL}/code-ide/api/teacher/submissions/${params.id}/comments/`;
-    const res = await fetch(backendUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to create comment"},
-        {status: res.status}
-      );
+
+    const { response, text, setCookie } = await djangoFetch(
+      `/code-ide/api/teacher/submissions/${params.id}/comments/`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
+
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
     }
-    return NextResponse.json(data, {status: 201});
+
+    if (!response.ok) {
+      const res = NextResponse.json(
+        { error: data?.detail || "Failed to create comment" },
+        { status: response.status }
+      );
+      return attachSetCookie(res, setCookie);
+    }
+
+    const res = NextResponse.json(data, { status: 201 });
+    return attachSetCookie(res, setCookie);
   } catch (error) {
     console.error("[Route] Error posting data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

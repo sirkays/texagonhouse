@@ -1,49 +1,71 @@
-import {NextResponse} from "next/server";
-import {headers} from "next/headers";
+// app/api/media/image/[...path]/route.ts
+import { NextResponse } from "next/server";
+import { djangoFetchRaw } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
 
 export async function GET(
   request: Request,
-  {params}: {params: {path: string[]}}
+  { params }: { params: { path?: string[] } | Promise<{ path?: string[] }> }
 ) {
-  try {
-    const imagePath = params.path?.join("/") || "";
-    const fullUrl = `${BASE_URL}/${imagePath}`;
+  const { path = [] } = await params;
+  const imagePath = path.join("/");
 
-    const response = await fetch(fullUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Next.js Image Proxy)",
-        // Add API key if required by backend
-        Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-      },
-      cache: "force-cache", // Cache images
+  if (!imagePath) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // We only pass a RELATIVE path to proxy.ts
+  // proxy.ts already knows the BASE_URL and auth headers
+  const backendPath = `/${imagePath}`;
+
+  const t = withTimeout(15000);
+
+  try {
+    const result = await djangoFetchRaw(backendPath, {
+      method: "GET",
+      signal: t.signal,
+      // Forward Range if browser asks for it (some image viewers do)
+      headers: request.headers.get("range")
+        ? { Range: request.headers.get("range") as string }
+        : {},
     });
 
-    if (!response.ok) {
-      console.error(
-        "[Image Proxy] Backend returned:",
-        response.status,
-        fullUrl
-      );
-      // Return a placeholder or 404
-      return new NextResponse(null, {status: 404});
+    if (!result.response.ok) {
+      console.error("[Image Proxy] Backend returned:", result.response.status, backendPath);
+      return new NextResponse(null, { status: 404 });
     }
 
-    const buffer = await response.arrayBuffer();
-    const contentType = response.headers.get("content-type") || "image/png";
+    const contentType =
+      result.response.headers.get("content-type") || "image/png";
+    const contentLength =
+      result.response.headers.get("content-length");
 
-    return new NextResponse(buffer, {
+    // Stream binary data directly
+    const res = new NextResponse(result.response.body, {
+      status: result.response.status,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, s-maxage=86400", // 24h cache
-        "Content-Length": buffer.byteLength.toString(),
+        ...(contentLength ? { "Content-Length": contentLength } : {}),
+        "Cache-Control": "public, max-age=86400, s-maxage=86400", // 24h
         "Access-Control-Allow-Origin": "*",
       },
     });
-  } catch (error) {
-    console.error("[Image Proxy] Error:", error);
-    // Return a simple placeholder response
-    return new NextResponse(null, {status: 500});
+
+    // Forward any backend cookies (if ever set)
+    if (result.setCookie) res.headers.set("set-cookie", result.setCookie);
+
+    return res;
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    console.error("[Image Proxy] Error:", error?.message || String(error));
+
+    return new NextResponse(null, { status: isTimeout ? 504 : 500 });
+  } finally {
+    t.clear();
   }
 }

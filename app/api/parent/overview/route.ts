@@ -1,42 +1,59 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098";
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+  const t = withTimeout(12000);
 
   try {
-    const res = await fetch(
-      `${BASE_URL}/accounts/api/dashboard/parent/overview/`,
-      {
-        headers: {
-          Authorization: `Api-Key ${API_KEY}`,
-          "Content-Type": "application/json",
-          "X-Session-Token": session.user.sessionToken,
-        },
-      }
-    );
+    const startFetch = await djangoFetch(`/accounts/api/dashboard/parent/overview/`, {
+      method: "GET",
+      signal: t.signal,
+      // headers/session/cookies handled by proxy.ts
+    });
 
-    const data = await res.json();
+    const data = safeJsonParse(startFetch.text);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {error: data.detail || "Failed to fetch data"},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      const res = NextResponse.json(
+        { error: data?.detail || "Failed to fetch data", raw: startFetch.text },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    return NextResponse.json(data);
-  } catch (error) {
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[Route] Error fetching data:", error);
-    return NextResponse.json({error: "Internal server error"}, {status: 500});
+
+    return NextResponse.json(
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
   }
 }

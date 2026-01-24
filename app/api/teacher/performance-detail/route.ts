@@ -1,18 +1,7 @@
 // app/api/teacher/performance-detail/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098/assessments";
-const BASE_URL = "https://texagonbackend.onrender.com/assessments";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface Student {
   studentName: string;
@@ -46,114 +35,49 @@ interface PerformanceDetail {
 
 export async function GET(req: Request) {
   noStore();
-  const {searchParams} = new URL(req.url);
+
+  const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+
   if (!id) {
     return NextResponse.json(
-      {detail: "id required."},
-      {
-        status: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { detail: "id required." },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
-  const endpoint = `/api/student-detail/performance/?id=${id}`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
+  // Note: proxy.ts BASE_URL should be the domain only (no /assessments),
+  // so we include /assessments in the path here.
+  const endpoint = `/assessments/api/student-detail/performance/?id=${encodeURIComponent(
+    id
+  )}`;
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[TeacherPerformanceDetailAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
-      if (response.status === 400) {
-        return NextResponse.json(
-          {detail: "id required."},
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 403) {
-        return NextResponse.json(
-          {detail: "Forbidden."},
-          {
-            status: 403,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 404) {
-        return NextResponse.json(
-          {detail: "Not found."},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      return NextResponse.json(
-        {error: "Failed to fetch performance detail"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+
+      let payload: any = { error: "Failed to fetch performance detail" };
+
+      if (response.status === 400) payload = { detail: "id required." };
+      if (response.status === 401)
+        payload = { error: "Session expired", redirect: "/login" };
+      if (response.status === 403) payload = { detail: "Forbidden." };
+      if (response.status === 404) payload = { detail: "Not found." };
+
+      const nextRes = NextResponse.json(payload, { status: response.status });
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     if (!contentType.includes("application/json")) {
@@ -161,86 +85,77 @@ export async function GET(req: Request) {
         "[TeacherPerformanceDetailAPI] Non-JSON response received:",
         contentType
       );
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const nextRes = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     let data: PerformanceDetail;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? (JSON.parse(text) as PerformanceDetail) : ({} as any);
     } catch (parseError) {
       console.error(
         "[TeacherPerformanceDetailAPI] Failed to parse JSON:",
         parseError
       );
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+      const nextRes = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     const normalizedData: PerformanceDetail = {
       student: {
-        studentName: data.student.studentName || "",
-        studentId: data.student.studentId || "",
-        email: data.student.email || "",
-        classGrade: data.student.classGrade || "N/A",
+        studentName: data?.student?.studentName || "",
+        studentId: data?.student?.studentId || "",
+        email: data?.student?.email || "",
+        classGrade: data?.student?.classGrade || "N/A",
       },
       test: {
-        testTitle: data.test.testTitle || "",
-        score: data.test.score || 0,
-        totalMarks: data.test.totalMarks || 0,
-        percentage: data.test.percentage || 0,
-        status: data.test.status || "",
-        completionTime: data.test.completionTime || 0,
-        submittedAt: data.test.submittedAt || null,
+        testTitle: data?.test?.testTitle || "",
+        score: data?.test?.score || 0,
+        totalMarks: data?.test?.totalMarks || 0,
+        percentage: data?.test?.percentage || 0,
+        status: data?.test?.status || "",
+        completionTime: data?.test?.completionTime || 0,
+        submittedAt: data?.test?.submittedAt || null,
       },
-      answers: data.answers.map((answer) => ({
-        question: answer.question || "",
-        selected: answer.selected || "",
-        correct: answer.correct || "",
-        status: answer.status || "",
-      })),
+      answers: Array.isArray(data?.answers)
+        ? data.answers.map((answer) => ({
+            question: answer?.question || "",
+            selected: answer?.selected || "",
+            correct: answer?.correct || "",
+            status: answer?.status || "",
+          }))
+        : [],
     };
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    const nextRes = NextResponse.json(normalizedData, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    nextRes.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    nextRes.headers.set("Pragma", "no-cache");
+    nextRes.headers.set("Expires", "0");
+    return nextRes;
   } catch (error) {
     console.error("[TeacherPerformanceDetailAPI] Fetch error:", error);
-    return NextResponse.json(
+    const nextRes = NextResponse.json(
       {
         error: "Failed to fetch performance detail",
         details: (error as Error).message,
       },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { status: 500 }
     );
+    nextRes.headers.set("Cache-Control", "no-store");
+    return nextRes;
   }
 }

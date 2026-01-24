@@ -1,80 +1,86 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL =
-  "https://texagonbackend.onrender.com/gamification/api/leaderboard/";
-//const BASE_URL = "http://127.0.0.1:9098/gamification/api/leaderboard/";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function safeJsonParse<T = any>(text: string): T | null {
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
   }
 }
 
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
+
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found, session:", session);
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
-
   try {
-    const {searchParams} = new URL(request.url);
+    const { searchParams } = new URL(request.url);
     const topGlobal = searchParams.get("top_global") || "10";
     const topSchool = searchParams.get("top_school") || "10";
     const topWeekly = searchParams.get("top_weekly") || "10";
     const debug = searchParams.get("debug") || "0";
 
-    let url = `${BASE_URL}?top_global=${topGlobal}&top_school=${topSchool}&top_weekly=${topWeekly}`;
-    if (debug === "1" || debug === "true") {
-      url += "&debug=1";
+    let path = `/gamification/api/leaderboard/?top_global=${encodeURIComponent(
+      topGlobal
+    )}&top_school=${encodeURIComponent(topSchool)}&top_weekly=${encodeURIComponent(
+      topWeekly
+    )}`;
+
+    if (debug === "1" || debug === "true") path += `&debug=1`;
+
+    const t = withTimeout(80000);
+
+    try {
+      const { response, text, setCookie } = await djangoFetch(path, {
+        method: "GET",
+        signal: t.signal,
+      });
+
+      if (!response.ok) {
+        const parsed = safeJsonParse<any>(text);
+
+        const res = NextResponse.json(
+          {
+            error: "Failed to fetch leaderboard",
+            details: parsed?.detail || parsed?.error || (text || "").slice(0, 300),
+          },
+          { status: response.status }
+        );
+        return attachSetCookie(res, setCookie);
+      }
+
+      const data = safeJsonParse<any>(text);
+      if (data === null) {
+        const res = NextResponse.json(
+          { error: "Invalid response format", raw: (text || "").slice(0, 300) },
+          { status: 502 }
+        );
+        return attachSetCookie(res, setCookie);
+      }
+
+      const res = NextResponse.json(data, { status: 200 });
+      return attachSetCookie(res, setCookie);
+    } finally {
+      t.clear();
     }
-
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
-      timeout: 80000,
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      console.error("[Route] External API error response:", errorData);
-      return NextResponse.json(
-        {
-          error: "Failed to fetch leaderboard",
-          details: errorData.detail || errorData.error,
-        },
-        {status: res.status}
-      );
-    }
-
-    const data = await res.json();
-
-    return NextResponse.json(data, {status: 200});
-  } catch (error) {
-    console.error(
-      "[Route] Error fetching leaderboard:",
-      (error as Error).message
-    );
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    console.error("[Route] Error fetching leaderboard:", error?.message || String(error));
     return NextResponse.json(
-      {error: "Internal server error", details: (error as Error).message},
-      {status: 500}
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
   }
 }

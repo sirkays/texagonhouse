@@ -1,18 +1,7 @@
 // app/api/teacher/performance-list/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { unstable_noStore as noStore } from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098/assessments";
-const BASE_URL = "https://texagonbackend.onrender.com/assessments";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
-});
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface PerformanceItem {
   id: string;
@@ -42,111 +31,57 @@ interface PerformanceListResponse {
 
 export async function GET(req: Request) {
   noStore();
+
   const { searchParams } = new URL(req.url);
   const params = new URLSearchParams();
 
-  if (searchParams.get("test_id"))
-    params.append("test_id", searchParams.get("test_id")!);
-  if (searchParams.get("student_filter"))
-    params.append("student_filter", searchParams.get("student_filter")!);
-  if (searchParams.get("sort_field"))
-    params.append("sort_field", searchParams.get("sort_field")!);
-  if (searchParams.get("sort_order"))
-    params.append("sort_order", searchParams.get("sort_order")!);
-  if (searchParams.get("page"))
-    params.append("page", searchParams.get("page")!);
-  if (searchParams.get("limit"))
-    params.append("limit", searchParams.get("limit")!);
+  const passthroughKeys = [
+    "test_id",
+    "student_filter",
+    "sort_field",
+    "sort_order",
+    "page",
+    "limit",
+  ] as const;
 
-  const queryString = params.toString();
-  const endpoint = `/api/student-list/performance/${
-    queryString ? `?${queryString}` : ""
-  }`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      { error: "Not authenticated", redirect: "/login" },
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
+  for (const key of passthroughKeys) {
+    const val = searchParams.get(key);
+    if (val) params.append(key, val);
   }
 
+  const queryString = params.toString();
+
+  // Note: proxy.ts BASE_URL should be domain only, so include /assessments here.
+  const endpoint = `/assessments/api/student-list/performance/${
+    queryString ? `?${queryString}` : ""
+  }`;
+
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[TeacherPerformanceListAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
 
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Session expired", redirect: "/login" },
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
+      let payload: any = { error: "Failed to fetch performance list" };
 
-      if (response.status === 403) {
-        return NextResponse.json(
-          { error: "Forbidden" },
-          {
-            status: 403,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
+      if (response.status === 401)
+        payload = { error: "Session expired", redirect: "/login" };
+      if (response.status === 403) payload = { error: "Forbidden" };
+      if (response.status === 404)
+        payload = { error: "Performance list endpoint not found" };
 
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: "Performance list endpoint not found" },
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-
-      return NextResponse.json(
-        { error: "Failed to fetch performance list" },
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+      const nextRes = NextResponse.json(payload, { status: response.status });
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     if (!contentType.includes("application/json")) {
@@ -155,110 +90,96 @@ export async function GET(req: Request) {
         contentType
       );
 
-      return NextResponse.json(
+      const nextRes = NextResponse.json(
         { error: "Invalid response format, expected JSON" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     let data: PerformanceListResponse;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? (JSON.parse(text) as PerformanceListResponse) : ({} as any);
     } catch (parseError) {
       console.error(
         "[TeacherPerformanceListAPI] Failed to parse JSON:",
         parseError
       );
 
-      return NextResponse.json(
+      const nextRes = NextResponse.json(
         { error: "Invalid response format" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
-    if (!Array.isArray(data.performances)) {
+    if (!Array.isArray((data as any).performances)) {
       console.error(
         "[TeacherPerformanceListAPI] Response does not contain a performances array:",
         data
       );
 
-      return NextResponse.json(
+      const nextRes = NextResponse.json(
         { error: "Invalid response format, expected performances array" },
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     const normalizedPerformances: PerformanceItem[] = data.performances.map(
-      (item) => ({
-        id: item.id || "",
-        studentName: item.studentName || "",
-        studentId: item.studentId || "",
-        email: item.email || "",
-        classGrade: item.classGrade || "N/A",
-        score: item.score || 0,
-        totalMarks: item.totalMarks || 0,
-        percentage: item.percentage || 0,
-        completionTime: item.completionTime || 0,
-        status: item.status || "",
-        submittedAt: item.submittedAt || "",
-        testId: item.testId || "",
-        testTitle: item.testTitle || "",
+      (item: any) => ({
+        id: item?.id || "",
+        studentName: item?.studentName || "",
+        studentId: item?.studentId || "",
+        email: item?.email || "",
+        classGrade: item?.classGrade || "N/A",
+        score: item?.score || 0,
+        totalMarks: item?.totalMarks || 0,
+        percentage: item?.percentage || 0,
+        completionTime: item?.completionTime || 0,
+        status: item?.status || "",
+        submittedAt: item?.submittedAt || "",
+        testId: item?.testId || "",
+        testTitle: item?.testTitle || "",
       })
     );
 
     const normalizedData: PerformanceListResponse = {
       performances: normalizedPerformances,
       pagination: {
-        page: data.pagination.page || 1,
-        limit: data.pagination.limit || 10,
-        total: data.pagination.total || 0,
-        pages: data.pagination.pages || 1,
+        page: data?.pagination?.page || 1,
+        limit: data?.pagination?.limit || 10,
+        total: data?.pagination?.total || 0,
+        pages: data?.pagination?.pages || 1,
       },
     };
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    const nextRes = NextResponse.json(normalizedData, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    nextRes.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    nextRes.headers.set("Pragma", "no-cache");
+    nextRes.headers.set("Expires", "0");
+    return nextRes;
   } catch (error) {
     console.error("[TeacherPerformanceListAPI] Fetch error:", error);
 
-    return NextResponse.json(
+    const nextRes = NextResponse.json(
       {
         error: "Failed to fetch performance list",
         details: (error as Error).message,
       },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { status: 500 }
     );
+    nextRes.headers.set("Cache-Control", "no-store");
+    return nextRes;
   }
 }

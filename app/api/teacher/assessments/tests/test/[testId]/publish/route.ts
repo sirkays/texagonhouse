@@ -1,71 +1,82 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+function safeJsonParse<T = unknown>(text: string): T | null {
+  try {
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
 
-const headers = (sessionToken: string) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  "X-Session-Token": sessionToken,
-});
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
 export async function POST(
   req: Request,
-  context: {params: Promise<{testId: string}>}
+  context: { params: Promise<{ testId: string }> }
 ) {
   noStore();
-  const params = await context.params;
-  const endpoint = `/assessments/api/teacher/tests/${params.testId}/publish/`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const session = await getServerSession(authOptions);
+  const { testId } = await context.params;
 
-  if (!session?.user?.sessionToken) {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (error: any) {
     return NextResponse.json(
-      {error: "Not authenticated"},
+      { error: "Invalid JSON body", details: error?.message || String(error) },
       {
-        status: 401,
+        status: 400,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
+          "Cache-Control": "no-store",
         },
       }
     );
   }
 
+  // Validate and transform request body
+  const processedBody = {
+    isPublished: typeof body?.isPublished === "boolean" ? body.isPublished : false,
+  };
+
+  const t = withTimeout(20000);
+
   try {
-    const body = await req.json();
+    const startFetch = await djangoFetch(
+      `/assessments/api/teacher/tests/${testId}/publish/`,
+      {
+        method: "POST",
+        signal: t.signal,
+        body: JSON.stringify(processedBody),
+      }
+    );
 
-    // Validate and transform request body
-    const processedBody = {
-      isPublished:
-        typeof body.isPublished === "boolean" ? body.isPublished : false,
-    };
+    const contentType =
+      startFetch.response.headers.get("content-type") || "";
+    const rawResponse = startFetch.text || "";
 
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(session.user.sessionToken),
-      body: JSON.stringify(processedBody),
-    });
-
-    const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
-
-    if (!response.ok) {
+    if (!startFetch.response.ok) {
       console.error(
         "[TestPublishAPI] Request failed:",
-        response.status,
+        startFetch.response.status,
         rawResponse.slice(0, 100)
       );
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired"},
+
+      if (startFetch.response.status === 401) {
+        const res = NextResponse.json(
+          { error: "Session expired" },
           {
             status: 401,
             headers: {
@@ -74,10 +85,12 @@ export async function POST(
             },
           }
         );
+        return attachSetCookie(res, startFetch.setCookie);
       }
-      if (response.status === 404) {
-        return NextResponse.json(
-          {error: "Test not found"},
+
+      if (startFetch.response.status === 404) {
+        const res = NextResponse.json(
+          { error: "Test not found" },
           {
             status: 404,
             headers: {
@@ -86,51 +99,57 @@ export async function POST(
             },
           }
         );
+        return attachSetCookie(res, startFetch.setCookie);
       }
-      return NextResponse.json(
-        {error: "Failed to publish/unpublish test"},
+
+      const parsedErr = safeJsonParse<any>(rawResponse);
+      const msg =
+        parsedErr?.detail ||
+        parsedErr?.error ||
+        "Failed to publish/unpublish test";
+
+      const res = NextResponse.json(
+        { error: msg, raw: rawResponse },
         {
-          status: response.status,
+          status: startFetch.response.status,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
     if (!contentType.includes("application/json")) {
-      console.error(
-        "[TestPublishAPI] Non-JSON response received:",
-        contentType
-      );
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
+      console.error("[TestPublishAPI] Non-JSON response received:", contentType);
+
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
         {
-          status: 500,
+          status: 502,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
-      console.error("[TestPublishAPI] Failed to parse JSON:", parseError);
-      return NextResponse.json(
-        {error: "Invalid response format"},
+    const data = safeJsonParse<any>(rawResponse);
+    if (data === null) {
+      const res = NextResponse.json(
+        { error: "Invalid response format", raw: rawResponse.slice(0, 300) },
         {
-          status: 500,
+          status: 502,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           },
         }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
     // Validate and transform response to match test specification
@@ -152,20 +171,20 @@ export async function POST(
         end_at: data.test?.end_at || null,
         questions: Array.isArray(data.test?.questions)
           ? data.test.questions.map((q: any) => ({
-              id: q.id || "",
-              type: q.type || "",
-              question: q.question || "",
-              points: q.points || 0,
-              options: q.options || [],
-              explanation: q.explanation || "",
-              difficulty: q.difficulty || "Medium",
+              id: q?.id || "",
+              type: q?.type || "",
+              question: q?.question || "",
+              points: q?.points || 0,
+              options: q?.options || [],
+              explanation: q?.explanation || "",
+              difficulty: q?.difficulty || "Medium",
               correctAnswer:
-                q.correctAnswer ??
-                (q.type === "multiple-choice"
+                q?.correctAnswer ??
+                (q?.type === "multiple-choice"
                   ? 0
-                  : q.type === "true-false"
+                  : q?.type === "true-false"
                   ? false
-                  : q.type === "short-answer"
+                  : q?.type === "short-answer"
                   ? ""
                   : ""),
             }))
@@ -174,30 +193,35 @@ export async function POST(
       message: data.message || "Test published/unpublished successfully.",
     };
 
-    return NextResponse.json(processedData, {
+    const res = NextResponse.json(processedData, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
     });
-  } catch (error) {
+
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[TestPublishAPI] Request error:", error);
+
     return NextResponse.json(
       {
-        error: "Failed to publish/unpublish test",
-        details: (error as Error).message,
+        error: isTimeout ? "Connection timeout" : "Failed to publish/unpublish test",
+        details: error?.message || String(error),
       },
       {
-        status: 500,
+        status: isTimeout ? 504 : 500,
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
         },
       }
     );
+  } finally {
+    t.clear();
   }
 }

@@ -1,87 +1,76 @@
 // app/api/ide/submissions/[id]/comments/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-//const BASE_URL = "http://127.0.0.1:9098/code-ide/api/ide";
-const BASE_URL = "https://texagonbackend.onrender.com/code-ide/api/ide";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
 }
 
-export async function POST(request: Request, {params}: {params: {id: string}}) {
-  const session = await getServerSession(authOptions);
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
 
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] No session token found");
-    return NextResponse.json({error: "No session token"}, {status: 401});
-  }
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } | Promise<{ id: string }> }
+) {
+  const { id } = await params;
 
-  let body;
-
+  let body: any;
   try {
     body = await request.json();
-  } catch (err) {
-    console.error(
-      "[Route] Error parsing request body:",
-      (err as Error).message
-    );
+  } catch (err: any) {
+    console.error("[Route] Error parsing request body:", err?.message || String(err));
     return NextResponse.json(
-      {error: "Invalid request body", details: (err as Error).message},
-      {status: 400}
+      { error: "Invalid request body", details: err?.message || String(err) },
+      { status: 400 }
     );
   }
 
-  if (!body.message) {
+  if (!body?.message) {
     console.error("[Route] Missing required field: message");
-    return NextResponse.json({error: "Missing message"}, {status: 400});
+    return NextResponse.json({ error: "Missing message" }, { status: 400 });
   }
 
+  const t = withTimeout(20000);
   try {
-    const url = `${BASE_URL}/submissions/${params.id}/comments/`;
-
-    const res = await fetchWithTimeout(url, {
+    // backend: /code-ide/api/ide/submissions/{id}/comments/
+    const startFetch = await djangoFetch(`/code-ide/api/ide/submissions/${id}/comments/`, {
       method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Session-Token": session.user.sessionToken,
-      },
+      signal: t.signal,
       body: JSON.stringify(body),
-      timeout: 20000,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[Route] External API error response:", errorText);
-      return NextResponse.json(
-        {error: `Failed to add comment: ${errorText}`},
-        {status: res.status}
+    if (!startFetch.response.ok) {
+      console.error("[Route] External API error response (POST):", startFetch.text);
+      const res = NextResponse.json(
+        { error: `Failed to add comment: ${startFetch.text}` },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    const data = await res.json();
+    const data = startFetch.text ? JSON.parse(startFetch.text) : null;
+    const res = NextResponse.json(data, { status: 201 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (err: any) {
+    const isTimeout = err?.name === "AbortError";
+    console.error("[Route] Error adding comment:", err?.message || String(err));
 
-    return NextResponse.json(data, {status: 201});
-  } catch (err) {
-    console.error("[Route] Error adding comment:", (err as Error).message);
     return NextResponse.json(
-      {error: "Internal server error", details: (err as Error).message},
-      {status: 500}
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: err?.message || String(err),
+      },
+      { status: isTimeout ? 504 : 500 }
     );
+  } finally {
+    t.clear();
   }
 }

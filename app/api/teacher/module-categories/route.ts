@@ -1,94 +1,73 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface Category {
   id: string;
   name: string;
 }
 
-export async function GET(req: Request) {
+const NO_STORE_HEADERS = {
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
+
+export async function GET(_req: Request) {
   noStore();
-  const endpoint = "/learning/api/teacher/module-categories/";
-  const fullUrl = `${BASE_URL}${endpoint}`;
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
+  const endpoint = `/learning/api/teacher/module-categories/`;
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[TeacherModuleCategoriesAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
+
       if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
+        const res = NextResponse.json(
+          { error: "Session expired", redirect: "/login" },
           {
             status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
           }
         );
+        return attachSetCookie(res, setCookie);
       }
+
       if (response.status === 404) {
-        return NextResponse.json(
-          {error: "Module categories endpoint not found"},
+        const res = NextResponse.json(
+          { error: "Module categories endpoint not found" },
           {
             status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
           }
         );
+        return attachSetCookie(res, setCookie);
       }
-      return NextResponse.json(
-        {error: "Failed to fetch module categories"},
+
+      const res = NextResponse.json(
+        { error: "Failed to fetch module categories" },
         {
           status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         }
       );
+      return attachSetCookie(res, setCookie);
     }
 
     if (!contentType.includes("application/json")) {
@@ -96,36 +75,32 @@ export async function GET(req: Request) {
         "[TeacherModuleCategoriesAPI] Non-JSON response received:",
         contentType
       );
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
         {
           status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         }
       );
+      return attachSetCookie(res, setCookie);
     }
 
-    let data: {categories: any[]};
+    let data: { categories: any[] };
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? JSON.parse(text) : { categories: [] };
     } catch (parseError) {
       console.error(
         "[TeacherModuleCategoriesAPI] Failed to parse JSON:",
         parseError
       );
-      return NextResponse.json(
-        {error: "Invalid response format"},
+      const res = NextResponse.json(
+        { error: "Invalid response format" },
         {
           status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         }
       );
+      return attachSetCookie(res, setCookie);
     }
 
     if (!Array.isArray(data.categories)) {
@@ -133,33 +108,26 @@ export async function GET(req: Request) {
         "[TeacherModuleCategoriesAPI] Response does not contain a categories array:",
         data
       );
-      return NextResponse.json(
-        {error: "Invalid response format, expected categories array"},
+      const res = NextResponse.json(
+        { error: "Invalid response format, expected categories array" },
         {
           status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         }
       );
+      return attachSetCookie(res, setCookie);
     }
 
     const normalizedData: Category[] = data.categories.map((category) => ({
-      id: category.id.toString(),
-      name: category.name || "",
+      id: String(category?.id ?? ""),
+      name: category?.name || "",
     }));
 
-    return NextResponse.json(normalizedData, {
+    const res = NextResponse.json(normalizedData, {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
+      headers: NO_STORE_HEADERS,
     });
+    return attachSetCookie(res, setCookie);
   } catch (error) {
     console.error("[TeacherModuleCategoriesAPI] Fetch error:", error);
     return NextResponse.json(
@@ -169,10 +137,7 @@ export async function GET(req: Request) {
       },
       {
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       }
     );
   }

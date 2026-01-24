@@ -1,132 +1,129 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-// lib/config.ts
-export const BASE_URL =
-  process.env.BASE_URL || "https://texagonbackend.onrender.com";
-
-export const API_KEY =
-  process.env.API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // fallback for dev
-
-//const BASE_URL = "http://127.0.0.1:9098";
-// ✅ GET endpoint - fetch children
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
-    );
-  }
-
+function safeJsonParse(text: string) {
   try {
-    const url = `${BASE_URL}/accounts/api/parent/children/`;
-
-    const headers = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "Content-Type": "application/json",
-      "X-Session-Token": session.user.sessionToken,
-    };
-
-    const res = await fetch(url, {method: "GET", headers});
-
-    const text = await res.text();
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error("[Route] Failed to parse JSON:", e);
-      return NextResponse.json(
-        {detail: "External API returned an invalid response"},
-        {status: 502}
-      );
-    }
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {detail: data.detail || "Failed to fetch children data"},
-        {status: res.status}
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error("[Route] Error fetching children data:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
   }
 }
 
-// ✅ POST endpoint - reset password (using userId instead of childId)
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+function withTimeout(timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
 
-  if (!session?.user?.sessionToken) {
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
+}
+
+// ✅ GET endpoint - fetch children
+export async function GET(request: Request) {
+  const t = withTimeout(12000);
+
+  try {
+    const startFetch = await djangoFetch(`/accounts/api/parent/children/`, {
+      method: "GET",
+      signal: t.signal,
+      // headers/session/cookies handled by proxy.ts
+    });
+
+    const data = safeJsonParse(startFetch.text);
+
+    if (!startFetch.response.ok) {
+      const res = NextResponse.json(
+        { detail: data?.detail || "Failed to fetch children data", raw: startFetch.text },
+        { status: startFetch.response.status }
+      );
+      return attachSetCookie(res, startFetch.setCookie);
+    }
+
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
+    console.error("[Route] Error fetching children data:", error);
+
     return NextResponse.json(
-      {detail: "Invalid or missing session token."},
-      {status: 401}
+      {
+        detail: isTimeout ? "Connection timeout" : "Internal server error",
+        error: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
+  }
+}
+
+// ✅ POST endpoint - reset password
+export async function POST(request: Request) {
+  let body: any;
+  try {
+    body = await request.json();
+  } catch (error: any) {
+    return NextResponse.json(
+      { detail: "Invalid JSON body", error: error?.message || String(error) },
+      { status: 400 }
     );
   }
 
+  const { childId, newPassword } = body || {};
+
+  if (!childId || !newPassword) {
+    return NextResponse.json(
+      { detail: "childId and newPassword are required." },
+      { status: 400 }
+    );
+  }
+
+  if (String(newPassword).length < 8) {
+    return NextResponse.json(
+      { detail: "Password must be at least 8 characters." },
+      { status: 400 }
+    );
+  }
+
+  const t = withTimeout(15000);
+
   try {
-    const body = await request.json();
-
-    const userId = session.user.id; // 👈 adjust this field name if your session uses userId instead
-    const {childId, newPassword} = body;
-
-    if (!userId || !newPassword) {
-      return NextResponse.json(
-        {detail: "userId and newPassword are required."},
-        {status: 400}
-      );
-    }
-
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        {detail: "Password must be at least 8 characters."},
-        {status: 400}
-      );
-    }
-
-    const url = `${BASE_URL}/accounts/api/parent/reset-child-password/`;
-
-    const headers = {
-      Authorization: `Api-Key ${API_KEY}`,
-      "Content-Type": "application/json",
-      "X-Session-Token": session.user.sessionToken,
-    };
-
-    const res = await fetch(url, {
+    const startFetch = await djangoFetch(`/accounts/api/parent/reset-child-password/`, {
       method: "POST",
-      headers,
-      body: JSON.stringify({childId: childId, newPassword}), // 👈 backend expects "childId"
+      signal: t.signal,
+      body: JSON.stringify({
+        // keep whatever your backend expects:
+        childId,
+        newPassword,
+      }),
     });
 
-    const text = await res.text();
+    const data = safeJsonParse(startFetch.text);
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error("[Route] Failed to parse JSON:", e);
-      return NextResponse.json(
-        {detail: "External API returned an invalid response"},
-        {status: 502}
+    if (!startFetch.response.ok) {
+      const res = NextResponse.json(
+        { detail: data?.detail || "Failed to reset password", raw: startFetch.text },
+        { status: startFetch.response.status }
       );
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
-    if (!res.ok) {
-      return NextResponse.json(
-        {detail: data.detail || "Failed to reset password"},
-        {status: res.status}
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
+    const res = NextResponse.json(data, { status: 200 });
+    return attachSetCookie(res, startFetch.setCookie);
+  } catch (error: any) {
+    const isTimeout = error?.name === "AbortError";
     console.error("[Route] Error resetting password:", error);
-    return NextResponse.json({detail: "Internal server error"}, {status: 500});
+
+    return NextResponse.json(
+      {
+        detail: isTimeout ? "Connection timeout" : "Internal server error",
+        error: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
   }
 }

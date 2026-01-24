@@ -1,19 +1,7 @@
 // app/api/teacher/performance-summary/route.ts
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-//const BASE_URL = "http://127.0.0.1:9098/assessments"
-const BASE_URL = "https://texagonbackend.onrender.com/assessments";
-//const BASE_URL = "https://127.0.0.1:3000/assessments";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface PerformanceSummary {
   totalAttempts: number;
@@ -24,92 +12,40 @@ interface PerformanceSummary {
 
 export async function GET(req: Request) {
   noStore();
-  const {searchParams} = new URL(req.url);
+
+  const { searchParams } = new URL(req.url);
   const test_id = searchParams.get("test_id") || "";
-  const endpoint = `/api/student/performance-summary/${
-    test_id ? `?test_id=${test_id}` : ""
+
+  const endpoint = `/assessments/api/student/performance-summary/${
+    test_id ? `?test_id=${encodeURIComponent(test_id)}` : ""
   }`;
-  const fullUrl = `${BASE_URL}${endpoint}`;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
-    );
-  }
 
   try {
-    const response = await fetch(fullUrl, {
+    const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "GET",
-      headers: headers(session.user.sessionToken),
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const rawResponse = await response.text();
 
     if (!response.ok) {
       console.error(
         "[TeacherPerformanceSummaryAPI] Fetch failed:",
         response.status,
-        rawResponse.slice(0, 100)
+        (text || "").slice(0, 100)
       );
-      if (response.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 403) {
-        return NextResponse.json(
-          {error: "Forbidden"},
-          {
-            status: 403,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      if (response.status === 404) {
-        return NextResponse.json(
-          {error: "Performance summary endpoint not found"},
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-            },
-          }
-        );
-      }
-      return NextResponse.json(
-        {error: "Failed to fetch performance summary"},
-        {
-          status: response.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+
+      let payload: any = { error: "Failed to fetch performance summary" };
+
+      if (response.status === 401)
+        payload = { error: "Session expired", redirect: "/login" };
+      if (response.status === 403) payload = { error: "Forbidden" };
+      if (response.status === 404)
+        payload = { error: "Performance summary endpoint not found" };
+
+      const nextRes = NextResponse.json(payload, { status: response.status });
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     if (!contentType.includes("application/json")) {
@@ -117,69 +53,61 @@ export async function GET(req: Request) {
         "[TeacherPerformanceSummaryAPI] Non-JSON response received:",
         contentType
       );
-      return NextResponse.json(
-        {error: "Invalid response format, expected JSON"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+
+      const nextRes = NextResponse.json(
+        { error: "Invalid response format, expected JSON" },
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     let data: PerformanceSummary;
     try {
-      data = JSON.parse(rawResponse);
+      data = text ? (JSON.parse(text) as PerformanceSummary) : ({} as any);
     } catch (parseError) {
       console.error(
         "[TeacherPerformanceSummaryAPI] Failed to parse JSON:",
         parseError
       );
-      return NextResponse.json(
-        {error: "Invalid response format"},
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        }
+
+      const nextRes = NextResponse.json(
+        { error: "Invalid response format" },
+        { status: 500 }
       );
+      if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+      nextRes.headers.set("Cache-Control", "no-store");
+      return nextRes;
     }
 
     const normalizedData: PerformanceSummary = {
-      totalAttempts: data.totalAttempts || 0,
-      averageScore: data.averageScore || 0,
-      passRate: data.passRate || 0,
-      averageCompletionTime: data.averageCompletionTime || 0,
+      totalAttempts: data?.totalAttempts || 0,
+      averageScore: data?.averageScore || 0,
+      passRate: data?.passRate || 0,
+      averageCompletionTime: data?.averageCompletionTime || 0,
     };
 
-    return NextResponse.json(normalizedData, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    });
+    const nextRes = NextResponse.json(normalizedData, { status: 200 });
+    if (setCookie) nextRes.headers.set("set-cookie", setCookie);
+    nextRes.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    nextRes.headers.set("Pragma", "no-cache");
+    nextRes.headers.set("Expires", "0");
+    return nextRes;
   } catch (error) {
     console.error("[TeacherPerformanceSummaryAPI] Fetch error:", error);
-    return NextResponse.json(
+
+    const nextRes = NextResponse.json(
       {
         error: "Failed to fetch performance summary",
         details: (error as Error).message,
       },
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
+      { status: 500 }
     );
+    nextRes.headers.set("Cache-Control", "no-store");
+    return nextRes;
   }
 }

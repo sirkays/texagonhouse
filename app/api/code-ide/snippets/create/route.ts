@@ -1,71 +1,79 @@
-// app\api\code-ide\snippets\create\route.ts
+// app/api/code-ide/snippets/create/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-async function fetchWithTimeout(url: string, options: any) {
+function withTimeout(timeoutMs: number) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(id),
+  };
+}
+
+function attachSetCookie(res: NextResponse, setCookie?: string) {
+  if (setCookie) res.headers.set("set-cookie", setCookie);
+  return res;
 }
 
 export async function POST(request: Request) {
   console.groupCollapsed("[Route: /api/code-ide/snippets/create] POST - Create snippet");
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.sessionToken) {
-    console.error("[Route] Missing session token. Session:", session);
-    console.groupEnd();
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
-
-  let body;
+  let body: any;
   try {
     body = await request.json();
     console.info("[Route] Request body:", body);
   } catch (err: any) {
-    console.error("[Route] Invalid JSON body:", err.message);
+    console.error("[Route] Invalid JSON body:", err?.message || String(err));
     console.groupEnd();
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  const t = withTimeout(8000);
+
   try {
-    const res = await fetchWithTimeout(`${BASE_URL}/code-ide/api/ide/snippets/create/`, {
+    const startFetch = await djangoFetch(`/code-ide/api/ide/snippets/create/`, {
       method: "POST",
-      headers: {
-        Authorization: `Api-Key ${API_KEY}`,
-        "X-Session-Token": session.user.sessionToken,
-        "Content-Type": "application/json",
-      },
+      signal: t.signal,
       body: JSON.stringify(body),
-      timeout: 8000,
+      // headers/session/cookies handled by proxy.ts
     });
 
-    console.info("[Route] External API response status:", res.status);
-    const result = await res.json();
+    console.info("[Route] External API response status:", startFetch.response.status);
+
+    // Backend might not always return JSON, so parse safely
+    let result: any = null;
+    try {
+      result = startFetch.text ? JSON.parse(startFetch.text) : null;
+    } catch {
+      result = { detail: startFetch.text };
+    }
+
     console.info("[Route] External API result:", result);
 
-    if (!res.ok) {
+    if (!startFetch.response.ok) {
       console.error("[Route] Failed to create snippet:", result);
       console.groupEnd();
-      return NextResponse.json(result, { status: res.status });
+      const res = NextResponse.json(result, { status: startFetch.response.status });
+      return attachSetCookie(res, startFetch.setCookie);
     }
 
     console.groupEnd();
-    return NextResponse.json(result, { status: 201 });
+    const res = NextResponse.json(result, { status: 201 });
+    return attachSetCookie(res, startFetch.setCookie);
   } catch (error: any) {
-    console.error("[Route] Internal server error:", error.message);
+    const isTimeout = error?.name === "AbortError";
+    console.error("[Route] Internal server error:", error?.message || String(error));
     console.groupEnd();
-    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        error: isTimeout ? "Connection timeout" : "Internal server error",
+        details: error?.message || String(error),
+      },
+      { status: isTimeout ? 504 : 500 }
+    );
+  } finally {
+    t.clear();
   }
 }

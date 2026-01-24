@@ -1,16 +1,6 @@
-import {NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL = "https://texagonbackend.onrender.com/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const headers = (sessionToken: string | undefined) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 interface RmaResponse {
   rma_id: string;
@@ -19,60 +9,46 @@ interface RmaResponse {
 
 export async function POST(
   req: Request,
-  {params}: {params: {order_id: string}}
+  { params }: { params: { order_id: string } }
 ) {
   noStore();
 
-  // Destructure params before any await
-  const {order_id} = params;
-
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.sessionToken) {
-    return NextResponse.json(
-      {error: "Not authenticated", redirect: "/login"},
-      {status: 401}
-    );
-  }
-
-  const sessionToken = session.user.sessionToken;
-
+  const { order_id } = params;
   const body = await req.json();
 
-  const fullUrl = `${BASE_URL}/orders/${order_id}/rma`;
-
   try {
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: headers(sessionToken),
-      body: JSON.stringify(body),
-    });
-
-    const rawResponse = await response.text();
+    const { response, text, setCookie } = await djangoFetch(
+      `/store/api/orders/${order_id}/rma`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 401)
         return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          { error: "Session expired", redirect: "/login" },
+          { status: 401 }
         );
       if (response.status === 403)
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       if (response.status === 404)
-        return NextResponse.json({error: "Order not found"}, {status: 404});
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
       return NextResponse.json(
-        {error: "Failed to create RMA"},
-        {status: response.status}
+        { error: "Failed to create RMA" },
+        { status: response.status }
       );
     }
 
     let data: RmaResponse;
     try {
-      data = JSON.parse(rawResponse);
-    } catch (parseError) {
+      data = JSON.parse(text);
+    } catch {
       return NextResponse.json(
-        {error: "Invalid response format"},
-        {status: 500}
+        { error: "Invalid response format" },
+        { status: 500 }
       );
     }
 
@@ -81,11 +57,16 @@ export async function POST(
       rma_number: data.rma_number || "",
     };
 
-    return NextResponse.json(normalizedData, {
+    const res = NextResponse.json(normalizedData, {
       status: 201,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    return NextResponse.json({error: "Failed to create RMA"}, {status: 500});
+
+    // Forward Django cookies (e.g., sessionid) if present
+    if (setCookie) res.headers.set("set-cookie", setCookie);
+
+    return res;
+  } catch {
+    return NextResponse.json({ error: "Failed to create RMA" }, { status: 500 });
   }
 }
