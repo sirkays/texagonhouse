@@ -156,7 +156,8 @@ export function CBTTest() {
   const submittedRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
 
-
+  // ✅ add near other states
+  const [showRefreshDeviceDialog, setShowRefreshDeviceDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"available" | "past">("available");
 
@@ -223,6 +224,33 @@ export function CBTTest() {
       return "essay";
 
     return x; // Django already normalized most cases
+  };
+  const refreshDeviceId = () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      localStorage.removeItem("cbtDeviceId"); // ✅ delete device id
+    } catch {
+      // ignore
+    }
+
+    // Optional: also clear any in-flight state tied to device if you want
+    // localStorage.removeItem("cachedCBTData");
+
+    window.location.reload(); // ✅ reload so device id gets recreated cleanly
+  };
+
+
+  const confirmRefreshDeviceId = () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      localStorage.removeItem("cbtDeviceId"); // ✅ delete device id
+    } catch {
+      // ignore
+    }
+
+    window.location.reload();
   };
 
   const writeInProgress = (testId: string, payload: any) => {
@@ -1972,6 +2000,17 @@ export function CBTTest() {
             </div>
           )}
 
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white"
+            onClick={() => setShowRefreshDeviceDialog(true)}
+            title="Admin-guided only"
+          >
+            Refresh Device
+          </Button>
+
+
           <Badge
             variant="outline"
             className={
@@ -1983,6 +2022,7 @@ export function CBTTest() {
             {isOnline ? "ONLINE MODE" : "OFFLINE MODE"}
           </Badge>
         </div>
+
 
       </div>
 
@@ -2364,6 +2404,47 @@ export function CBTTest() {
               onClick={() => setErrorModalOpen(false)}
             >
               OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showRefreshDeviceDialog} onOpenChange={setShowRefreshDeviceDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Reset CBT Device?
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              CBT reset warning
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">
+              Warning: This will reset your CBT on this device.
+            </p>
+            <p>
+              It clears your CBT Device ID and may affect test access, syncing, and attempt tracking on this browser.
+            </p>
+            <p className="text-amber-700">
+              Only proceed if an admin/support staff instructed you to do this.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowRefreshDeviceDialog(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              className="h-9 bg-transparent border border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
+              onClick={confirmRefreshDeviceId}
+            >
+              Yes, Reset CBT
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,912 +1,294 @@
-
-
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
-import {Switch} from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {Badge as UIBadge} from "@/components/ui/badge";
-import {useEffect, useMemo, useState} from "react";
-import {useRouter} from "next/navigation";
-import {Award, Trophy, Star, Zap, Pencil, Plus, Save} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-/* -------- Types (match API models) -------- */
-type BadgeModel = {
-  id: number;
-  organizationId: number;
-  name: string;
-  icon_name: string;
-  color: string; // Tailwind bg class
-  points: number;
-  criteria?: string;
-  rules?: Record<string, any>;
-  created_at: string;
-  updated_at: string;
+type MetaResp = {
+  supported_metrics: string[];
+  available_event_types: string[];
 };
 
-type AchievementDefinitionModel = {
+type Achievement = {
   id: number;
-  organizationId: number | null;
   code: string;
   title: string;
-  description?: string;
+  description: string;
   icon: string;
   category: string;
-  target_value: number | null;
   points: number;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  rule: any;
 };
 
-type Summary = {
-  totalPointsAwarded: number;
-  badgesEarned: number;
-  activeStreaks: number;
-  avgEngagement: number;
-};
-
-type LeaderboardRow = {
-  rank: number;
-  studentId: number;
-  student: string;
+type Badge = {
+  id: number;
+  name: string;
+  icon_name: string;
+  color: string;
   points: number;
-  badges: number;
-  streak: number;
+  criteria: string;
+  rules: any;
+  is_active: boolean;
 };
 
-/* -------- Page -------- */
-export default function GamificationPage() {
-  const router = useRouter();
-  // States
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [badges, setBadges] = useState<BadgeModel[]>([]);
-  const [achievements, setAchievements] = useState<
-    AchievementDefinitionModel[]
-  >([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function GamificationAdminPage() {
+  const [tab, setTab] = useState<"achievements" | "badges">("achievements");
+  const [meta, setMeta] = useState<MetaResp | null>(null);
+
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all data sequentially for better error handling
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
+
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Achievement | Badge | null>(null);
+
+  // form state (simple)
+  const [form, setForm] = useState<any>({});
+
   useEffect(() => {
-    const fetchData = async () => {
+    (async () => {
+      const res = await fetch("/api/admin/gamification/meta");
+      const json = await res.json();
+      if (res.ok) setMeta(json);
+    })();
+  }, []);
+
+  async function load() {
+    try {
       setLoading(true);
       setError(null);
-      try {
-        // Summary
-        const sumRes = await fetch("/api/admin/gamification/summary");
-        if (!sumRes.ok) {
-          const errData = await sumRes.json().catch(() => ({}));
-          if (errData.redirect) {
-            router.push(errData.redirect);
-            return;
-          }
-          throw new Error(errData.error || "Failed to fetch summary");
-        }
-        setSummary(await sumRes.json());
 
-        // Badges
-        const badgesRes = await fetch("/api/admin/gamification/badges");
-        if (!badgesRes.ok) {
-          const errData = await badgesRes.json().catch(() => ({}));
-          if (errData.redirect) {
-            router.push(errData.redirect);
-            return;
-          }
-          throw new Error(errData.error || "Failed to fetch badges");
-        }
-        setBadges(await badgesRes.json());
-
-        // Achievements
-        const achRes = await fetch("/api/admin/gamification/achievements");
-        if (!achRes.ok) {
-          const errData = await achRes.json().catch(() => ({}));
-          if (errData.redirect) {
-            router.push(errData.redirect);
-            return;
-          }
-          throw new Error(errData.error || "Failed to fetch achievements");
-        }
-        setAchievements(await achRes.json());
-
-        // Leaderboard
-        const lbRes = await fetch("/api/admin/gamification/leaderboard");
-        if (!lbRes.ok) {
-          const errData = await lbRes.json().catch(() => ({}));
-          if (errData.redirect) {
-            router.push(errData.redirect);
-            return;
-          }
-          throw new Error(errData.error || "Failed to fetch leaderboard");
-        }
-        setLeaderboard(await lbRes.json());
-      } catch (e) {
-        console.error(e);
-        setError((e as Error).message);
-      } finally {
-        setLoading(false);
+      if (tab === "achievements") {
+        const res = await fetch(`/api/admin/gamification/achievements?q=${encodeURIComponent(q)}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.detail || "Failed to load achievements");
+        setAchievements(json);
+      } else {
+        const res = await fetch(`/api/admin/gamification/badges?q=${encodeURIComponent(q)}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.detail || "Failed to load badges");
+        setBadges(json);
       }
-    };
-
-    fetchData();
-  }, [router]);
-
-  // Refetch badges
-  const refetchBadges = async () => {
-    const res = await fetch("/api/admin/gamification/badges");
-    if (res.ok) {
-      setBadges(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoading(false);
     }
-  };
-
-  // Refetch achievements
-  const refetchAchievements = async () => {
-    const res = await fetch("/api/admin/gamification/achievements");
-    if (res.ok) {
-      setAchievements(await res.json());
-    }
-  };
-
-  // Save handlers with error handling
-  async function saveBadge(data: Partial<BadgeModel> & {id?: number}) {
-    const url = data.id
-      ? `/api/admin/gamification/badges/${data.id}`
-      : "/api/admin/gamification/badges";
-    const method = data.id ? "PATCH" : "POST";
-    const res = await fetch(url, {
-      method,
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      if (errData.redirect) {
-        router.push(errData.redirect);
-        return;
-      }
-      throw new Error(
-        errData.error || `Failed to ${data.id ? "update" : "create"} badge`
-      );
-    }
-    await refetchBadges();
   }
 
-  async function saveAchievement(
-    data: Partial<AchievementDefinitionModel> & {id?: number}
-  ) {
-    const url = data.id
-      ? `/api/admin/gamification/achievements/${data.id}`
-      : "/api/admin/gamification/achievements";
-    const method = data.id ? "PATCH" : "POST";
-    const res = await fetch(url, {
-      method,
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      if (errData.redirect) {
-        router.push(errData.redirect);
-        return;
-      }
-      throw new Error(
-        errData.error ||
-          `Failed to ${data.id ? "update" : "create"} achievement`
-      );
-    }
-    await refetchAchievements();
-  }
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
-  // Dialog state
-  const [openBadgeDlg, setOpenBadgeDlg] = useState(false);
-  const [editingBadge, setEditingBadge] = useState<BadgeModel | null>(null);
-
-  const [openAchDlg, setOpenAchDlg] = useState(false);
-  const [editingAch, setEditingAch] =
-    useState<AchievementDefinitionModel | null>(null);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Loading...</h1>
-      </div>
+  function openCreate() {
+    setEditing(null);
+    setForm(tab === "achievements"
+      ? { code: "", title: "", description: "", icon: "star", category: "General", points: 0, is_active: true, rule: { metric: "count", event_type: "", target: 1, window_days: null } }
+      : { name: "", icon_name: "medal", color: "bg-gray-400", points: 0, criteria: "", rules: {}, is_active: true }
     );
+    setOpen(true);
   }
 
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-destructive">Error: {error}</h1>
-      </div>
-    );
+  function openEdit(item: any) {
+    setEditing(item);
+    setForm({ ...item });
+    setOpen(true);
   }
+
+  async function save() {
+    try {
+      setError(null);
+
+      // rule must be JSON-safe; allow typing as string too
+      const payload = { ...form };
+
+      if (tab === "achievements" && typeof payload.rule === "string") {
+        payload.rule = JSON.parse(payload.rule);
+      }
+      if (tab === "badges" && typeof payload.rules === "string") {
+        payload.rules = JSON.parse(payload.rules);
+      }
+
+      let res: Response;
+      if (tab === "achievements") {
+        if (editing) {
+          res = await fetch(`/api/admin/gamification/achievements/${(editing as Achievement).id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          res = await fetch(`/api/admin/gamification/achievements`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
+      } else {
+        if (editing) {
+          res = await fetch(`/api/admin/gamification/badges/${(editing as Badge).id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          res = await fetch(`/api/admin/gamification/badges`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
+      }
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.detail || "Save failed");
+
+      setOpen(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  }
+
+  async function deactivate(id: number) {
+    const ok = window.confirm("Deactivate this item?");
+    if (!ok) return;
+
+    const url =
+      tab === "achievements"
+        ? `/api/admin/gamification/achievements/${id}/deactivate`
+        : `/api/admin/gamification/badges/${id}/deactivate`;
+
+    const res = await fetch(url, { method: "POST" });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json?.detail || "Deactivate failed");
+      return;
+    }
+    await load();
+  }
+
+  const list = tab === "achievements" ? achievements : badges;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Gamification
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Badges, points, achievements, and student motivation
-        </p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Gamification Admin</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage AchievementDefinitions & Badges (no LeaderboardSeason).
+          </p>
+        </div>
+        <Button onClick={openCreate}>Create</Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-        <StatCard
-          title="Total Points Awarded"
-          value={summary?.totalPointsAwarded.toLocaleString() || "0"}
-        />
-        <StatCard
-          title="Badges Earned"
-          value={summary?.badgesEarned.toLocaleString() || "0"}
-        />
-        <StatCard
-          title="Active Streaks"
-          value={summary?.activeStreaks.toLocaleString() || "0"}
-        />
-        <StatCard
-          title="Avg Engagement"
-          value={(summary?.avgEngagement || 0) + "%"}
-        />
+      <div className="flex gap-2">
+        <Button variant={tab === "achievements" ? "default" : "outline"} onClick={() => setTab("achievements")}>
+          Achievements
+        </Button>
+        <Button variant={tab === "badges" ? "default" : "outline"} onClick={() => setTab("badges")}>
+          Badges
+        </Button>
       </div>
 
-      {/* Manage Badges & Achievements */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Manage Badges */}
-        <Card>
-          <CardHeader className="sm:flex-row justify-between">
-            <div>
-              <CardTitle>Manage Badges</CardTitle>
-              <CardDescription>Create and update visual badges</CardDescription>
-            </div>
-            <Dialog open={openBadgeDlg} onOpenChange={setOpenBadgeDlg}>
-              <DialogTrigger asChild>
-                <Button
-                  className="gap-2"
-                  size="sm"
-                  onClick={() => {
-                    setEditingBadge(null);
-                    setOpenBadgeDlg(true);
-                  }}>
-                  <Plus className="h-4 w-4" />
-                  New Badge
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
-                <BadgeForm
-                  initial={editingBadge ?? undefined}
-                  onCancel={() => setOpenBadgeDlg(false)}
-                  onSave={async (payload) => {
-                    await saveBadge(payload);
-                    setOpenBadgeDlg(false);
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {badges.length === 0 ? (
-                <p className="text-muted-foreground">
-                  No badges yet. Create one to get started!
-                </p>
-              ) : (
-                badges.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                    <div
-                      className={`h-12 w-12 rounded-lg flex items-center justify-center text-xl text-white ${
-                        b.color || "bg-gray-400"
-                      }`}
-                      title={b.icon_name}>
-                      🏅
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-foreground">
-                            {b.name}
-                          </h3>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <UIBadge variant="secondary">
-                              Icon: {b.icon_name}
-                            </UIBadge>
-                            <UIBadge variant="secondary">
-                              Points: {b.points}
-                            </UIBadge>
-                          </div>
-                        </div>
-                        <Dialog
-                          open={openBadgeDlg && editingBadge?.id === b.id}
-                          onOpenChange={(v) => {
-                            if (!v) setEditingBadge(null);
-                            setOpenBadgeDlg(v);
-                          }}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                setEditingBadge(b);
-                                setOpenBadgeDlg(true);
-                              }}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-lg">
-                            <BadgeForm
-                              initial={b}
-                              onCancel={() => {
-                                setEditingBadge(null);
-                                setOpenBadgeDlg(false);
-                              }}
-                              onSave={async (payload) => {
-                                await saveBadge(payload);
-                                setEditingBadge(null);
-                                setOpenBadgeDlg(false);
-                              }}
-                            />
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                      {b.criteria && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {b.criteria}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Manage Achievements */}
-        <Card>
-          <CardHeader className="sm:flex-row justify-between">
-            <div>
-              <CardTitle>Manage Achievements</CardTitle>
-              <CardDescription>
-                Configure <code>AchievementDefinition</code> entries
-              </CardDescription>
-            </div>
-            <Dialog open={openAchDlg} onOpenChange={setOpenAchDlg}>
-              <DialogTrigger asChild>
-                <Button
-                  className="gap-2"
-                  size="sm"
-                  onClick={() => {
-                    setEditingAch(null);
-                    setOpenAchDlg(true);
-                  }}>
-                  <Plus className="h-4 w-4" />
-                  New Achievement
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-xl">
-                <AchievementForm
-                  initial={editingAch ?? undefined}
-                  onCancel={() => setOpenAchDlg(false)}
-                  onSave={async (payload) => {
-                    await saveAchievement(payload);
-                    setOpenAchDlg(false);
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {achievements.length === 0 ? (
-                <p className="text-muted-foreground">
-                  No achievements yet. Create one to get started!
-                </p>
-              ) : (
-                achievements.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Star className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-foreground">
-                            {a.title}
-                          </h3>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <UIBadge variant="secondary">
-                              Code: {a.code}
-                            </UIBadge>
-                            <UIBadge variant="secondary">
-                              Icon: {a.icon}
-                            </UIBadge>
-                            <UIBadge variant="secondary">
-                              Category: {a.category}
-                            </UIBadge>
-                            <UIBadge variant="secondary">
-                              Points: {a.points}
-                            </UIBadge>
-                            {typeof a.target_value === "number" && (
-                              <UIBadge variant="secondary">
-                                Target: {a.target_value}
-                              </UIBadge>
-                            )}
-                            <UIBadge
-                              variant={a.is_active ? "default" : "secondary"}>
-                              {a.is_active ? "Active" : "Inactive"}
-                            </UIBadge>
-                          </div>
-                          {a.description && (
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {a.description}
-                            </p>
-                          )}
-                        </div>
-                        <Dialog
-                          open={openAchDlg && editingAch?.id === a.id}
-                          onOpenChange={(v) => {
-                            if (!v) setEditingAch(null);
-                            setOpenAchDlg(v);
-                          }}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                setEditingAch(a);
-                                setOpenAchDlg(true);
-                              }}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-xl">
-                            <AchievementForm
-                              initial={a}
-                              onCancel={() => {
-                                setEditingAch(null);
-                                setOpenAchDlg(false);
-                              }}
-                              onSave={async (payload) => {
-                                await saveAchievement(payload);
-                                setEditingAch(null);
-                                setOpenAchDlg(false);
-                              }}
-                            />
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Leaderboard */}
       <Card>
-        <CardHeader>
-          <CardTitle>Top Students</CardTitle>
-          <CardDescription>Current leaderboard rankings</CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <CardTitle>{tab === "achievements" ? "Achievement Definitions" : "Badges"}</CardTitle>
+          <div className="flex gap-2">
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." />
+            <Button variant="outline" onClick={load} disabled={loading}>Search</Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {leaderboard.length === 0 ? (
-              <p className="text-muted-foreground">
-                No leaderboard data available.
-              </p>
-            ) : (
-              leaderboard.map((entry) => (
-                <div
-                  key={entry.rank}
-                  className="flex items-center gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                  <div
-                    className={`h-10 w-10 rounded-full flex items-center justify-center font-bold ${
-                      entry.rank === 1
-                        ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400"
-                        : entry.rank === 2
-                        ? "bg-gray-400/20 text-gray-700 dark:text-gray-400"
-                        : entry.rank === 3
-                        ? "bg-orange-500/20 text-orange-700 dark:text-orange-400"
-                        : "bg-muted text-muted-foreground"
-                    }`}>
-                    {entry.rank === 1
-                      ? "🥇"
-                      : entry.rank === 2
-                      ? "🥈"
-                      : entry.rank === 3
-                      ? "🥉"
-                      : entry.rank}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">
-                      {entry.student}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3" />
-                        <span>{entry.points} pts</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Trophy className="h-3 w-3" />
-                        <span>{entry.badges} badges</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Zap className="h-3 w-3" />
-                        <span>{entry.streak} day streak</span>
-                      </div>
+          {error && <div className="text-sm text-red-600 mb-3">Error: {error}</div>}
+          {loading ? (
+            <div className="flex justify-center py-10"><Spinner size="md" className="text-black" /></div>
+          ) : (
+            <div className="space-y-2">
+              {list.map((item: any) => (
+                <div key={item.id} className="border rounded-md p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">
+                      {tab === "achievements" ? `${item.code} — ${item.title}` : `${item.name} — ${item.points} pts`}
+                      {!item.is_active ? <span className="ml-2 text-xs text-muted-foreground">(inactive)</span> : null}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {tab === "achievements"
+                        ? `metric: ${item.rule?.metric || "?"}, event: ${item.rule?.event_type || "?"}, target: ${item.rule?.target ?? "?"}`
+                        : `icon: ${item.icon_name}, color: ${item.color}`}
                     </div>
                   </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => openEdit(item)}>Edit</Button>
+                    {item.is_active ? (
+                      <Button variant="destructive" onClick={() => deactivate(item.id)}>Deactivate</Button>
+                    ) : null}
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+              {list.length === 0 && <div className="text-sm text-muted-foreground">No items.</div>}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit" : "Create"} {tab === "achievements" ? "Achievement" : "Badge"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {tab === "achievements" ? (
+              <>
+                <Input value={form.code || ""} onChange={(e) => setForm((p: any) => ({ ...p, code: e.target.value }))} placeholder="code (unique in org)" />
+                <Input value={form.title || ""} onChange={(e) => setForm((p: any) => ({ ...p, title: e.target.value }))} placeholder="title" />
+                <Input value={form.category || ""} onChange={(e) => setForm((p: any) => ({ ...p, category: e.target.value }))} placeholder="category" />
+                <Input value={String(form.points ?? 0)} onChange={(e) => setForm((p: any) => ({ ...p, points: Number(e.target.value || 0) }))} placeholder="points" />
+
+                {/* Rule: keep as JSON textarea (simple + flexible) */}
+                <textarea
+                  className="w-full border rounded-md p-2 text-sm min-h-[140px]"
+                  value={typeof form.rule === "string" ? form.rule : JSON.stringify(form.rule ?? {}, null, 2)}
+                  onChange={(e) => setForm((p: any) => ({ ...p, rule: e.target.value }))}
+                  placeholder={`rule JSON. supported metrics: ${meta?.supported_metrics?.join(", ") || ""}`}
+                />
+                <div className="text-xs text-muted-foreground">
+                  Available event types (from your org ActivityEvent): {meta?.available_event_types?.slice(0, 10).join(", ")}
+                  {meta && meta.available_event_types.length > 10 ? "…" : ""}
+                </div>
+              </>
+            ) : (
+              <>
+                <Input value={form.name || ""} onChange={(e) => setForm((p: any) => ({ ...p, name: e.target.value }))} placeholder="name" />
+                <Input value={String(form.points ?? 0)} onChange={(e) => setForm((p: any) => ({ ...p, points: Number(e.target.value || 0) }))} placeholder="points threshold" />
+                <Input value={form.icon_name || ""} onChange={(e) => setForm((p: any) => ({ ...p, icon_name: e.target.value }))} placeholder="icon_name" />
+                <Input value={form.color || ""} onChange={(e) => setForm((p: any) => ({ ...p, color: e.target.value }))} placeholder="color class (e.g. bg-gray-400)" />
+                <textarea
+                  className="w-full border rounded-md p-2 text-sm min-h-[120px]"
+                  value={typeof form.rules === "string" ? form.rules : JSON.stringify(form.rules ?? {}, null, 2)}
+                  onChange={(e) => setForm((p: any) => ({ ...p, rules: e.target.value }))}
+                  placeholder="rules JSON (optional)"
+                />
+              </>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={save}>Save</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-/* -------- Small helpers -------- */
-
-function StatCard({title, value}: {title: string; value: string}) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-foreground">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* -------- Forms -------- */
-
-function BadgeForm({
-  initial,
-  onSave,
-  onCancel,
-}: {
-  initial?: Partial<BadgeModel>;
-  onSave: (payload: Partial<BadgeModel>) => void | Promise<void>;
-  onCancel: () => void;
-}) {
-  const [form, setForm] = useState<Partial<BadgeModel>>(
-    initial ?? {
-      name: "",
-      icon_name: "medal",
-      color: "bg-gray-500",
-      points: 0,
-      criteria: "",
-      rules: {},
-    }
-  );
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  function set<K extends keyof BadgeModel>(key: K, val: BadgeModel[K] | any) {
-    setForm((f) => ({...f, [key]: val}));
-  }
-
-  return (
-    <>
-      {/* Wrapper ensures full-height dialog */}
-      <div className="flex flex-col h-[80dvh] sm:h-auto">
-        {/* ===== HEADER (STATIC) ===== */}
-        <DialogHeader className="shrink-0 py-3">
-          <DialogTitle className="text-base sm:text-lg">
-            {initial?.id ? "Edit Badge" : "New Badge"}
-          </DialogTitle>
-        </DialogHeader>
-
-        {formError && (
-          <div className="px-4 pt-3">
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-              {formError}
-            </div>
-          </div>
-        )}
-
-        {/* ===== BODY (SCROLLABLE) ===== */}
-        <div className="flex-1 overflow-y-auto py-4">
-          <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Name</Label>
-                <Input
-                  value={form.name ?? ""}
-                  onChange={(e) => set("name", e.target.value)}
-                  placeholder="e.g. Helping Hand"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Icon name</Label>
-                <Input
-                  value={form.icon_name ?? ""}
-                  onChange={(e) => set("icon_name", e.target.value)}
-                  placeholder="e.g. crown, gem, medal"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Color (Tailwind class)</Label>
-                <Input
-                  value={form.color ?? ""}
-                  onChange={(e) => set("color", e.target.value)}
-                  placeholder="e.g. bg-emerald-500"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Points</Label>
-                <Input
-                  type="number"
-                  value={form.points ?? 0}
-                  onChange={(e) => set("points", Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Criteria</Label>
-              <Textarea
-                value={form.criteria ?? ""}
-                onChange={(e) => set("criteria", e.target.value)}
-                placeholder="What must a student do to get this badge?"
-                className="min-h-[100px]"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Rules (JSON)</Label>
-              <Textarea
-                value={JSON.stringify(form.rules ?? {}, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value || "{}");
-                    set("rules", parsed);
-                  } catch {
-                    /* keep last valid */
-                  }
-                }}
-                className="font-mono text-xs min-h-[140px]"
-                rows={5}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ===== FOOTER (STATIC) ===== */}
-        <DialogFooter className="shrink-0 py-3 bg-background flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="w-full sm:w-auto">
-            Cancel
-          </Button>
-
-          <Button
-            onClick={async () => {
-              setSaving(true);
-              setFormError(null);
-              try {
-                await onSave({...form, id: initial?.id});
-              } catch (e) {
-                setFormError((e as Error).message);
-              } finally {
-                setSaving(false);
-              }
-            }}
-            disabled={!form.name || saving}
-            className="w-full sm:w-auto gap-2">
-            <Save className="h-4 w-4" />
-            Save
-          </Button>
-        </DialogFooter>
-      </div>
-    </>
-  );
-}
-
-function AchievementForm({
-  initial,
-  onSave,
-  onCancel,
-}: {
-  initial?: Partial<AchievementDefinitionModel>;
-  onSave: (
-    payload: Partial<AchievementDefinitionModel>
-  ) => void | Promise<void>;
-  onCancel: () => void;
-}) {
-  const [form, setForm] = useState<Partial<AchievementDefinitionModel>>(
-    initial ?? {
-      code: "",
-      title: "",
-      description: "",
-      icon: "star",
-      category: "General",
-      target_value: null,
-      points: 0,
-      is_active: true,
-    }
-  );
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  function set<K extends keyof AchievementDefinitionModel>(
-    key: K,
-    val: AchievementDefinitionModel[K] | any
-  ) {
-    setForm((f) => ({...f, [key]: val}));
-  }
-
-  return (
-    <>
-      {/* Wrapper for full-height dialog */}
-      <div className="flex flex-col h-[80dvh] sm:h-auto">
-        {/* ===== HEADER (STATIC) ===== */}
-        <DialogHeader className="shrink-0 border-b px-4 py-3">
-          <DialogTitle className="text-base sm:text-lg">
-            {initial?.id ? "Edit Achievement" : "New Achievement"}
-          </DialogTitle>
-        </DialogHeader>
-
-        {formError && (
-          <div className="px-4 pt-3">
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-              {formError}
-            </div>
-          </div>
-        )}
-
-        {/* ===== BODY (SCROLLABLE) ===== */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Code</Label>
-                <Input
-                  value={form.code ?? ""}
-                  onChange={(e) => set("code", e.target.value)}
-                  placeholder="e.g. streak_champion"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Title</Label>
-                <Input
-                  value={form.title ?? ""}
-                  onChange={(e) => set("title", e.target.value)}
-                  placeholder="e.g. Streak Champion"
-                />
-              </div>
-
-              <div className="grid gap-2 sm:col-span-2">
-                <Label>Description</Label>
-                <Textarea
-                  value={form.description ?? ""}
-                  onChange={(e) => set("description", e.target.value)}
-                  placeholder="Describe what this achievement means"
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Icon</Label>
-                <Input
-                  value={form.icon ?? ""}
-                  onChange={(e) => set("icon", e.target.value)}
-                  placeholder="e.g. star, trophy, target, zap"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Category</Label>
-                <Input
-                  value={form.category ?? ""}
-                  onChange={(e) => set("category", e.target.value)}
-                  placeholder="e.g. General, Learning, Practice"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Target Value (leave empty for non-numeric)</Label>
-                <Input
-                  type="number"
-                  value={form.target_value ?? ""}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    set("target_value", raw === "" ? null : Number(raw));
-                  }}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Points</Label>
-                <Input
-                  type="number"
-                  value={form.points ?? 0}
-                  onChange={(e) => set("points", Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            {/* Active Toggle */}
-            <div className="flex items-center justify-between rounded-md border p-3">
-              <div>
-                <Label className="font-medium">Active</Label>
-                <p className="text-xs text-muted-foreground">
-                  Toggle to enable/disable the achievement
-                </p>
-              </div>
-              <Switch
-                checked={!!form.is_active}
-                onCheckedChange={(v) => set("is_active", v)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ===== FOOTER (STATIC) ===== */}
-        <DialogFooter className="shrink-0 border-t px-4 py-3 bg-background flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="w-full sm:w-auto">
-            Cancel
-          </Button>
-
-          <Button
-            onClick={async () => {
-              setSaving(true);
-              setFormError(null);
-              try {
-                await onSave({...form, id: initial?.id});
-              } catch (e) {
-                setFormError((e as Error).message);
-              } finally {
-                setSaving(false);
-              }
-            }}
-            disabled={!form.title || !form.code || saving}
-            className="w-full sm:w-auto gap-2">
-            <Save className="h-4 w-4" />
-            Save
-          </Button>
-        </DialogFooter>
-      </div>
-    </>
   );
 }

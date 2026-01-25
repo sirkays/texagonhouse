@@ -22,7 +22,7 @@ export async function GET(_req: Request) {
 
   try {
     const { response, text, setCookie } = await djangoFetch(
-      "/orgs/api/admin/gamification/badges",
+      "/gamification/api/admin/gamification/badges",
       { method: "GET" }
     );
 
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
 
   try {
     const { response, text, setCookie } = await djangoFetch(
-      "/orgs/api/admin/gamification/badges",
+      "/gamification/api/admin/gamification/badges",
       {
         method: "POST",
         body: JSON.stringify(body),

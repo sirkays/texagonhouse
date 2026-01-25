@@ -29,7 +29,7 @@ export async function PATCH(
 
   try {
     const { response, text, setCookie } = await djangoFetch(
-      `/orgs/api/admin/gamification/badges/${encodeURIComponent(badgeId)}`,
+      `/gamification/api/admin/gamification/badges/${encodeURIComponent(badgeId)}`,
       {
         method: "PATCH",
         body: JSON.stringify(body),

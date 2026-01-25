@@ -114,6 +114,7 @@ const navigation = [
   { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
   {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
   {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
+  { title: "Student Devices", icon: UserCheck, id: "student-devices", path: "/admin/student-devices" },
 ];
 
 function SidebarMenuContent() {
@@ -217,27 +218,6 @@ export default function DashboardLayout({
       fetchOrgs();
     }
   }, [status]);
-
-  // const handleLogout = async () => {
-  //   try {
-  //     const response = await fetch("/api/auth/logout-route", {
-  //       method: "POST",
-  //       headers: {"Content-Type": "application/json"},
-  //     });
-  //     const data = await response.json();
-
-  //     if (!response.ok) {
-  //       console.error("[AdminLayout] Logout failed:", data);
-  //       throw new Error(data.error || "Logout failed");
-  //     }
-
-  //     await signOut({callbackUrl: "/login"});
-  //   } catch (error) {
-  //     console.error("[AdminLayout] Logout error:", error);
-
-  //     await signOut({callbackUrl: "/login"});
-  //   }
-  // };
 
 
 
