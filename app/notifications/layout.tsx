@@ -47,6 +47,7 @@ import {usePathname} from "next/navigation";
 import {useMediaQuery} from "react-responsive";
 import {useSession} from "next-auth/react";
 import {Spinner} from "@/components/ui/spinner";
+import NotificationsPage from "../notifications/page";
 
 const menuItems = [
   {title: "Dashboard", icon: Home, id: "dashboard", path: "/parent"},
@@ -98,6 +99,9 @@ function SidebarMenuContent() {
   return (
     <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
+        {/* <SidebarGroupLabel className="text-[0.85rem] xs:text-xs sm:text-sm">
+          Welcome
+        </SidebarGroupLabel> */}
         <SidebarGroupContent>
           <SidebarMenu>
             {menuItems.map((item) => (
@@ -107,12 +111,12 @@ function SidebarMenuContent() {
                   isActive={pathname === item.path}
                   className={`
                     py-5
-                    hover:bg-[#F797713a]
-                    data-[active=true]:bg-[#EF7B553a]
-                    data-[active=true]:text-slate-600
-                    transition-colors
-                    rounded-md
-                  `}>
+                hover:bg-[#F797713a]
+                data-[active=true]:bg-[#EF7B553a]
+                data-[active=true]:text-slate-600
+                transition-colors
+                rounded-md
+              `}>
                   <Link
                     href={item.path}
                     onClick={handleLinkClick}
@@ -224,9 +228,14 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
           <header className="sticky top-0 z-50 py-4">
             <style jsx>{`
               header {
-                background: rgba(247, 151, 113, 0.3);
-                backdrop-filter: blur(8px);
-                -webkit-backdrop-filter: blur(8px);
+                background: rgba(
+                  247,
+                  151,
+                  113,
+                  0.3
+                ); /* Semi-transparent #F19212 */
+                backdrop-filter: blur(8px); /* Frosted glass effect */
+                -webkit-backdrop-filter: blur(8px); /* Safari compatibility */
                 position: sticky;
                 top: 0;
                 z-index: 50;
@@ -239,16 +248,10 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
             `}</style>
             <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
               <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
-
-              <Link href="/notifications">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-[#F797713a] transition-colors"
-                  title="Notifications">
-                  <Bell className="h-4 w-4 text-[#EF7B55]" />
-                </Button>
-              </Link>
+              {/* <div className="flex-1 max-w-[90vw] xs:max-w-md"></div> */}
+              <Button variant="ghost" size="icon" className="">
+                <Bell className="h-3 w-3 xs:h-4 xs:w-4" />
+              </Button>
             </div>
           </header>
 
