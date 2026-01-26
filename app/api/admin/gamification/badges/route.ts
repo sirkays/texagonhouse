@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const noCacheHeaders = () => ({
   "Content-Type": "application/json",

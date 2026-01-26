@@ -3,14 +3,14 @@ import { djangoFetch } from "@/app/api/_lib/proxy";
 
 function getId(req: Request) {
   const parts = new URL(req.url).pathname.split("/");
-  return parts[parts.length - 2]; // .../<id>/deactivate
+  return parts[parts.length - 2]; // .../<badge_id>/deactivate
 }
 
 export async function POST(req: Request) {
   const id = getId(req);
 
   const { response, text, setCookie } = await djangoFetch(
-    `/gamification/api/admin/gamification/achievements/${encodeURIComponent(id)}/deactivate`,
+    `/gamification/api/admin/gamification/badges/${encodeURIComponent(id)}/status`,
     { method: "POST" }
   );
 

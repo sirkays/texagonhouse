@@ -21,6 +21,7 @@ import {
   UserCircle,
   BookMarked,
   UserCheck,
+  Trophy,
 } from "lucide-react";
 import {
   Sidebar,
@@ -114,6 +115,7 @@ const navigation = [
   { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
   {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
   {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
+  { title: "Leaderboard", icon: Trophy, id: "leaderboard", path: "/admin/reports/leaderboard" },
   { title: "Student Devices", icon: UserCheck, id: "student-devices", path: "/admin/student-devices" },
 ];
 

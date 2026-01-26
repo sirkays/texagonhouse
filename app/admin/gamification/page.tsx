@@ -51,6 +51,9 @@ export default function GamificationAdminPage() {
 
   // form state (simple)
   const [form, setForm] = useState<any>({});
+  const [actionId, setActionId] = useState<number | null>(null);
+  const [actionType, setActionType] = useState<"deactivate" | "activate" | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -66,12 +69,17 @@ export default function GamificationAdminPage() {
       setError(null);
 
       if (tab === "achievements") {
-        const res = await fetch(`/api/admin/gamification/achievements?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/admin/gamification/achievements?q=${encodeURIComponent(q)}`, {
+          cache: "no-store",
+        });
+
         const json = await res.json();
         if (!res.ok) throw new Error(json?.detail || "Failed to load achievements");
         setAchievements(json);
       } else {
-        const res = await fetch(`/api/admin/gamification/badges?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/admin/gamification/badges?q=${encodeURIComponent(q)}`, {
+          cache: "no-store",
+        });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.detail || "Failed to load badges");
         setBadges(json);
@@ -106,8 +114,8 @@ export default function GamificationAdminPage() {
   async function save() {
     try {
       setError(null);
+      setSaving(true);
 
-      // rule must be JSON-safe; allow typing as string too
       const payload = { ...form };
 
       if (tab === "achievements" && typeof payload.rule === "string") {
@@ -118,45 +126,78 @@ export default function GamificationAdminPage() {
       }
 
       let res: Response;
+
       if (tab === "achievements") {
-        if (editing) {
-          res = await fetch(`/api/admin/gamification/achievements/${(editing as Achievement).id}`, {
-            method: "PATCH",
+        res = await fetch(
+          editing
+            ? `/api/admin/gamification/achievements/${(editing as Achievement).id}`
+            : `/api/admin/gamification/achievements`,
+          {
+            method: editing ? "PATCH" : "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
-          });
-        } else {
-          res = await fetch(`/api/admin/gamification/achievements`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        }
+            cache: "no-store",
+          }
+        );
       } else {
-        if (editing) {
-          res = await fetch(`/api/admin/gamification/badges/${(editing as Badge).id}`, {
-            method: "PATCH",
+        res = await fetch(
+          editing
+            ? `/api/admin/gamification/badges/${(editing as Badge).id}`
+            : `/api/admin/gamification/badges`,
+          {
+            method: editing ? "PATCH" : "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
-          });
-        } else {
-          res = await fetch(`/api/admin/gamification/badges`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        }
+            cache: "no-store",
+          }
+        );
       }
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.detail || "Save failed");
 
+      // ✅ release the button right away
+      setSaving(false);
       setOpen(false);
+
+      // ✅ refresh list after closing
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
+      setSaving(false);
     }
   }
+useEffect(() => {
+  if (!open) setSaving(false);
+}, [open]);
+
+  async function activate(id: number) {
+    const ok = window.confirm("Activate this item?");
+    if (!ok) return;
+
+    const url =
+      tab === "achievements"
+        ? `/api/admin/gamification/achievements/${id}/status`
+        : `/api/admin/gamification/badges/${id}/status`;
+
+    try {
+      setError(null);
+      setActionId(id);
+      setActionType("activate");
+
+      const res = await fetch(url, { method: "POST", cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.detail || "Activate failed");
+
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setActionId(null);
+      setActionType(null);
+    }
+  }
+
 
   async function deactivate(id: number) {
     const ok = window.confirm("Deactivate this item?");
@@ -164,17 +205,27 @@ export default function GamificationAdminPage() {
 
     const url =
       tab === "achievements"
-        ? `/api/admin/gamification/achievements/${id}/deactivate`
-        : `/api/admin/gamification/badges/${id}/deactivate`;
+        ? `/api/admin/gamification/achievements/${id}/status`
+        : `/api/admin/gamification/badges/${id}/status`;
 
-    const res = await fetch(url, { method: "POST" });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(json?.detail || "Deactivate failed");
-      return;
+    try {
+      setError(null);
+      setActionId(id);
+      setActionType("deactivate");
+
+      const res = await fetch(url, { method: "POST", cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.detail || "Deactivate failed");
+
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setActionId(null);
+      setActionType(null);
     }
-    await load();
   }
+
 
   const list = tab === "achievements" ? achievements : badges;
 
@@ -213,28 +264,72 @@ export default function GamificationAdminPage() {
             <div className="flex justify-center py-10"><Spinner size="md" className="text-black" /></div>
           ) : (
             <div className="space-y-2">
-              {list.map((item: any) => (
-                <div key={item.id} className="border rounded-md p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">
-                      {tab === "achievements" ? `${item.code} — ${item.title}` : `${item.name} — ${item.points} pts`}
-                      {!item.is_active ? <span className="ml-2 text-xs text-muted-foreground">(inactive)</span> : null}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {tab === "achievements"
-                        ? `metric: ${item.rule?.metric || "?"}, event: ${item.rule?.event_type || "?"}, target: ${item.rule?.target ?? "?"}`
-                        : `icon: ${item.icon_name}, color: ${item.color}`}
-                    </div>
-                  </div>
+              {list.map((item: any) => {
+                const busy = actionId === item.id;
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => openEdit(item)}>Edit</Button>
-                    {item.is_active ? (
-                      <Button variant="destructive" onClick={() => deactivate(item.id)}>Deactivate</Button>
-                    ) : null}
+                return (
+                  <div
+                    key={item.id}
+                    className="border rounded-md p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {tab === "achievements"
+                          ? `${item.code} — ${item.title}`
+                          : `${item.name} — ${item.points} pts`}
+                        {!item.is_active ? (
+                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                        ) : null}
+                      </div>
+
+                      <div className="text-xs text-muted-foreground truncate">
+                        {tab === "achievements"
+                          ? `metric: ${item.rule?.metric || "?"}, event: ${item.rule?.event_type || "?"}, target: ${item.rule?.target ?? "?"}`
+                          : `icon: ${item.icon_name}, color: ${item.color}`}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => openEdit(item)} disabled={busy}>
+                        Edit
+                      </Button>
+
+                      {item.is_active ? (
+                        <Button
+                          variant="destructive"
+                          onClick={() => deactivate(item.id)}
+                          disabled={busy}
+                        >
+                          {busy && actionType === "deactivate" ? (
+                            <span className="inline-flex items-center gap-2">
+                              <Spinner size="sm" className="text-black" />
+                              Deactivating…
+                            </span>
+                          ) : (
+                            "Deactivate"
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          onClick={() => activate(item.id)}
+                          disabled={busy}
+                        >
+                          {busy && actionType === "activate" ? (
+                            <span className="inline-flex items-center gap-2">
+                              <Spinner size="sm" className="text-black" />
+                              Activating…
+                            </span>
+                          ) : (
+                            "Activate"
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+
               {list.length === 0 && <div className="text-sm text-muted-foreground">No items.</div>}
             </div>
           )}
@@ -283,9 +378,22 @@ export default function GamificationAdminPage() {
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={save}>Save</Button>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+
+              <Button onClick={save} disabled={saving}>
+                {saving ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner size="sm" className="text-black" />
+                    Saving…
+                  </span>
+                ) : (
+                  "Save"
+                )}
+              </Button>
             </div>
+
           </div>
         </DialogContent>
       </Dialog>
