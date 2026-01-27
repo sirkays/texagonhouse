@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest) {
   if (!Array.isArray(body.ids) || typeof body.is_read !== "boolean") {
     return NextResponse.json(
       {error: "Body must contain: { ids: number[], is_read: boolean }"},
-      {status: 400}
+      {status: 400},
     );
   }
 
@@ -41,20 +41,17 @@ export async function PATCH(req: NextRequest) {
       if (res.status === 401) {
         return NextResponse.json(
           {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          {status: 401},
         );
       }
       return NextResponse.json(
         {error: "Failed to update notifications"},
-        {status: res.status}
+        {status: res.status},
       );
     }
 
     const data = await res.json();
-    console.log(
-      data,
-      "Bulk PATCH response data Bulk PATCH response data.................."
-    );
+
     return NextResponse.json(data, {status: 200});
   } catch (err) {
     console.error("Bulk PATCH error:", err);

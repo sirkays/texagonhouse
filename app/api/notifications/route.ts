@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       if (res.status === 401) {
         return NextResponse.json(
           {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          {status: 401},
         );
       }
       if (res.status === 403) {
@@ -43,15 +43,11 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json(
         {error: "Failed to fetch notifications"},
-        {status: res.status}
+        {status: res.status},
       );
     }
 
     const data = await res.json();
-    console.log(
-      data,
-      "GET notifications dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    );
 
     // Normalize: backend returns { notifications: [...] }
     const notifications = Array.isArray(data) ? data : data.notifications || [];

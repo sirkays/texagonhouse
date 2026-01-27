@@ -14,7 +14,7 @@ const getHeaders = (sessionToken?: string) => ({
 
 export async function PATCH(
   req: NextRequest,
-  {params}: {params: {id: string}}
+  {params}: {params: {id: string}},
 ) {
   const session = await getServerSession(authOptions);
   const sessionToken = session?.user?.sessionToken;
@@ -34,7 +34,7 @@ export async function PATCH(
   if (typeof body.is_read !== "boolean") {
     return NextResponse.json(
       {error: "Body must contain: { is_read: boolean }"},
-      {status: 400}
+      {status: 400},
     );
   }
 
@@ -49,26 +49,23 @@ export async function PATCH(
       if (res.status === 401) {
         return NextResponse.json(
           {error: "Session expired", redirect: "/login"},
-          {status: 401}
+          {status: 401},
         );
       }
       if (res.status === 404) {
         return NextResponse.json(
           {error: "Notification not found"},
-          {status: 404}
+          {status: 404},
         );
       }
       return NextResponse.json(
         {error: "Failed to update"},
-        {status: res.status}
+        {status: res.status},
       );
     }
 
     const data = await res.json();
-    console.log(
-      data,
-      "PATCH single notification response data.......anlaalnalnaf......."
-    );
+
     return NextResponse.json(data, {status: 200});
   } catch (err) {
     console.error("PATCH single notification error:", err);
