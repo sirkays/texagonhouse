@@ -482,17 +482,6 @@ export default function NotificationsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200"
           />
-          <select
-            value={filterKind}
-            onChange={(e) => setFilterKind(e.target.value)}
-            className="px-4 py-2 border rounded-lg">
-            <option value="all">All types</option>
-            {uniqueKinds.map((k) => (
-              <option key={k} value={k}>
-                {k.charAt(0).toUpperCase() + k.slice(1)}
-              </option>
-            ))}
-          </select>
         </div>
 
         {selectedIds.length > 0 && (
