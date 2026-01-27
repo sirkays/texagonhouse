@@ -657,7 +657,7 @@ export function LearningModules() {
                             src={
                               video.cover_image.startsWith("http")
                                 ? video.cover_image
-                                : `https://texagonbackend.onrender.com${video.cover_image}`
+                                : `process.env.BASE_URL${video.cover_image}`
                             }
                             alt={video.title}
                             className="w-full h-full object-cover"

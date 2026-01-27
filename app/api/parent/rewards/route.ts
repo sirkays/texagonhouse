@@ -54,7 +54,7 @@ export async function GET(request: Request) {
           child.avatar.startsWith("/")
         ) {
           // proxy.ts BASE_URL already points to backend
-          child.avatar = `${process.env.STORE_BASE_URL || "https://texagonbackend.onrender.com"}${child.avatar}`;
+          child.avatar = `${process.env.STORE_BASE_URL}${child.avatar}`;
         }
       });
     }

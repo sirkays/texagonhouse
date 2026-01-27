@@ -1,4 +1,4 @@
-const BASE_URL = 'https://texagonbackend.onrender.com';
+const BASE_URL = 'process.env.BASE_URL';
 const API_KEY = 'nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c';
 const EMAIL = 'stu01@gmail.com';
 const PASSWORD = 'testuser';

@@ -208,7 +208,7 @@ export function LearningModules() {
     if (!cover) return null;
     return cover.startsWith("http")
       ? cover
-      : `https://texagonbackend.onrender.com${cover}`;
+      : `process.env.BASE_URL${cover}`;
   };
 
   // -------------------- Fetch modules --------------------

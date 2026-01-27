@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest) {
   }
 
   try {
-    // NOTE: proxy BASE_URL is https://texagonbackend.onrender.com
+    // NOTE: proxy BASE_URL is process.env.BASE_URL
     // so include /accounts in the path
     const { response, text, setCookie } = await djangoFetch(
       "/accounts/api/fetch-admin/access-orgs/"

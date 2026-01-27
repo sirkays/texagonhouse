@@ -2,7 +2,7 @@
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:9098";
+const BASE_URL = process.env.BASE_URL || "https://texagon-backend.onrender.com";
 
 const API_KEY =
   process.env.STORE_API_KEY ||

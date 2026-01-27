@@ -268,7 +268,7 @@
 //   const normalizeAvatarUrl = (avatar: string | null) => {
 //     if (!avatar) return "/placeholder-avatar.png";
 //     if (avatar.startsWith("http")) return avatar;
-//     return `https://texagonbackend.onrender.com${avatar}`;
+//     return `process.env.BASE_URL${avatar}`;
 //   };
 
 //   if (isLoading) {
@@ -893,7 +893,7 @@ export function Leaderboard() {
   const normalizeAvatarUrl = (avatar: string | null) => {
     if (!avatar) return "/placeholder-avatar.png";
     if (avatar.startsWith("http")) return avatar;
-    return `https://texagonbackend.onrender.com${avatar}`;
+    return `process.env.BASE_URL${avatar}`;
   };
 
   if (isLoading) {

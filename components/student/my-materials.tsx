@@ -669,7 +669,7 @@ const LockedOverlay = ({ label }: { label: string }) => (
                                 src={
                                   video.thumbnail.startsWith("http")
                                     ? video.thumbnail
-                                    : `https://texagonbackend.onrender.com${video.thumbnail}`
+                                    : `process.env.BASE_URL${video.thumbnail}`
                                 }
                                 alt={video.title}
                                 className="w-full h-full object-cover"

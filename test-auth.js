@@ -2,7 +2,7 @@ import fetch from "node-fetch"; // Ensure "type": "module" is in package.json
 import readline from "readline";
 
 // --- CONFIGURATION (Matched to Python Script) ---
-const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = process.env.BASE_URL;
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 // 🔴 CHANGE THIS TO SWITCH ACCOUNTS

@@ -23,7 +23,7 @@ export default function ChildForm({onVerified, onCancel, apiKey}: Props) {
     if (password.length < 8) return alert("Password too weak");
 
     await fetch(
-      "https://texagonbackend.onrender.com/accounts/api/account/create/",
+      `${process.env.BASE_URL}/accounts/api/account/create/`,
       {
         method: "POST",
         headers: {
@@ -49,7 +49,7 @@ export default function ChildForm({onVerified, onCancel, apiKey}: Props) {
 
   const handleVerify = async (code: string) => {
     const res = await fetch(
-      "https://texagonbackend.onrender.com/accounts/api/auth/verify-email/",
+      "process.env.BASE_URL/accounts/api/auth/verify-email/",
       {
         method: "POST",
         headers: {

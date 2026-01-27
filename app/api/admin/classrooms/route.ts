@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const org_id = searchParams.get("org_id");
     const page_size = searchParams.get("page_size");
 
-    // proxy BASE_URL is https://texagonbackend.onrender.com
+    // proxy BASE_URL is process.env.BASE_URL
     // so include /orgs in the path (same as your old BASE_URL)
     const qs = new URLSearchParams();
     if (org_id) qs.set("org_id", org_id);

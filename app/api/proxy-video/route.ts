@@ -4,7 +4,7 @@ import { djangoFetchRaw } from "@/app/api/_lib/proxy";
 
 // IMPORTANT: keep this in sync with proxy.ts BASE_URL env (STORE_BASE_URL)
 const BACKEND_ORIGIN =
-  process.env.STORE_BASE_URL || "https://texagonbackend.onrender.com";
+  process.env.STORE_BASE_URL || "https://texagon-backend.onrender.com";
 
 function normalizeMedia(media: string | null): string | null {
   if (!media) return null;

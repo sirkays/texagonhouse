@@ -58,7 +58,7 @@
 // // //         return isValid ? thumbnail : undefined;
 // // //       }
 
-// // //       const fullUrl = `https://texagonbackend.onrender.com${thumbnail}`;
+// // //       const fullUrl = `process.env.BASE_URL${thumbnail}`;
 // // //       const isValid = await validateThumbnail(fullUrl);
 // // //       return isValid ? fullUrl : undefined;
 // // //     } catch (error) {
@@ -80,7 +80,7 @@
 
 // // //       const posterUrl = thumbnail.startsWith("http")
 // // //         ? thumbnail
-// // //         : `https://texagonbackend.onrender.com${thumbnail}`;
+// // //         : `process.env.BASE_URL${thumbnail}`;
 
 // // //       const img = new Image();
 // // //       img.onload = () => {
@@ -323,7 +323,7 @@
 
 // // //     const posterUrl = thumbnail.startsWith("http")
 // // //       ? thumbnail
-// // //       : `https://texagonbackend.onrender.com${thumbnail}`;
+// // //       : `process.env.BASE_URL${thumbnail}`;
 
 // // //     return (
 // // //       <div
@@ -556,7 +556,7 @@
 //       setPosterError(false);
 //       const posterUrl = thumbnail.startsWith("http")
 //         ? thumbnail
-//         : `https://texagonbackend.onrender.com${thumbnail}`;
+//         : `process.env.BASE_URL${thumbnail}`;
 //       const img = new Image();
 //       img.onload = () => {
 //         if (videoRef.current && !isPlaying) videoRef.current.poster = posterUrl;
@@ -791,7 +791,7 @@
 //     if (!thumbnail || isPlaying || posterError) return null;
 //     const posterUrl = thumbnail.startsWith("http")
 //       ? thumbnail
-//       : `https://texagonbackend.onrender.com${thumbnail}`;
+//       : `process.env.BASE_URL${thumbnail}`;
 //     return (
 //       <div
 //         className="absolute inset-0 flex items-center justify-center bg-gray-900 cursor-pointer"
@@ -1098,7 +1098,7 @@ export function VideoModal({
       setPosterError(false);
       const posterUrl = thumbnail.startsWith("http")
         ? thumbnail
-        : `https://texagonbackend.onrender.com${thumbnail}`;
+        : `process.env.BASE_URL${thumbnail}`;
       const img = new Image();
       img.onload = () => {
         if (videoRef.current && !isPlaying) videoRef.current.poster = posterUrl;

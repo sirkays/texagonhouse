@@ -818,7 +818,7 @@ export function ResourceMaterials() {
                             <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted overflow-hidden flex items-center justify-center">
                               {video.thumbnail ? (
                                 <img
-                                  src={video.thumbnail.startsWith("http") ? video.thumbnail : `https://texagonbackend.onrender.com${video.thumbnail}`}
+                                  src={video.thumbnail.startsWith("http") ? video.thumbnail : `process.env.BASE_URL${video.thumbnail}`}
                                   alt={video.title}
                                   className="w-full h-full object-cover"
                                 />

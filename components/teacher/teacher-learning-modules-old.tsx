@@ -161,7 +161,7 @@ const formatDate = (dateString: string | undefined): string => {
 // Add this utility function at the top with other utilities
 // function normalizeMedia(media: string | undefined): string | undefined {
 //   if (!media) return undefined;
-//   const BASE_URL = "https://texagonbackend.onrender.com";
+//   const BASE_URL = process.env.BASE_URL;
 //   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
 //   if (cleaned.startsWith("http")) return cleaned;
 //   return `${BASE_URL}/media/covers/${cleaned}`;
@@ -413,7 +413,7 @@ export function TeacherLearningModules() {
   // Add this utility function at the top of your file with other utilities
   function normalizeMedia(media: string | undefined): string | undefined {
     if (!media) return undefined;
-    const BASE_URL = "https://texagonbackend.onrender.com";
+    const BASE_URL = process.env.BASE_URL;
     if (media.startsWith("http")) return media;
     let cleaned = media.replace(/^\/+/, "");
     if (cleaned.startsWith("media/")) return `${BASE_URL}/${cleaned}`;

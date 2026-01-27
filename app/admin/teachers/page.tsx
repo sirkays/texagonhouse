@@ -38,7 +38,7 @@ import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confir
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 
-const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = process.env.BASE_URL;
 
 interface Teacher {
   id: number;

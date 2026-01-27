@@ -46,7 +46,7 @@ export async function GET(
   }
 
   try {
-    // proxy.ts BASE_URL already points to https://texagonbackend.onrender.com
+    // proxy.ts BASE_URL already points to process.env.BASE_URL
     // so pass the full Django path from root:
     const path = `/code-ide/api/ide/submissions/${id}/`;
 

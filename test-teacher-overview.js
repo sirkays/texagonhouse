@@ -3,7 +3,7 @@
 
 const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 const BASE_URL =
-  "https://texagonbackend.onrender.com/accounts/api/teacher/overview/";
+  "process.env.BASE_URL/accounts/api/teacher/overview/";
 
 // Replace with your actual session token
 const SESSION_TOKEN =

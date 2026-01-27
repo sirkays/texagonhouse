@@ -12,7 +12,7 @@ import fs from "fs";
 import FormData from "form-data";
 
 // 🧩 CONFIG — edit these
-const BASE_URL = "https://texagonbackend.onrender.com";
+const BASE_URL = process.env.BASE_URL;
 const moduleId = 21; // your module ID
 const lessonId = 14; // your lesson ID
 const SESSION_TOKEN =

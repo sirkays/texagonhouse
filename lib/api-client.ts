@@ -1,7 +1,7 @@
 import {headers} from "next/headers";
 
 const API_BASE_URL =
-  process.env.API_BASE_URL || "https://texagonbackend.onrender.com/store/api";
+  process.env.API_BASE_URL || "https://texagon-backend.onrender.com/store/api";
 const API_KEY = process.env.API_KEY;
 
 interface ApiRequestOptions extends RequestInit {
