@@ -7,7 +7,7 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start -p $PORT"
+    "start": "node .next/standalone/server.js"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
