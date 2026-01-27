@@ -1,7 +1,42 @@
+// // Motioned code file: app/layout.tsx
+// import Providers from "@/utils/providers";
+
+// import "react-datepicker/dist/react-datepicker.css";
+// import "@stream-io/video-react-sdk/dist/css/styles.css";
+// import {Toaster as SonnerToaster} from "@/components/ui/sonner";
+// import {Toaster as ShadcnToaster} from "@/components/ui/toaster";
+// import {SessionProvider} from "next-auth/react";
 // import type {Metadata} from "next";
-// import {GeistSans} from "geist/font/sans";
-// import {GeistMono} from "geist/font/mono";
 // import "./globals.css";
+
+// export const metadata: Metadata = {
+//   title: "Texagon Educational Platform",
+//   description:
+//     "A video conferencing and educational platform to help students learn and teachers teach.",
+//   generator: "Epic House",
+// };
+
+// export default function RootLayout({
+//   children,
+// }: Readonly<{
+//   children: React.ReactNode;
+// }>) {
+//   return (
+//     <html lang="en">
+//       <Providers>
+//         {/* <SessionProvider> */}
+//         <body>
+//           {children}
+//           <SonnerToaster />
+//           <ShadcnToaster />
+//         </body>
+//         {/* </SessionProvider> */}
+//       </Providers>
+//     </html>
+//     //{" "}
+//   );
+// }
+
 import Providers from "@/utils/providers";
 
 import "react-datepicker/dist/react-datepicker.css";
@@ -11,6 +46,7 @@ import {Toaster as ShadcnToaster} from "@/components/ui/toaster";
 import {SessionProvider} from "next-auth/react";
 import type {Metadata} from "next";
 import "./globals.css";
+import {NotificationProvider} from "@/components/NotificationProvider";
 
 export const metadata: Metadata = {
   title: "Texagon Educational Platform",
@@ -27,15 +63,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <Providers>
-        {/* <SessionProvider> */}
-        <body>
-          {children}
-          <SonnerToaster />
-          <ShadcnToaster />
-        </body>
-        {/* </SessionProvider> */}
+        <NotificationProvider>
+          <body>
+            {children}
+            <SonnerToaster />
+            <ShadcnToaster />
+          </body>
+        </NotificationProvider>
       </Providers>
     </html>
-    //{" "}
   );
 }

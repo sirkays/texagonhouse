@@ -98,7 +98,8 @@
     "workbox-background-sync": "^7.3.0",
     "workbox-window": "^7.3.0",
     "xlsx": "^0.18.5",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
