@@ -1,63 +1,76 @@
-import {NextRequest, NextResponse} from "next/server";
-import {getServerSession} from "next-auth";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
-import {unstable_noStore as noStore} from "next/cache";
-
-const BASE_URL =
-  "https://texagonbackend.onrender.com/notifications/api/my-notifications";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
-const getHeaders = (sessionToken?: string) => ({
-  Authorization: `Api-Key ${API_KEY}`,
-  "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
-});
+// app/api/notifications/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { djangoFetch } from "@/app/api/_lib/proxy";
 
 export async function GET(req: NextRequest) {
   noStore();
 
-  const {searchParams} = new URL(req.url);
+  const { searchParams } = new URL(req.url);
   const unread = searchParams.get("unread");
 
-  let url = `${BASE_URL}/`;
-  if (unread !== null) url += `?unread=${unread}`;
-
-  const session = await getServerSession(authOptions);
-  const sessionToken = session?.user?.sessionToken;
+  // Build Django path (relative; proxy.ts adds BASE_URL)
+  let path = "/notifications/api/my-notifications/";
+  if (unread !== null) {
+    path += `?unread=${encodeURIComponent(unread)}`;
+  }
 
   try {
-    const res = await fetch(url, {
-      headers: getHeaders(sessionToken ? sessionToken : undefined),
+    const { response, text, setCookie } = await djangoFetch(path, {
+      method: "GET",
       cache: "no-store",
     });
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        return NextResponse.json(
-          {error: "Session expired", redirect: "/login"},
-          {status: 401},
-        );
-      }
-      if (res.status === 403) {
-        return NextResponse.json({error: "Forbidden"}, {status: 403});
-      }
+    // Keep your friendly 401 response shape
+    if (response.status === 401) {
       return NextResponse.json(
-        {error: "Failed to fetch notifications"},
-        {status: res.status},
+        { error: "Session expired", redirect: "/login" },
+        { status: 401 }
       );
     }
 
-    const data = await res.json();
+    if (!response.ok) {
+      if (response.status === 403) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.json(
+        { error: "Failed to fetch notifications" },
+        { status: response.status }
+      );
+    }
 
-    // Normalize: backend returns { notifications: [...] }
-    const notifications = Array.isArray(data) ? data : data.notifications || [];
+    // Parse JSON safely
+    const contentType = response.headers.get("content-type") || "";
+    let data: any = null;
 
-    return NextResponse.json(notifications, {
+    if (contentType.includes("application/json") && text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return NextResponse.json({ error: "Invalid JSON from backend" }, { status: 502 });
+      }
+    }
+
+    // Normalize: backend may return { notifications: [...] } or just []
+    const notifications = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.notifications)
+        ? data.notifications
+        : [];
+
+    const nextRes = NextResponse.json(notifications, {
       status: 200,
-      headers: {"Cache-Control": "no-store"},
+      headers: { "Cache-Control": "no-store" },
     });
+
+    // Forward Django cookies if any
+    if (setCookie) {
+      nextRes.headers.set("set-cookie", setCookie);
+    }
+
+    return nextRes;
   } catch (err) {
     console.error("GET notifications error:", err);
-    return NextResponse.json({error: "Internal error"}, {status: 500});
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

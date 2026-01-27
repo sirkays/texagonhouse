@@ -145,7 +145,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: "aVeryStrongSecretKeyAtLeast32Chars",
+  secret: process.env.SECRET_KEY ,
 
   session: {
     strategy: "jwt",

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const DJANGO_BASE_URL = "https://texagonbackend.onrender.com";
+const DJANGO_BASE_URL = process.env.BASE_URL;
 
 // how long you’re willing to wait for verify (edge fetch can hang)
 const VERIFY_TIMEOUT_MS = 2500;
@@ -20,7 +20,7 @@ export default async function middleware(req: NextRequest) {
 
   const token = await getToken({
     req,
-    secret: "aVeryStrongSecretKeyAtLeast32Chars",
+    secret: process.env.SECRET_KEY,
   });
 
   const sessionToken = (token as any)?.sessionToken as string | undefined;
