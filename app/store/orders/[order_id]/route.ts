@@ -4,7 +4,7 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = "process.env.BASE_URL/store/api";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | undefined) => ({
   Authorization: `Api-Key ${API_KEY}`,

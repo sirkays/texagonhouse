@@ -1,7 +1,7 @@
 // test-teacher-overview.js
 // Usage: node test-teacher-overview.js
 
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 const BASE_URL =
   "process.env.BASE_URL/accounts/api/teacher/overview/";
 

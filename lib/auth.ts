@@ -6,7 +6,7 @@ import type { Session, User } from "next-auth";
 
 //const BASE_URL = "http://127.0.0.1:9098"
 const BASE_URL = process.env.BASE_URL;
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken?: string) => ({
   Authorization: `Api-Key ${API_KEY}`,

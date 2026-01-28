@@ -153,7 +153,7 @@ type TeacherCourse = {
   general_activation_date?: string | null;
 };
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,

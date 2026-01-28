@@ -4,9 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 const BASE_URL = process.env.BASE_URL || "https://texagon-backend.onrender.com";
 
-const API_KEY =
-  process.env.STORE_API_KEY ||
-  "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 type DjangoFetchResult = {
   response: Response;

@@ -5,7 +5,7 @@ import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = process.env.BASE_URL;
 //const BASE_URL = "http://127.0.0.1:9098";
-const API_KEY = "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 async function fetchWithTimeout(url: string, options: any) {
   const controller = new AbortController();
