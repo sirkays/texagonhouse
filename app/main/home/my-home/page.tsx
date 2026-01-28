@@ -6,6 +6,7 @@ import {useRouter} from "next/navigation";
 import {Button} from "@/components/ui/button";
 import Image from "next/image";
 import {toast} from "sonner";
+import {useState} from "react";
 
 const PersonalMeetingInfo = ({
   title,
@@ -31,16 +32,21 @@ const MyRoomPage = () => {
   const {data: session} = useSession();
   const client = useStreamVideoClient();
 
+  const [isStarting, setIsStarting] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
+
   const user = session?.user;
   const meetingId = `personal-${user?.id}-${Date.now()}`; // Unique ID to avoid reusing ended calls
 
   const startRoom = async () => {
+    setIsStarting(true);
     if (!client || !user || !meetingId) {
       toast.error("Cannot start meeting: Missing client, user, or meeting ID", {
         duration: 4000,
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
       console.error("[MyRoomPage] Missing data:", {client, user, meetingId});
+      setIsStarting(false);
       return;
     }
 
@@ -109,6 +115,8 @@ const MyRoomPage = () => {
       ) {
         router.push("/login");
       }
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -136,21 +144,31 @@ const MyRoomPage = () => {
         <Button
           className="rounded bg-blue-700 p-4 hover:bg-blue-400 px-6"
           onClick={startRoom}
-          disabled={!meetingId}>
-          Start Meeting
+          disabled={isStarting || !meetingId}>
+          {isStarting ? "Loading..." : "Start Meeting"}
         </Button>
         <Button
           className="bg-gray-700"
           onClick={() => {
-            navigator.clipboard.writeText(meetingLink);
+            setIsCopying(true);
+            navigator.clipboard
+              .writeText(meetingLink)
+              .finally(() => setIsCopying(false));
             toast("Link Copied", {
               duration: 3000,
               className:
                 "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
             });
-          }}>
-          <Image src="/copy.svg" alt="copy" width={20} height={20} />
-          Copy Invitation
+          }}
+          disabled={isCopying}>
+          {isCopying ? (
+            "Loading..."
+          ) : (
+            <>
+              <Image src="/copy.svg" alt="copy" width={20} height={20} />
+              Copy Invitation
+            </>
+          )}
         </Button>
       </div>
     </section>

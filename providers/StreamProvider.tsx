@@ -5,7 +5,7 @@ import {StreamVideo, StreamVideoClient} from "@stream-io/video-react-sdk";
 import {ReactNode, useEffect, useState, useMemo} from "react";
 import {tokenProvider} from "@/actions/stream.actions";
 import Loading from "@/components/livesession/Loading";
-import { Spinner } from "@/components/ui/spinner";
+import {Spinner} from "@/components/ui/spinner";
 
 const API_KEY = "cx85x7gj2dxr";
 
@@ -43,9 +43,12 @@ const StreamProvider = ({children}: {children: ReactNode}) => {
     };
   }, [sessionToken, status]);
 
-  if (!videoClient) return  <div className="flex min-h-screen items-center justify-center bg-background">
-          <Spinner size="md" className="text-black" />
-        </div>
+  if (!videoClient)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner size="md" className="text-black" />
+      </div>
+    );
 
   return <StreamVideo client={videoClient}>{children}</StreamVideo>;
 };
