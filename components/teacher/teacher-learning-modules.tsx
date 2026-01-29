@@ -152,6 +152,23 @@ type TeacherCourse = {
   general_activation?: boolean;
   general_activation_date?: string | null;
 };
+
+
+type UploadProgress = {
+  percent: number;   // 0..100
+  loaded: number;    // bytes
+  total: number;     // bytes
+};
+
+type UploadOptions = {
+  url: string;
+  method: "POST" | "PATCH";
+  sessionToken: string;
+  apiKey: string;
+  body: FormData;
+  onProgress?: (p: UploadProgress) => void;
+};
+
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
 const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
@@ -296,10 +313,88 @@ export function TeacherLearningModules() {
   const [gaEnabled, setGaEnabled] = useState(false);
   const [gaDateLocal, setGaDateLocal] = useState<string>(""); // datetime-local
   const [gaSaving, setGaSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadInfo, setUploadInfo] = useState({ percent: 0, loaded: 0, total: 0 });
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "finalizing">("idle");
   const MAX_IMAGE_BYTES = 1 * 1024 * 1024;   // 1MB
   const MAX_VIDEO_BYTES = 50 * 1024 * 1024;  // 50MB
   const MAX_AUDIO_BYTES = 10 * 1024 * 1024;  // 10MB
   const MAX_PDF_BYTES = 5 * 1024 * 1024;   // 5MB
+
+
+
+  function uploadWithProgress<T = any>({
+    url,
+    method,
+    sessionToken,
+    apiKey,
+    body,
+    onProgress,
+  }: UploadOptions): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+
+      // ✅ MUST match your DRF auth setup
+      xhr.setRequestHeader("Authorization", `Api-Key ${apiKey}`);
+      xhr.setRequestHeader("X-Session-Token", sessionToken);
+
+      // ✅ Don't set Content-Type manually for FormData
+
+      let sawProgressEvent = false;
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        sawProgressEvent = true;
+
+        // percent based on bytes uploaded
+        const raw = evt.total > 0 ? (evt.loaded / evt.total) * 100 : 0;
+
+        // ✅ IMPORTANT: cap at 99% until the server response returns
+        const percent = Math.min(99, Math.floor(raw));
+
+        onProgress?.({
+          percent,
+          loaded: evt.loaded,
+          total: evt.total,
+        });
+      };
+
+      xhr.onload = () => {
+        const text = xhr.responseText || "";
+        let json: any;
+
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {
+          return reject(new Error("Invalid JSON response from server"));
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // ✅ NOW it's truly done (server replied)
+          onProgress?.({ percent: 100, loaded: 1, total: 1 });
+          return resolve(json);
+        }
+
+        return reject(new Error(json?.detail || json?.error || `Upload failed (${xhr.status})`));
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+
+      xhr.send(body);
+
+      // Optional: if the file is tiny / super fast and no progress event fires,
+      // your UI should show a spinner instead of “fake progress”.
+      setTimeout(() => {
+        if (!sawProgressEvent) {
+          onProgress?.({ percent: 0, loaded: 0, total: 0 });
+        }
+      }, 150);
+    });
+  }
+
 
   const formatBytes = (bytes: number) =>
     `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
@@ -1321,345 +1416,178 @@ export function TeacherLearningModules() {
   };
 
   const saveLesson = async () => {
-    if (!sessionToken) {
-      setError("No session token available. Please log in again.");
-      console.error("[saveLesson] No session token");
-      return;
-    }
-    if (!currentModule.id) {
-      setError("No module selected. Please save the module first.");
-      console.error("[saveLesson] No module ID");
-      return;
-    }
-    if (!editingLesson) {
-      setError("No lesson selected for saving.");
-      console.error("[saveLesson] No editing lesson");
-      return;
-    }
-    if (!editingLesson.title) {
-      setError("Lesson title is required.");
-      console.error("[saveLesson] Missing lesson title");
-      return;
-    }
+    if (!sessionToken) return setError("No session token available. Please log in again.");
+    if (!currentModule.id) return setError("No module selected. Please save the module first.");
+    if (!editingLesson) return setError("No lesson selected for saving.");
+    if (!editingLesson.title) return setError("Lesson title is required.");
+
+    // size checks
     if (editingLesson.file) {
-      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) {
-        setError("Video must be 50MB or less.");
-        return;
-      }
-
-      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) {
-        setError("Audio must be 10MB or less.");
-        return;
-      }
-
-      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) {
-        setError("PDF must be 5MB or less.");
-        return;
-      }
+      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 50MB or less.");
+      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 10MB or less.");
+      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 5MB or less.");
     }
-
     if (editingLesson.coverImage && editingLesson.coverImage.size > MAX_IMAGE_BYTES) {
-      setError("Cover image must be 1MB or less.");
-      return;
+      return setError("Cover image must be 1MB or less.");
     }
-
 
     try {
       setIsSavingLesson(true);
+      setError(null);
+
+      // ✅ reset progress UI
+      setUploading(true);
+      setUploadPhase("uploading");
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
+
+      // ✅ let React paint before starting the request
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
       const formData = new FormData();
       formData.append("title", editingLesson.title);
-      formData.append("type", editingLesson.type); // Updated to "type" per API
-      formData.append(
-        "duration",
-        (durationToMinutes(editingLesson.duration) * 60).toString()
-      ); // Updated to "duration"
-      formData.append("order", (currentModule.lessons.length + 1).toString());
-      formData.append(
-        "meta",
-        JSON.stringify({
-          description: editingLesson.content || "",
-          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        })
-      );
+      formData.append("type", editingLesson.type);
+      formData.append("duration", (durationToMinutes(editingLesson.duration) * 60).toString());
+      formData.append("meta", JSON.stringify({
+        description: editingLesson.content || "",
+        tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+      }));
       formData.append("active", "true");
 
-      // Main file handling
+      // file/url/text
       if (
-        editingLesson.file &&
         editingLesson.file instanceof File &&
-        (editingLesson.type === "video" ||
-          editingLesson.type === "audio" ||
-          editingLesson.type === "pdf")
+        (editingLesson.type === "video" || editingLesson.type === "audio" || editingLesson.type === "pdf")
       ) {
         formData.append("file", editingLesson.file, editingLesson.file.name);
-      } else if (
-        editingLesson.type === "text" &&
-        editingLesson.content &&
-        !editingLesson.content.startsWith("http")
-      ) {
-        formData.append("textContent", editingLesson.content); // Updated field name if needed
-      } else if (
-        (editingLesson.videoUrl || editingLesson.audioUrl) &&
-        (editingLesson.videoUrl?.startsWith("http") ||
-          editingLesson.audioUrl?.startsWith("http"))
-      ) {
-        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        formData.append("url", url);
-      } else {
-        console.log("[saveLesson] No file or valid URL provided");
+      } else if (editingLesson.type === "text" && editingLesson.content && !editingLesson.content.startsWith("http")) {
+        formData.append("textContent", editingLesson.content);
+      } else if (editingLesson.videoUrl?.startsWith("http") || editingLesson.audioUrl?.startsWith("http")) {
+        formData.append("url", editingLesson.videoUrl || editingLesson.audioUrl || "");
       }
 
-      // NEW: Cover image handling
-      if (editingLesson.coverImage) {
-        formData.append(
-          "cover_image",
-          editingLesson.coverImage,
-          editingLesson.coverImage.name
-        );
+      // cover image
+      if (editingLesson.coverImage instanceof File) {
+        formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
       }
 
-      // Log FormData contents for debugging
+      const resp = await uploadWithProgress<any>({
+        url: `/api/teacher/modules/${currentModule.id}/lessons/`,
+        method: "POST",
+        sessionToken,
+        apiKey: API_KEY,
+        body: formData,
+        onProgress: (p) => {
+          // if we see progress events, keep phase uploading
+          setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+          setUploadInfo(p);
+        },
+      });
 
-      for (const [key, value] of formData.entries()) {
-        console.log(
-          `[saveLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`
-        );
-      }
-
-      const response = await fetch(
-        `/api/teacher/modules/${currentModule.id}/lessons/`,
-        {
-          method: "POST",
-          headers: {
-            "X-Session-Token": sessionToken,
-          },
-          body: formData,
-        }
-      );
-
-      const responseText = await response.text();
-
-      // Parse once
-      let parsed: any;
-      try {
-        parsed = responseText ? JSON.parse(responseText) : null;
-      } catch (e) {
-        console.error(
-          "[saveLesson] Failed to parse JSON:",
-          responseText.slice(0, 200)
-        );
-        throw new Error("Invalid response format from server");
-      }
-
-      // Handle errors first
-      if (!response.ok) {
-        const errorData = parsed || {};
-        console.error("[saveLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to create lesson");
-      }
-
-      // Success path — support both {lesson: {...}} and bare lesson
-      const serverLesson = parsed?.lesson ?? parsed;
+      const serverLesson = resp?.lesson ?? resp;
 
       const newLesson: Lesson = {
         ...editingLesson,
         id: String(serverLesson.id),
-        coverImageUrl: serverLesson.cover_image
-          ? normalizeMedia(serverLesson.cover_image)
-          : undefined,
-        coverImage: null, // Clear temp file
-        file: null, // Clear temp file if any
-        remove_cover: false, // Reset if set
+        coverImageUrl: serverLesson.cover_image ? normalizeMedia(serverLesson.cover_image) : editingLesson.coverImageUrl,
+        coverImage: null,
+        file: null,
+        remove_cover: false,
       };
 
+      // update local state
       setCurrentModule((prev) => ({
         ...prev,
-        lessons: prev.lessons.map((lesson) =>
-          lesson.id === editingLesson.id ? newLesson : lesson
-        ),
-        lessonCount: prev.lessonCount, // Update if needed
+        lessons: prev.lessons.map((l) => (l.id === editingLesson.id ? newLesson : l)),
       }));
       setEditingLesson(newLesson);
+
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (coverImageInputRef.current) coverImageInputRef.current.value = "";
+
       openFeedback("Lesson saved", "Lesson saved successfully.");
-
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          console.error(
-            "[saveLesson] Failed to parse error response:",
-            responseText.slice(0, 200)
-          );
-          throw new Error("Invalid response format from server");
-        }
-        console.error("[saveLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to create lesson");
-      }
-
-      const data: { lesson: Lesson } = JSON.parse(responseText);
-
-      // Refresh module data to sync with server
-      const moduleData = await getModuleDetails(currentModule.id);
-      if (moduleData) {
-        setCurrentModule(moduleData);
-        setModules((prev) =>
-          prev.map((m) => (m.id === moduleData.id ? moduleData : m))
-        );
-      }
-
-      setEditingLesson(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset file input
-      }
-      alert(`Lesson created successfully! ID: ${data.lesson.id}`);
-    } catch (err) {
-      setError(
-        (err as Error).message || "An error occurred while creating the lesson"
-      );
-      console.error("[saveLesson] Error:", err);
+    } catch (err: any) {
+      setError(err?.message || "An error occurred while creating the lesson");
     } finally {
       setIsSavingLesson(false);
+      setUploadPhase("idle");
+      setUploading(false);
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
     }
   };
-
+  // ✅ REWRITE: updateLesson (UPDATE)
   const updateLesson = async (lessonId: string) => {
-    if (!sessionToken) {
-      setError("No session token available. Please log in again.");
-      console.error("[updateLesson] No session token");
-      return;
+    if (!sessionToken) return setError("No session token available. Please log in again.");
+    if (!currentModule.id) return setError("No module selected.");
+    if (!editingLesson) return setError("No lesson selected for updating.");
+    if (!editingLesson.title) return setError("Lesson title is required.");
+
+    // size checks
+    if (editingLesson.file) {
+      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 50MB or less.");
+      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 10MB or less.");
+      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 5MB or less.");
     }
-    if (!currentModule.id) {
-      setError("No module selected.");
-      console.error("[updateLesson] No module ID");
-      return;
-    }
-    if (!editingLesson) {
-      setError("No lesson selected for updating.");
-      console.error("[updateLesson] No editing lesson");
-      return;
-    }
-    if (!editingLesson.title) {
-      setError("Lesson title is required.");
-      console.error("[updateLesson] Missing lesson title");
-      return;
+    if (editingLesson.coverImage && editingLesson.coverImage.size > MAX_IMAGE_BYTES) {
+      return setError("Cover image must be 1MB or less.");
     }
 
     try {
       setIsSavingLesson(true);
+      setError(null);
+
+      setUploading(true);
+      setUploadPhase("uploading");
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
+
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
       const formData = new FormData();
       formData.append("title", editingLesson.title);
       formData.append("type", editingLesson.type);
-      formData.append(
-        "duration",
-        (durationToMinutes(editingLesson.duration) * 60).toString()
-      );
-      formData.append(
-        "meta",
-        JSON.stringify({
-          description: editingLesson.content || "",
-          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        })
-      );
+      formData.append("duration", (durationToMinutes(editingLesson.duration) * 60).toString());
+      formData.append("meta", JSON.stringify({
+        description: editingLesson.content || "",
+        tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+      }));
       formData.append("active", "true");
 
+      // file/url/text
       if (
-        editingLesson.file &&
         editingLesson.file instanceof File &&
-        (editingLesson.type === "video" ||
-          editingLesson.type === "audio" ||
-          editingLesson.type === "pdf")
+        (editingLesson.type === "video" || editingLesson.type === "audio" || editingLesson.type === "pdf")
       ) {
         formData.append("file", editingLesson.file, editingLesson.file.name);
-      } else if (
-        editingLesson.type === "text" &&
-        editingLesson.content &&
-        !editingLesson.content.startsWith("http")
-      ) {
+      } else if (editingLesson.type === "text" && editingLesson.content && !editingLesson.content.startsWith("http")) {
         formData.append("textContent", editingLesson.content);
-      } else if (
-        (editingLesson.videoUrl || editingLesson.audioUrl) &&
-        (editingLesson.videoUrl?.startsWith("http") ||
-          editingLesson.audioUrl?.startsWith("http"))
-      ) {
-        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        formData.append("url", url);
+      } else if (editingLesson.videoUrl?.startsWith("http") || editingLesson.audioUrl?.startsWith("http")) {
+        formData.append("url", editingLesson.videoUrl || editingLesson.audioUrl || "");
       }
 
-      if (editingLesson.coverImage) {
-        formData.append(
-          "cover_image",
-          editingLesson.coverImage,
-          editingLesson.coverImage.name
-        );
+      // cover image update / removal
+      if (editingLesson.coverImage instanceof File) {
+        formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
       } else if (editingLesson.remove_cover) {
         formData.append("remove_cover", "true");
       }
 
-      for (const [key, value] of formData.entries()) {
-        console.log(
-          `[updateLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`
-        );
-      }
+      const resp = await uploadWithProgress<any>({
+        url: `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+        method: "PATCH",
+        sessionToken,
+        apiKey: API_KEY,
+        body: formData,
+        onProgress: (p) => {
+          setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+          setUploadInfo(p);
+        },
+      });
 
-      const response = await fetch(
-        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "X-Session-Token": sessionToken,
-          },
-          body: formData,
-        }
-      );
+      const serverLesson = resp?.lesson ?? resp;
 
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          console.error(
-            "[updateLesson] Failed to parse error response:",
-            responseText.slice(0, 200)
-          );
-          throw new Error("Invalid response format from server");
-        }
-        console.error("[updateLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to update lesson");
-      }
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error(
-          "[updateLesson] Failed to parse success response:",
-          responseText.slice(0, 200)
-        );
-        throw new Error("Invalid response format from server");
-      }
       const updatedLesson: Lesson = {
         ...editingLesson,
-        id: String(data.lesson.id),
-        coverImageUrl: data.lesson.cover_image
-          ? normalizeMedia(data.lesson.cover_image)
-          : undefined,
+        id: String(serverLesson.id ?? lessonId),
+        coverImageUrl: serverLesson.cover_image ? normalizeMedia(serverLesson.cover_image) : editingLesson.coverImageUrl,
         coverImage: null,
         file: null,
         remove_cover: false,
@@ -1667,41 +1595,24 @@ export function TeacherLearningModules() {
 
       setCurrentModule((prev) => ({
         ...prev,
-        lessons: prev.lessons.map((lesson) =>
-          lesson.id === lessonId ? updatedLesson : lesson
-        ),
+        lessons: prev.lessons.map((l) => (l.id === lessonId ? updatedLesson : l)),
       }));
       setEditingLesson(updatedLesson);
 
-      // Refresh module data to sync with server, but prioritize PATCH cover image if GET is stale
-      const moduleData = await getModuleDetails(currentModule.id);
-      if (moduleData) {
-        setCurrentModule(moduleData);
-        setModules((prev) =>
-          prev.map((m) => (m.id === moduleData.id ? moduleData : m))
-        );
-        const syncedLessons = moduleData.lessons.map((lesson) => {
-          if (lesson.id === lessonId) {
-            return {
-              ...lesson,
-              coverImageUrl: updatedLesson.coverImageUrl, // Override with PATCH's cover image
-            };
-          }
-          return lesson;
-        });
-        setCurrentModule({ ...moduleData, lessons: syncedLessons });
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (coverImageInputRef.current) coverImageInputRef.current.value = "";
 
       openFeedback("Lesson updated", "Lesson was updated successfully.");
-    } catch (err) {
-      setError(
-        (err as Error).message || "An error occurred while updating the lesson"
-      );
-      console.error("[updateLesson] Error:", err);
+    } catch (err: any) {
+      setError(err?.message || "An error occurred while updating the lesson");
     } finally {
       setIsSavingLesson(false);
+      setUploadPhase("idle");
+      setUploading(false);
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
     }
   };
+
 
   // 🔧 Normalize cover image URLs so relative paths become full URLs
   const normalizeCoverImageUrl = (cover: string | null | undefined) => {
@@ -2283,7 +2194,7 @@ export function TeacherLearningModules() {
                               )}
                               alt="Cover"
                               onError={(e) => {
-                                e.currentTarget.src = "/placeholder-cover.png";
+                                e.currentTarget.src = "/placeholder.svg";
                               }}
                               className="h-16 w-16 object-cover rounded"
                             />
@@ -2688,6 +2599,26 @@ export function TeacherLearningModules() {
                       </p>
                     </div>
                   )}
+
+                  {uploading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {uploadPhase === "finalizing" ? "Finalizing…" : "Uploading…"}{" "}
+                          {uploadInfo.total > 0
+                            ? `${(uploadInfo.loaded / (1024 * 1024)).toFixed(1)}MB / ${(uploadInfo.total / (1024 * 1024)).toFixed(1)}MB`
+                            : ""}
+                        </span>
+                        <span>{uploadInfo.percent}%</span>
+                      </div>
+
+                      <div className="h-2 w-full rounded bg-muted overflow-hidden">
+                        <div className="h-full bg-[#EF7B55]" style={{ width: `${uploadInfo.percent}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+
                 </CardContent>
               </Card>
             </div>
