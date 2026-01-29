@@ -118,6 +118,12 @@ interface ActiveModule {
   courseName: string;
 }
 
+
+type MediaUrlResponse = {
+  url: string; // signed url
+  expires_in?: number;
+};
+
 // -------------------- Helpers --------------------
 const StarRating = ({ popularity }: { popularity: number | null }) => {
   if (!popularity || popularity <= 0) return null;
@@ -317,6 +323,37 @@ export function LearningModules() {
     fetchActiveModules();
   }, [sessionToken, status]);
 
+
+  
+async function fetchLessonMediaUrl(lessonId: number): Promise<string> {
+  if (!sessionToken) throw new Error("No session token");
+
+  // IMPORTANT: use your Next proxy route if you have one; otherwise call Django directly.
+  // If Django is behind /api proxy in Next, use `/api/student/lesson-media-url/${lessonId}`
+  // If calling Django directly, use `${DJANGO_BASE}/learning/api/lesson-media-url/${lessonId}/`
+
+  const res = await fetch(`/api/student/lesson-media-url/${lessonId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Session-Token": sessionToken,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    let j: any = {};
+    try {
+      j = await res.json();
+    } catch {}
+    if (res.status === 401 || res.status === 403) throw new Error("SESSION_EXPIRED");
+    throw new Error(j?.detail || j?.error || "Failed to get media url");
+  }
+
+  const data = (await res.json()) as MediaUrlResponse;
+  if (!data?.url) throw new Error("Media URL missing");
+  return data.url;
+}
   // -------------------- Save Lesson --------------------
   const handleSaveLesson = async (module: ModuleItem) => {
     if (!session?.user?.sessionToken) {
@@ -510,48 +547,70 @@ export function LearningModules() {
   };
 
   // -------------------- Play / Preview handlers --------------------
-  const handlePlayVideo = (video: ModuleItem) => {
-    if (video.blur) {
-      showAlert("Locked lesson", "Subscribe or upgrade your plan to access this video.");
-      return;
-    }
-    if (!video.url) {
-      showAlert("Video unavailable", "No video URL is available for this lesson yet.");
-      return;
-    }
-    setSelectedVideo(video);
+const handlePlayVideo = async (video: ModuleItem) => {
+  if (video.blur) {
+    showAlert("Locked lesson", "Subscribe or upgrade your plan to access this video.");
+    return;
+  }
+
+  try {
+    // get signed url from endpoint
+    const signedUrl = await fetchLessonMediaUrl(video.id);
+
+    setSelectedVideo({ ...video, url: signedUrl });
     setVideoModalOpen(true);
-  };
-
-
-  const handlePlayAudio = (audio: ModuleItem) => {
-    if (audio.blur) {
-      showAlert("Locked lesson", "Subscribe or upgrade your plan to access this audio.");
+  } catch (e: any) {
+    if (e?.message === "SESSION_EXPIRED") {
+      setError("Session expired");
+      setModules(null);
+      showAlert("Session expired", "Please log in again to continue.");
       return;
     }
-    if (!audio.url) {
-      showAlert("Audio unavailable", "No audio URL is available for this lesson yet.");
-      return;
-    }
-    setSelectedAudio(audio);
+    showAlert("Video unavailable", e?.message || "Unable to load video.");
+  }
+};
+const handlePlayAudio = async (audio: ModuleItem) => {
+  if (audio.blur) {
+    showAlert("Locked lesson", "Subscribe or upgrade your plan to access this audio.");
+    return;
+  }
+
+  try {
+    const signedUrl = await fetchLessonMediaUrl(audio.id);
+
+    setSelectedAudio({ ...audio, url: signedUrl });
     setAudioPlayerOpen(true);
-  };
-
-
-  const handlePreviewPdf = (pdf: ModuleItem) => {
-    if (pdf.blur) {
-      showAlert("Locked document", "Subscribe or upgrade your plan to access this PDF.");
+  } catch (e: any) {
+    if (e?.message === "SESSION_EXPIRED") {
+      setError("Session expired");
+      setModules(null);
+      showAlert("Session expired", "Please log in again to continue.");
       return;
     }
-    if (!pdf.url) {
-      showAlert("PDF unavailable", "No PDF URL is available for this document yet.");
+    showAlert("Audio unavailable", e?.message || "Unable to load audio.");
+  }
+};
+
+
+const handlePreviewPdf = async (pdf: ModuleItem) => {
+  if (pdf.blur) {
+    showAlert("Locked document", "Subscribe or upgrade your plan to access this PDF.");
+    return;
+  }
+
+  try {
+    const signedUrl = await fetchLessonMediaUrl(pdf.id);
+    window.open(signedUrl, "_blank");
+  } catch (e: any) {
+    if (e?.message === "SESSION_EXPIRED") {
+      setError("Session expired");
+      setModules(null);
+      showAlert("Session expired", "Please log in again to continue.");
       return;
     }
-    const url = new URL(pdf.url);
-    if (sessionToken) url.searchParams.append("sessionToken", sessionToken);
-    window.open(url.toString(), "_blank");
-  };
-
+    showAlert("PDF unavailable", e?.message || "Unable to preview PDF.");
+  }
+};
 
   // -------------------- Loading / error states --------------------
   if (pageLoading) {
