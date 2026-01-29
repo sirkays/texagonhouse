@@ -170,10 +170,9 @@ type UploadOptions = {
 };
 
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | null) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+  Authorization: ``,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
@@ -237,6 +236,9 @@ const normalizeModuleType = (t?: string): Module["type"] => {
 };
 
 export function TeacherLearningModules() {
+  const DJANGO_BASE =
+  process.env.NEXT_PUBLIC_DJANGO_BASE_URL || "https://texagon-backend.onrender.com";
+
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesError, setCoursesError] = useState<string | null>(null);
@@ -324,76 +326,52 @@ export function TeacherLearningModules() {
   const MAX_PDF_BYTES = 5 * 1024 * 1024;   // 5MB
 
 
+function uploadWithProgress<T = any>({
+  url,
+  method,
+  sessionToken,
+  apiKey,
+  body,
+  onProgress,
+}: UploadOptions): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
 
-  function uploadWithProgress<T = any>({
-    url,
-    method,
-    sessionToken,
-    apiKey,
-    body,
-    onProgress,
-  }: UploadOptions): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open(method, url, true);
-
-      // ✅ MUST match your DRF auth setup
+    // ✅ Only set Api-Key if provided (browser uploads should NOT use it)
+    if (apiKey && apiKey.trim()) {
       xhr.setRequestHeader("Authorization", `Api-Key ${apiKey}`);
+    }
+
+    // ✅ Your real auth for browser upload
+    if (sessionToken) {
       xhr.setRequestHeader("X-Session-Token", sessionToken);
+    }
 
-      // ✅ Don't set Content-Type manually for FormData
+    // (DON'T set Content-Type manually for FormData)
 
-      let sawProgressEvent = false;
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable) return;
+      const percent = Math.min(99, Math.floor((evt.loaded / evt.total) * 100));
+      onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
+    };
 
-      xhr.upload.onprogress = (evt) => {
-        if (!evt.lengthComputable) return;
-        sawProgressEvent = true;
+    xhr.onload = () => {
+      const text = xhr.responseText || "";
+      let json: any = null;
+      try { json = text ? JSON.parse(text) : null; } catch {}
 
-        // percent based on bytes uploaded
-        const raw = evt.total > 0 ? (evt.loaded / evt.total) * 100 : 0;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.({ percent: 100, loaded: 1, total: 1 });
+        return resolve(json);
+      }
+      return reject(new Error(json?.detail || json?.error || `Upload failed (${xhr.status})`));
+    };
 
-        // ✅ IMPORTANT: cap at 99% until the server response returns
-        const percent = Math.min(99, Math.floor(raw));
-
-        onProgress?.({
-          percent,
-          loaded: evt.loaded,
-          total: evt.total,
-        });
-      };
-
-      xhr.onload = () => {
-        const text = xhr.responseText || "";
-        let json: any;
-
-        try {
-          json = text ? JSON.parse(text) : null;
-        } catch {
-          return reject(new Error("Invalid JSON response from server"));
-        }
-
-        if (xhr.status >= 200 && xhr.status < 300) {
-          // ✅ NOW it's truly done (server replied)
-          onProgress?.({ percent: 100, loaded: 1, total: 1 });
-          return resolve(json);
-        }
-
-        return reject(new Error(json?.detail || json?.error || `Upload failed (${xhr.status})`));
-      };
-
-      xhr.onerror = () => reject(new Error("Network error during upload"));
-
-      xhr.send(body);
-
-      // Optional: if the file is tiny / super fast and no progress event fires,
-      // your UI should show a spinner instead of “fake progress”.
-      setTimeout(() => {
-        if (!sawProgressEvent) {
-          onProgress?.({ percent: 0, loaded: 0, total: 0 });
-        }
-      }, 150);
-    });
-  }
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.send(body);
+  });
+}
 
 
   const formatBytes = (bytes: number) =>
@@ -1471,10 +1449,10 @@ export function TeacherLearningModules() {
       }
 
       const resp = await uploadWithProgress<any>({
-        url: `/api/teacher/modules/${currentModule.id}/lessons/`,
+        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/`,
         method: "POST",
         sessionToken,
-        apiKey: API_KEY,
+        apiKey: "",
         body: formData,
         onProgress: (p) => {
           // if we see progress events, keep phase uploading
@@ -1571,10 +1549,10 @@ export function TeacherLearningModules() {
       }
 
       const resp = await uploadWithProgress<any>({
-        url: `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
         method: "PATCH",
         sessionToken,
-        apiKey: API_KEY,
+        apiKey: "",
         body: formData,
         onProgress: (p) => {
           setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
