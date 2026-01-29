@@ -60,6 +60,7 @@ export const authOptions: NextAuthOptions = {
             if (code === "missing") throw new Error("subscription_missing");
             if (code === "expired" || code === "expired_by_date") throw new Error("subscription_expired");
             if (code === "cancelled") throw new Error("subscription_cancelled");
+            if (code === "not_active") throw new Error("not_active");
 
             // fallback
             throw new Error(loginData?.detail || "login_failed");
