@@ -321,9 +321,9 @@ export function TeacherLearningModules() {
   const [uploadInfo, setUploadInfo] = useState({ percent: 0, loaded: 0, total: 0 });
   const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "finalizing">("idle");
   const MAX_IMAGE_BYTES = 1 * 1024 * 1024;   // 1MB
-  const MAX_VIDEO_BYTES = 50 * 1024 * 1024;  // 50MB
-  const MAX_AUDIO_BYTES = 10 * 1024 * 1024;  // 10MB
-  const MAX_PDF_BYTES = 5 * 1024 * 1024;   // 5MB
+  const MAX_VIDEO_BYTES = 500 * 1024 * 1024;  // 50MB
+  const MAX_AUDIO_BYTES = 20 * 1024 * 1024;  // 10MB
+  const MAX_PDF_BYTES = 10 * 1024 * 1024;   // 5MB
 
 
 function uploadWithProgress<T = any>({
@@ -1401,9 +1401,9 @@ function uploadWithProgress<T = any>({
 
     // size checks
     if (editingLesson.file) {
-      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 50MB or less.");
-      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 10MB or less.");
-      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 5MB or less.");
+      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 500MB or less.");
+      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 200MB or less.");
+      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 10MB or less.");
     }
     if (editingLesson.coverImage && editingLesson.coverImage.size > MAX_IMAGE_BYTES) {
       return setError("Cover image must be 1MB or less.");
@@ -1501,9 +1501,9 @@ function uploadWithProgress<T = any>({
 
     // size checks
     if (editingLesson.file) {
-      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 50MB or less.");
-      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 10MB or less.");
-      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 5MB or less.");
+      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 500MB or less.");
+      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 20MB or less.");
+      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 10MB or less.");
     }
     if (editingLesson.coverImage && editingLesson.coverImage.size > MAX_IMAGE_BYTES) {
       return setError("Cover image must be 1MB or less.");
