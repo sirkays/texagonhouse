@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // // "use client";
 
 // // import {useState, useEffect, useCallback, useRef} from "react";
@@ -1520,6 +1521,8 @@
 //   );
 // }
 
+=======
+>>>>>>> prod
 "use client";
 
 import {useState, useEffect, useCallback, useRef} from "react";
@@ -1760,6 +1763,7 @@ export default function LoginContent() {
       subscription_cancelled:
         "Your subscription is cancelled. Contact support.",
       invalid_credentials: "Invalid email or password.",
+      not_active: "You are not yet activated.",
       login_failed: "Unable to sign in. Please try again.",
     };
 

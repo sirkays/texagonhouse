@@ -91,7 +91,11 @@ interface ResourcesData {
   audio: Resource[];
   journals: Resource[];
 }
-
+type LessonMediaResp = {
+  url: string;
+  blur?: boolean;
+  expires_in?: number;
+};
 export function ResourceMaterials() {
   const [pageLoading, setPageLoading] = useState(true); // first load only
   const [dataLoading, setDataLoading] = useState(false); // filter/search reload
@@ -129,6 +133,48 @@ export function ResourceMaterials() {
     [session?.user?.sessionToken]
   );
 
+
+  const [openingKey, setOpeningKey] = useState<string | null>(null);
+
+  const isLocked = (item: Resource, kind: "pdf" | "video" | "audio") => {
+    if (item.blur) return true;
+    if (kind === "pdf") return !item.pdfUrl;
+    if (kind === "video") return !item.videoUrl;
+    return !item.audioUrl;
+  };
+
+  async function fetchLessonMediaUrl(params: {
+    lesson_id: string | number;
+    kind: "pdf" | "video" | "audio";
+  }) {
+    if (!sessionToken) throw new Error("Missing session token");
+
+    const qs = new URLSearchParams({
+      lesson_id: String(params.lesson_id),
+      kind: params.kind,
+    });
+
+    const res = await fetch(`/api/student/lesson-media-url/${params.lesson_id}/`, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken,
+      },
+    });
+
+    const payload = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(payload?.detail || payload?.error || "Failed to get media url");
+    }
+
+    return payload as LessonMediaResp;
+  }
+
+  function getLessonId(item: Resource) {
+    // ✅ best effort fallback if backend doesn't send lesson_id yet
+    // If your backend sends lesson_id, use that instead
+    return (item as any).lesson_id ?? (item as any).lessonId ?? (item as any).lesson ?? item.id;
+  }
   const EMPTY_RESOURCES: ResourcesData = {
     categories: [],
     courses: [],
@@ -260,10 +306,24 @@ export function ResourceMaterials() {
     selectedCourseId,
     selectedModuleId,
   ]);
-  const handlePreviewPdf = (pdf: Resource) => {
-    if (pdf.blur || !pdf.pdfUrl) return; // ✅ block
-    setSelectedPdf(pdf);
-    setPdfViewerOpen(true);
+
+  const handlePreviewPdf = async (pdf: Resource) => {
+    if (isLocked(pdf, "pdf")) return;
+
+    const key = `pdf-preview-${pdf.id}`;
+    setOpeningKey(key);
+
+    try {
+      const lessonId = getLessonId(pdf);
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "pdf" });
+
+      setSelectedPdf({ ...pdf, pdfUrl: url });
+      setPdfViewerOpen(true);
+    } catch (e: any) {
+      setError(e?.message || "Failed to open PDF");
+    } finally {
+      setOpeningKey((prev) => (prev === key ? null : prev));
+    }
   };
 
   const handleDownloadPdf = (pdf: Resource) => {
@@ -276,28 +336,64 @@ export function ResourceMaterials() {
     document.body.removeChild(link);
   };
 
-  const handleWatchVideo = (video: Resource) => {
-    if (video.blur || !video.videoUrl) return; // ✅ block
-    setSelectedVideo(video);
-    setVideoModalOpen(true);
-  };
+  const handleWatchVideo = async (video: Resource) => {
+    if (isLocked(video, "video")) return;
 
-  const handlePlayAudio = (audio: Resource) => {
-    if (audio.blur || !audio.audioUrl) return; // ✅ block
-    setSelectedAudio(audio);
-    setAudioPlayerOpen(true);
-  };
+    const key = `video-${video.id}`;
+    setOpeningKey(key);
 
-  const handleDownloadJournal = (journal: Resource) => {
-    if (journal.blur || !journal.pdfUrl) return; // ✅ block
-    const link = document.createElement("a");
-    link.href = journal.pdfUrl;
-    link.download = `${journal.title}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+    try {
+      const lessonId = getLessonId(video);
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "video" });
 
+      setSelectedVideo({ ...video, videoUrl: url });
+      setVideoModalOpen(true);
+    } catch (e: any) {
+      setError(e?.message || "Failed to open video");
+    } finally {
+      setOpeningKey((prev) => (prev === key ? null : prev));
+    }
+  };
+  const handlePlayAudio = async (audio: Resource) => {
+    if (isLocked(audio, "audio")) return;
+
+    const key = `audio-${audio.id}`;
+    setOpeningKey(key);
+
+    try {
+      const lessonId = getLessonId(audio);
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "audio" });
+
+      setSelectedAudio({ ...audio, audioUrl: url });
+      setAudioPlayerOpen(true);
+    } catch (e: any) {
+      setError(e?.message || "Failed to open audio");
+    } finally {
+      setOpeningKey((prev) => (prev === key ? null : prev));
+    }
+  };
+  const handleDownloadJournal = async (journal: Resource) => {
+    if (isLocked(journal, "pdf")) return;
+
+    const key = `journal-download-${journal.id}`;
+    setOpeningKey(key);
+
+    try {
+      const lessonId = getLessonId(journal);
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "pdf" });
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${journal.title}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e: any) {
+      setError(e?.message || "Failed to download journal");
+    } finally {
+      setOpeningKey((prev) => (prev === key ? null : prev));
+    }
+  };
 
   const getPaginatedItems = (items: Resource[], page: number) => {
     const startIndex = (page - 1) * itemsPerPage;
@@ -718,22 +814,40 @@ export function ResourceMaterials() {
                                   size="sm"
                                   variant="outline"
                                   className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                  disabled={!!pdf.blur || !pdf.pdfUrl}
+                                  disabled={isLocked(pdf, "pdf") || openingKey === `pdf-preview-${pdf.id}`}
                                   onClick={() => handlePreviewPdf(pdf)}
                                 >
-                                  <Eye className="h-3.5 w-3.5 flex-shrink-0" />
-                                  Preview
+                                  {openingKey === `pdf-preview-${pdf.id}` ? (
+                                    <>
+                                      <Spinner size="sm" className="text-orange-500" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="h-3.5 w-3.5 flex-shrink-0" />
+                                      Preview
+                                    </>
+                                  )}
                                 </Button>
 
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                  disabled={!!pdf.blur || !pdf.pdfUrl}
+                                  disabled={isLocked(pdf, "pdf") || openingKey === `pdf-download-${pdf.id}`}
                                   onClick={() => handleDownloadPdf(pdf)}
                                 >
-                                  <Download className="h-3.5 w-3.5 flex-shrink-0" />
-                                  Download
+                                  {openingKey === `pdf-download-${pdf.id}` ? (
+                                    <>
+                                      <Spinner size="sm" className="text-orange-500" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="h-3.5 w-3.5 flex-shrink-0" />
+                                      Download
+                                    </>
+                                  )}
                                 </Button>
                               </div>
                             </CardContent>
@@ -857,16 +971,24 @@ export function ResourceMaterials() {
                                 </div>
                               </div>
 
-
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={!!video.blur || !video.videoUrl}
+                                disabled={isLocked(video, "video") || openingKey === `video-${video.id}`}
                                 onClick={() => handleWatchVideo(video)}
                               >
-                                <Video className="h-3.5 w-3.5 flex-shrink-0" />
-                                Watch Now
+                                {openingKey === `video-${video.id}` ? (
+                                  <>
+                                    <Spinner size="sm" className="text-orange-500" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Video className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Watch Now
+                                  </>
+                                )}
                               </Button>
                             </CardContent>
                           </div>
@@ -985,11 +1107,20 @@ export function ResourceMaterials() {
                                 size="sm"
                                 variant="outline"
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={!!audio.blur || !audio.audioUrl}
+                                disabled={isLocked(audio, "audio") || openingKey === `audio-${audio.id}`}
                                 onClick={() => handlePlayAudio(audio)}
                               >
-                                <Headphones className="h-3.5 w-3.5 flex-shrink-0" />
-                                Listen Now
+                                {openingKey === `audio-${audio.id}` ? (
+                                  <>
+                                    <Spinner size="sm" className="text-orange-500" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Headphones className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Listen Now
+                                  </>
+                                )}
                               </Button>
                             </CardContent>
                           </div>
@@ -1098,9 +1229,20 @@ export function ResourceMaterials() {
                                   size="sm"
                                   variant="outline"
                                   className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                                  onClick={() => handlePreviewPdf(journal)}>
-                                  <BookOpen className="mr-2 h-3 w-3" />
-                                  Read
+                                  disabled={isLocked(journal, "pdf") || openingKey === `pdf-preview-${journal.id}`}
+                                  onClick={() => handlePreviewPdf(journal)}
+                                >
+                                  {openingKey === `pdf-preview-${journal.id}` ? (
+                                    <>
+                                      <Spinner size="sm" className="text-orange-500" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <BookOpen className="mr-2 h-3 w-3" />
+                                      Read
+                                    </>
+                                  )}
                                 </Button>
                               )}
 
@@ -1108,9 +1250,20 @@ export function ResourceMaterials() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleDownloadJournal(journal)}
-                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors">
-                                <Download className="mr-2 h-3 w-3" />
-                                Download
+                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
+                                disabled={isLocked(journal, "pdf") || openingKey === `journal-download-${journal.id}`}
+                              >
+                                {openingKey === `journal-download-${journal.id}` ? (
+                                  <>
+                                    <Spinner size="sm" className="text-orange-500" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="mr-2 h-3 w-3" />
+                                    Download
+                                  </>
+                                )}
                               </Button>
                             </div>
                           </CardContent>

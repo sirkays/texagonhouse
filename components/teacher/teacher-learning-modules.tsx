@@ -170,10 +170,9 @@ type UploadOptions = {
 };
 
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | null) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+  Authorization: ``,
   "Content-Type": "application/json",
   ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
@@ -237,6 +236,11 @@ const normalizeModuleType = (t?: string): Module["type"] => {
 };
 
 export function TeacherLearningModules() {
+  const DJANGO_BASE =
+    process.env.NEXT_PUBLIC_DJANGO_BASE_URL || "https://texagon-backend.onrender.com";
+  const UPLOAD_BUCKET =
+    process.env.NEXT_PUBLIC_UPLOAD_BUCKET || "s3";
+
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesError, setCoursesError] = useState<string | null>(null);
@@ -319,10 +323,129 @@ export function TeacherLearningModules() {
   const [uploadInfo, setUploadInfo] = useState({ percent: 0, loaded: 0, total: 0 });
   const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "finalizing">("idle");
   const MAX_IMAGE_BYTES = 1 * 1024 * 1024;   // 1MB
-  const MAX_VIDEO_BYTES = 50 * 1024 * 1024;  // 50MB
-  const MAX_AUDIO_BYTES = 10 * 1024 * 1024;  // 10MB
-  const MAX_PDF_BYTES = 5 * 1024 * 1024;   // 5MB
+  const MAX_VIDEO_BYTES = 500 * 1024 * 1024;  // 50MB
+  const MAX_AUDIO_BYTES = 20 * 1024 * 1024;  // 10MB
+  const MAX_PDF_BYTES = 10 * 1024 * 1024;   // 5MB
 
+
+  async function uploadMediaByBucket(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void
+  ): Promise<string> {
+    if (UPLOAD_BUCKET === "cloudinary") {
+      return uploadToCloudinaryWithProgress(file, sessionToken, onProgress);
+    }
+
+    // default → S3
+    return uploadToS3WithProgress(file, sessionToken, onProgress);
+  }
+
+  async function uploadToCloudinaryWithProgress(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void
+  ) {
+    const sig = await fetch(`${DJANGO_BASE}/learning/api/cloudinary-signature/`, {
+      headers: { "X-Session-Token": sessionToken },
+    }).then(async (r) => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.detail || j?.error || "Cloudinary signature failed");
+      return j;
+    });
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("api_key", sig.api_key);
+    fd.append("timestamp", String(sig.timestamp));
+    fd.append("signature", sig.signature);
+    fd.append("folder", sig.folder);
+
+    const resource =
+      file.type.startsWith("video/") || file.type.startsWith("audio/")
+        ? "video"
+        : "raw"; // pdf/doc
+
+    const url = `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${resource}/upload`;
+
+    const data = await new Promise<any>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const percent = Math.min(99, Math.floor((e.loaded / e.total) * 100));
+        onProgress?.({ percent, loaded: e.loaded, total: e.total });
+      };
+
+      xhr.onload = () => {
+        const json = JSON.parse(xhr.responseText || "{}");
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.({ percent: 100, loaded: file.size, total: file.size });
+          resolve(json);
+        } else {
+          reject(new Error(json?.error?.message || "Cloudinary upload failed"));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Cloudinary network error"));
+      xhr.send(fd);
+    });
+
+    return data.secure_url as string;
+  }
+
+  async function uploadToS3WithProgress(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void
+  ) {
+    // 1) Get presigned url from Django
+    const pres = await fetch(`${DJANGO_BASE}/learning/api/presign-s3/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken,
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        content_type: file.type || "application/octet-stream",
+      }),
+    }).then(async (r) => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.detail || j?.error || "Failed to presign S3 upload");
+      return j;
+    });
+
+    // pres.upload_url (PUT) + pres.file_url (public url)
+
+    // 2) Upload to S3 using PUT
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", pres.upload_url, true);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        const percent = Math.min(99, Math.floor((evt.loaded / evt.total) * 100));
+        onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.({ percent: 100, loaded: file.size, total: file.size });
+          resolve();
+        } else {
+          reject(new Error(`S3 upload failed (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during S3 upload"));
+      xhr.send(file);
+    });
+
+    return pres.key as string;
+  }
 
 
   function uploadWithProgress<T = any>({
@@ -337,61 +460,38 @@ export function TeacherLearningModules() {
       const xhr = new XMLHttpRequest();
       xhr.open(method, url, true);
 
-      // ✅ MUST match your DRF auth setup
-      xhr.setRequestHeader("Authorization", `Api-Key ${apiKey}`);
-      xhr.setRequestHeader("X-Session-Token", sessionToken);
+      // ✅ Only set Api-Key if provided (browser uploads should NOT use it)
+      if (apiKey && apiKey.trim()) {
+        xhr.setRequestHeader("Authorization", `Api-Key ${apiKey}`);
+      }
 
-      // ✅ Don't set Content-Type manually for FormData
+      // ✅ Your real auth for browser upload
+      if (sessionToken) {
+        xhr.setRequestHeader("X-Session-Token", sessionToken);
+      }
 
-      let sawProgressEvent = false;
+      // (DON'T set Content-Type manually for FormData)
 
       xhr.upload.onprogress = (evt) => {
         if (!evt.lengthComputable) return;
-        sawProgressEvent = true;
-
-        // percent based on bytes uploaded
-        const raw = evt.total > 0 ? (evt.loaded / evt.total) * 100 : 0;
-
-        // ✅ IMPORTANT: cap at 99% until the server response returns
-        const percent = Math.min(99, Math.floor(raw));
-
-        onProgress?.({
-          percent,
-          loaded: evt.loaded,
-          total: evt.total,
-        });
+        const percent = Math.min(99, Math.floor((evt.loaded / evt.total) * 100));
+        onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
       };
 
       xhr.onload = () => {
         const text = xhr.responseText || "";
-        let json: any;
-
-        try {
-          json = text ? JSON.parse(text) : null;
-        } catch {
-          return reject(new Error("Invalid JSON response from server"));
-        }
+        let json: any = null;
+        try { json = text ? JSON.parse(text) : null; } catch { }
 
         if (xhr.status >= 200 && xhr.status < 300) {
-          // ✅ NOW it's truly done (server replied)
           onProgress?.({ percent: 100, loaded: 1, total: 1 });
           return resolve(json);
         }
-
         return reject(new Error(json?.detail || json?.error || `Upload failed (${xhr.status})`));
       };
 
       xhr.onerror = () => reject(new Error("Network error during upload"));
-
       xhr.send(body);
-
-      // Optional: if the file is tiny / super fast and no progress event fires,
-      // your UI should show a spinner instead of “fake progress”.
-      setTimeout(() => {
-        if (!sawProgressEvent) {
-          onProgress?.({ percent: 0, loaded: 0, total: 0 });
-        }
-      }, 150);
     });
   }
 
@@ -1423,9 +1523,9 @@ export function TeacherLearningModules() {
 
     // size checks
     if (editingLesson.file) {
-      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 50MB or less.");
-      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 10MB or less.");
-      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 5MB or less.");
+      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 500MB or less.");
+      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 200MB or less.");
+      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 10MB or less.");
     }
     if (editingLesson.coverImage && editingLesson.coverImage.size > MAX_IMAGE_BYTES) {
       return setError("Cover image must be 1MB or less.");
@@ -1454,27 +1554,47 @@ export function TeacherLearningModules() {
       formData.append("active", "true");
 
       // file/url/text
-      if (
+      const isMedia =
         editingLesson.file instanceof File &&
-        (editingLesson.type === "video" || editingLesson.type === "audio" || editingLesson.type === "pdf")
+        (editingLesson.type === "video" ||
+          editingLesson.type === "audio" ||
+          editingLesson.type === "pdf");
+
+      if (isMedia && editingLesson.file) {
+        const fileUrl = await uploadMediaByBucket(
+          editingLesson.file,
+          sessionToken,
+          (p) => {
+            setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+            setUploadInfo(p);
+          }
+        );
+
+        // ✅ Always send URL to Django for cloud uploads
+        formData.append("url", fileUrl);
+      } else if (
+        editingLesson.type === "text" &&
+        editingLesson.content &&
+        !editingLesson.content.startsWith("http")
       ) {
-        formData.append("file", editingLesson.file, editingLesson.file.name);
-      } else if (editingLesson.type === "text" && editingLesson.content && !editingLesson.content.startsWith("http")) {
         formData.append("textContent", editingLesson.content);
-      } else if (editingLesson.videoUrl?.startsWith("http") || editingLesson.audioUrl?.startsWith("http")) {
+      } else if (
+        editingLesson.videoUrl?.startsWith("http") ||
+        editingLesson.audioUrl?.startsWith("http")
+      ) {
         formData.append("url", editingLesson.videoUrl || editingLesson.audioUrl || "");
       }
-
-      // cover image
-      if (editingLesson.coverImage instanceof File) {
+      // ✅ cover image upload
+      if (editingLesson.remove_cover) {
+        formData.append("remove_cover", "true");
+      } else if (editingLesson.coverImage instanceof File) {
         formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
       }
-
       const resp = await uploadWithProgress<any>({
-        url: `/api/teacher/modules/${currentModule.id}/lessons/`,
+        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/`,
         method: "POST",
         sessionToken,
-        apiKey: API_KEY,
+        apiKey: "",
         body: formData,
         onProgress: (p) => {
           // if we see progress events, keep phase uploading
@@ -1523,9 +1643,9 @@ export function TeacherLearningModules() {
 
     // size checks
     if (editingLesson.file) {
-      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 50MB or less.");
-      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 10MB or less.");
-      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 5MB or less.");
+      if (editingLesson.type === "video" && editingLesson.file.size > MAX_VIDEO_BYTES) return setError("Video must be 500MB or less.");
+      if (editingLesson.type === "audio" && editingLesson.file.size > MAX_AUDIO_BYTES) return setError("Audio must be 20MB or less.");
+      if (editingLesson.type === "pdf" && editingLesson.file.size > MAX_PDF_BYTES) return setError("PDF must be 10MB or less.");
     }
     if (editingLesson.coverImage && editingLesson.coverImage.size > MAX_IMAGE_BYTES) {
       return setError("Cover image must be 1MB or less.");
@@ -1552,29 +1672,47 @@ export function TeacherLearningModules() {
       formData.append("active", "true");
 
       // file/url/text
-      if (
+      const isMedia =
         editingLesson.file instanceof File &&
-        (editingLesson.type === "video" || editingLesson.type === "audio" || editingLesson.type === "pdf")
+        (editingLesson.type === "video" ||
+          editingLesson.type === "audio" ||
+          editingLesson.type === "pdf");
+
+      if (isMedia && editingLesson.file) {
+        const fileUrl = await uploadMediaByBucket(
+          editingLesson.file,
+          sessionToken,
+          (p) => {
+            setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+            setUploadInfo(p);
+          }
+        );
+
+        // ✅ Always send URL to Django for cloud uploads
+        formData.append("url", fileUrl);
+      } else if (
+        editingLesson.type === "text" &&
+        editingLesson.content &&
+        !editingLesson.content.startsWith("http")
       ) {
-        formData.append("file", editingLesson.file, editingLesson.file.name);
-      } else if (editingLesson.type === "text" && editingLesson.content && !editingLesson.content.startsWith("http")) {
         formData.append("textContent", editingLesson.content);
-      } else if (editingLesson.videoUrl?.startsWith("http") || editingLesson.audioUrl?.startsWith("http")) {
+      } else if (
+        editingLesson.videoUrl?.startsWith("http") ||
+        editingLesson.audioUrl?.startsWith("http")
+      ) {
         formData.append("url", editingLesson.videoUrl || editingLesson.audioUrl || "");
       }
-
-      // cover image update / removal
-      if (editingLesson.coverImage instanceof File) {
-        formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
-      } else if (editingLesson.remove_cover) {
+      // ✅ cover image upload
+      if (editingLesson.remove_cover) {
         formData.append("remove_cover", "true");
+      } else if (editingLesson.coverImage instanceof File) {
+        formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
       }
-
       const resp = await uploadWithProgress<any>({
-        url: `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
         method: "PATCH",
         sessionToken,
-        apiKey: API_KEY,
+        apiKey: "",
         body: formData,
         onProgress: (p) => {
           setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
