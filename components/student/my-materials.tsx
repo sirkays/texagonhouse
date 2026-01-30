@@ -55,6 +55,7 @@ interface SavedItem {
     thumbnail: string | null;
     videoUrl: string;
     blur?: boolean; // ✅ add
+    lesson_id?: number;
   }[];
   pdfs: {
     id: string;
@@ -64,6 +65,7 @@ interface SavedItem {
     size: string | null;
     downloadUrl: string;
     blur?: boolean; // ✅ add
+    lesson_id?: number;
   }[];
   audio: {
     id: string;
@@ -73,6 +75,7 @@ interface SavedItem {
     progress: number;   // ✅ FIX (was beprogress)
     audioUrl: string;
     blur?: boolean; // ✅ add
+    lesson_id?: number;
   }[];
 }
 
@@ -93,9 +96,18 @@ interface Lesson {
   title: string;
 }
 
+type LessonMediaResp = {
+  url: string;         // the signed/playable url
+  blur?: boolean;
+  expires_in?: number; // optional
+};
+
 export function MyMaterials() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [openingKey, setOpeningKey] = useState<string | null>(null);
+
+  const isOpening = (key: string) => openingKey === key;
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -125,18 +137,20 @@ export function MyMaterials() {
     [session?.user?.sessionToken]
   );
 
-const isLockedVideo = (v: any) => !!v?.blur || !v?.videoUrl;
-const isLockedPdf = (p: any) => !!p?.blur || !p?.downloadUrl;
-const isLockedAudio = (a: any) => !!a?.blur || !a?.audioUrl;
 
-const LockedOverlay = ({ label }: { label: string }) => (
-  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
-    <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs font-medium shadow-sm">
-      <span className="text-[#EF7B55]">●</span>
-      <span>{label}</span>
+
+  const isLockedVideo = (v: any) => !!v?.blur || !v?.videoUrl;
+  const isLockedPdf = (p: any) => !!p?.blur || !p?.downloadUrl;
+  const isLockedAudio = (a: any) => !!a?.blur || !a?.audioUrl;
+
+  const LockedOverlay = ({ label }: { label: string }) => (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+      <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs font-medium shadow-sm">
+        <span className="text-[#EF7B55]">●</span>
+        <span>{label}</span>
+      </div>
     </div>
-  </div>
-);
+  );
 
   const defaultThumbnail =
     "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
@@ -266,6 +280,34 @@ const LockedOverlay = ({ label }: { label: string }) => (
     }
   }, [data]);
 
+  async function fetchLessonMediaUrl(params: {
+    lesson_id: string | number;
+    kind: "video" | "pdf" | "audio";
+  }) {
+    if (!sessionToken) throw new Error("Missing session token");
+
+    const qs = new URLSearchParams({
+      lesson_id: String(params.lesson_id),
+      kind: params.kind,
+    });
+
+    const res = await fetch(`/api/student/lesson-media-url/${params.lesson_id}/`, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken,
+      },
+    });
+
+    const payload = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(payload?.detail || payload?.error || "Failed to get media url");
+    }
+
+    return payload as LessonMediaResp;
+  }
+
+
   const handleSaveNote = async (note: Note) => {
     if (!note.lesson) {
       setError("Please select a lesson for the note.");
@@ -286,21 +328,21 @@ const LockedOverlay = ({ label }: { label: string }) => (
     try {
       let response;
 
-        response = await fetch("/api/student/notes", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken || "",
-          },
-          body: JSON.stringify({
-            title: normalizedNote.title,
-            lesson: normalizedNote.lesson,
-            content: normalizedNote.content,
-            is_private: normalizedNote.is_private,
-            student: session?.user?.id,
-          }),
-        });
-      
+      response = await fetch("/api/student/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken || "",
+        },
+        body: JSON.stringify({
+          title: normalizedNote.title,
+          lesson: normalizedNote.lesson,
+          content: normalizedNote.content,
+          is_private: normalizedNote.is_private,
+          student: session?.user?.id,
+        }),
+      });
+
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -495,23 +537,53 @@ const LockedOverlay = ({ label }: { label: string }) => (
   const notes = data?.notes ?? emptyData.notes;
   const bookmarks = data?.bookmarks ?? emptyData.bookmarks;
 
-  const handleWatchVideo = (video: any) => {
+  const handleWatchVideo = async (video: any) => {
     if (isLockedVideo(video)) return;
-    setSelectedVideo(video);
-    setVideoModalOpen(true);
+
+    try {
+      setOpeningKey(`video-play-${video.id}`);
+      const lessonId = video.lesson_id ?? video.lessonId ?? video.lesson ?? video.id;
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "video" });
+
+      setSelectedVideo({ ...video, videoUrl: url });
+      setVideoModalOpen(true);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load video");
+    } finally {
+      setOpeningKey(null);
+    }
   };
-
-
-  const handlePreviewPdf = (pdf: any) => {
+  const handlePreviewPdf = async (pdf: any) => {
     if (isLockedPdf(pdf)) return;
-    window.open(pdf.downloadUrl, "_blank");
+
+    try {
+      setOpeningKey(`pdf-preview-${pdf.id}`);
+      const lessonId = pdf.lesson_id ?? pdf.lessonId ?? pdf.lesson ?? pdf.id;
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "pdf" });
+
+      window.open(url, "_blank");
+    } catch (e: any) {
+      setError(e?.message || "Failed to load PDF");
+    } finally {
+      setOpeningKey(null);
+    }
   };
 
-
-  const handlePlayAudio = (audio: any) => {
+  const handlePlayAudio = async (audio: any) => {
     if (isLockedAudio(audio)) return;
-    setSelectedAudio(audio);
-    setAudioPlayerOpen(true);
+
+    try {
+      setOpeningKey(`audio-play-${audio.id}`);
+      const lessonId = audio.lesson_id ?? audio.lessonId ?? audio.lesson ?? audio.id;
+      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "audio" });
+
+      setSelectedAudio({ ...audio, audioUrl: url });
+      setAudioPlayerOpen(true);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load audio");
+    } finally {
+      setOpeningKey(null);
+    }
   };
 
   // const handleOpenNote = (note?: Note) => {
@@ -693,12 +765,21 @@ const LockedOverlay = ({ label }: { label: string }) => (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={locked}
+                                disabled={locked || isOpening(`video-play-${video.id}`)}
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
                                 onClick={() => handleWatchVideo(video)}
                               >
-                                <Play className="h-3.5 w-3.5 flex-shrink-0" />
-                                Play
+                                {isOpening(`video-play-${video.id}`) ? (
+                                  <>
+                                    <Spinner size="sm" className="text-orange-500" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Play
+                                  </>
+                                )}
                               </Button>
 
                               {/* Delete stays allowed even when locked (recommended) */}
@@ -820,14 +901,25 @@ const LockedOverlay = ({ label }: { label: string }) => (
                             </div>
 
                             <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
+
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={locked}
-                                className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                disabled={locked || isOpening(`pdf-preview-${pdf.id}`)}
+                                className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
                                 onClick={() => handlePreviewPdf(pdf)}
                               >
-                                Preview
+                                {isOpening(`pdf-preview-${pdf.id}`) ? (
+                                  <>
+                                    <Spinner size="sm" className="text-orange-500" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Preview
+                                  </>
+                                )}
                               </Button>
 
                               <Button
@@ -942,17 +1034,26 @@ const LockedOverlay = ({ label }: { label: string }) => (
                             </div>
 
                             <div className="mt-auto pt-4 flex items-center justify-center gap-2">
+
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={locked}
+                                disabled={locked || isOpening(`audio-play-${audio.id}`)}
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
                                 onClick={() => handlePlayAudio(audio)}
                               >
-                                <Play className="mr-2 h-3 w-3" />
-                                Play
+                                {isOpening(`audio-play-${audio.id}`) ? (
+                                  <>
+                                    <Spinner size="sm" className="text-orange-500" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Play
+                                  </>
+                                )}
                               </Button>
-
                               <Button
                                 size="sm"
                                 variant="outline"
