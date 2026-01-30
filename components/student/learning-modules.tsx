@@ -578,7 +578,7 @@ export function LearningModules() {
       }
       showAlert("Video unavailable", e?.message || "Unable to load video.");
     } finally {
-      withMediaLoading(video.id, true);
+      withMediaLoading(video.id, false);
     }
   };
 
@@ -604,7 +604,7 @@ export function LearningModules() {
       }
       showAlert("Audio unavailable", e?.message || "Unable to load audio.");
     } finally {
-      withMediaLoading(audio.id, true);
+      withMediaLoading(audio.id, false);
     }
   };
 
@@ -628,7 +628,7 @@ export function LearningModules() {
       }
       showAlert("PDF unavailable", e?.message || "Unable to preview PDF.");
     } finally {
-      withMediaLoading(pdf.id, true);
+      withMediaLoading(pdf.id, false);
     }
   };
 

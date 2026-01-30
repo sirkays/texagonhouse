@@ -1584,6 +1584,12 @@ export function TeacherLearningModules() {
       ) {
         formData.append("url", editingLesson.videoUrl || editingLesson.audioUrl || "");
       }
+      // ✅ cover image upload
+      if (editingLesson.remove_cover) {
+        formData.append("remove_cover", "true");
+      } else if (editingLesson.coverImage instanceof File) {
+        formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
+      }
       const resp = await uploadWithProgress<any>({
         url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/`,
         method: "POST",
@@ -1696,7 +1702,12 @@ export function TeacherLearningModules() {
       ) {
         formData.append("url", editingLesson.videoUrl || editingLesson.audioUrl || "");
       }
-
+      // ✅ cover image upload
+      if (editingLesson.remove_cover) {
+        formData.append("remove_cover", "true");
+      } else if (editingLesson.coverImage instanceof File) {
+        formData.append("cover_image", editingLesson.coverImage, editingLesson.coverImage.name);
+      }
       const resp = await uploadWithProgress<any>({
         url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
         method: "PATCH",
