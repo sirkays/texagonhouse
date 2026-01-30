@@ -189,7 +189,16 @@ export function LearningModules() {
 
   // Combobox open state
   const [open, setOpen] = useState(false);
+  const [loadingMediaIds, setLoadingMediaIds] = useState<Set<number>>(new Set());
 
+  const withMediaLoading = (id: number, on: boolean) => {
+    setLoadingMediaIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
   // Alert modal
   const [alertModal, setAlertModal] = useState<{
     open: boolean;
@@ -324,36 +333,36 @@ export function LearningModules() {
   }, [sessionToken, status]);
 
 
-  
-async function fetchLessonMediaUrl(lessonId: number): Promise<string> {
-  if (!sessionToken) throw new Error("No session token");
 
-  // IMPORTANT: use your Next proxy route if you have one; otherwise call Django directly.
-  // If Django is behind /api proxy in Next, use `/api/student/lesson-media-url/${lessonId}`
-  // If calling Django directly, use `${DJANGO_BASE}/learning/api/lesson-media-url/${lessonId}/`
+  async function fetchLessonMediaUrl(lessonId: number): Promise<string> {
+    if (!sessionToken) throw new Error("No session token");
 
-  const res = await fetch(`/api/student/lesson-media-url/${lessonId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Session-Token": sessionToken,
-    },
-    cache: "no-store",
-  });
+    // IMPORTANT: use your Next proxy route if you have one; otherwise call Django directly.
+    // If Django is behind /api proxy in Next, use `/api/student/lesson-media-url/${lessonId}`
+    // If calling Django directly, use `${DJANGO_BASE}/learning/api/lesson-media-url/${lessonId}/`
 
-  if (!res.ok) {
-    let j: any = {};
-    try {
-      j = await res.json();
-    } catch {}
-    if (res.status === 401 || res.status === 403) throw new Error("SESSION_EXPIRED");
-    throw new Error(j?.detail || j?.error || "Failed to get media url");
+    const res = await fetch(`/api/student/lesson-media-url/${lessonId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken,
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      let j: any = {};
+      try {
+        j = await res.json();
+      } catch { }
+      if (res.status === 401 || res.status === 403) throw new Error("SESSION_EXPIRED");
+      throw new Error(j?.detail || j?.error || "Failed to get media url");
+    }
+
+    const data = (await res.json()) as MediaUrlResponse;
+    if (!data?.url) throw new Error("Media URL missing");
+    return data.url;
   }
-
-  const data = (await res.json()) as MediaUrlResponse;
-  if (!data?.url) throw new Error("Media URL missing");
-  return data.url;
-}
   // -------------------- Save Lesson --------------------
   const handleSaveLesson = async (module: ModuleItem) => {
     if (!session?.user?.sessionToken) {
@@ -547,70 +556,81 @@ async function fetchLessonMediaUrl(lessonId: number): Promise<string> {
   };
 
   // -------------------- Play / Preview handlers --------------------
-const handlePlayVideo = async (video: ModuleItem) => {
-  if (video.blur) {
-    showAlert("Locked lesson", "Subscribe or upgrade your plan to access this video.");
-    return;
-  }
-
-  try {
-    // get signed url from endpoint
-    const signedUrl = await fetchLessonMediaUrl(video.id);
-
-    setSelectedVideo({ ...video, url: signedUrl });
-    setVideoModalOpen(true);
-  } catch (e: any) {
-    if (e?.message === "SESSION_EXPIRED") {
-      setError("Session expired");
-      setModules(null);
-      showAlert("Session expired", "Please log in again to continue.");
+  const handlePlayVideo = async (video: ModuleItem) => {
+    if (video.blur) {
+      showAlert("Locked lesson", "Subscribe or upgrade your plan to access this video.");
       return;
     }
-    showAlert("Video unavailable", e?.message || "Unable to load video.");
-  }
-};
-const handlePlayAudio = async (audio: ModuleItem) => {
-  if (audio.blur) {
-    showAlert("Locked lesson", "Subscribe or upgrade your plan to access this audio.");
-    return;
-  }
 
-  try {
-    const signedUrl = await fetchLessonMediaUrl(audio.id);
+    try {
+      withMediaLoading(video.id, true);
+      // get signed url from endpoint
+      const signedUrl = await fetchLessonMediaUrl(video.id);
 
-    setSelectedAudio({ ...audio, url: signedUrl });
-    setAudioPlayerOpen(true);
-  } catch (e: any) {
-    if (e?.message === "SESSION_EXPIRED") {
-      setError("Session expired");
-      setModules(null);
-      showAlert("Session expired", "Please log in again to continue.");
+      setSelectedVideo({ ...video, url: signedUrl });
+      setVideoModalOpen(true);
+    } catch (e: any) {
+      if (e?.message === "SESSION_EXPIRED") {
+        setError("Session expired");
+        setModules(null);
+        showAlert("Session expired", "Please log in again to continue.");
+        return;
+      }
+      showAlert("Video unavailable", e?.message || "Unable to load video.");
+    } finally {
+      withMediaLoading(video.id, true);
+    }
+  };
+
+  const handlePlayAudio = async (audio: ModuleItem) => {
+    if (audio.blur) {
+      showAlert("Locked lesson", "Subscribe or upgrade your plan to access this audio.");
       return;
     }
-    showAlert("Audio unavailable", e?.message || "Unable to load audio.");
-  }
-};
+
+    try {
+      const signedUrl = await fetchLessonMediaUrl(audio.id);
+
+      withMediaLoading(audio.id, true);
+
+      setSelectedAudio({ ...audio, url: signedUrl });
+      setAudioPlayerOpen(true);
+    } catch (e: any) {
+      if (e?.message === "SESSION_EXPIRED") {
+        setError("Session expired");
+        setModules(null);
+        showAlert("Session expired", "Please log in again to continue.");
+        return;
+      }
+      showAlert("Audio unavailable", e?.message || "Unable to load audio.");
+    } finally {
+      withMediaLoading(audio.id, true);
+    }
+  };
 
 
-const handlePreviewPdf = async (pdf: ModuleItem) => {
-  if (pdf.blur) {
-    showAlert("Locked document", "Subscribe or upgrade your plan to access this PDF.");
-    return;
-  }
-
-  try {
-    const signedUrl = await fetchLessonMediaUrl(pdf.id);
-    window.open(signedUrl, "_blank");
-  } catch (e: any) {
-    if (e?.message === "SESSION_EXPIRED") {
-      setError("Session expired");
-      setModules(null);
-      showAlert("Session expired", "Please log in again to continue.");
+  const handlePreviewPdf = async (pdf: ModuleItem) => {
+    if (pdf.blur) {
+      showAlert("Locked document", "Subscribe or upgrade your plan to access this PDF.");
       return;
     }
-    showAlert("PDF unavailable", e?.message || "Unable to preview PDF.");
-  }
-};
+
+    try {
+      withMediaLoading(pdf.id, true);
+      const signedUrl = await fetchLessonMediaUrl(pdf.id);
+      window.open(signedUrl, "_blank");
+    } catch (e: any) {
+      if (e?.message === "SESSION_EXPIRED") {
+        setError("Session expired");
+        setModules(null);
+        showAlert("Session expired", "Please log in again to continue.");
+        return;
+      }
+      showAlert("PDF unavailable", e?.message || "Unable to preview PDF.");
+    } finally {
+      withMediaLoading(pdf.id, true);
+    }
+  };
 
   // -------------------- Loading / error states --------------------
   if (pageLoading) {
@@ -831,7 +851,7 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
                       ).map((video) => {
                         const isSaving = savingLessonIds.has(video.id);
                         const isSaved = savedLessons.has(video.id);
-
+                        const isMediaLoading = loadingMediaIds.has(video.id);
                         return (
                           <Card
                             key={video.id}
@@ -920,24 +940,33 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
 
                               {/* Action buttons – full width mobile, side-by-side desktop */}
                               <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:gap-4">
+
+
                                 <Button
                                   onClick={() => handlePlayVideo(video)}
-                                  disabled={video.blur || !video.url}
-
+                                  disabled={video.blur || isMediaLoading}
                                   className={cn(
                                     "flex-1 justify-center gap-2 text-sm font-medium transition-colors",
                                     video.progress === 100
                                       ? "bg-green-600 hover:bg-green-700 text-white"
-                                      : video.progress > 0
-                                        ? "bg-[#f57c50]/70 hover:bg-[#e86a40]/50 text-white"
-                                        : "bg-[#f57c50]/70 hover:bg-[#e86a40]/50 text-white"
-                                  )}>
-                                  <Play className="h-4 w-4" />
-                                  {video.progress === 100
-                                    ? "Review Video"
-                                    : video.progress > 0
-                                      ? "Continue Watching"
-                                      : "Start Video"}
+                                      : "bg-[#f57c50]/70 hover:bg-[#e86a40]/50 text-white"
+                                  )}
+                                >
+                                  {isMediaLoading ? (
+                                    <>
+                                      <Spinner size="sm" className="text-white" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="h-4 w-4" />
+                                      {video.progress === 100
+                                        ? "Review Video"
+                                        : video.progress > 0
+                                          ? "Continue Watching"
+                                          : "Start Video"}
+                                    </>
+                                  )}
                                 </Button>
 
                                 <Button
@@ -1032,7 +1061,7 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
                       ).map((audio) => {
                         const isSaving = savingLessonIds.has(audio.id);
                         const isSaved = savedLessons.has(audio.id);
-
+                        const isMediaLoading = loadingMediaIds.has(audio.id);
                         return (
                           <Card
                             key={audio.id}
@@ -1119,9 +1148,10 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
 
                               {/* Actions */}
                               <div className={cn("mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:gap-4", audio.blur && "pointer-events-auto")}>
+
                                 <Button
                                   onClick={() => handlePlayAudio(audio)}
-                                  disabled={audio.blur || !audio.url}
+                                  disabled={audio.blur || isMediaLoading}
                                   className={cn(
                                     "flex-1 justify-center gap-2 text-sm font-medium shadow transition-colors",
                                     audio.blur
@@ -1131,8 +1161,21 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
                                         : "bg-[#f79771]/70 hover:bg-[#EF7B55]/50 text-white"
                                   )}
                                 >
-                                  <Headphones className="h-4 w-4" />
-                                  {audio.blur ? "Locked" : audio.progress > 0 ? "Continue Listening" : "Start Listening"}
+                                  {isMediaLoading ? (
+                                    <>
+                                      <Spinner size="sm" className="text-white" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Headphones className="h-4 w-4" />
+                                      {audio.blur
+                                        ? "Locked"
+                                        : audio.progress > 0
+                                          ? "Continue Listening"
+                                          : "Start Listening"}
+                                    </>
+                                  )}
                                 </Button>
 
                                 <Button
@@ -1215,6 +1258,7 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
                       ).map((pdf: any) => {
                         const isSaving = savingLessonIds.has(pdf.id);
                         const isSaved = savedLessons.has(pdf.id);
+                        const isMediaLoading = loadingMediaIds.has(pdf.id);
 
                         return (
                           <Card
@@ -1296,9 +1340,10 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
 
                               {/* Actions */}
                               <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:gap-4">
+
                                 <Button
                                   onClick={() => handlePreviewPdf(pdf)}
-                                  disabled={pdf.blur || !pdf.url}
+                                  disabled={pdf.blur || isMediaLoading}
                                   className={cn(
                                     "flex-1 justify-center gap-2 text-sm font-medium shadow transition-colors",
                                     pdf.blur
@@ -1306,8 +1351,17 @@ const handlePreviewPdf = async (pdf: ModuleItem) => {
                                       : "bg-[#f79771]/70 hover:bg-[#EF7B55]/50 text-white"
                                   )}
                                 >
-                                  <Eye className="h-4 w-4" />
-                                  {pdf.blur ? "Locked" : "Preview PDF"}
+                                  {isMediaLoading ? (
+                                    <>
+                                      <Spinner size="sm" className="text-white" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="h-4 w-4" />
+                                      {pdf.blur ? "Locked" : "Preview PDF"}
+                                    </>
+                                  )}
                                 </Button>
 
                                 <Button
