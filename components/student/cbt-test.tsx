@@ -750,7 +750,7 @@ export function CBTTest() {
   function getOrCreateDeviceId(userId?: string | number) {
     if (typeof window === "undefined") return "";
 
-    const STORAGE_KEY = "cbtDeviceId"
+    const STORAGE_KEY = `${userId}cbtDeviceId`
 
     // ✅ Fallback: anonymous / pre-login device ID
     let deviceId = localStorage.getItem(STORAGE_KEY);
