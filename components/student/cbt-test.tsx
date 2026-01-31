@@ -983,6 +983,9 @@ export function CBTTest() {
   const handleStartTestProceed = async (testPk: string | number) => {
     const test = (availableTests || []).find((t) => t.pk?.toString() === testPk?.toString());
     if (!test) return;
+    // 🔥 IMPORTANT: clear stale online attempt state
+    setOnlineAttemptId(null);
+    setOnlineExpiresAt(null);
 
     const mode = (test.mode || "online") as "online" | "offline";
 
@@ -1442,6 +1445,9 @@ export function CBTTest() {
     setStartTime(null);
     setSuspiciousActivity(0);
     setIsSecureMode(false);
+    setOnlineAttemptId(null);
+    setOnlineExpiresAt(null);
+
     suspiciousRef.current = 0;
     warningOpenRef.current = false;
     lastSuspiciousAtRef.current = 0;
