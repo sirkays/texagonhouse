@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Progress} from "@/components/ui/progress";
-import {Badge} from "@/components/ui/badge";
-import {Button} from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   BookOpen,
   Clock,
@@ -25,9 +25,9 @@ import {
   LogIn,
   Video,
 } from "lucide-react";
-import {useSession} from "next-auth/react";
-import {useRouter} from "next/navigation";
-import {Spinner} from "@/components/ui/spinner";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 
 interface LiveSession {
   id: string;
@@ -44,7 +44,7 @@ interface Test {
 }
 
 export function DashboardOverview() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const [data, setData] = useState(null);
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
@@ -73,12 +73,47 @@ export function DashboardOverview() {
       )
       .join(" ");
   };
+  async function fetchWithTimeout(
+    url: string,
+    options: any = {},
+    timeout = 40000
+  ) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
+    }
+  }
 
+
+  function getOrCreateDeviceId(userId?: string | number) {
+    if (typeof window === "undefined") return "";
+
+    const STORAGE_KEY = `${userId}cbtDeviceId`
+
+    // ✅ Fallback: anonymous / pre-login device ID
+    let deviceId = localStorage.getItem(STORAGE_KEY);
+
+    if (!deviceId) {
+      deviceId = `cbt-${userId}-${crypto.randomUUID()}`;
+      localStorage.setItem(STORAGE_KEY, deviceId);
+    }
+
+    return deviceId;
+  }
   const handleLogout = async () => {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       const data = await response.json();
       if (!response.ok) {
@@ -106,13 +141,16 @@ export function DashboardOverview() {
       }
 
       try {
-        const res = await fetch("/api/student/dashboard-overview", {
-          headers: {
-            Authorization: `Api-Key gATZwqHu.cpgD1aUY7T9kG1OzFnU78aH8JVNtwDqI`,
-            "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+        const res = await fetchWithTimeout(
+          "/api/student/dashboard-overview",
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken
+            },
           },
-        });
+          40000
+        );
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Fetch failed with status:",
@@ -148,13 +186,16 @@ export function DashboardOverview() {
       }
 
       try {
-        const res = await fetch("/api/teacher/live-session/", {
-          headers: {
-            Authorization: `Api-Key gATZwqHu.cpgD1aUY7T9kG1OzFnU78aH8JVNtwDqI`,
-            "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+        const res = await fetchWithTimeout(
+          "/api/teacher/live-session/",
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+            },
           },
-        });
+          40000
+        );
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Live sessions fetch failed with status:",
@@ -201,15 +242,20 @@ export function DashboardOverview() {
         setTestsLoading(false);
         return;
       }
-
+      const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
       try {
-        const res = await fetch("/api/student/cbt", {
-          headers: {
-            Authorization: `Api-Key gATZwqHu.cpgD1aUY7T9kG1OzFnU78aH8JVNtwDqI`,
-            "Content-Type": "application/json",
-            "X-Session-Token": session.user.sessionToken,
+
+        const res = await fetchWithTimeout(
+          `/api/student/cbt`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken,
+              ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+            },
           },
-        });
+          400000
+        );
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Tests fetch failed with status:",
@@ -779,7 +825,7 @@ export function DashboardOverview() {
             </p>
             <div className="flex gap-1 flex-wrap">
               {Array.from(
-                {length: data?.gamification?.achievements?.unlocked ?? 0},
+                { length: data?.gamification?.achievements?.unlocked ?? 0 },
                 (_, i) => (
                   <Medal key={i} className="h-4 w-4 text-yellow-500" />
                 )

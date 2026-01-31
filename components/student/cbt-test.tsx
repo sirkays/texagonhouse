@@ -123,6 +123,8 @@ export function CBTTest() {
   const [errorModalMessage, setErrorModalMessage] = useState<string>("");
   // ✅ add near your states
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clockSkewMs, setClockSkewMs] = useState(0); // clientNow - serverNow
+  const [onlineExpiresAtMs, setOnlineExpiresAtMs] = useState<number | null>(null);
 
   const { data: session, status } = useSession();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
@@ -196,6 +198,7 @@ export function CBTTest() {
 
   }, []);
 
+  const getAdjustedNowMs = () => Date.now() - clockSkewMs;
 
   // ✅ NEW: store in-progress snapshot per test
   const INPROGRESS_PREFIX = "cbtInProgress:"; // cbtInProgress:<testId>
@@ -986,6 +989,8 @@ export function CBTTest() {
     // 🔥 IMPORTANT: clear stale online attempt state
     setOnlineAttemptId(null);
     setOnlineExpiresAt(null);
+    setClockSkewMs(0);
+    setOnlineExpiresAtMs(null);
 
     const mode = (test.mode || "online") as "online" | "offline";
 
@@ -1068,6 +1073,20 @@ export function CBTTest() {
       const durationSeconds = Number(data.duration_seconds || 1800);
 
       setOnlineAttemptId(Number(data.attempt_id ?? null));
+
+      // ✅ use ms from server (preferred)
+      const expiresMs =
+        typeof data.expires_at_ms === "number" ? data.expires_at_ms : null;
+      setOnlineExpiresAtMs(expiresMs);
+
+      // ✅ compute drift (clock skew)
+      if (typeof data.server_now_ms === "number") {
+        setClockSkewMs(Date.now() - data.server_now_ms);
+      } else {
+        setClockSkewMs(0); // fallback
+      }
+
+      // (optional) keep old string if you still want it for display/debug
       setOnlineExpiresAt(data.expires_at ?? null);
 
       setQuestions(mappedQuestions);
@@ -1094,7 +1113,12 @@ export function CBTTest() {
         suspiciousActivity: 0,
         lastSavedAt: new Date().toISOString(),
         mode: "online",
+
+        onlineAttemptId: Number(data.attempt_id ?? null),
+        onlineExpiresAtMs: expiresMs,
+        clockSkewMs: typeof data.server_now_ms === "number" ? (Date.now() - data.server_now_ms) : 0,
       });
+
     } catch (e) {
       showErrorModal("Network error", "Unable to start online test. Please try again.");
       unlockStart(testPk.toString());
@@ -1328,7 +1352,12 @@ Submission could not be accepted as of ${formattedTime}.`
         currentTest,
         attempt_id: onlineAttemptId,
         expires_at: onlineExpiresAt,
+        expires_at_ms: onlineExpiresAtMs,
+        client_now_ms: Date.now(),
+        adjusted_now_ms: getAdjustedNowMs(),
+        clock_skew_ms: clockSkewMs,
         mode,
+
       };
 
       const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
@@ -1461,6 +1490,8 @@ Submission could not be accepted as of ${formattedTime}.`
     setIsSecureMode(false);
     setOnlineAttemptId(null);
     setOnlineExpiresAt(null);
+    setClockSkewMs(0);
+    setOnlineExpiresAtMs(null);
 
     suspiciousRef.current = 0;
     warningOpenRef.current = false;
@@ -1475,16 +1506,14 @@ Submission could not be accepted as of ${formattedTime}.`
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-
   const isOnlineSubmissionStillValid = () => {
     // Only enforce in online mode
-    if (!onlineExpiresAt) return true; // if missing, don't block UX (server still enforces)
-    const nowMs = Date.now();
-    const expiresMs = Date.parse(onlineExpiresAt);
-    if (Number.isNaN(expiresMs)) return true;
+    if (!onlineExpiresAtMs) return true; // if missing, don't block UX (server still enforces)
 
-    // small grace for clock drift / network delay
-    const GRACE_MS = 30_000; // 30 seconds
+    const nowMs = getAdjustedNowMs();
+    const expiresMs = onlineExpiresAtMs;
+
+    const GRACE_MS = 30_000;
     return nowMs <= (expiresMs + GRACE_MS);
   };
 
