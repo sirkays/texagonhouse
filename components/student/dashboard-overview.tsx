@@ -108,7 +108,7 @@ export function DashboardOverview() {
       try {
         const res = await fetch("/api/student/dashboard-overview", {
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key gATZwqHu.cpgD1aUY7T9kG1OzFnU78aH8JVNtwDqI`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
@@ -150,7 +150,7 @@ export function DashboardOverview() {
       try {
         const res = await fetch("/api/teacher/live-session/", {
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key gATZwqHu.cpgD1aUY7T9kG1OzFnU78aH8JVNtwDqI`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },
@@ -205,7 +205,7 @@ export function DashboardOverview() {
       try {
         const res = await fetch("/api/student/cbt", {
           headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key gATZwqHu.cpgD1aUY7T9kG1OzFnU78aH8JVNtwDqI`,
             "Content-Type": "application/json",
             "X-Session-Token": session.user.sessionToken,
           },

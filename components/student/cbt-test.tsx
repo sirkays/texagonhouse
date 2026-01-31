@@ -1272,13 +1272,27 @@ export function CBTTest() {
       // ✅ ONLINE: enforce time window
       if (mode === "online" && !isOnlineSubmissionStillValid()) {
         done();
+
+        const formattedTime = new Date().toLocaleString(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
         showErrorModal(
-          "Time elapsed",
-          "The allowed time for this test has elapsed. Submission cannot be accepted."
+          "Time’s up ⏰",
+          `The allowed time for this test has ended.
+    
+Submission could not be accepted as of ${formattedTime}.`
         );
+
         handleResetToList();
         return;
       }
+
 
       // ---- build answers ----
       const submitAnswers: any[] = [];
