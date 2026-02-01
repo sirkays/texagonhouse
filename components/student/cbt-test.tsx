@@ -166,14 +166,18 @@ export function CBTTest() {
   const [pastSortBy, setPastSortBy] = useState<"date" | "score" | "result">(
     "date"
   );
+  const userId = session?.user?.id?.toString() || "anon";
+  const scopedKey = (key: string) => `cbt:${userId}:${key}`;
   const [justSyncedTestId, setJustSyncedTestId] = useState<string | null>(null);
-  const STARTING_KEY = "cbtStartingTestIds";
-  const ATTEMPT_LOCK_KEY = "cbtAttemptLocks"; // { [testId]: { status, startedAt } }
+  const STARTING_KEY = scopedKey("cbtStartingTestIds");
+const ATTEMPT_LOCK_KEY = scopedKey("cbtAttemptLocks");
   // ✅ add these near your states
   const suspiciousRef = useRef(0);
   const lastSuspiciousAtRef = useRef(0);
   const warningOpenRef = useRef(false);
   const submitTestRef = useRef<null | (() => void)>(null);
+
+  
 
 
   const bumpSuspicious = useCallback((reason?: string) => {
@@ -201,8 +205,10 @@ export function CBTTest() {
   const getAdjustedNowMs = () => Date.now() - clockSkewMs;
 
   // ✅ NEW: store in-progress snapshot per test
-  const INPROGRESS_PREFIX = "cbtInProgress:"; // cbtInProgress:<testId>
-  const getInProgressKey = (testId: string) => `${INPROGRESS_PREFIX}${testId}`;
+  const INPROGRESS_PREFIX = "cbtInProgress:";
+
+  const getInProgressKey = (testId: string) =>
+    scopedKey(`${INPROGRESS_PREFIX}${testId}`);
 
   const readInProgress = (testId: string) => {
     if (typeof window === "undefined") return null;
@@ -228,27 +234,14 @@ export function CBTTest() {
 
     return x; // Django already normalized most cases
   };
-  const refreshDeviceId = () => {
-    if (typeof window === "undefined") return;
 
-    try {
-      localStorage.removeItem("cbtDeviceId"); // ✅ delete device id
-    } catch {
-      // ignore
-    }
-
-    // Optional: also clear any in-flight state tied to device if you want
-    // localStorage.removeItem("cachedCBTData");
-
-    window.location.reload(); // ✅ reload so device id gets recreated cleanly
-  };
 
 
   const confirmRefreshDeviceId = () => {
     if (typeof window === "undefined") return;
 
     try {
-      localStorage.removeItem("cbtDeviceId"); // ✅ delete device id
+      localStorage.removeItem(scopedKey("cbtDeviceId")); // ✅ delete device id
     } catch {
       // ignore
     }
@@ -343,7 +336,7 @@ export function CBTTest() {
     }));
 
   // ✅ pending submissions helpers (single source of truth)
-  const PENDING_KEY = "pendingCBTSubmissions";
+  const PENDING_KEY = scopedKey("pendingCBTSubmissions");
 
   const readPending = (): Record<string, any> => {
     if (typeof window === "undefined") return {};
@@ -463,7 +456,7 @@ export function CBTTest() {
     // avoid double-submitting if already queued
     let pending: Record<string, any> = {};
     try {
-      pending = JSON.parse(localStorage.getItem("pendingCBTSubmissions") || "{}");
+      pending = JSON.parse(localStorage.getItem(scopedKey("pendingCBTSubmissions")) || "{}");
     } catch {
       pending = {};
     }
@@ -753,7 +746,7 @@ export function CBTTest() {
   function getOrCreateDeviceId(userId?: string | number) {
     if (typeof window === "undefined") return "";
 
-    const STORAGE_KEY = `${userId}cbtDeviceId`
+    const STORAGE_KEY = scopedKey("cbtDeviceId");
 
     // ✅ Fallback: anonymous / pre-login device ID
     let deviceId = localStorage.getItem(STORAGE_KEY);
@@ -902,7 +895,7 @@ export function CBTTest() {
 
       // cache for offline
       localStorage.setItem(
-        "cachedCBTData",
+        scopedKey("cachedCBTData"),
         JSON.stringify({
           // ✅ only offline tests are cached
           tests: offlineOnlyTests,
@@ -925,7 +918,7 @@ export function CBTTest() {
   };
 
   const loadCachedData = () => {
-    const cached = localStorage.getItem("cachedCBTData");
+    const cached = localStorage.getItem(scopedKey("cachedCBTData"));
     if (cached) {
       const data = JSON.parse(cached);
       setAvailableTests(data.tests || []);
