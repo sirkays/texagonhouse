@@ -35,7 +35,7 @@ export function TeacherOverview() {
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
+    [session?.user?.sessionToken],
   );
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function TeacherOverview() {
         if (!res.ok) {
           console.error(
             "[TeacherOverview] Fetch failed with status:",
-            res.status
+            res.status,
           );
           const errorData = await res.json().catch(() => ({}));
           const errorMessage =
