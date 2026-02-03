@@ -258,13 +258,13 @@ export default function NotificationsPage() {
                   </button>
                 </div>
 
-                {notif.data?.cta?.url && (
+                {/* {notif.data?.cta?.url && (
                   <button
                     onClick={() => router.push(notif.data.cta.url)}
                     className="mt-3 text-xs bg-[#EF7B55]/70 text-white px-4 py-1.5 rounded-sm hover:bg-[#EF7B55]/90">
                     {notif.data.cta.label || "Take action"}
                   </button>
-                )}
+                )} */}
               </div>
             </div>
           ))}

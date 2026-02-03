@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
 import {
   BookOpen,
   Clock,
@@ -25,9 +25,9 @@ import {
   LogIn,
   Video,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
+import {Spinner} from "@/components/ui/spinner";
 
 interface LiveSession {
   id: string;
@@ -44,7 +44,7 @@ interface Test {
 }
 
 export function DashboardOverview() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [data, setData] = useState(null);
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
@@ -53,13 +53,13 @@ export function DashboardOverview() {
   const [testsLoading, setTestsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liveSessionsError, setLiveSessionsError] = useState<string | null>(
-    null
+    null,
   );
   const [testsError, setTestsError] = useState<string | null>(null);
   const router = useRouter();
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
+    [session?.user?.sessionToken],
   );
 
   // Helper function to capitalize first letters of each word
@@ -69,14 +69,14 @@ export function DashboardOverview() {
       .split(" ")
       .map(
         (word: any) =>
-          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
       )
       .join(" ");
   };
   async function fetchWithTimeout(
     url: string,
     options: any = {},
-    timeout = 40000
+    timeout = 40000,
   ) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -93,11 +93,10 @@ export function DashboardOverview() {
     }
   }
 
-
   function getOrCreateDeviceId(userId?: string | number) {
     if (typeof window === "undefined") return "";
 
-    const STORAGE_KEY = `cbt:${userId}:cbtDeviceId`
+    const STORAGE_KEY = `cbt:${userId}:cbtDeviceId`;
 
     // ✅ Fallback: anonymous / pre-login device ID
     let deviceId = localStorage.getItem(STORAGE_KEY);
@@ -113,7 +112,7 @@ export function DashboardOverview() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
       const data = await response.json();
       if (!response.ok) {
@@ -146,15 +145,15 @@ export function DashboardOverview() {
           {
             headers: {
               "Content-Type": "application/json",
-              "X-Session-Token": sessionToken
+              "X-Session-Token": sessionToken,
             },
           },
-          40000
+          40000,
         );
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Fetch failed with status:",
-            res.status
+            res.status,
           );
           if (res.status === 401 || res.status === 403) {
             setError("Session expired");
@@ -194,12 +193,12 @@ export function DashboardOverview() {
               "X-Session-Token": sessionToken,
             },
           },
-          40000
+          40000,
         );
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Live sessions fetch failed with status:",
-            res.status
+            res.status,
           );
           const errorData = await res.json().catch(() => ({}));
           const errorMessage =
@@ -213,11 +212,11 @@ export function DashboardOverview() {
           throw new Error(errorMessage);
         }
         const json = await res.json();
-        console.log(json)
+        console.log(json);
         const currentDate = new Date();
         const sessions: LiveSession[] = (json.live_sessions || [])
           .filter(
-            (session: any) => new Date(session.scheduled_at) > currentDate
+            (session: any) => new Date(session.scheduled_at) > currentDate,
           )
           .map((session: any) => ({
             id: session.id,
@@ -244,22 +243,21 @@ export function DashboardOverview() {
       }
       const deviceId = getOrCreateDeviceId(session?.user?.id?.toString());
       try {
-
         const res = await fetchWithTimeout(
           `/api/student/cbt`,
           {
             headers: {
               "Content-Type": "application/json",
               "X-Session-Token": sessionToken,
-              ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+              ...(deviceId ? {"X-Device-Id": deviceId} : {}),
             },
           },
-          400000
+          400000,
         );
         if (!res.ok) {
           console.error(
             "[DashboardOverview] Tests fetch failed with status:",
-            res.status
+            res.status,
           );
           const errorData = await res.json().catch(() => ({}));
           const errorMessage = errorData.error || "Failed to fetch tests";
@@ -825,10 +823,10 @@ export function DashboardOverview() {
             </p>
             <div className="flex gap-1 flex-wrap">
               {Array.from(
-                { length: data?.gamification?.achievements?.unlocked ?? 0 },
+                {length: data?.gamification?.achievements?.unlocked ?? 0},
                 (_, i) => (
                   <Medal key={i} className="h-4 w-4 text-yellow-500" />
-                )
+                ),
               )}
               {Array.from(
                 {
@@ -841,7 +839,7 @@ export function DashboardOverview() {
                     key={i + (data?.gamification?.achievements?.unlocked ?? 0)}
                     className="h-4 w-4 text-gray-300"
                   />
-                )
+                ),
               )}
             </div>
           </CardContent>
@@ -882,7 +880,7 @@ export function DashboardOverview() {
             <CardDescription>Pick up where you left off</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentCourses.map((course, index) => (
+            {recentCourses.map((course: any, index: any) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-sm sm:text-base">
@@ -895,13 +893,13 @@ export function DashboardOverview() {
                 <Progress value={course.progress} className="h-2" />
                 <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                   <span>{course.progress}% complete</span>
-                  <Button
+                  {/* <Button
                     className="bg-transparent shadow-md"
                     variant="ghost"
                     size="sm">
                     <Play className="mr-2 h-3 w-3" />
                     Continue
-                  </Button>
+                  </Button> */}
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Next: {course.nextLesson}
@@ -913,20 +911,34 @@ export function DashboardOverview() {
 
         {/* Upcoming Tests */}
         <Card className="bg-transparent border-none shadow-md">
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg">
-              Upcoming Tests
-            </CardTitle>
-            <CardDescription>
-              Don't miss your scheduled assessments
-            </CardDescription>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="text-base sm:text-lg">
+                Upcoming Tests
+              </CardTitle>
+              <CardDescription>
+                Don't miss your scheduled assessments
+              </CardDescription>
+            </div>
+
+            <Button
+              className="bg-transparent mb-1"
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/student/cbt`); // ← add this
+              }}>
+              <TestTube className="mr-2 h-3 w-3" />
+              View Test
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             {tests.length > 0 ? (
               tests.map((test, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  className="p-3 border rounded-lg"
                   onClick={() => handleTestClick(test.testId)}>
                   <div className="space-y-1">
                     <h4 className="font-medium text-sm sm:text-base">
@@ -941,17 +953,6 @@ export function DashboardOverview() {
                       {test.duration}
                     </div>
                   </div>
-                  <Button
-                    className="bg-transparent shadow-md"
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTestClick(test.testId);
-                    }}>
-                    <TestTube className="mr-2 h-3 w-3" />
-                    Start
-                  </Button>
                 </div>
               ))
             ) : (

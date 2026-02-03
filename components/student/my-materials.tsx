@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -26,13 +26,13 @@ import {
   Download,
   Trash,
 } from "lucide-react";
-import { VideoModal } from "./video-modal";
-import { NoteEditor } from "./note-editor";
-import { BookmarkManager } from "./bookmark-manager";
-import { AudioPlayer } from "./audio-player";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import {VideoModal} from "./video-modal";
+import {NoteEditor} from "./note-editor";
+import {BookmarkManager} from "./bookmark-manager";
+import {AudioPlayer} from "./audio-player";
+import {useSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
+import {Spinner} from "@/components/ui/spinner";
 
 interface Note {
   id: number;
@@ -72,13 +72,12 @@ interface SavedItem {
     title: string;
     speaker: string;
     duration: string;
-    progress: number;   // ✅ FIX (was beprogress)
+    progress: number; // ✅ FIX (was beprogress)
     audioUrl: string;
     blur?: boolean; // ✅ add
     lesson_id?: number;
   }[];
 }
-
 
 interface Bookmark {
   id: number;
@@ -97,13 +96,13 @@ interface Lesson {
 }
 
 type LessonMediaResp = {
-  url: string;         // the signed/playable url
+  url: string; // the signed/playable url
   blur?: boolean;
   expires_in?: number; // optional
 };
 
 export function MyMaterials() {
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const router = useRouter();
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
@@ -134,16 +133,14 @@ export function MyMaterials() {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
+    [session?.user?.sessionToken],
   );
-
-
 
   const isLockedVideo = (v: any) => !!v?.blur || !v?.videoUrl;
   const isLockedPdf = (p: any) => !!p?.blur || !p?.downloadUrl;
   const isLockedAudio = (a: any) => !!a?.blur || !a?.audioUrl;
 
-  const LockedOverlay = ({ label }: { label: string }) => (
+  const LockedOverlay = ({label}: {label: string}) => (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
       <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs font-medium shadow-sm">
         <span className="text-[#EF7B55]">●</span>
@@ -156,7 +153,7 @@ export function MyMaterials() {
     "/placeholder.svg?height=120&width=200&text=Video+Thumbnail";
 
   const emptyData = {
-    saved: { videos: [], pdfs: [], audio: [] },
+    saved: {videos: [], pdfs: [], audio: []},
     notes: [],
     bookmarks: [],
   };
@@ -165,7 +162,7 @@ export function MyMaterials() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
       const data = await response.json();
       if (!response.ok) {
@@ -183,7 +180,7 @@ export function MyMaterials() {
     }
   };
 
-  const fetchData = async (qOverride?: string, opts?: { initial?: boolean }) => {
+  const fetchData = async (qOverride?: string, opts?: {initial?: boolean}) => {
     const q = (qOverride ?? appliedQuery ?? "").trim();
     const initial = !!opts?.initial;
 
@@ -221,11 +218,11 @@ export function MyMaterials() {
         setError(
           res.status === 404
             ? "Materials endpoint not found"
-            : `Failed to fetch materials: ${JSON.stringify(errorData)}`
+            : `Failed to fetch materials: ${JSON.stringify(errorData)}`,
         );
 
         setData({
-          saved: { videos: [], pdfs: [], audio: [] },
+          saved: {videos: [], pdfs: [], audio: []},
           notes: [],
           bookmarks: [],
         });
@@ -248,7 +245,7 @@ export function MyMaterials() {
     } catch (e: any) {
       setError(e?.message || "Failed to fetch materials");
       setData({
-        saved: { videos: [], pdfs: [], audio: [] },
+        saved: {videos: [], pdfs: [], audio: []},
         notes: [],
         bookmarks: [],
       });
@@ -266,7 +263,7 @@ export function MyMaterials() {
   }, [searchQuery]);
   useEffect(() => {
     if (status === "authenticated" && sessionToken) {
-      fetchData("", { initial: true });
+      fetchData("", {initial: true});
     }
   }, [sessionToken, status]);
   // Extract lessons from videos
@@ -291,22 +288,26 @@ export function MyMaterials() {
       kind: params.kind,
     });
 
-    const res = await fetch(`/api/student/lesson-media-url/${params.lesson_id}/`, {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Token": sessionToken,
+    const res = await fetch(
+      `/api/student/lesson-media-url/${params.lesson_id}/`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
       },
-    });
+    );
 
     const payload = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      throw new Error(payload?.detail || payload?.error || "Failed to get media url");
+      throw new Error(
+        payload?.detail || payload?.error || "Failed to get media url",
+      );
     }
 
     return payload as LessonMediaResp;
   }
-
 
   const handleSaveNote = async (note: Note) => {
     if (!note.lesson) {
@@ -343,7 +344,6 @@ export function MyMaterials() {
         }),
       });
 
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(`Failed: ${JSON.stringify(errorData)}`);
@@ -364,7 +364,6 @@ export function MyMaterials() {
         };
       });
 
-
       setError(null);
     } catch (err: any) {
       console.error("[MyMaterials] Save error:", err);
@@ -376,7 +375,7 @@ export function MyMaterials() {
     setDeletingIds((prev) => new Set([...prev, `note-${noteId}`]));
     console.log(
       "[MyMaterials] Sending DELETE to /api/student/notes for note ID:",
-      noteId
+      noteId,
     );
     try {
       const response = await fetch(`/api/student/notes`, {
@@ -385,7 +384,7 @@ export function MyMaterials() {
           "Content-Type": "application/json",
           "X-Session-Token": sessionToken || "",
         },
-        body: JSON.stringify({ id: noteId }),
+        body: JSON.stringify({id: noteId}),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -411,7 +410,7 @@ export function MyMaterials() {
 
   const handleDeleteSavedItem = async (
     type: "videos" | "pdfs" | "audio",
-    item: any
+    item: any,
   ) => {
     // item MUST carry lesson_id (recommended) or material_id
     const lessonId = item.lesson_id ?? item.lessonId ?? item.lesson ?? null;
@@ -449,7 +448,7 @@ export function MyMaterials() {
       setData((prev) => {
         if (!prev) return prev;
 
-        const newSaved = { ...prev.saved };
+        const newSaved = {...prev.saved};
 
         if (type === "videos") {
           newSaved.videos = newSaved.videos.filter((x) => x.id !== item.id);
@@ -459,7 +458,7 @@ export function MyMaterials() {
           newSaved.audio = newSaved.audio.filter((x) => x.id !== item.id);
         }
 
-        return { ...prev, saved: newSaved };
+        return {...prev, saved: newSaved};
       });
 
       setError(null);
@@ -500,7 +499,9 @@ export function MyMaterials() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={handleLogout} className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors">
+            <Button
+              onClick={handleLogout}
+              className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors">
               <LogIn className="h-4 w-4" />
               Log In Again
             </Button>
@@ -542,10 +543,14 @@ export function MyMaterials() {
 
     try {
       setOpeningKey(`video-play-${video.id}`);
-      const lessonId = video.lesson_id ?? video.lessonId ?? video.lesson ?? video.id;
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "video" });
+      const lessonId =
+        video.lesson_id ?? video.lessonId ?? video.lesson ?? video.id;
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "video",
+      });
 
-      setSelectedVideo({ ...video, videoUrl: url });
+      setSelectedVideo({...video, videoUrl: url});
       setVideoModalOpen(true);
     } catch (e: any) {
       setError(e?.message || "Failed to load video");
@@ -559,7 +564,10 @@ export function MyMaterials() {
     try {
       setOpeningKey(`pdf-preview-${pdf.id}`);
       const lessonId = pdf.lesson_id ?? pdf.lessonId ?? pdf.lesson ?? pdf.id;
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "pdf" });
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "pdf",
+      });
 
       window.open(url, "_blank");
     } catch (e: any) {
@@ -574,10 +582,14 @@ export function MyMaterials() {
 
     try {
       setOpeningKey(`audio-play-${audio.id}`);
-      const lessonId = audio.lesson_id ?? audio.lessonId ?? audio.lesson ?? audio.id;
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "audio" });
+      const lessonId =
+        audio.lesson_id ?? audio.lessonId ?? audio.lesson ?? audio.id;
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "audio",
+      });
 
-      setSelectedAudio({ ...audio, audioUrl: url });
+      setSelectedAudio({...audio, audioUrl: url});
       setAudioPlayerOpen(true);
     } catch (e: any) {
       setError(e?.message || "Failed to load audio");
@@ -597,28 +609,28 @@ export function MyMaterials() {
   const totalPagesNotes = Math.ceil(notes.length / itemsPerPage);
   const currentNotes = notes.slice(
     (currentPageNotes - 1) * itemsPerPage,
-    currentPageNotes * itemsPerPage
+    currentPageNotes * itemsPerPage,
   );
 
   // Videos pagination
   const totalPagesVideos = Math.ceil(savedItems.videos.length / itemsPerPage);
   const currentVideos = savedItems.videos.slice(
     (currentPageVideos - 1) * itemsPerPage,
-    currentPageVideos * itemsPerPage
+    currentPageVideos * itemsPerPage,
   );
 
   // PDFs pagination
   const totalPagesPdfs = Math.ceil(savedItems.pdfs.length / itemsPerPage);
   const currentPdfs = savedItems.pdfs.slice(
     (currentPagePdfs - 1) * itemsPerPage,
-    currentPagePdfs * itemsPerPage
+    currentPagePdfs * itemsPerPage,
   );
 
   // Audio pagination
   const totalPagesAudio = Math.ceil(savedItems.audio.length / itemsPerPage);
   const currentAudio = savedItems.audio.slice(
     (currentPageAudio - 1) * itemsPerPage,
-    currentPageAudio * itemsPerPage
+    currentPageAudio * itemsPerPage,
   );
 
   return (
@@ -688,7 +700,7 @@ export function MyMaterials() {
             {dataLoading ? (
               // ✅ Only the data area loads (search bar stays visible)
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({length: 6}).map((_, i) => (
                   <Card
                     key={`video-skel-${i}`}
                     className="hover:shadow-lg transition-shadow flex flex-col h-full overflow-hidden">
@@ -730,13 +742,15 @@ export function MyMaterials() {
                     return (
                       <Card
                         key={video.id}
-                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${locked ? "cursor-not-allowed" : ""
-                          }`}
-                      >
+                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
+                          locked ? "cursor-not-allowed" : ""
+                        }`}>
                         {/* BLUR WRAPPER */}
-                        <div className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
+                        <div
+                          className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
                           <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
-                            {video.thumbnail && video.thumbnail !== defaultThumbnail ? (
+                            {video.thumbnail &&
+                            video.thumbnail !== defaultThumbnail ? (
                               <img
                                 src={
                                   video.thumbnail.startsWith("http")
@@ -765,13 +779,17 @@ export function MyMaterials() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={locked || isOpening(`video-play-${video.id}`)}
+                                disabled={
+                                  locked || isOpening(`video-play-${video.id}`)
+                                }
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                onClick={() => handleWatchVideo(video)}
-                              >
+                                onClick={() => handleWatchVideo(video)}>
                                 {isOpening(`video-play-${video.id}`) ? (
                                   <>
-                                    <Spinner size="sm" className="text-orange-500" />
+                                    <Spinner
+                                      size="sm"
+                                      className="text-orange-500"
+                                    />
                                     Loading...
                                   </>
                                 ) : (
@@ -786,11 +804,16 @@ export function MyMaterials() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDeleteSavedItem("videos", video)}
+                                onClick={() =>
+                                  handleDeleteSavedItem("videos", video)
+                                }
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={deletingIds.has(`videos-${video.id}`)}
-                              >
-                                {deletingIds.has(`videos-${video.id}`) ? "Deleting..." : (
+                                disabled={deletingIds.has(
+                                  `videos-${video.id}`,
+                                )}>
+                                {deletingIds.has(`videos-${video.id}`) ? (
+                                  "Deleting..."
+                                ) : (
                                   <>
                                     <Trash className="mr-2 h-3 w-3" />
                                     Delete
@@ -802,11 +825,12 @@ export function MyMaterials() {
                         </div>
 
                         {/* OVERLAY */}
-                        {locked && <LockedOverlay label="Locked video — subscribe to unlock" />}
+                        {locked && (
+                          <LockedOverlay label="Locked video — subscribe to unlock" />
+                        )}
                       </Card>
                     );
                   })}
-
                 </div>
 
                 {totalPagesVideos > 1 && (
@@ -838,7 +862,7 @@ export function MyMaterials() {
 
             {dataLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({length: 6}).map((_, i) => (
                   <Card
                     key={`pdf-skel-${i}`}
                     className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -878,10 +902,11 @@ export function MyMaterials() {
                     return (
                       <Card
                         key={pdf.id}
-                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${locked ? "cursor-not-allowed" : ""
-                          }`}
-                      >
-                        <div className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
+                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
+                          locked ? "cursor-not-allowed" : ""
+                        }`}>
+                        <div
+                          className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
                           <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
                             <FileText className="h-8 w-8 text-muted-foreground" />
                           </div>
@@ -901,17 +926,20 @@ export function MyMaterials() {
                             </div>
 
                             <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
-
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={locked || isOpening(`pdf-preview-${pdf.id}`)}
+                                disabled={
+                                  locked || isOpening(`pdf-preview-${pdf.id}`)
+                                }
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                onClick={() => handlePreviewPdf(pdf)}
-                              >
+                                onClick={() => handlePreviewPdf(pdf)}>
                                 {isOpening(`pdf-preview-${pdf.id}`) ? (
                                   <>
-                                    <Spinner size="sm" className="text-orange-500" />
+                                    <Spinner
+                                      size="sm"
+                                      className="text-orange-500"
+                                    />
                                     Loading...
                                   </>
                                 ) : (
@@ -925,11 +953,14 @@ export function MyMaterials() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDeleteSavedItem("pdfs", pdf)}
+                                onClick={() =>
+                                  handleDeleteSavedItem("pdfs", pdf)
+                                }
                                 className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={deletingIds.has(`pdfs-${pdf.id}`)}
-                              >
-                                {deletingIds.has(`pdfs-${pdf.id}`) ? "Deleting..." : (
+                                disabled={deletingIds.has(`pdfs-${pdf.id}`)}>
+                                {deletingIds.has(`pdfs-${pdf.id}`) ? (
+                                  "Deleting..."
+                                ) : (
                                   <>
                                     <Trash className="mr-2 h-3 w-3" />
                                     Delete
@@ -940,11 +971,12 @@ export function MyMaterials() {
                           </CardContent>
                         </div>
 
-                        {locked && <LockedOverlay label="Locked PDF — subscribe to unlock" />}
+                        {locked && (
+                          <LockedOverlay label="Locked PDF — subscribe to unlock" />
+                        )}
                       </Card>
                     );
                   })}
-
                 </div>
 
                 {totalPagesPdfs > 1 && (
@@ -976,7 +1008,7 @@ export function MyMaterials() {
 
             {dataLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({length: 6}).map((_, i) => (
                   <Card
                     key={`audio-skel-${i}`}
                     className="hover:shadow-lg transition-shadow flex flex-col h-full">
@@ -1015,10 +1047,11 @@ export function MyMaterials() {
                     return (
                       <Card
                         key={audio.id}
-                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${locked ? "cursor-not-allowed" : ""
-                          }`}
-                      >
-                        <div className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
+                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
+                          locked ? "cursor-not-allowed" : ""
+                        }`}>
+                        <div
+                          className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
                           <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
                             <Headphones className="h-8 w-8 text-muted-foreground" />
                           </div>
@@ -1034,17 +1067,20 @@ export function MyMaterials() {
                             </div>
 
                             <div className="mt-auto pt-4 flex items-center justify-center gap-2">
-
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={locked || isOpening(`audio-play-${audio.id}`)}
+                                disabled={
+                                  locked || isOpening(`audio-play-${audio.id}`)
+                                }
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                onClick={() => handlePlayAudio(audio)}
-                              >
+                                onClick={() => handlePlayAudio(audio)}>
                                 {isOpening(`audio-play-${audio.id}`) ? (
                                   <>
-                                    <Spinner size="sm" className="text-orange-500" />
+                                    <Spinner
+                                      size="sm"
+                                      className="text-orange-500"
+                                    />
                                     Loading...
                                   </>
                                 ) : (
@@ -1057,11 +1093,14 @@ export function MyMaterials() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDeleteSavedItem("audio", audio)}
+                                onClick={() =>
+                                  handleDeleteSavedItem("audio", audio)
+                                }
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={deletingIds.has(`audio-${audio.id}`)}
-                              >
-                                {deletingIds.has(`audio-${audio.id}`) ? "Deleting..." : (
+                                disabled={deletingIds.has(`audio-${audio.id}`)}>
+                                {deletingIds.has(`audio-${audio.id}`) ? (
+                                  "Deleting..."
+                                ) : (
                                   <>
                                     <Trash className="mr-2 h-3 w-3" />
                                     Delete
@@ -1072,11 +1111,12 @@ export function MyMaterials() {
                           </CardContent>
                         </div>
 
-                        {locked && <LockedOverlay label="Locked audio — subscribe to unlock" />}
+                        {locked && (
+                          <LockedOverlay label="Locked audio — subscribe to unlock" />
+                        )}
                       </Card>
                     );
                   })}
-
                 </div>
 
                 {totalPagesAudio > 1 && (

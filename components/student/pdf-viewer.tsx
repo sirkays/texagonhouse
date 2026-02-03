@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {useState, useEffect} from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
 import {
   ZoomIn,
   ZoomOut,
@@ -24,7 +24,7 @@ interface PDFViewerProps {
   pdfUrl?: string;
 }
 
-export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
+export function PDFViewer({isOpen, onClose, title, pdfUrl}: PDFViewerProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -40,10 +40,12 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
       !navigator.onLine &&
       !pdfUrl.startsWith("blob:")
     ) {
-      setError("PDF not available offline. Please connect to the internet or ensure it is cached.");
+      setError(
+        "PDF not available offline. Please connect to the internet or ensure it is cached.",
+      );
       console.error(
         "[PDFViewer] Offline mode, but pdfUrl is not a blob URL:",
-        pdfUrl
+        pdfUrl,
       );
     } else {
       setError(null);
@@ -112,8 +114,7 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
               variant="outline"
               size="sm"
               onClick={handlePrevPage}
-              disabled={currentPage === 1}
-            >
+              disabled={currentPage === 1}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm">Page {currentPage}</span>
@@ -122,12 +123,12 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
             </Button>
           </div>
 
-          {pdfUrl && !pdfUrl.startsWith("blob:") && navigator.onLine && (
+          {/* {pdfUrl && !pdfUrl.startsWith("blob:") && navigator.onLine && (
             <Button variant="outline" size="sm" onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
-          )}
+          )} */}
         </div>
 
         <div className="flex-1 overflow-auto bg-gray-100 rounded-lg p-4">
@@ -156,19 +157,17 @@ export function PDFViewer({ isOpen, onClose, title, pdfUrl }: PDFViewerProps) {
                 transformOrigin: "center",
                 width: "100%",
                 height: "100%",
-              }}
-            >
+              }}>
               <object
                 data={iframeSrc}
                 type="application/pdf"
                 className="w-full h-full"
                 onError={() =>
                   setError("Failed to load PDF. Try downloading instead.")
-                }
-              >
+                }>
                 <iframe
                   src={`https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(
-                    iframeSrc
+                    iframeSrc,
                   )}`}
                   className="w-full h-full border-0"
                 />

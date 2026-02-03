@@ -1077,7 +1077,7 @@ export function VideoModal({
   const [posterError, setPosterError] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showCenterIcon, setShowCenterIcon] = useState<"play" | "pause" | null>(
-    null
+    null,
   );
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSpeedOverlay, setShowSpeedOverlay] = useState(false);
@@ -1086,7 +1086,7 @@ export function VideoModal({
   const lastTapRef = useRef<{time: number; x: number} | null>(null);
   const posterImgRef = useRef<HTMLImageElement>(null);
   const speedGestureRef = useRef<{startX: number; initialSpeed: number} | null>(
-    null
+    null,
   );
   // ------------------ Poster Handling ------------------
   useEffect(() => {
@@ -1120,7 +1120,7 @@ export function VideoModal({
       try {
         localStorage.setItem(
           `video-progress-${videoUrl}`,
-          videoRef.current.currentTime.toString()
+          videoRef.current.currentTime.toString(),
         );
       } catch {}
     }
@@ -1142,7 +1142,7 @@ export function VideoModal({
     if (isPlaying && showControls) {
       controlsTimeoutRef.current = setTimeout(
         () => setShowControls(false),
-        3000
+        3000,
       );
     }
     return () => {
@@ -1199,7 +1199,7 @@ export function VideoModal({
     const handleFullscreenChange = () => {
       setIsFullscreen(
         !!document.fullscreenElement ||
-          !!(document as any).webkitFullscreenElement
+          !!(document as any).webkitFullscreenElement,
       );
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -1208,7 +1208,7 @@ export function VideoModal({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener(
         "webkitfullscreenchange",
-        handleFullscreenChange
+        handleFullscreenChange,
       );
     };
   }, []);
@@ -1233,7 +1233,7 @@ export function VideoModal({
   };
   // ------------------ Video Tap / Double Tap ------------------
   const handleVideoTap = (
-    e: React.MouseEvent<HTMLVideoElement> | React.TouchEvent<HTMLVideoElement>
+    e: React.MouseEvent<HTMLVideoElement> | React.TouchEvent<HTMLVideoElement>,
   ) => {
     const now = Date.now();
     const tapX = "touches" in e ? e.touches[0].clientX : e.clientX;
@@ -1249,11 +1249,11 @@ export function VideoModal({
         const newTime = isLeftSide
           ? Math.max(0, videoRef.current.currentTime - 10)
           : isRightSide
-          ? Math.min(
-              videoRef.current.duration,
-              videoRef.current.currentTime + 10
-            )
-          : videoRef.current.currentTime;
+            ? Math.min(
+                videoRef.current.duration,
+                videoRef.current.currentTime + 10,
+              )
+            : videoRef.current.currentTime;
         videoRef.current.currentTime = newTime;
         setCurrentTime(newTime);
       }
@@ -1272,14 +1272,14 @@ export function VideoModal({
   };
   // ------------------ Click/Tap & Hold for Speed ------------------
   const handleSpeedStart = (
-    e: React.MouseEvent<HTMLVideoElement> | React.TouchEvent<HTMLVideoElement>
+    e: React.MouseEvent<HTMLVideoElement> | React.TouchEvent<HTMLVideoElement>,
   ) => {
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     speedGestureRef.current = {startX: clientX, initialSpeed: playbackSpeed};
     setShowSpeedOverlay(true);
   };
   const handleSpeedMove = (
-    e: React.MouseEvent<HTMLVideoElement> | React.TouchEvent<HTMLVideoElement>
+    e: React.MouseEvent<HTMLVideoElement> | React.TouchEvent<HTMLVideoElement>,
   ) => {
     if (!speedGestureRef.current) return;
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
@@ -1321,9 +1321,9 @@ export function VideoModal({
   // ------------------ Render ------------------
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-black w-[95vw] max-w-[1200px] h-auto max-h-[95vh] flex flex-col mx-auto p-0 rounded-lg overflow-hidden shadow-lg">
-        <DialogHeader className="bg-gray-900 px-4 py-2">
-          <DialogTitle className="text-white font-semibold text-lg sm:text-xl">
+      <DialogContent className="bg-white w-[95vw] max-w-[1200px] h-auto max-h-[95vh] flex flex-col mx-auto p-0 rounded-lg overflow-hidden shadow-lg">
+        <DialogHeader className="bg-white px-4 py-2">
+          <DialogTitle className="text-slate-800 font-semibold text-lg sm:text-xl">
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -1336,7 +1336,7 @@ export function VideoModal({
                 clearTimeout(controlsTimeoutRef.current);
               controlsTimeoutRef.current = setTimeout(
                 () => setShowControls(false),
-                3000
+                3000,
               );
             }
           }}>

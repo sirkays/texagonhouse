@@ -1,6 +1,6 @@
 "use client";
-import { useRef } from "react";
-import { useState, useEffect, useMemo } from "react";
+import {useRef} from "react";
+import {useState, useEffect, useMemo} from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsList, TabsTrigger, TabsContent} from "@/components/ui/tabs";
 import {
   FileText,
   Video,
@@ -35,11 +35,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { PDFViewer } from "./pdf-viewer";
-import { VideoModal } from "./video-modal";
-import { AudioPlayer } from "./audio-player";
-import { useSession } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
+import {PDFViewer} from "./pdf-viewer";
+import {VideoModal} from "./video-modal";
+import {AudioPlayer} from "./audio-player";
+import {useSession} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -54,7 +54,7 @@ import {
   CommandInput,
   CommandItem,
 } from "../ui/command";
-import { cn } from "@/lib/utils";
+import {cn} from "@/lib/utils";
 
 interface Resource {
   id: string;
@@ -83,7 +83,7 @@ interface Resource {
 
 interface ResourcesData {
   categories: string[];
-  courses: { id: number; name: string }[];
+  courses: {id: number; name: string}[];
   selected_course_id: number | null;
   selected_module_id: number | null;
   pdfs: Resource[];
@@ -101,7 +101,7 @@ export function ResourceMaterials() {
   const [dataLoading, setDataLoading] = useState(false); // filter/search reload
   const didInitialLoadRef = useRef(false);
 
-  const { data: session, status } = useSession();
+  const {data: session, status} = useSession();
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -120,7 +120,7 @@ export function ResourceMaterials() {
     journals: 1,
   });
   const [resourcesData, setResourcesData] = useState<ResourcesData | null>(
-    null
+    null,
   );
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,9 +130,8 @@ export function ResourceMaterials() {
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken,
-    [session?.user?.sessionToken]
+    [session?.user?.sessionToken],
   );
-
 
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
@@ -154,17 +153,22 @@ export function ResourceMaterials() {
       kind: params.kind,
     });
 
-    const res = await fetch(`/api/student/lesson-media-url/${params.lesson_id}/`, {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Token": sessionToken,
+    const res = await fetch(
+      `/api/student/lesson-media-url/${params.lesson_id}/`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
       },
-    });
+    );
 
     const payload = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      throw new Error(payload?.detail || payload?.error || "Failed to get media url");
+      throw new Error(
+        payload?.detail || payload?.error || "Failed to get media url",
+      );
     }
 
     return payload as LessonMediaResp;
@@ -173,7 +177,12 @@ export function ResourceMaterials() {
   function getLessonId(item: Resource) {
     // ✅ best effort fallback if backend doesn't send lesson_id yet
     // If your backend sends lesson_id, use that instead
-    return (item as any).lesson_id ?? (item as any).lessonId ?? (item as any).lesson ?? item.id;
+    return (
+      (item as any).lesson_id ??
+      (item as any).lessonId ??
+      (item as any).lesson ??
+      item.id
+    );
   }
   const EMPTY_RESOURCES: ResourcesData = {
     categories: [],
@@ -186,7 +195,7 @@ export function ResourceMaterials() {
     journals: [],
   };
 
-  const LockedOverlay = ({ label = "Locked content" }: { label?: string }) => (
+  const LockedOverlay = ({label = "Locked content"}: {label?: string}) => (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
       <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs font-medium shadow-sm">
         <AlertCircle className="h-4 w-4 text-[#EF7B55]" />
@@ -199,7 +208,7 @@ export function ResourceMaterials() {
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
       const data = await response.json();
       if (!response.ok) {
@@ -252,7 +261,7 @@ export function ResourceMaterials() {
               "Content-Type": "application/json",
               "X-Session-Token": sessionToken,
             },
-          }
+          },
         );
 
         if (!response.ok) {
@@ -280,13 +289,13 @@ export function ResourceMaterials() {
         setResourcesData(data);
         setCategories(data.categories || []);
         setSelectedCourseId(
-          data.selected_course_id || data.courses?.[0]?.id || null
+          data.selected_course_id || data.courses?.[0]?.id || null,
         );
         setSelectedModuleId(data.selected_module_id || null);
         setError(null);
 
         // ✅ reset pages when filtering/searching (optional but recommended)
-        setCurrentPage({ pdfs: 1, videos: 1, audio: 1, journals: 1 });
+        setCurrentPage({pdfs: 1, videos: 1, audio: 1, journals: 1});
       } catch (e) {
         setError("Failed to fetch resources");
         setResourcesData(null);
@@ -315,9 +324,12 @@ export function ResourceMaterials() {
 
     try {
       const lessonId = getLessonId(pdf);
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "pdf" });
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "pdf",
+      });
 
-      setSelectedPdf({ ...pdf, pdfUrl: url });
+      setSelectedPdf({...pdf, pdfUrl: url});
       setPdfViewerOpen(true);
     } catch (e: any) {
       setError(e?.message || "Failed to open PDF");
@@ -344,9 +356,12 @@ export function ResourceMaterials() {
 
     try {
       const lessonId = getLessonId(video);
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "video" });
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "video",
+      });
 
-      setSelectedVideo({ ...video, videoUrl: url });
+      setSelectedVideo({...video, videoUrl: url});
       setVideoModalOpen(true);
     } catch (e: any) {
       setError(e?.message || "Failed to open video");
@@ -362,9 +377,12 @@ export function ResourceMaterials() {
 
     try {
       const lessonId = getLessonId(audio);
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "audio" });
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "audio",
+      });
 
-      setSelectedAudio({ ...audio, audioUrl: url });
+      setSelectedAudio({...audio, audioUrl: url});
       setAudioPlayerOpen(true);
     } catch (e: any) {
       setError(e?.message || "Failed to open audio");
@@ -380,7 +398,10 @@ export function ResourceMaterials() {
 
     try {
       const lessonId = getLessonId(journal);
-      const { url } = await fetchLessonMediaUrl({ lesson_id: lessonId, kind: "pdf" });
+      const {url} = await fetchLessonMediaUrl({
+        lesson_id: lessonId,
+        kind: "pdf",
+      });
 
       const link = document.createElement("a");
       link.href = url;
@@ -404,7 +425,7 @@ export function ResourceMaterials() {
 
   const getTotalPages = (items: Resource[]) => {
     const filteredItems = items.filter(
-      (item) => !selectedCategory || item.category === selectedCategory
+      (item) => !selectedCategory || item.category === selectedCategory,
     );
     return Math.ceil(filteredItems.length / itemsPerPage);
   };
@@ -433,7 +454,7 @@ export function ResourceMaterials() {
           {current > 2 && (
             <PaginationItem>
               <PaginationLink
-                onClick={() => setCurrentPage((prev) => ({ ...prev, [tab]: 1 }))}>
+                onClick={() => setCurrentPage((prev) => ({...prev, [tab]: 1}))}>
                 1
               </PaginationLink>
             </PaginationItem>
@@ -445,14 +466,14 @@ export function ResourceMaterials() {
             </PaginationItem>
           )}
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
+          {Array.from({length: totalPages}, (_, i) => i + 1)
             .filter((page) => Math.abs(page - current) <= 1)
             .map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   isActive={page === current}
                   onClick={() =>
-                    setCurrentPage((prev) => ({ ...prev, [tab]: page }))
+                    setCurrentPage((prev) => ({...prev, [tab]: page}))
                   }>
                   {page}
                 </PaginationLink>
@@ -469,7 +490,7 @@ export function ResourceMaterials() {
             <PaginationItem>
               <PaginationLink
                 onClick={() =>
-                  setCurrentPage((prev) => ({ ...prev, [tab]: totalPages }))
+                  setCurrentPage((prev) => ({...prev, [tab]: totalPages}))
                 }>
                 {totalPages}
               </PaginationLink>
@@ -619,7 +640,7 @@ export function ResourceMaterials() {
   const audioItems = getPaginatedItems(resources.audio, currentPage.audio);
   const journalItems = getPaginatedItems(
     resources.journals,
-    currentPage.journals
+    currentPage.journals,
   );
 
   return (
@@ -676,8 +697,9 @@ export function ResourceMaterials() {
           />
         </div>
         <Button
-          className={`h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white ${appliedSearchQuery ? "bg-[#F79771] text-white" : ""
-            }`}
+          className={`h-10 bg-transparent border border-[#EF7B55] text-[#EF7B55] hover:bg-[#F79771] hover:text-white ${
+            appliedSearchQuery ? "bg-[#F79771] text-white" : ""
+          }`}
           variant="outline"
           disabled={dataLoading}
           onClick={() => setAppliedSearchQuery(searchQuery)}>
@@ -731,7 +753,7 @@ export function ResourceMaterials() {
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                {Array.from({length: itemsPerPage}).map((_, i) => (
                   <Card key={`pdf-skel-${i}`} className="flex flex-col h-full">
                     <CardHeader>
                       <div className="space-y-2">
@@ -756,7 +778,7 @@ export function ResourceMaterials() {
               {(() => {
                 const pdfItems = getPaginatedItems(
                   resources.pdfs,
-                  currentPage.pdfs
+                  currentPage.pdfs,
                 );
 
                 return pdfItems.length === 0 ? (
@@ -783,11 +805,14 @@ export function ResourceMaterials() {
                           key={pdf.id || index}
                           className={cn(
                             "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
-                            pdf.blur && "cursor-not-allowed"
-                          )}
-                        >
+                            pdf.blur && "cursor-not-allowed",
+                          )}>
                           {/* BLUR WRAPPER */}
-                          <div className={cn("flex flex-col sm:flex-row w-full", pdf.blur && "blur-md")}>
+                          <div
+                            className={cn(
+                              "flex flex-col sm:flex-row w-full",
+                              pdf.blur && "blur-md",
+                            )}>
                             <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted overflow-hidden flex items-center justify-center">
                               <FileText className="h-8 w-8 text-muted-foreground" />
                             </div>
@@ -802,7 +827,9 @@ export function ResourceMaterials() {
                                     by {pdf.author || "Unknown"}
                                   </CardDescription>
                                 </div>
-                                <Badge variant="secondary" className="self-start sm:self-auto text-xs px-2 py-0.5">
+                                <Badge
+                                  variant="secondary"
+                                  className="self-start sm:self-auto text-xs px-2 py-0.5">
                                   {pdf.category}
                                 </Badge>
                               </div>
@@ -813,13 +840,18 @@ export function ResourceMaterials() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                  disabled={isLocked(pdf, "pdf") || openingKey === `pdf-preview-${pdf.id}`}
-                                  onClick={() => handlePreviewPdf(pdf)}
-                                >
+                                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                                  disabled={
+                                    isLocked(pdf, "pdf") ||
+                                    openingKey === `pdf-preview-${pdf.id}`
+                                  }
+                                  onClick={() => handlePreviewPdf(pdf)}>
                                   {openingKey === `pdf-preview-${pdf.id}` ? (
                                     <>
-                                      <Spinner size="sm" className="text-orange-500" />
+                                      <Spinner
+                                        size="sm"
+                                        className="text-orange-500"
+                                      />
                                       Loading...
                                     </>
                                   ) : (
@@ -830,16 +862,21 @@ export function ResourceMaterials() {
                                   )}
                                 </Button>
 
-                                <Button
+                                {/* <Button
                                   size="sm"
                                   variant="outline"
                                   className="w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                  disabled={isLocked(pdf, "pdf") || openingKey === `pdf-download-${pdf.id}`}
-                                  onClick={() => handleDownloadPdf(pdf)}
-                                >
+                                  disabled={
+                                    isLocked(pdf, "pdf") ||
+                                    openingKey === `pdf-download-${pdf.id}`
+                                  }
+                                  onClick={() => handleDownloadPdf(pdf)}>
                                   {openingKey === `pdf-download-${pdf.id}` ? (
                                     <>
-                                      <Spinner size="sm" className="text-orange-500" />
+                                      <Spinner
+                                        size="sm"
+                                        className="text-orange-500"
+                                      />
                                       Loading...
                                     </>
                                   ) : (
@@ -848,16 +885,17 @@ export function ResourceMaterials() {
                                       Download
                                     </>
                                   )}
-                                </Button>
+                                </Button> */}
                               </div>
                             </CardContent>
                           </div>
 
                           {/* OVERLAY */}
-                          {pdf.blur && <LockedOverlay label="Login / Subscribe to unlock PDF" />}
+                          {pdf.blur && (
+                            <LockedOverlay label="Login / Subscribe to unlock PDF" />
+                          )}
                         </Card>
                       ))}
-
                     </div>
 
                     {renderPagination("pdfs")}
@@ -872,7 +910,7 @@ export function ResourceMaterials() {
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                {Array.from({length: itemsPerPage}).map((_, i) => (
                   <Card
                     key={`video-skel-${i}`}
                     className="flex flex-col h-full">
@@ -898,7 +936,7 @@ export function ResourceMaterials() {
               {(() => {
                 const videoItems = getPaginatedItems(
                   resources.videos,
-                  currentPage.videos
+                  currentPage.videos,
                 );
 
                 return videoItems.length === 0 ? (
@@ -925,14 +963,21 @@ export function ResourceMaterials() {
                           key={video.id || index}
                           className={cn(
                             "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
-                            video.blur && "cursor-not-allowed"
-                          )}
-                        >
-                          <div className={cn("flex flex-col sm:flex-row w-full", video.blur && "blur-md")}>
+                            video.blur && "cursor-not-allowed",
+                          )}>
+                          <div
+                            className={cn(
+                              "flex flex-col sm:flex-row w-full",
+                              video.blur && "blur-md",
+                            )}>
                             <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted overflow-hidden flex items-center justify-center">
                               {video.thumbnail ? (
                                 <img
-                                  src={video.thumbnail.startsWith("http") ? video.thumbnail : `process.env.BASE_URL${video.thumbnail}`}
+                                  src={
+                                    video.thumbnail.startsWith("http")
+                                      ? video.thumbnail
+                                      : `process.env.BASE_URL${video.thumbnail}`
+                                  }
                                   alt={video.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -954,8 +999,7 @@ export function ResourceMaterials() {
 
                                 <Badge
                                   variant="secondary"
-                                  className="self-start sm:self-auto text-xs px-2 py-0.5"
-                                >
+                                  className="self-start sm:self-auto text-xs px-2 py-0.5">
                                   {video.category}
                                 </Badge>
                               </div>
@@ -975,12 +1019,17 @@ export function ResourceMaterials() {
                                 size="sm"
                                 variant="outline"
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={isLocked(video, "video") || openingKey === `video-${video.id}`}
-                                onClick={() => handleWatchVideo(video)}
-                              >
+                                disabled={
+                                  isLocked(video, "video") ||
+                                  openingKey === `video-${video.id}`
+                                }
+                                onClick={() => handleWatchVideo(video)}>
                                 {openingKey === `video-${video.id}` ? (
                                   <>
-                                    <Spinner size="sm" className="text-orange-500" />
+                                    <Spinner
+                                      size="sm"
+                                      className="text-orange-500"
+                                    />
                                     Loading...
                                   </>
                                 ) : (
@@ -993,9 +1042,10 @@ export function ResourceMaterials() {
                             </CardContent>
                           </div>
 
-                          {video.blur && <LockedOverlay label="Login / Subscribe to unlock Video" />}
+                          {video.blur && (
+                            <LockedOverlay label="Login / Subscribe to unlock Video" />
+                          )}
                         </Card>
-
                       ))}
                     </div>
 
@@ -1011,7 +1061,7 @@ export function ResourceMaterials() {
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                {Array.from({length: itemsPerPage}).map((_, i) => (
                   <Card
                     key={`audio-skel-${i}`}
                     className="flex flex-col h-full">
@@ -1037,7 +1087,7 @@ export function ResourceMaterials() {
               {(() => {
                 const audioItems = getPaginatedItems(
                   resources.audio,
-                  currentPage.audio
+                  currentPage.audio,
                 );
 
                 return audioItems.length === 0 ? (
@@ -1064,10 +1114,13 @@ export function ResourceMaterials() {
                           key={audio.id || index}
                           className={cn(
                             "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
-                            audio.blur && "cursor-not-allowed"
-                          )}
-                        >
-                          <div className={cn("flex flex-col sm:flex-row w-full", audio.blur && "blur-md")}>
+                            audio.blur && "cursor-not-allowed",
+                          )}>
+                          <div
+                            className={cn(
+                              "flex flex-col sm:flex-row w-full",
+                              audio.blur && "blur-md",
+                            )}>
                             <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted overflow-hidden flex items-center justify-center">
                               <Headphones className="h-8 w-8 text-muted-foreground" />
                             </div>
@@ -1085,8 +1138,7 @@ export function ResourceMaterials() {
 
                                 <Badge
                                   variant="secondary"
-                                  className="self-start sm:self-auto text-xs px-2 py-0.5"
-                                >
+                                  className="self-start sm:self-auto text-xs px-2 py-0.5">
                                   {audio.category}
                                 </Badge>
                               </div>
@@ -1102,17 +1154,21 @@ export function ResourceMaterials() {
                                 </div>
                               </div>
 
-
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
-                                disabled={isLocked(audio, "audio") || openingKey === `audio-${audio.id}`}
-                                onClick={() => handlePlayAudio(audio)}
-                              >
+                                disabled={
+                                  isLocked(audio, "audio") ||
+                                  openingKey === `audio-${audio.id}`
+                                }
+                                onClick={() => handlePlayAudio(audio)}>
                                 {openingKey === `audio-${audio.id}` ? (
                                   <>
-                                    <Spinner size="sm" className="text-orange-500" />
+                                    <Spinner
+                                      size="sm"
+                                      className="text-orange-500"
+                                    />
                                     Loading...
                                   </>
                                 ) : (
@@ -1125,9 +1181,10 @@ export function ResourceMaterials() {
                             </CardContent>
                           </div>
 
-                          {audio.blur && <LockedOverlay label="Login / Subscribe to unlock Audio" />}
+                          {audio.blur && (
+                            <LockedOverlay label="Login / Subscribe to unlock Audio" />
+                          )}
                         </Card>
-
                       ))}
                     </div>
 
@@ -1143,7 +1200,7 @@ export function ResourceMaterials() {
           {dataLoading ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: itemsPerPage }).map((_, i) => (
+                {Array.from({length: itemsPerPage}).map((_, i) => (
                   <Card
                     key={`journal-skel-${i}`}
                     className="flex flex-col h-full">
@@ -1170,7 +1227,7 @@ export function ResourceMaterials() {
               {(() => {
                 const journalItems = getPaginatedItems(
                   resources.journals,
-                  currentPage.journals
+                  currentPage.journals,
                 );
 
                 return journalItems.length === 0 ? (
@@ -1229,12 +1286,18 @@ export function ResourceMaterials() {
                                   size="sm"
                                   variant="outline"
                                   className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                                  disabled={isLocked(journal, "pdf") || openingKey === `pdf-preview-${journal.id}`}
-                                  onClick={() => handlePreviewPdf(journal)}
-                                >
-                                  {openingKey === `pdf-preview-${journal.id}` ? (
+                                  disabled={
+                                    isLocked(journal, "pdf") ||
+                                    openingKey === `pdf-preview-${journal.id}`
+                                  }
+                                  onClick={() => handlePreviewPdf(journal)}>
+                                  {openingKey ===
+                                  `pdf-preview-${journal.id}` ? (
                                     <>
-                                      <Spinner size="sm" className="text-orange-500" />
+                                      <Spinner
+                                        size="sm"
+                                        className="text-orange-500"
+                                      />
                                       Loading...
                                     </>
                                   ) : (
@@ -1251,11 +1314,18 @@ export function ResourceMaterials() {
                                 variant="outline"
                                 onClick={() => handleDownloadJournal(journal)}
                                 className="mt-3 w-full sm:w-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-[#f57c50]/20 hover:text-accent-foreground transition-colors"
-                                disabled={isLocked(journal, "pdf") || openingKey === `journal-download-${journal.id}`}
-                              >
-                                {openingKey === `journal-download-${journal.id}` ? (
+                                disabled={
+                                  isLocked(journal, "pdf") ||
+                                  openingKey ===
+                                    `journal-download-${journal.id}`
+                                }>
+                                {openingKey ===
+                                `journal-download-${journal.id}` ? (
                                   <>
-                                    <Spinner size="sm" className="text-orange-500" />
+                                    <Spinner
+                                      size="sm"
+                                      className="text-orange-500"
+                                    />
                                     Loading...
                                   </>
                                 ) : (
