@@ -1142,7 +1142,7 @@ export function TeacherLearningModules() {
       );
       setCurrentModule(initialModule);
       setEditingLesson(null);
-      setActiveTab("manage");
+      //setActiveTab("manage");
     } catch (err) {
       setError(
         (err as Error).message ||
