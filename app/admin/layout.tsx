@@ -67,6 +67,7 @@
 // import {useMediaQuery} from "react-responsive";
 // import {useSession, signOut} from "next-auth/react";
 // import {useRouter} from "next/navigation";
+// import {useNotificationStore} from "../stores/notificationStore";
 
 // interface Organization {
 //   id: number;
@@ -112,11 +113,21 @@
 //     path: "/admin/gamification",
 //   },
 //   {title: "Certificate", icon: Award, id: "cert", path: "/admin/certificate"},
-//   { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
+//   {title: "Settings", icon: Settings, id: "settings", path: "/admin/settings"},
 //   {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
 //   {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
-//   { title: "Leaderboard", icon: Trophy, id: "leaderboard", path: "/admin/reports/leaderboard" },
-//   { title: "Student Devices", icon: UserCheck, id: "student-devices", path: "/admin/student-devices" },
+//   {
+//     title: "Leaderboard",
+//     icon: Trophy,
+//     id: "leaderboard",
+//     path: "/admin/reports/leaderboard",
+//   },
+//   {
+//     title: "Student Devices",
+//     icon: UserCheck,
+//     id: "student-devices",
+//     path: "/admin/student-devices",
+//   },
 // ];
 
 // function SidebarMenuContent() {
@@ -182,6 +193,7 @@
 //   const [isDialogOpen, setIsDialogOpen] = useState(false);
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState<string | null>(null);
+//   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
 //   // Handle auth redirect in useEffect (after all hooks)
 //   useEffect(() => {
@@ -226,23 +238,21 @@
 //       // 1. Call your custom backend logout
 //       const response = await fetch("/api/auth/logout-route", {
 //         method: "POST",
-//         headers: { "Content-Type": "application/json" },
+//         headers: {"Content-Type": "application/json"},
 //       });
 
 //       if (!response.ok) {
 //         console.error("[AdminLayout] Backend logout failed");
-
 //       }
 
-//       await signOut({ redirect: false });
+//       await signOut({redirect: false});
 
 //       window.location.href = "/login";
-
 //     } catch (error) {
 //       console.error("[AdminLayout] Logout error:", error);
 
 //       // Fallback: Ensure the user is still visually logged out if an error occurs
-//       await signOut({ redirect: false });
+//       await signOut({redirect: false});
 //       window.location.href = "/login";
 //     }
 //   };
@@ -286,7 +296,7 @@
 //   if (loading) {
 //     return (
 //       <div className="flex items-center justify-center min-h-screen">
-//        <Spinner size="md" className="text-black" />
+//         <Spinner size="md" className="text-black" />
 //       </div>
 //     );
 //   }
@@ -378,12 +388,21 @@
 //             <div className="flex h-12 sm:h-14 items-center justify-between gap-3 sm:gap-4 px-3 sm:px-6 text-slate-800">
 //               <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
 //               <div className="flex-1 max-w-[90vw] sm:max-w-md"></div>
-//               <Button
-//                 variant="ghost"
-//                 size="icon"
-//                 className="p-1 sm:p-2 hover:bg-transparent focus:bg-transparent active:bg-transparent">
-//                 <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
-//               </Button>
+
+//               <Link href="/notifications">
+//                 <Button
+//                   variant="ghost"
+//                   size="icon"
+//                   className="relative p-1 sm:p-2 hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent transition-colors"
+//                   title="Notifications">
+//                   <Bell className="h-3 w-3 sm:h-4 sm:w-4 text-[#EF7B55]" />
+//                   {unreadCount > 0 && (
+//                     <span className="absolute -top-1 right-2 bg-orange-500 text-white text-[10px] xs:text-xs font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+//                       {unreadCount > 99 ? "99+" : unreadCount}
+//                     </span>
+//                   )}
+//                 </Button>
+//               </Link>
 //             </div>
 //           </header>
 
@@ -497,6 +516,7 @@ import {useMediaQuery} from "react-responsive";
 import {useSession, signOut} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {useNotificationStore} from "../stores/notificationStore";
+import {createContext, useContext} from "react";
 
 interface Organization {
   id: number;
@@ -559,10 +579,15 @@ const navigation = [
   },
 ];
 
+const LoadingContext = createContext<{
+  setIsNavigating: React.Dispatch<React.SetStateAction<boolean>>;
+} | null>(null);
+
 function SidebarMenuContent() {
   const pathname = usePathname();
   const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
   const isMobile = useMediaQuery({maxWidth: 639});
+  const {setIsNavigating} = useContext(LoadingContext)!;
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -590,7 +615,12 @@ function SidebarMenuContent() {
                   `}>
                   <Link
                     href={item.path}
-                    onClick={handleLinkClick}
+                    onClick={() => {
+                      handleLinkClick();
+                      if (pathname !== item.path) {
+                        setIsNavigating(true);
+                      }
+                    }}
                     className="flex items-center gap-2">
                     <item.icon className="h-3 w-3 sm:h-4 sm:w-4 text-[#EF7B55]" />
                     <span className="text-[0.85rem] sm:text-sm">
@@ -604,6 +634,19 @@ function SidebarMenuContent() {
         </SidebarGroupContent>
       </SidebarGroup>
     </SidebarContent>
+  );
+}
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 text-[#EF7B55]">
+      <GraduationCap className="h-16 w-16 animate-pulse" strokeWidth={1.8} />
+      <div className="flex items-center gap-3">
+        <span className="text-xl font-semibold tracking-wide">EduManage</span>
+        <Spinner size="md" className="text-[#EF7B55]" />
+      </div>
+      <p className="text-sm text-slate-500">Loading content...</p>
+    </div>
   );
 }
 
@@ -623,6 +666,12 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const pathname = usePathname();
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    setIsNavigating(false);
+  }, [pathname]);
 
   // Handle auth redirect in useEffect (after all hooks)
   useEffect(() => {
@@ -740,104 +789,108 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider className="bg-white">
-      <div className="flex min-h-screen w-full font-sans">
-        <Sidebar className="">
-          <SidebarHeader className="bg-[#EF7B55] py-5">
-            <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
-              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              <span className="font-semibold text-white text-base sm:text-lg">
-                EduManage
-              </span>
-            </div>
-          </SidebarHeader>
-          <SidebarMenuContent />
-          <SidebarFooter className="border border-t-[#EF7B553a] py-5">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton>
-                      <Avatar className="h-5 w-5 sm:h-6 sm:w-6">
-                        <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                        <AvatarFallback className="text-[0.65rem] sm:text-xs">
-                          {session?.user?.name?.[0] || "AD"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs sm:text-sm">
-                        {session?.user?.name || currentOrg.name}
+      <LoadingContext.Provider value={{setIsNavigating}}>
+        <div className="flex min-h-screen w-full font-sans">
+          <Sidebar className="">
+            <SidebarHeader className="bg-[#EF7B55] py-5">
+              <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
+                <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <span className="font-semibold text-white text-base sm:text-lg">
+                  EduManage
+                </span>
+              </div>
+            </SidebarHeader>
+            <SidebarMenuContent />
+            <SidebarFooter className="border border-t-[#EF7B553a] py-5">
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton>
+                        <Avatar className="h-5 w-5 sm:h-6 sm:w-6">
+                          <AvatarImage src="/placeholder.svg?height=24&width=24" />
+                          <AvatarFallback className="text-[0.65rem] sm:text-xs">
+                            {session?.user?.name?.[0] || "AD"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs sm:text-sm">
+                          {session?.user?.name || currentOrg.name}
+                        </span>
+                        <Settings className="ml-auto h-3 w-3 sm:h-4 sm:w-4" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="top"
+                      className="w-[--radix-popper-anchor-width]">
+                      <DropdownMenuItem
+                        className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
+                        onClick={handleLogout}>
+                        <LogOut className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        Log out
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
+                        onClick={() => setIsDialogOpen(true)}>
+                        <Settings className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        Change Organisation
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+
+          <div className="flex-1 flex flex-col">
+            <header className="sticky top-0 z-50 py-4">
+              <style jsx>{`
+                header {
+                  background: rgba(
+                    247,
+                    151,
+                    113,
+                    0.3
+                  ); /* Semi-transparent #F19212 */
+                  backdrop-filter: blur(8px); /* Frosted glass effect */
+                  -webkit-backdrop-filter: blur(8px); /* Safari compatibility */
+                  position: sticky;
+                  top: 0;
+                  z-index: 50;
+                }
+                header > div {
+                  position: relative;
+                  z-index: 10;
+                  background: transparent;
+                }
+              `}</style>
+              <div className="flex h-12 sm:h-14 items-center justify-between gap-3 sm:gap-4 px-3 sm:px-6 text-slate-800">
+                <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+                <div className="flex-1 max-w-[90vw] sm:max-w-md"></div>
+
+                <Link href="/notifications">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative p-1 sm:p-2 hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent transition-colors"
+                    title="Notifications">
+                    <Bell className="h-3 w-3 sm:h-4 sm:w-4 text-[#EF7B55]" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 right-2 bg-orange-500 text-white text-[10px] xs:text-xs font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                        {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
-                      <Settings className="ml-auto h-3 w-3 sm:h-4 sm:w-4" />
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="top"
-                    className="w-[--radix-popper-anchor-width]">
-                    <DropdownMenuItem
-                      className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
-                      onClick={handleLogout}>
-                      <LogOut className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      Log out
-                    </DropdownMenuItem>
+                    )}
+                  </Button>
+                </Link>
+              </div>
+            </header>
 
-                    <DropdownMenuItem
-                      className="text-[0.85rem] sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
-                      onClick={() => setIsDialogOpen(true)}>
-                      <Settings className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      Change Organisation
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-50 py-4">
-            <style jsx>{`
-              header {
-                background: rgba(
-                  247,
-                  151,
-                  113,
-                  0.3
-                ); /* Semi-transparent #F19212 */
-                backdrop-filter: blur(8px); /* Frosted glass effect */
-                -webkit-backdrop-filter: blur(8px); /* Safari compatibility */
-                position: sticky;
-                top: 0;
-                z-index: 50;
-              }
-              header > div {
-                position: relative;
-                z-index: 10;
-                background: transparent;
-              }
-            `}</style>
-            <div className="flex h-12 sm:h-14 items-center justify-between gap-3 sm:gap-4 px-3 sm:px-6 text-slate-800">
-              <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
-              <div className="flex-1 max-w-[90vw] sm:max-w-md"></div>
-
-              <Link href="/notifications">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative p-1 sm:p-2 hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent transition-colors"
-                  title="Notifications">
-                  <Bell className="h-3 w-3 sm:h-4 sm:w-4 text-[#EF7B55]" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 right-2 bg-orange-500 text-white text-[10px] xs:text-xs font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-            </div>
-          </header>
-
-          <main className="flex-1 p-3 sm:p-6">{children}</main>
+            <main className="flex-1 p-3 sm:p-6">
+              {isNavigating ? <PageLoader /> : children}
+            </main>
+          </div>
         </div>
-      </div>
+      </LoadingContext.Provider>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
