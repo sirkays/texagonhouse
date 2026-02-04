@@ -1,15 +1,15 @@
 // app/teacher/submissions/CodeRunner.ts
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
 export type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
 
 const languages = {
-  javascript: {judgeId: 63},
-  python: {judgeId: 71},
-  java: {judgeId: 62},
-  cpp: {judgeId: 54},
-  html: {judgeId: null},
-  css: {judgeId: null},
+  javascript: { judgeId: 63 },
+  python: { judgeId: 71 },
+  java: { judgeId: 62 },
+  cpp: { judgeId: 54 },
+  html: { judgeId: null },
+  css: { judgeId: null },
 } as const;
 
 export function useCodeRunner(initialFiles: Record<Lang, string>) {
@@ -17,7 +17,7 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [activeLang, setActiveLang] = useState<Lang>("javascript");
-  const [ready] = useState({pyodide: true, cheerpj: true, emception: true});
+  const [ready] = useState({ pyodide: true, cheerpj: true, emception: true });
 
   const run = async () => {
     setIsRunning(true);
@@ -29,17 +29,42 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       setIsRunning(false);
       return;
     }
-
     if (activeLang === "html" || activeLang === "css") {
-      // ... html/css logic ...
       const html = activeLang === "html" ? code : files.html;
       const css = activeLang === "css" ? code : files.css;
+      const js = files.javascript ?? "";
+
       setOutput(`
-        <!DOCTYPE html><html><head><style>${css}</style></head><body>${html}</body></html>
-      `);
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>${css ?? ""}</style>
+  </head>
+  <body>
+    ${html ?? ""}
+
+    <script>
+      try {
+        ${js}
+      } catch (e) {
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          "<pre style='white-space:pre-wrap;color:#ff6b6b;background:#111;padding:12px;border-radius:8px;'>"
+          + (e?.stack || e?.message || String(e)) +
+          "</pre>"
+        );
+      }
+    </script>
+  </body>
+</html>
+  `);
+
       setIsRunning(false);
       return;
     }
+
 
     if (activeLang === "javascript") {
       // ... existing js logic ...
@@ -113,9 +138,60 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
     }
   };
 
-  const renderWeb = () => `
-    <!DOCTYPE html><html><head><style>${files.css}</style></head><body>${files.html}</body></html>
-  `;
+const renderWeb = () => `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>${files.css ?? ""}</style>
+  </head>
+  <body>
+    ${files.html ?? ""}
+
+    <script>
+      (function () {
+        const send = (level, args) => {
+          try {
+            window.parent.postMessage(
+              { type: "web-console", level, args: Array.from(args).map(String) },
+              "*"
+            );
+          } catch (_) {}
+        };
+
+        // forward logs
+        const origLog = console.log;
+        const origWarn = console.warn;
+        const origErr = console.error;
+
+        console.log = function (...a) { send("log", a); origLog.apply(console, a); };
+        console.warn = function (...a) { send("warn", a); origWarn.apply(console, a); };
+        console.error = function (...a) { send("error", a); origErr.apply(console, a); };
+
+        // forward runtime errors
+        window.addEventListener("error", (e) => {
+          send("error", [e.message || "Script error"]);
+        });
+
+        window.addEventListener("unhandledrejection", (e) => {
+          send("error", [e.reason?.message || String(e.reason)]);
+        });
+      })();
+    </script>
+
+    <script>
+      try {
+        ${files.javascript ?? ""}
+      } catch (e) {
+        console.error(e?.stack || e?.message || String(e));
+      }
+    </script>
+  </body>
+</html>
+`;
+
+
 
   const download = () => {
     const ext = {
@@ -133,7 +209,7 @@ export function useCodeRunner(initialFiles: Record<Lang, string>) {
       return;
     }
 
-    const blob = new Blob([code], {type: "text/plain"});
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
