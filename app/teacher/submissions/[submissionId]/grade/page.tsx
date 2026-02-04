@@ -64,12 +64,24 @@ interface SubmissionDetail {
 const pickCode = (s: { code_text?: string | null; correction_code?: string | null }) =>
   (s.correction_code ?? "").trim() || (s.code_text ?? "").trim();
 
-const combineSameLang = (a: string, b: string) => {
-  if (!a) return b;
-  if (!b) return a;
-  return `${a}\n\n// --- related submission ---\n${b}`;
-};
+const appendRelatedOnce = (
+  existing: string,
+  relatedId: number,
+  relatedCode: string
+) => {
+  if (!relatedCode) return existing;
 
+  const marker = `// --- related submission #${relatedId} ---`;
+
+  // already appended → do nothing
+  if ((existing || "").includes(marker)) return existing;
+
+  if (!existing) {
+    return `${marker}\n${relatedCode}`;
+  }
+
+  return `${existing}\n\n${marker}\n${relatedCode}`;
+};
 export default function GradePage() {
   const { submissionId } = useParams();
   const router = useRouter();
@@ -82,12 +94,43 @@ export default function GradePage() {
   const [submitting, setSubmitting] = useState(false);
   const [commenting, setCommenting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runKey, setRunKey] = useState(0);
+  const [webConsole, setWebConsole] = useState("");
 
-  const hasRelatedForLang = (lang: Lang) =>
-    !!submission?.latest_same_title_submission?.[lang];
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (!e.data || e.data.type !== "web-console") return;
 
-  // if you use this somewhere later
-  // const initialSubmission = submissions.find((s) => s.id === id);
+      const level = e.data.level;
+      const line = `[${level}] ${Array.isArray(e.data.args) ? e.data.args.join(" ") : ""}`;
+
+      setWebConsole((prev) => (prev ? prev + "\n" + line : line));
+    };
+
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
+
+  const handleRun = () => {
+    // lock immediately so second click does nothing until edit/tab switch
+    setRunLocked(true);
+
+    setWebConsole("");
+
+    // always show output tab, even if output doesn't change
+    setActiveTab("output");
+
+    // make runner follow current tab
+    if (activeTab !== "output") setActiveLang(activeTab as Lang);
+
+    // for iframe rerun
+    setRunKey((k) => k + 1);
+
+    run();
+  };
+
+
 
   useEffect(() => {
     const fetchSubmission = async () => {
@@ -98,6 +141,11 @@ export default function GradePage() {
         if (!res.ok) throw new Error("Failed to fetch submission");
         const data = (await res.json()) as SubmissionDetail;
         setSubmission(data);
+        console.log("MAIN:", data.id, data.language);
+        console.log("LATEST MAP:", data.latest_same_title_submission);
+
+        console.log(data, " ALL DATA")
+
       } catch (err) {
         setError("Submission not found");
       } finally {
@@ -145,7 +193,7 @@ export default function GradePage() {
           if (lang === mainLang) {
             // ✅ prevent duplication when latest === current submission
             if (latest.id !== submission.id) {
-              merged[lang] = combineSameLang(merged[lang], latestCode);
+              merged[lang] = appendRelatedOnce(merged[lang], latest.id, latestCode);
             }
           } else {
             merged[lang] = latestCode;
@@ -186,6 +234,31 @@ export default function GradePage() {
   const [feedback, setFeedback] = useState<string>("");
   const [newComment, setNewComment] = useState("");
   const [errors, setErrors] = useState<{ score?: string }>({});
+  const [runLocked, setRunLocked] = useState(false);
+  const lastTabRef = React.useRef<Tab>(activeTab);
+  const lastCodeRef = React.useRef<string>("");
+  useEffect(() => {
+    if (activeTab === "output") return;
+
+    const codeNow = files[activeTab as Lang] ?? "";
+
+    // if code changed since we last remembered, unlock
+    if (codeNow !== lastCodeRef.current) {
+      setRunLocked(false);
+      lastCodeRef.current = codeNow;
+    }
+  }, [files, activeTab]);
+  useEffect(() => {
+    if (activeTab !== lastTabRef.current) {
+      setRunLocked(false);           // tab switch unlocks Run
+      lastTabRef.current = activeTab;
+
+      // update snapshot for new tab
+      if (activeTab !== "output") {
+        lastCodeRef.current = files[activeTab as Lang] ?? "";
+      }
+    }
+  }, [activeTab, files]);
 
   // When submission arrives, hydrate UI state
   useEffect(() => {
@@ -392,7 +465,10 @@ export default function GradePage() {
                   key={lang}
                   type="button"
                   disabled={disabled}
-                  onClick={() => setActiveTab(lang)}
+                  onClick={() => {
+                    setActiveTab(lang);
+                    setActiveLang(lang);
+                  }}
                   className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${activeTab === lang
                     ? "bg-[#EF7B55] text-white"
                     : disabled
@@ -421,7 +497,12 @@ export default function GradePage() {
           <select
             className="mb-4 w-full p-2.5 text-sm border border-[#EF7B55]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 md:hidden"
             value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value as Tab)}>
+            onChange={(e) => {
+              const t = e.target.value as Tab;
+              setActiveTab(t);
+              if (t !== "output") setActiveLang(t as Lang);
+            }}
+          >
             {Object.entries(LANG_LABEL).map(([k, l]) => (
               <option key={k} value={k} disabled={isLangDisabled(k as Lang)}>
                 {l}
@@ -457,27 +538,36 @@ export default function GradePage() {
           ) : (
             <div className="mt-3 border border-[#EF7B55]/20 rounded-xl overflow-hidden shadow-sm">
               {["html", "css", "javascript"].includes(activeLang) ? (
-                <iframe
-                  srcDoc={output || renderWeb()}
-                  sandbox="allow-scripts"
-                  className="w-full h-64 sm:h-80 md:h-96"
-                  title="Web Preview"
-                />
+                <>
+                  <iframe
+                    key={runKey}
+                    srcDoc={`${renderWeb()}\n<!-- run:${runKey} -->`}
+                    sandbox="allow-scripts"
+                    className="w-full h-64 sm:h-80 md:h-96"
+                    title="Web Preview"
+                  />
+
+                  <pre className="bg-slate-900 text-slate-100 p-3 mt-2 rounded-lg overflow-auto max-h-48 font-mono text-xs sm:text-sm">
+                    {webConsole || "Console output will appear here..."}
+                  </pre>
+                </>
               ) : (
                 <pre className="bg-slate-900 text-green-400 p-3 sm:p-4 rounded-lg overflow-auto h-64 sm:h-80 md:h-96 font-mono text-xs sm:text-sm">
                   {output || "Click Run to see output"}
                 </pre>
               )}
             </div>
+
           )}
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3 mt-6 sm:flex-row">
-            {activeTab !== "output" && (
+            {activeTab !== "output" && activeTab !== "css" && activeTab !== "javascript" && (
               <Button
                 type="button"
-                onClick={run}
+                onClick={handleRun}
                 disabled={
+                  runLocked ||
                   isRunning ||
                   !ready[
                   activeTab === "python"
@@ -487,10 +577,11 @@ export default function GradePage() {
                       : "emception"
                   ]
                 }
-                className="order-1 w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5">
+              >
                 {isRunning ? "Running…" : "Run "}
               </Button>
             )}
+
 
             <Button
               type="button"
