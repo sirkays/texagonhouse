@@ -5256,17 +5256,16 @@ export default function LoginContent() {
                 "Sign In"
               )}
             </Button>
-
-            <div
-              className="flex items-center justify-center"
-              style={{marginTop: "19px"}}>
-              <button
-                onClick={() => setShowDialog(true)}
-                className="text-sm text-blue-600 hover:underline focus:outline-none">
-                Forgotten password?
-              </button>
-            </div>
           </form>
+          <div
+            className="flex items-center justify-center"
+            style={{marginTop: "19px"}}>
+            <button
+              onClick={() => setShowDialog(true)}
+              className="text-sm text-blue-600 hover:underline focus:outline-none">
+              Forgotten password?
+            </button>
+          </div>
         </div>
       </div>
 
