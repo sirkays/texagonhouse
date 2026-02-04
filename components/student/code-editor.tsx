@@ -138,6 +138,11 @@ export function CodeEditor() {
 
   // Session and authentication
   const { data: session, status } = useSession();
+  const [jsCode, setJsCode] = useState<string>(languages.javascript.template);
+  const [webConsole, setWebConsole] = useState<string>("");
+  const runIdRef = useRef(0);
+
+
   // State variables
   const [submissionTitle, setSubmissionTitle] = useState("");
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
@@ -236,11 +241,11 @@ export function CodeEditor() {
       [selectedLanguage as LangKey]: value,
     }));
   };
-const shortLabel = (s: string, max = 18) => {
-  const t = (s || "").trim();
-  if (!t) return "";
-  return t.length > max ? t.slice(0, max).trimEnd() + "..." : t;
-};
+  const shortLabel = (s: string, max = 18) => {
+    const t = (s || "").trim();
+    if (!t) return "";
+    return t.length > max ? t.slice(0, max).trimEnd() + "..." : t;
+  };
 
   // Helper functions
   const showCustomAlert = (message: string) => {
@@ -491,9 +496,24 @@ const shortLabel = (s: string, max = 18) => {
     setSelectedLesson(String(sub.lesson));
 
     // load code into correct buffer
-    if (lang === "html") setHtmlCode(sub.code_text || "");
-    else if (lang === "css") setCssCode(sub.code_text || "");
-    else setCode(sub.code_text || "");
+    if (lang === "html") {
+      setHtmlCode(sub.code_text || "");
+    } else if (lang === "css") {
+      setCssCode(sub.code_text || "");
+    } else {
+      setCode(sub.code_text || "");
+
+      // ✅ IMPORTANT: if it's JS, keep jsCode in sync
+      if (lang === "javascript") {
+        setJsCode(sub.code_text || "");
+      }
+
+      // ✅ keep buffers in sync so tab switching restores correctly
+      setCodeBuffers((prev) => ({
+        ...prev,
+        [lang]: sub.code_text || languages[lang].template,
+      }));
+    }
 
     setOutput("");
     setHtmlPreview("");
@@ -737,11 +757,17 @@ const shortLabel = (s: string, max = 18) => {
 
     // Save outgoing code buffer for JS/Python (non html/css)
     if (selectedLanguage !== "html" && selectedLanguage !== "css") {
+      // ✅ if leaving JS tab, also persist jsCode
+      if (selectedLanguage === "javascript") {
+        setJsCode(code);
+      }
+
       setCodeBuffers((prev) => ({
         ...prev,
         [selectedLanguage]: code,
       }));
     }
+
 
     setSelectedLanguage(languageKey);
 
@@ -751,8 +777,10 @@ const shortLabel = (s: string, max = 18) => {
     } else if (languageKey === "css") {
       // cssCode already stateful
     } else {
-      setCode(codeBuffers[languageKey] || languages[languageKey].template);
+      if (languageKey === "javascript") setCode(jsCode);
+      else setCode(codeBuffers[languageKey] || languages[languageKey].template);
     }
+
 
     // ✅ Restore per-language lesson + title so Update targets correct submission
     const restoredLesson = lessonByLang[languageKey] ?? "";
@@ -781,7 +809,9 @@ const shortLabel = (s: string, max = 18) => {
       setCssCode(value);
     } else {
       setCode(value);
+      if (selectedLanguage === "javascript") setJsCode(value);
     }
+
     setSyntaxError(null);
     if (selectedLanguage === "javascript") {
       try {
@@ -814,6 +844,7 @@ const shortLabel = (s: string, max = 18) => {
       `);
     }
   };
+
   const validateCSS = (css: string): string | null => {
     try {
       if (css.includes("{")) {
@@ -890,6 +921,66 @@ const shortLabel = (s: string, max = 18) => {
       );
     }
   };
+
+  const buildWebDoc = (h: string, c: string, j: string, runId: number) => `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>${c ?? ""}</style>
+  </head>
+
+  <body>
+    ${h ?? ""}
+
+    <script>
+      (function () {
+        const RUN_ID = ${runId};
+
+        function send(type, msg) {
+          try {
+            window.parent.postMessage(
+              { source: "web-iframe", type, message: String(msg), runId: RUN_ID },
+              "*"
+            );
+          } catch {}
+        }
+
+        // console bridge
+        const _log = console.log;
+        const _warn = console.warn;
+        const _err = console.error;
+
+        console.log = (...args) => { send("log", args.map(String).join(" ")); _log.apply(console, args); };
+        console.warn = (...args) => { send("warn", args.map(String).join(" ")); _warn.apply(console, args); };
+        console.error = (...args) => { send("error", args.map(String).join(" ")); _err.apply(console, args); };
+
+        // runtime errors
+        window.onerror = function (message, source, line, col, error) {
+          send("error", (error && error.stack) ? error.stack : message + " (" + line + ":" + col + ")");
+        };
+
+        // promise errors
+        window.addEventListener("unhandledrejection", function (event) {
+          const reason = event.reason;
+          send("error", reason && reason.stack ? reason.stack : reason);
+        });
+
+        // run user JS
+        try {
+          ${j ?? ""}
+        } catch (e) {
+          send("error", e && e.stack ? e.stack : e);
+        }
+      })();
+    </script>
+  </body>
+</html>
+`;
+
+
+
   const runCode = async () => {
     if (isImagePreview) {
       setOutput("Image preview mode: No code to execute");
@@ -922,20 +1013,21 @@ const shortLabel = (s: string, max = 18) => {
           console.log = original;
         }
       } else if (selectedLanguage === "html" || selectedLanguage === "css") {
-        setHtmlPreview(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <style>${cssCode}</style>
-            </head>
-            <body>
-              ${htmlCode}
-            </body>
-          </html>
-        `);
-        setOutput("HTML/CSS rendered in preview tab");
-        setSuccessMessage("HTML/CSS rendered successfully!");
-      } else {
+        // new run
+        runIdRef.current += 1;
+        const runId = runIdRef.current;
+
+        setWebConsole(""); // clear console for this run
+
+        const finalHtml = htmlCode;
+        const finalCss = cssCode;
+        const finalJs = jsCode;
+
+        setHtmlPreview(buildWebDoc(finalHtml, finalCss, finalJs, runId));
+        setOutput("Rendered preview (HTML + CSS + JS).");
+        setSuccessMessage("Rendered successfully!");
+      }
+      else {
         const cfg = languages[selectedLanguage as keyof typeof languages];
         if (cfg.judgeId) {
           try {
@@ -1008,10 +1100,15 @@ const shortLabel = (s: string, max = 18) => {
     }
   };
 
+
   const handleEditorSubmit = async () => {
+    if (!submissionTitle.trim()) {
+      showCustomAlert("Submission Title is required");
+      return;
+    }
+
     const lang = selectedLanguage as LangKey;
     const isEditingThisLang = !!editCtxByLang[lang]?.id;
-
     const lessonId = lessonByLang[lang] ?? selectedLesson;
     if (!lessonId) return showCustomAlert("Please select a lesson");
     if (isSubmittingEditor) return;
@@ -1037,6 +1134,10 @@ const shortLabel = (s: string, max = 18) => {
 
 
   const handleSubmissionTabSubmit = async () => {
+    if (!submissionTitle.trim()) {
+      showCustomAlert("Submission Title is required");
+      return;
+    }
     if (!selectedLesson) return showCustomAlert("Please select a lesson");
 
     try {
@@ -1085,30 +1186,53 @@ const shortLabel = (s: string, max = 18) => {
   );
   const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
   const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
+
+  useEffect(() => {
+    const onMsg = (ev: MessageEvent) => {
+      const data = ev.data;
+      if (!data || data.source !== "web-iframe") return;
+
+      // ignore logs from old runs
+      if (data.runId !== runIdRef.current) return;
+
+      const line =
+        data.type === "error"
+          ? `❌ ${data.message}`
+          : data.type === "warn"
+            ? `⚠️ ${data.message}`
+            : data.message;
+
+      setWebConsole((prev) => (prev ? prev + "\n" + line : line));
+    };
+
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
   // Effects
-useEffect(() => {
-  if (status === "loading") return;
+  useEffect(() => {
+    if (status === "loading") return;
 
-  if (status !== "authenticated" || !session?.user?.sessionToken) {
-    setError("Not authenticated");
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      setError("Not authenticated");
+      setLoading(false);
+      return;
+    }
+
+    setError(null);
     setLoading(false);
-    return;
-  }
 
-  setError(null);
-  setLoading(false);
-
-  // ✅ only set defaults if truly empty
-  if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
-    setCode(languages[selectedLanguage as LangKey].template);
-  }
-  if (selectedLanguage === "html" && !htmlCode.trim()) {
-    setHtmlCode(languages.html.template);
-  }
-  if (selectedLanguage === "css" && !cssCode.trim()) {
-    setCssCode(languages.css.template);
-  }
-}, [session, status]);
+    // ✅ only set defaults if truly empty
+    if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
+      setCode(languages[selectedLanguage as LangKey].template);
+    }
+    if (selectedLanguage === "html" && !htmlCode.trim()) {
+      setHtmlCode(languages.html.template);
+    }
+    if (selectedLanguage === "css" && !cssCode.trim()) {
+      setCssCode(languages.css.template);
+    }
+  }, [session, status]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -1638,31 +1762,31 @@ useEffect(() => {
                   className="language-tabs"
                 >
                   <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-3 sm:mb-14">
-{Object.entries(languages).map(([key, lang]) => {
-  const k = key as LangKey;
-  const ctx = editCtxByLang[k];
-  const label = (titleByLang[k] ?? ctx?.title ?? "").toString().trim();
-  const display = label ? shortLabel(label, 18) : `#${ctx?.id}`;
+                    {Object.entries(languages).map(([key, lang]) => {
+                      const k = key as LangKey;
+                      const ctx = editCtxByLang[k];
+                      const label = (titleByLang[k] ?? ctx?.title ?? "").toString().trim();
+                      const display = label ? shortLabel(label, 18) : `#${ctx?.id}`;
 
-  return (
-    <TabsTrigger
-      key={key}
-      value={key}
-      className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-2"
-    >
-      <span>{lang.name}</span>
+                      return (
+                        <TabsTrigger
+                          key={key}
+                          value={key}
+                          className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-2"
+                        >
+                          <span>{lang.name}</span>
 
-      {ctx?.id && (
-        <span
-          className="ml-1 rounded-md px-2 py-0.5 text-[10px] leading-none bg-black/10 data-[state=active]:bg-white/20 max-w-[110px] truncate"
-          title={label || `Submission #${ctx.id}`}
-        >
-          {display}
-        </span>
-      )}
-    </TabsTrigger>
-  );
-})}
+                          {ctx?.id && (
+                            <span
+                              className="ml-1 rounded-md px-2 py-0.5 text-[10px] leading-none bg-black/10 data-[state=active]:bg-white/20 max-w-[110px] truncate"
+                              title={label || `Submission #${ctx.id}`}
+                            >
+                              {display}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                      );
+                    })}
 
 
                   </TabsList>
@@ -1712,15 +1836,18 @@ useEffect(() => {
                   <div className="syntax-error">{syntaxError}</div>
                 )}
                 <div className="editor-buttons mt-4">
-                  <Button
-                    onClick={runCode}
-                    disabled={isRunning || !!error || loading}
-                    className="bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
-                    size="sm"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    {isRunning ? "Executing..." : "Run Code"}
-                  </Button>
+                  {selectedLanguage !== "css" && selectedLanguage !== "javascript" && (
+                    <Button
+                      onClick={runCode}
+                      disabled={isRunning || !!error || loading}
+                      className="bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
+                      size="sm"
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      {isRunning ? "Executing..." : "Run Code"}
+                    </Button>
+                  )}
+
                   <Button
                     variant="outline"
                     className="hover:bg-[#EF7B55]/20"
@@ -1738,6 +1865,7 @@ useEffect(() => {
                     onClick={handleEditorSubmit}
                     disabled={
                       !selectedLesson ||
+                      !submissionTitle.trim() || // ✅ REQUIRED
                       loading ||
                       isImagePreview ||
                       isSubmittingEditor
@@ -1826,7 +1954,8 @@ useEffect(() => {
                     <TabsContent value="output" className="flex-1">
                       <div className="output-console bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm overflow-auto">
                         <pre className="whitespace-pre-wrap">
-                          {output || "Run your code to see output here..."}
+                          {webConsole || "Console output will appear here..."}
+
                         </pre>
                       </div>
                     </TabsContent>
@@ -1834,7 +1963,8 @@ useEffect(() => {
                 ) : (
                   <div className="output-console bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm overflow-auto">
                     <pre className="whitespace-pre-wrap">
-                      {output || "Run your code to see output here..."}
+                      {webConsole || "Console output will appear here..."}
+
                     </pre>
                   </div>
                 )}
@@ -2387,11 +2517,8 @@ function SubmissionTab({
             </Select>
           </div>
           <div className="w-full">
-            <Label
-              htmlFor="submission-title"
-              className="block mb-2 text-sm font-medium"
-            >
-              Submission Title (optional)
+            <Label htmlFor="submission-title">
+              Submission Title <span className="text-red-500">*</span>
             </Label>
             <Input
               id="submission-title"
@@ -2402,7 +2529,11 @@ function SubmissionTab({
           </div>
           <Button
             onClick={handleSubmitClick}
-            disabled={!selectedLesson || isSubmitting}
+            disabled={
+              !selectedLesson ||
+              !submissionTitle.trim() || // ✅ REQUIRED
+              isSubmitting
+            }
             className="w-full md:w-auto bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90"
           >
             {isSubmitting && <Spinner size="sm" className="mr-2 " />}
