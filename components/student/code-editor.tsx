@@ -102,7 +102,22 @@ type Comment = {
   message: string;
   created_at: string;
 };
+
+type MiniSubmission = {
+  id: number;
+  title?: string | null;
+  language: string;
+  code_text: string;
+  status: "submitted" | "graded" | "revised";
+  created_at: string;
+  updated_at: string;
+};
+
+
+
 export function CodeEditor() {
+
+
   const languages = {
     javascript: {
       name: "JavaScript",
@@ -119,6 +134,8 @@ export function CodeEditor() {
     html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
     css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
   } as const;
+
+
   // Session and authentication
   const { data: session, status } = useSession();
   // State variables
@@ -187,6 +204,44 @@ export function CodeEditor() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
   const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+  type LangKey = keyof typeof languages;
+
+  type EditCtx = {
+    id: number;
+    title: string | null;
+    lessonId: string; // keep as string for Select
+  };
+
+  const [editCtxByLang, setEditCtxByLang] = useState<Partial<Record<LangKey, EditCtx>>>({});
+  const [titleByLang, setTitleByLang] = useState<Partial<Record<LangKey, string>>>({});
+  const [lessonByLang, setLessonByLang] = useState<Partial<Record<LangKey, string>>>({});
+
+  // Helper: current language context
+  const currentEditCtx = editCtxByLang[selectedLanguage as LangKey];
+  const currentEditingId = currentEditCtx?.id ?? null;
+
+  const setLessonForActiveLang = (value: string) => {
+    setSelectedLesson(value);
+    setLessonByLang((prev) => ({
+      ...prev,
+      [selectedLanguage as LangKey]: value,
+    }));
+  };
+
+  const setTitleForActiveLang = (value: string) => {
+    setSubmissionTitle(value);
+    setTitleByLang((prev) => ({
+      ...prev,
+      [selectedLanguage as LangKey]: value,
+    }));
+  };
+const shortLabel = (s: string, max = 18) => {
+  const t = (s || "").trim();
+  if (!t) return "";
+  return t.length > max ? t.slice(0, max).trimEnd() + "..." : t;
+};
+
   // Helper functions
   const showCustomAlert = (message: string) => {
     setAlertMessage(message);
@@ -240,8 +295,8 @@ export function CodeEditor() {
           selectedLanguage === "html"
             ? htmlCode
             : selectedLanguage === "css"
-            ? cssCode
-            : code,
+              ? cssCode
+              : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
       if (activeSnippetId) {
@@ -361,50 +416,85 @@ export function CodeEditor() {
       setUploadProgress(0);
     }
   };
+
   const updateSubmission = async () => {
-    if (!editingSubmissionId)
-      throw new Error("No submission selected to update");
-    if (!selectedLesson) throw new Error("No lesson selected");
+    const lang = selectedLanguage as LangKey;
+    const ctx = editCtxByLang[lang];
+
+    if (!ctx?.id) throw new Error("No submission selected to update");
+
+    const lessonId = lessonByLang[lang] ?? selectedLesson;
+    if (!lessonId) throw new Error("No lesson selected");
+
+    const title = (titleByLang[lang] ?? submissionTitle).trim() || null;
+
     const body = {
-      title: submissionTitle.trim() || null,
-      language: selectedLanguage,
+      title,
+      language: lang,
       code_text:
-        selectedLanguage === "html"
-          ? htmlCode
-          : selectedLanguage === "css"
-          ? cssCode
-          : code,
+        lang === "html" ? htmlCode : lang === "css" ? cssCode : code,
     };
-    const res = await fetch(
-      `/api/code-ide/submissions/${editingSubmissionId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }
-    );
+
+    const res = await fetch(`/api/code-ide/submissions/${ctx.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || "Update failed");
     }
+
     const updated: Submission = await res.json();
-    setMySubmissions((prev) =>
-      prev.map((s) => (s.id === updated.id ? updated : s))
-    );
+
+    // update list
+    setMySubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+
+    // refresh edit context (title/lesson may change)
+    setEditCtxByLang((prev) => ({
+      ...prev,
+      [lang]: {
+        id: updated.id,
+        title: updated.title ?? null,
+        lessonId: String(updated.lesson),
+      },
+    }));
+    setTitleByLang((prev) => ({ ...prev, [lang]: updated.title ?? "" }));
+    setLessonByLang((prev) => ({ ...prev, [lang]: String(updated.lesson) }));
+
     return updated;
   };
+
   const loadSubmissionIntoEditor = (sub: Submission) => {
-    setEditingSubmissionId(sub.id);
+    const lang = sub.language as LangKey;
+
+    // ✅ store editing context per language
+    setEditCtxByLang((prev) => ({
+      ...prev,
+      [lang]: {
+        id: sub.id,
+        title: sub.title ?? null,
+        lessonId: String(sub.lesson),
+      },
+    }));
+
+    // keep per-language title + lesson in sync
+    setTitleByLang((prev) => ({ ...prev, [lang]: sub.title ?? "" }));
+    setLessonByLang((prev) => ({ ...prev, [lang]: String(sub.lesson) }));
+
+    // switch UI to the right language tab
+    setSelectedLanguage(lang);
+
+    // restore form fields for that language
     setSubmissionTitle(sub.title ?? "");
     setSelectedLesson(String(sub.lesson));
-    setSelectedLanguage(sub.language);
-    if (sub.language === "html") {
-      setHtmlCode(sub.code_text || "");
-    } else if (sub.language === "css") {
-      setCssCode(sub.code_text || "");
-    } else {
-      setCode(sub.code_text || "");
-    }
+
+    // load code into correct buffer
+    if (lang === "html") setHtmlCode(sub.code_text || "");
+    else if (lang === "css") setCssCode(sub.code_text || "");
+    else setCode(sub.code_text || "");
+
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
@@ -413,6 +503,7 @@ export function CodeEditor() {
     setImagePreviewUrl("");
     setActiveTab("editor");
   };
+
   const deleteUploadedFile = (id: number) => {
     showCustomConfirm(
       "Are you sure you want to delete this file?",
@@ -471,12 +562,12 @@ export function CodeEditor() {
           extension === "py"
             ? "python"
             : extension === "js"
-            ? "javascript"
-            : extension === "html"
-            ? "html"
-            : extension === "css"
-            ? "css"
-            : "javascript",
+              ? "javascript"
+              : extension === "html"
+                ? "html"
+                : extension === "css"
+                  ? "css"
+                  : "javascript",
       };
       let language = languageMap[contentType] || "javascript";
       if (contentType === "text/plain" && extension && languageMap[extension]) {
@@ -547,8 +638,8 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-          ? cssCode
-          : code,
+            ? cssCode
+            : code,
     };
     const res = await fetch("/api/code-ide/submissions/create", {
       method: "POST",
@@ -584,7 +675,7 @@ export function CodeEditor() {
     return updated;
   };
   const handleLogout = async () => {
-    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => {});
+    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => { });
     document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
     document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
     window.location.href = "/login";
@@ -594,8 +685,8 @@ export function CodeEditor() {
       selectedLanguage === "html"
         ? htmlCode
         : selectedLanguage === "css"
-        ? cssCode
-        : code;
+          ? cssCode
+          : code;
     navigator.clipboard.writeText(text);
   };
   const downloadCode = () => {
@@ -611,8 +702,8 @@ export function CodeEditor() {
       selectedLanguage === "html"
         ? htmlCode
         : selectedLanguage === "css"
-        ? cssCode
-        : code;
+          ? cssCode
+          : code;
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
@@ -640,22 +731,39 @@ export function CodeEditor() {
     setEditingSubmissionId(null);
     setSubmissionTitle("");
   };
+
   const handleLanguageChange = (lang: string) => {
-    const languageKey = lang as keyof typeof languages;
+    const languageKey = lang as LangKey;
+
+    // Save outgoing code buffer for JS/Python (non html/css)
     if (selectedLanguage !== "html" && selectedLanguage !== "css") {
       setCodeBuffers((prev) => ({
         ...prev,
         [selectedLanguage]: code,
       }));
     }
+
     setSelectedLanguage(languageKey);
+
+    // Restore code per new language
     if (languageKey === "html") {
-      // HTML state persists
+      // htmlCode already stateful
     } else if (languageKey === "css") {
-      // CSS state persists
+      // cssCode already stateful
     } else {
       setCode(codeBuffers[languageKey] || languages[languageKey].template);
     }
+
+    // ✅ Restore per-language lesson + title so Update targets correct submission
+    const restoredLesson = lessonByLang[languageKey] ?? "";
+    const restoredTitle =
+      titleByLang[languageKey] ??
+      (editCtxByLang[languageKey]?.title ?? "") ??
+      "";
+
+    setSelectedLesson(restoredLesson);
+    setSubmissionTitle(restoredTitle);
+
     setOutput("");
     setHtmlPreview("");
     setExecutionError("");
@@ -664,6 +772,7 @@ export function CodeEditor() {
     setImagePreviewUrl("");
     setActiveTab("editor");
   };
+
   const handleCodeChange = (value: string) => {
     if (isImagePreview) return;
     if (selectedLanguage === "html") {
@@ -898,29 +1007,34 @@ export function CodeEditor() {
       }
     }
   };
+
   const handleEditorSubmit = async () => {
-    if (!selectedLesson) return showCustomAlert("Please select a lesson");
-    if (isSubmittingEditor) return; // prevent double-click
+    const lang = selectedLanguage as LangKey;
+    const isEditingThisLang = !!editCtxByLang[lang]?.id;
+
+    const lessonId = lessonByLang[lang] ?? selectedLesson;
+    if (!lessonId) return showCustomAlert("Please select a lesson");
+    if (isSubmittingEditor) return;
 
     setIsSubmittingEditor(true);
     try {
-      if (editingSubmissionId) {
+      if (isEditingThisLang) {
         await updateSubmission();
         showCustomAlert("Submission updated successfully");
       } else {
-        await createSubmission();
+        await createSubmission(); // (optional: also make createSubmission use lessonByLang/titleByLang like update does)
         showCustomAlert("Submitted successfully");
       }
     } catch (error) {
       showCustomAlert(
-        `${editingSubmissionId ? "Update" : "Submission"} failed: ${
-          (error as Error).message
+        `${isEditingThisLang ? "Update" : "Submission"} failed: ${(error as Error).message
         }`
       );
     } finally {
       setIsSubmittingEditor(false);
     }
   };
+
 
   const handleSubmissionTabSubmit = async () => {
     if (!selectedLesson) return showCustomAlert("Please select a lesson");
@@ -972,25 +1086,30 @@ export function CodeEditor() {
   const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
   const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
   // Effects
-  useEffect(() => {
-    if (status === "loading") return;
-    if (status !== "authenticated" || !session?.user?.sessionToken) {
-      setError("Not authenticated");
-      setLoading(false);
-    } else {
-      setError(null);
-      setLoading(false);
-      if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
-        setCode(languages[selectedLanguage as keyof typeof languages].template);
-      }
-      if (selectedLanguage === "html" && !htmlCode.includes("Hello")) {
-        setHtmlCode(languages.html.template);
-      }
-      if (selectedLanguage === "css" && !cssCode.includes("color: red")) {
-        setCssCode(languages.css.template);
-      }
-    }
-  }, [session, status]);
+useEffect(() => {
+  if (status === "loading") return;
+
+  if (status !== "authenticated" || !session?.user?.sessionToken) {
+    setError("Not authenticated");
+    setLoading(false);
+    return;
+  }
+
+  setError(null);
+  setLoading(false);
+
+  // ✅ only set defaults if truly empty
+  if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
+    setCode(languages[selectedLanguage as LangKey].template);
+  }
+  if (selectedLanguage === "html" && !htmlCode.trim()) {
+    setHtmlCode(languages.html.template);
+  }
+  if (selectedLanguage === "css" && !cssCode.trim()) {
+    setCssCode(languages.css.template);
+  }
+}, [session, status]);
+
   useEffect(() => {
     if (status !== "authenticated") return;
     Promise.all([
@@ -1000,12 +1119,12 @@ export function CodeEditor() {
       }),
       fetchSubmissions()
         .then(setMySubmissions)
-        .catch(() => {}),
+        .catch(() => { }),
       fetch("/api/code-ide/uploads")
         .then((res) => (res.ok ? res.json() : []))
         .then(setUploadedFiles)
         .catch(() => setUploadedFiles([])),
-    ]).catch(() => {});
+    ]).catch(() => { });
   }, [status]);
   useEffect(() => {
     if (!session || isImagePreview) return;
@@ -1015,8 +1134,8 @@ export function CodeEditor() {
         selectedLanguage === "html"
           ? htmlCode
           : selectedLanguage === "css"
-          ? cssCode
-          : code,
+            ? cssCode
+            : code,
       htmlCode: selectedLanguage === "html" ? code : htmlCode,
       cssCode: selectedLanguage === "css" ? code : cssCode,
       lesson: selectedLesson,
@@ -1098,7 +1217,7 @@ export function CodeEditor() {
               </Label>
               <Select
                 value={selectedLesson}
-                onValueChange={(value) => setSelectedLesson(value)}
+                onValueChange={(value) => setLessonForActiveLang(value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select lesson (optional)" />
@@ -1508,9 +1627,8 @@ export function CodeEditor() {
                     }}
                   >
                     <RotateCcw
-                      className={`h-4 w-4 ${
-                        isRotating ? "animate-spin-ccw" : ""
-                      }`}
+                      className={`h-4 w-4 ${isRotating ? "animate-spin-ccw" : ""
+                        }`}
                     />
                   </Button>
                 </div>
@@ -1520,15 +1638,33 @@ export function CodeEditor() {
                   className="language-tabs"
                 >
                   <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-3 sm:mb-14">
-                    {Object.entries(languages).map(([key, lang]) => (
-                      <TabsTrigger
-                        key={key}
-                        value={key}
-                        className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
-                      >
-                        {lang.name}
-                      </TabsTrigger>
-                    ))}
+{Object.entries(languages).map(([key, lang]) => {
+  const k = key as LangKey;
+  const ctx = editCtxByLang[k];
+  const label = (titleByLang[k] ?? ctx?.title ?? "").toString().trim();
+  const display = label ? shortLabel(label, 18) : `#${ctx?.id}`;
+
+  return (
+    <TabsTrigger
+      key={key}
+      value={key}
+      className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-2"
+    >
+      <span>{lang.name}</span>
+
+      {ctx?.id && (
+        <span
+          className="ml-1 rounded-md px-2 py-0.5 text-[10px] leading-none bg-black/10 data-[state=active]:bg-white/20 max-w-[110px] truncate"
+          title={label || `Submission #${ctx.id}`}
+        >
+          {display}
+        </span>
+      )}
+    </TabsTrigger>
+  );
+})}
+
+
                   </TabsList>
                 </Tabs>
               </CardHeader>
@@ -1543,21 +1679,20 @@ export function CodeEditor() {
                   </div>
                 ) : (
                   <div
-                    className={`codemirror-container ${
-                      syntaxError ? "error-line" : ""
-                    }`}
+                    className={`codemirror-container ${syntaxError ? "error-line" : ""
+                      }`}
                   >
                     <CodeMirror
                       value={
                         selectedLanguage === "html"
                           ? htmlCode
                           : selectedLanguage === "css"
-                          ? cssCode
-                          : code
+                            ? cssCode
+                            : code
                       }
                       extensions={
                         codeMirrorExtensions[
-                          selectedLanguage as keyof typeof codeMirrorExtensions
+                        selectedLanguage as keyof typeof codeMirrorExtensions
                         ] as any
                       }
                       theme={monokai}
@@ -1613,11 +1748,12 @@ export function CodeEditor() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {editingSubmissionId ? "Updating..." : "Submitting..."}
                       </>
-                    ) : editingSubmissionId ? (
+                    ) : currentEditingId ? (
                       "Update Submission"
                     ) : (
                       "Submit"
                     )}
+
                   </Button>
 
                   <Button
@@ -1673,7 +1809,7 @@ export function CodeEditor() {
                   </Alert>
                 )}
                 {(selectedLanguage === "html" || selectedLanguage === "css") &&
-                htmlPreview ? (
+                  htmlPreview ? (
                   <Tabs defaultValue="preview" className="h-full flex flex-col">
                     <TabsList className="grid grid-cols-2 gap-2">
                       <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -1849,7 +1985,7 @@ export function CodeEditor() {
                               <div className="mt-3">
                                 <Button
                                   variant="outline"
-                                  size="xs"
+                                  size="sm"
                                   className="w-full sm:w-auto px-3 py-1.5 bg-transparent hover:bg-[#EF7B55]/20"
                                   onClick={() => loadSnippet(s)}
                                 >
@@ -1912,11 +2048,10 @@ export function CodeEditor() {
                             {/* File Info */}
                             <div className="flex-1 min-w-0">
                               <h4
-                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${
-                                  fileLoading === file.id
-                                    ? "opacity-50 cursor-wait"
-                                    : ""
-                                }`}
+                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${fileLoading === file.id
+                                  ? "opacity-50 cursor-wait"
+                                  : ""
+                                  }`}
                                 onClick={() =>
                                   !loading && !fileLoading && loadFile(file)
                                 }
@@ -2037,8 +2172,8 @@ export function CodeEditor() {
               selectedLesson={selectedLesson}
               setSelectedLesson={setSelectedLesson}
               submissionTitle={submissionTitle}
-              setSubmissionTitle={setSubmissionTitle}
-              onSubmit={handleSubmissionTabSubmit} // ✅ changed
+              setSubmissionTitle={setTitleForActiveLang} // ✅ IMPORTANT
+              onSubmit={handleSubmissionTabSubmit}
               role={session?.user?.role || undefined}
               submissions={mySubmissions}
               onGrade={async (id, upd) => {
@@ -2051,6 +2186,7 @@ export function CodeEditor() {
               onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
               showCustomAlert={showCustomAlert}
             />
+
           </TabsContent>
         </Tabs>
       </div>
@@ -2242,10 +2378,10 @@ function SubmissionTab({
                   {lessons.filter((l) =>
                     l.title.toLowerCase().includes(lessonSearch.toLowerCase())
                   ).length === 0 && (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      No lessons found
-                    </div>
-                  )}
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        No lessons found
+                      </div>
+                    )}
                 </div>
               </SelectContent>
             </Select>
@@ -2447,7 +2583,7 @@ function SubmissionTab({
                       <div
                         key={s.id}
                         className="flex flex-col gap-3 p-4 hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between"
-                        // onClick={() => viewDetail(s)}
+                      // onClick={() => viewDetail(s)}
                       >
                         {/* Left info */}
                         <div className="space-y-1 min-w-0">
