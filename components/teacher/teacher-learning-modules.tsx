@@ -9,8 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-import { useState, useRef, useEffect } from "react";
+import {useState, useRef, useEffect} from "react";
 import {
   Card,
   CardContent,
@@ -18,10 +17,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Textarea} from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,8 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -56,28 +55,25 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getSession } from "next-auth/react";
-import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import { Spinner } from "../ui/spinner";
+import {getSession} from "next-auth/react";
+import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import {Spinner} from "../ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react";
-
+import {MoreVertical} from "lucide-react";
 // Interfaces
 interface Course {
   id: string;
   name: string;
 }
-
 interface Category {
   id: string;
   name: string;
 }
-
 interface Lesson {
   id: string;
   title: string;
@@ -92,9 +88,8 @@ interface Lesson {
   order?: number;
   active?: boolean;
   remove_cover: boolean; // NEW: Flag to indicate cover removal
-  meta?: { description: string; tags: string[] };
+  meta?: {description: string; tags: string[]};
 }
-
 interface Module {
   id: string;
   title: string;
@@ -111,32 +106,29 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: { id?: string; name: string };
+  course: {id?: string; name: string};
 }
-
 interface APIModule {
   id: string | number;
   title: string;
   description: string;
   difficulty: string;
-  category: { id: string | number; name: string } | null;
+  category: {id: string | number; name: string} | null;
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: { id: string | number; name: string } | null;
+  course: {id: string | number; name: string} | null;
   createdAt: string | null;
   updatedAt: string | null;
   lessons: any[];
   lessonCount: number;
-
   // optional fields
   enrollments?: number;
   rating?: number;
   // 👇 important: make type compatible with Module["type"]
   type?: Module["type"] | string;
 }
-
 interface APIError {
   error: string;
   redirect?: string;
@@ -152,16 +144,28 @@ type TeacherCourse = {
   general_activation?: boolean;
   general_activation_date?: string | null;
 };
+
+type UploadProgress = {
+  percent: number; // 0..100
+  loaded: number; // bytes
+  total: number; // bytes
+};
+
+type UploadOptions = {
+  url: string;
+  method: "POST" | "PATCH";
+  sessionToken: string;
+  apiKey: string;
+  body: FormData;
+  onProgress?: (p: UploadProgress) => void;
+};
+
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
-const API_KEY =
-  process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
-
 const headers = (sessionToken: string | null) => ({
-  Authorization: `Api-Key ${API_KEY}`,
+  Authorization: ``,
   "Content-Type": "application/json",
-  ...(sessionToken && { "X-Session-Token": sessionToken }),
+  ...(sessionToken && {"X-Session-Token": sessionToken}),
 });
-
 // Utilities
 const durationToMinutes = (duration: string): number => {
   if (!duration) return 0;
@@ -172,20 +176,15 @@ const durationToMinutes = (duration: string): number => {
   const minutes = parseInt(parts[2]) || 0;
   return hours * 60 + minutes;
 };
-
 const minutesToDuration = (
   minutes: number | string | null | undefined,
 ): string => {
   const total = Number(minutes);
-
   if (!total || isNaN(total)) return "0m";
-
   const hours = Math.floor(total / 60);
   const mins = total % 60;
-
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
-
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -195,7 +194,6 @@ const shortenText = (text: string, maxLength: number) => {
   if (!text) return "";
   return text.length > maxLength ? text.slice(0, maxLength).trim() + "…" : text;
 };
-
 const normalizeDifficulty = (difficulty: string): Module["difficulty"] => {
   const v = (difficulty || "").toLowerCase();
   if (v === "beginner") return "Beginner";
@@ -204,7 +202,6 @@ const normalizeDifficulty = (difficulty: string): Module["difficulty"] => {
   // Fallback
   return "Beginner";
 };
-
 const normalizeModuleType = (t?: string): Module["type"] => {
   switch ((t || "").toLowerCase()) {
     case "video":
@@ -219,12 +216,15 @@ const normalizeModuleType = (t?: string): Module["type"] => {
       return "video"; // sensible default
   }
 };
-
 export function TeacherLearningModules() {
+  const DJANGO_BASE =
+    process.env.NEXT_PUBLIC_DJANGO_BASE_URL ||
+    "https://texagon-backend.onrender.com";
+  const UPLOAD_BUCKET = process.env.NEXT_PUBLIC_UPLOAD_BUCKET || "s3";
+
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesError, setCoursesError] = useState<string | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("create");
   const [previewModule, setPreviewModule] = useState<Module | null>(null);
@@ -245,7 +245,7 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: { id: undefined, name: "" },
+    course: {id: undefined, name: ""},
   };
   const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -267,7 +267,7 @@ export function TeacherLearningModules() {
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
   const [loadingModuleId, setLoadingModuleId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<{
-    aggregates: { total_enrollments: number; completion_rate: number };
+    aggregates: {total_enrollments: number; completion_rate: number};
     pagination: {
       total_count: number;
       total_pages: number;
@@ -279,7 +279,6 @@ export function TeacherLearningModules() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(""); // NEW: Controlled input
-
   const [courseFilter, setCourseFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   // Feedback dialog for success/info messages
@@ -297,14 +296,210 @@ export function TeacherLearningModules() {
   const [gaEnabled, setGaEnabled] = useState(false);
   const [gaDateLocal, setGaDateLocal] = useState<string>(""); // datetime-local
   const [gaSaving, setGaSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadInfo, setUploadInfo] = useState({
+    percent: 0,
+    loaded: 0,
+    total: 0,
+  });
+  const [uploadPhase, setUploadPhase] = useState<
+    "idle" | "uploading" | "finalizing"
+  >("idle");
   const MAX_IMAGE_BYTES = 1 * 1024 * 1024; // 1MB
-  const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
-  const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10MB
-  const MAX_PDF_BYTES = 5 * 1024 * 1024; // 5MB
+  const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 50MB
+  const MAX_AUDIO_BYTES = 20 * 1024 * 1024; // 10MB
+  const MAX_PDF_BYTES = 10 * 1024 * 1024; // 5MB
+
+  async function uploadMediaByBucket(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void,
+  ): Promise<string> {
+    if (UPLOAD_BUCKET === "cloudinary") {
+      return uploadToCloudinaryWithProgress(file, sessionToken, onProgress);
+    }
+
+    // default → S3
+    return uploadToS3WithProgress(file, sessionToken, onProgress);
+  }
+
+  async function uploadToCloudinaryWithProgress(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void,
+  ) {
+    const sig = await fetch(
+      `${DJANGO_BASE}/learning/api/cloudinary-signature/`,
+      {
+        headers: {"X-Session-Token": sessionToken},
+      },
+    ).then(async (r) => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok)
+        throw new Error(j?.detail || j?.error || "Cloudinary signature failed");
+      return j;
+    });
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("api_key", sig.api_key);
+    fd.append("timestamp", String(sig.timestamp));
+    fd.append("signature", sig.signature);
+    fd.append("folder", sig.folder);
+
+    const resource =
+      file.type.startsWith("video/") || file.type.startsWith("audio/")
+        ? "video"
+        : "raw"; // pdf/doc
+
+    const url = `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${resource}/upload`;
+
+    const data = await new Promise<any>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const percent = Math.min(99, Math.floor((e.loaded / e.total) * 100));
+        onProgress?.({percent, loaded: e.loaded, total: e.total});
+      };
+
+      xhr.onload = () => {
+        const json = JSON.parse(xhr.responseText || "{}");
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.({percent: 100, loaded: file.size, total: file.size});
+          resolve(json);
+        } else {
+          reject(new Error(json?.error?.message || "Cloudinary upload failed"));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Cloudinary network error"));
+      xhr.send(fd);
+    });
+
+    return data.secure_url as string;
+  }
+
+  async function uploadToS3WithProgress(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void,
+  ) {
+    // 1) Get presigned url from Django
+    const pres = await fetch(`${DJANGO_BASE}/learning/api/presign-s3/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Token": sessionToken,
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        content_type: file.type || "application/octet-stream",
+      }),
+    }).then(async (r) => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok)
+        throw new Error(j?.detail || j?.error || "Failed to presign S3 upload");
+      return j;
+    });
+
+    // pres.upload_url (PUT) + pres.file_url (public url)
+
+    // 2) Upload to S3 using PUT
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", pres.upload_url, true);
+      xhr.setRequestHeader(
+        "Content-Type",
+        file.type || "application/octet-stream",
+      );
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        const percent = Math.min(
+          99,
+          Math.floor((evt.loaded / evt.total) * 100),
+        );
+        onProgress?.({percent, loaded: evt.loaded, total: evt.total});
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.({percent: 100, loaded: file.size, total: file.size});
+          resolve();
+        } else {
+          reject(new Error(`S3 upload failed (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during S3 upload"));
+      xhr.send(file);
+    });
+
+    return pres.key as string;
+  }
+
+  function uploadWithProgress<T = any>({
+    url,
+    method,
+    sessionToken,
+    apiKey,
+    body,
+    onProgress,
+  }: UploadOptions): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+
+      // ✅ Only set Api-Key if provided (browser uploads should NOT use it)
+      if (apiKey && apiKey.trim()) {
+        xhr.setRequestHeader("Authorization", `Api-Key ${apiKey}`);
+      }
+
+      // ✅ Your real auth for browser upload
+      if (sessionToken) {
+        xhr.setRequestHeader("X-Session-Token", sessionToken);
+      }
+
+      // (DON'T set Content-Type manually for FormData)
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        const percent = Math.min(
+          99,
+          Math.floor((evt.loaded / evt.total) * 100),
+        );
+        onProgress?.({percent, loaded: evt.loaded, total: evt.total});
+      };
+
+      xhr.onload = () => {
+        const text = xhr.responseText || "";
+        let json: any = null;
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {}
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.({percent: 100, loaded: 1, total: 1});
+          return resolve(json);
+        }
+        return reject(
+          new Error(
+            json?.detail || json?.error || `Upload failed (${xhr.status})`,
+          ),
+        );
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.send(body);
+    });
+  }
 
   const formatBytes = (bytes: number) =>
     `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-
   const isoToLocalInput = (iso?: string | null) => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -315,7 +510,6 @@ export function TeacherLearningModules() {
       d.getDate(),
     )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
-
   const openGA = (course: TeacherCourse) => {
     const isPrivate = (course.course_type || "").toLowerCase() === "private";
     if (isPrivate) {
@@ -325,13 +519,11 @@ export function TeacherLearningModules() {
       );
       return;
     }
-
     setGaCourse(course);
     setGaEnabled(Boolean(course.general_activation));
     setGaDateLocal(isoToLocalInput(course.general_activation_date));
     setGaDialogOpen(true);
   };
-
   const saveGA = async () => {
     if (!gaCourse?.id) return;
     setGaSaving(true);
@@ -344,7 +536,6 @@ export function TeacherLearningModules() {
             : null
           : null,
       };
-
       const res = await fetch(
         `/api/teacher/courses/${gaCourse.id}/general-activation`,
         {
@@ -353,24 +544,21 @@ export function TeacherLearningModules() {
           body: JSON.stringify(payload),
         },
       );
-
       const data = await res.json();
       if (!res.ok)
         throw new Error(data?.detail || data?.error || "Update failed");
-
       // Update local list
       setTeacherCourses((prev) =>
         prev.map((c) =>
           c.id === gaCourse.id
             ? {
-              ...c,
-              general_activation: data.general_activation,
-              general_activation_date: data.general_activation_date,
-            }
+                ...c,
+                general_activation: data.general_activation,
+                general_activation_date: data.general_activation_date,
+              }
             : c,
         ),
       );
-
       setGaDialogOpen(false);
       openFeedback("Saved", "General activation updated successfully.");
     } catch (e: any) {
@@ -379,7 +567,6 @@ export function TeacherLearningModules() {
       setGaSaving(false);
     }
   };
-
   const openFeedback = (title: string, description?: string) => {
     setFeedbackDialog({
       open: true,
@@ -387,16 +574,13 @@ export function TeacherLearningModules() {
       description,
     });
   };
-
   // Confirm delete dialog for modules
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState<string | null>(null);
-
   const handleDeleteModuleClick = (moduleId: string) => {
     setModuleToDelete(moduleId);
     setDeleteDialogOpen(true);
   };
-
   const handleConfirmDeleteModule = async () => {
     if (!moduleToDelete) return;
     const id = moduleToDelete;
@@ -404,7 +588,6 @@ export function TeacherLearningModules() {
     setModuleToDelete(null);
     await deleteModule(id);
   };
-
   // Fetch session token
   useEffect(() => {
     const fetchToken = async () => {
@@ -413,7 +596,6 @@ export function TeacherLearningModules() {
     };
     fetchToken();
   }, []);
-
   // Fetch courses and categories
   useEffect(() => {
     const fetchCourses = async () => {
@@ -434,7 +616,7 @@ export function TeacherLearningModules() {
         }
         let data: Course[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({ ...c, id: String(c.id) }));
+        data = data.map((c) => ({...c, id: String(c.id)}));
         setCourses(data);
       } catch (err) {
         setError(
@@ -444,7 +626,6 @@ export function TeacherLearningModules() {
         setIsLoadingCourses(false);
       }
     };
-
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
       setError(null);
@@ -463,18 +644,17 @@ export function TeacherLearningModules() {
         }
         let data: Category[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({ ...c, id: String(c.id) }));
+        data = data.map((c) => ({...c, id: String(c.id)}));
         setCategories(data);
       } catch (err) {
         setError(
           (err as Error).message ||
-          "An error occurred while fetching categories",
+            "An error occurred while fetching categories",
         );
       } finally {
         setIsLoadingCategories(false);
       }
     };
-
     if (sessionToken) {
       fetchCourses();
       fetchCategories();
@@ -482,7 +662,6 @@ export function TeacherLearningModules() {
   }, [sessionToken]);
   useEffect(() => {
     if (activeTab !== "course-access" || !sessionToken) return;
-
     const load = async () => {
       setCoursesLoading(true);
       setCoursesError(null);
@@ -496,7 +675,6 @@ export function TeacherLearningModules() {
           throw new Error(
             data?.detail || data?.error || "Failed to load courses",
           );
-
         setTeacherCourses(
           (data ?? []).map((c: any) => ({
             ...c,
@@ -511,10 +689,8 @@ export function TeacherLearningModules() {
         setCoursesLoading(false);
       }
     };
-
     load();
   }, [activeTab, sessionToken]);
-
   // Fetch modules
   useEffect(() => {
     if ((activeTab === "manage" || activeTab === "analytics") && sessionToken) {
@@ -523,24 +699,19 @@ export function TeacherLearningModules() {
         setError(null);
         try {
           const query = new URLSearchParams();
-
           if (search) query.set("search", search);
           if (difficultyFilter)
             query.set("difficulty", difficultyFilter.toLowerCase());
-
           // You were forcing active=true here; keep or change as needed
           query.set("active", "true");
-
           // NEW: course filter (send course id as backend expects)
           if (courseFilter && courseFilter !== "all") {
             query.set("course", courseFilter);
           }
-
           // NEW: category filter (send category id)
           if (categoryFilter && categoryFilter !== "all") {
             query.set("category", categoryFilter);
           }
-
           const response = await fetch(
             `${BASE_URL}/modules/?${query.toString()}`,
             {
@@ -556,9 +727,7 @@ export function TeacherLearningModules() {
             }
             throw new Error(errorData.error || "Failed to fetch modules");
           }
-
           let data: APIModule[] = await response.json();
-
           const sanitizedModules: Module[] = data.map(
             (module: APIModule): Module => ({
               id: String(module.id),
@@ -582,12 +751,11 @@ export function TeacherLearningModules() {
               active: module.active,
             }),
           );
-
           setModules(sanitizedModules);
         } catch (err) {
           setError(
             (err as Error).message ||
-            "An error occurred while fetching modules",
+              "An error occurred while fetching modules",
           );
         } finally {
           setIsLoadingModules(false);
@@ -603,7 +771,6 @@ export function TeacherLearningModules() {
     categoryFilter,
     sessionToken,
   ]);
-
   // NEW: Fetch analytics separately
   useEffect(() => {
     if (activeTab === "analytics" && sessionToken) {
@@ -618,16 +785,13 @@ export function TeacherLearningModules() {
           query.set("active", "true");
           query.set("page", currentPageAnalytics.toString());
           query.set("page_size", "10");
-
           const res = await fetch(`/api/teacher/module-analytics`, {
             headers: headers(sessionToken),
           });
-
           if (!res.ok) {
             const err = await res.json();
             throw new Error(err.detail || "Failed to load analytics");
           }
-
           let data = await res.json();
           // Normalize module IDs
           data.modules = data.modules.map((m: Module) => ({
@@ -645,11 +809,9 @@ export function TeacherLearningModules() {
           setAnalyticsLoading(false);
         }
       };
-
       fetchAnalytics();
     }
   }, [activeTab, search, difficultyFilter, currentPageAnalytics, sessionToken]);
-
   // Auto-set next order when course is selected for new module
   useEffect(() => {
     const autoSetOrder = async () => {
@@ -658,12 +820,11 @@ export function TeacherLearningModules() {
           currentModule.course.id,
           sessionToken,
         );
-        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
+        setCurrentModule((prev) => ({...prev, order: nextOrder}));
       }
     };
     autoSetOrder();
   }, [currentModule.course.id, sessionToken]);
-
   // Fetch module details
   // Add this utility function at the top of your file with other utilities
   function normalizeMedia(media: string | undefined): string | undefined {
@@ -675,7 +836,6 @@ export function TeacherLearningModules() {
     if (cleaned.startsWith("covers/")) return `${BASE_URL}/media/${cleaned}`;
     return `${BASE_URL}/media/covers/${cleaned}`;
   }
-
   const getModuleDetails = async (moduleId: string): Promise<Module | null> => {
     try {
       const response = await fetch(
@@ -690,7 +850,6 @@ export function TeacherLearningModules() {
         throw new Error(errorData.error || "Failed to fetch module details");
       }
       const module: APIModule = await response.json();
-
       const lessonsWithCover =
         module.lessons?.map((lesson: any) => ({
           ...lesson,
@@ -699,7 +858,6 @@ export function TeacherLearningModules() {
             ? normalizeMedia(lesson.cover_image)
             : null,
         })) || [];
-
       return {
         id: String(module.id),
         title: module.title,
@@ -724,12 +882,11 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-        "An error occurred while fetching module details",
+          "An error occurred while fetching module details",
       );
       return null;
     }
   };
-
   // Pagination
   const getPaginatedModules = (modules: Module[], currentPage: number) => {
     const totalPages = Math.ceil(modules.length / modulesPerPage);
@@ -741,7 +898,6 @@ export function TeacherLearningModules() {
       totalCount: modules.length,
     };
   };
-
   const addLesson = () => {
     const newLesson: Lesson = {
       id: `temp-${Date.now()}`,
@@ -762,19 +918,17 @@ export function TeacherLearningModules() {
     }));
     setEditingLesson(newLesson);
   };
-
   const updateLessonFields = (lessonId: string, updates: Partial<Lesson>) => {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? { ...lesson, ...updates } : lesson,
+        lesson.id === lessonId ? {...lesson, ...updates} : lesson,
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
+      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
     }
   };
-
   const deleteLesson = async (lessonId: string) => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -809,10 +963,10 @@ export function TeacherLearningModules() {
         prev.map((m) =>
           m.id === currentModule.id
             ? {
-              ...m,
-              lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
-              lessonCount: m.lessonCount - 1,
-            }
+                ...m,
+                lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
+                lessonCount: m.lessonCount - 1,
+              }
             : m,
         ),
       );
@@ -826,7 +980,6 @@ export function TeacherLearningModules() {
       );
     }
   };
-
   const publishModule = async (moduleId: string, active: boolean) => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -836,7 +989,7 @@ export function TeacherLearningModules() {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({ active }),
+        body: JSON.stringify({active}),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -849,10 +1002,10 @@ export function TeacherLearningModules() {
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m)),
+        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m)),
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
+        setCurrentModule((prev) => ({...prev, isPublished: active}));
       }
       openFeedback(
         `Module ${active ? "published" : "unpublished"}`,
@@ -861,12 +1014,12 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-        `An error occurred while ${active ? "publishing" : "unpublishing"
-        } the module`,
+          `An error occurred while ${
+            active ? "publishing" : "unpublishing"
+          } the module`,
       );
     }
   };
-
   const deleteModule = async (moduleId: string) => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -897,14 +1050,13 @@ export function TeacherLearningModules() {
       );
     }
   };
-
   const getNextOrder = async (
     courseId: string,
     sessionToken: string | null,
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({ course_id: courseId });
+      const query = new URLSearchParams({course_id: courseId});
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -919,11 +1071,10 @@ export function TeacherLearningModules() {
       return 1;
     }
   };
-
   const createLesson = async (
     moduleId: string,
     lesson: Lesson,
-    order: number): Promise<Lesson | null> => {
+  ): Promise<Lesson | null> => {
     if (!lesson.title) {
       throw new Error("Lesson title is required.");
     }
@@ -935,7 +1086,7 @@ export function TeacherLearningModules() {
         "duration",
         (durationToMinutes(lesson.duration) * 60).toString(),
       ); // Updated to "duration"
-      formData.append("order", String(order));
+      formData.append("order", (currentModule.lessons.length + 1).toString());
       formData.append(
         "meta",
         JSON.stringify({
@@ -944,7 +1095,6 @@ export function TeacherLearningModules() {
         }),
       );
       formData.append("active", "true");
-
       // Main file handling
       if (
         lesson.file &&
@@ -968,7 +1118,6 @@ export function TeacherLearningModules() {
         const url = lesson.videoUrl || lesson.audioUrl || "";
         formData.append("url", url);
       }
-
       // NEW: Cover image handling
       if (lesson.coverImage && lesson.coverImage instanceof File) {
         formData.append(
@@ -977,7 +1126,6 @@ export function TeacherLearningModules() {
           lesson.coverImage.name,
         );
       }
-
       const response = await fetch(
         `/api/teacher/modules/${moduleId}/lessons/`,
         {
@@ -988,15 +1136,12 @@ export function TeacherLearningModules() {
           body: formData,
         },
       );
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to create lesson");
       }
-
       const data = await response.json();
       const serverLesson = data?.lesson ?? data;
-
       const newLesson: Lesson = {
         ...lesson,
         id: String(serverLesson.id),
@@ -1007,14 +1152,12 @@ export function TeacherLearningModules() {
         file: null, // Clear temp file if any
         remove_cover: false, // Reset if set
       };
-
       return newLesson;
     } catch (err) {
       console.error("[createLesson] Error:", err);
       throw err;
     }
   };
-
   const saveModule = async () => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -1081,7 +1224,7 @@ export function TeacherLearningModules() {
         }
         throw new Error(
           errorData.error ||
-          "Failed to create module. Please check the details and try again.",
+            "Failed to create module. Please check the details and try again.",
         );
       }
       const data: APIModule = await response.json();
@@ -1109,50 +1252,44 @@ export function TeacherLearningModules() {
         order: data.order,
         active: data.active,
       };
-
       setModules((prev) => [...prev, newModule]);
-
       // Now create the lessons
       const tempLessons = [...currentModule.lessons];
       const createdLessons: Lesson[] = [];
-      for (let i = 0; i < tempLessons.length; i++) {
-        const tempLesson = tempLessons[i];
-        const savedLesson = await createLesson(newModule.id, tempLesson, i + 1);
-        if (savedLesson) createdLessons.push(savedLesson);
+      for (const tempLesson of tempLessons) {
+        try {
+          const savedLesson = await createLesson(newModule.id, tempLesson);
+          if (savedLesson) {
+            createdLessons.push(savedLesson);
+          }
+        } catch (err) {
+          console.error("Failed to create lesson:", err);
+          // Continue, but log error
+        }
       }
-
-
       // Refresh module details
-      // Refresh module details (includes lessons)
       const refreshedModule = await getModuleDetails(newModule.id);
-
       if (refreshedModule) {
-        setCurrentModule(refreshedModule);     // ✅ keep it loaded
-        setEditingLesson(null);
         setModules((prev) =>
           prev.map((m) => (m.id === refreshedModule.id ? refreshedModule : m)),
         );
-      } else {
-        // fallback (still don't wipe the form)
-        setCurrentModule((prev) => ({ ...prev, id: newModule.id }));
       }
-
-      openFeedback("Module saved", "Module and lessons were saved successfully.");
-      // ❌ remove: setCurrentModule(initialModule);
-
+      openFeedback(
+        "Module saved",
+        "Module and lessons were saved successfully.",
+      );
       //setCurrentModule(initialModule);
       setEditingLesson(null);
       //setActiveTab("manage");
     } catch (err) {
       setError(
         (err as Error).message ||
-        "An unexpected error occurred while saving the module. Please try again.",
+          "An unexpected error occurred while saving the module. Please try again.",
       );
     } finally {
       setIsSaving(false);
     }
   };
-
   const updateModule = async () => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -1174,10 +1311,8 @@ export function TeacherLearningModules() {
       setError("Please select a category.");
       return;
     }
-
     try {
       setIsSaving(true);
-
       const payload: any = {
         title: currentModule.title,
         description: currentModule.description,
@@ -1185,12 +1320,10 @@ export function TeacherLearningModules() {
         estimatedDuration: Number(currentModule.duration) || 0,
         order: currentModule.order,
       };
-
       // 🔹 Send course_id (int) for backend
       if (currentModule.course.id) {
         payload.course_id = parseInt(currentModule.course.id, 10);
       }
-
       // 🔹 Send categoryId (same way you do in createModule)
       const selectedCategory = categories.find(
         (c) => c.name === currentModule.category,
@@ -1201,7 +1334,6 @@ export function TeacherLearningModules() {
         // If you want to allow clearing category, send null
         // payload.categoryId = null;
       }
-
       const response = await fetch(
         `${BASE_URL}/modules/${currentModule.id}/update/`,
         {
@@ -1210,7 +1342,6 @@ export function TeacherLearningModules() {
           body: JSON.stringify(payload),
         },
       );
-
       let errorData;
       if (!response.ok) {
         try {
@@ -1234,12 +1365,10 @@ export function TeacherLearningModules() {
         }
         throw new Error(
           errorData.error ||
-          "Failed to update module. Please check the details and try again.",
+            "Failed to update module. Please check the details and try again.",
         );
       }
-
-      const data: { module: APIModule } = await response.json();
-
+      const data: {module: APIModule} = await response.json();
       const updatedModule: Module = {
         id: String(data.module.id),
         title: data.module.title,
@@ -1263,24 +1392,15 @@ export function TeacherLearningModules() {
         order: data.module.order || currentModule.order,
         active: data.module.active,
       };
-
       // Update list
       setModules((prev) =>
         prev.map((m) => (m.id === updatedModule.id ? updatedModule : m)),
       );
-
       // Refresh to be 100% in sync with backend (including lessons)
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
-        setCurrentModule((prev) => ({
-          ...moduleData,
-          lessons: moduleData.lessons?.length ? moduleData.lessons : prev.lessons,
-          lessonCount:
-            moduleData.lessonCount || moduleData.lessons?.length || prev.lessonCount,
-        }));
+        setCurrentModule(moduleData);
       }
-
-
       openFeedback(
         "Module updated",
         `Module "${updatedModule.title}" was updated successfully.`,
@@ -1288,13 +1408,12 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-        "An unexpected error occurred while updating the module. Please try again.",
+          "An unexpected error occurred while updating the module. Please try again.",
       );
     } finally {
       setIsSaving(false);
     }
   };
-
   const handleFileUpload = async (file: File, type: "video" | "audio") => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -1327,254 +1446,50 @@ export function TeacherLearningModules() {
       return null;
     }
   };
-
   const saveLesson = async () => {
-    if (!sessionToken) {
-      setError("No session token available. Please log in again.");
-      console.error("[saveLesson] No session token");
-      return;
-    }
-    if (!currentModule.id) {
-      setError("No module selected. Please save the module first.");
-      console.error("[saveLesson] No module ID");
-      return;
-    }
-    if (!editingLesson) {
-      setError("No lesson selected for saving.");
-      console.error("[saveLesson] No editing lesson");
-      return;
-    }
-    if (!editingLesson.title) {
-      setError("Lesson title is required.");
-      console.error("[saveLesson] Missing lesson title");
-      return;
-    }
+    if (!sessionToken)
+      return setError("No session token available. Please log in again.");
+    if (!currentModule.id)
+      return setError("No module selected. Please save the module first.");
+    if (!editingLesson) return setError("No lesson selected for saving.");
+    if (!editingLesson.title) return setError("Lesson title is required.");
+
+    // size checks
     if (editingLesson.file) {
       if (
         editingLesson.type === "video" &&
         editingLesson.file.size > MAX_VIDEO_BYTES
-      ) {
-        setError("Video must be 50MB or less.");
-        return;
-      }
-
+      )
+        return setError("Video must be 500MB or less.");
       if (
         editingLesson.type === "audio" &&
         editingLesson.file.size > MAX_AUDIO_BYTES
-      ) {
-        setError("Audio must be 10MB or less.");
-        return;
-      }
-
+      )
+        return setError("Audio must be 200MB or less.");
       if (
         editingLesson.type === "pdf" &&
         editingLesson.file.size > MAX_PDF_BYTES
-      ) {
-        setError("PDF must be 5MB or less.");
-        return;
-      }
+      )
+        return setError("PDF must be 10MB or less.");
     }
-
     if (
       editingLesson.coverImage &&
       editingLesson.coverImage.size > MAX_IMAGE_BYTES
     ) {
-      setError("Cover image must be 1MB or less.");
-      return;
+      return setError("Cover image must be 1MB or less.");
     }
-
     try {
       setIsSavingLesson(true);
-      const formData = new FormData();
-      formData.append("title", editingLesson.title);
-      formData.append("type", editingLesson.type); // Updated to "type" per API
-      formData.append(
-        "duration",
-        (durationToMinutes(editingLesson.duration) * 60).toString(),
-      ); // Updated to "duration"
-      formData.append("order", (currentModule.lessons.length + 1).toString());
-      formData.append(
-        "meta",
-        JSON.stringify({
-          description: editingLesson.content || "",
-          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        }),
-      );
-      formData.append("active", "true");
+      setError(null);
 
-      // Main file handling
-      if (
-        editingLesson.file &&
-        editingLesson.file instanceof File &&
-        (editingLesson.type === "video" ||
-          editingLesson.type === "audio" ||
-          editingLesson.type === "pdf")
-      ) {
-        formData.append("file", editingLesson.file, editingLesson.file.name);
-      } else if (
-        editingLesson.type === "text" &&
-        editingLesson.content &&
-        !editingLesson.content.startsWith("http")
-      ) {
-        formData.append("textContent", editingLesson.content); // Updated field name if needed
-      } else if (
-        (editingLesson.videoUrl || editingLesson.audioUrl) &&
-        (editingLesson.videoUrl?.startsWith("http") ||
-          editingLesson.audioUrl?.startsWith("http"))
-      ) {
-        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        formData.append("url", url);
-      } else {
-        console.log("[saveLesson] No file or valid URL provided");
-      }
+      // ✅ reset progress UI
+      setUploading(true);
+      setUploadPhase("uploading");
+      setUploadInfo({percent: 0, loaded: 0, total: 0});
 
-      // NEW: Cover image handling
-      if (editingLesson.coverImage) {
-        formData.append(
-          "cover_image",
-          editingLesson.coverImage,
-          editingLesson.coverImage.name,
-        );
-      }
+      // ✅ let React paint before starting the request
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-      // Log FormData contents for debugging
-
-      for (const [key, value] of formData.entries()) {
-        console.log(
-          `[saveLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`,
-        );
-      }
-
-      const response = await fetch(
-        `/api/teacher/modules/${currentModule.id}/lessons/`,
-        {
-          method: "POST",
-          headers: {
-            "X-Session-Token": sessionToken,
-          },
-          body: formData,
-        },
-      );
-
-      const responseText = await response.text();
-
-      // Parse once
-      let parsed: any;
-      try {
-        parsed = responseText ? JSON.parse(responseText) : null;
-      } catch (e) {
-        console.error(
-          "[saveLesson] Failed to parse JSON:",
-          responseText.slice(0, 200),
-        );
-        throw new Error("Invalid response format from server");
-      }
-
-      // Handle errors first
-      if (!response.ok) {
-        const errorData = parsed || {};
-        console.error("[saveLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to create lesson");
-      }
-
-      // Success path — support both {lesson: {...}} and bare lesson
-      const serverLesson = parsed?.lesson ?? parsed;
-
-      const newLesson: Lesson = {
-        ...editingLesson,
-        id: String(serverLesson.id),
-        coverImageUrl: serverLesson.cover_image
-          ? normalizeMedia(serverLesson.cover_image)
-          : undefined,
-        coverImage: null, // Clear temp file
-        file: null, // Clear temp file if any
-        remove_cover: false, // Reset if set
-      };
-
-      setCurrentModule((prev) => ({
-        ...prev,
-        lessons: prev.lessons.map((lesson) =>
-          lesson.id === editingLesson.id ? newLesson : lesson,
-        ),
-        lessonCount: prev.lessonCount, // Update if needed
-      }));
-      setEditingLesson(newLesson);
-      openFeedback("Lesson saved", "Lesson saved successfully.");
-
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          console.error(
-            "[saveLesson] Failed to parse error response:",
-            responseText.slice(0, 200),
-          );
-          throw new Error("Invalid response format from server");
-        }
-        console.error("[saveLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to create lesson");
-      }
-
-      const data: { lesson: Lesson } = JSON.parse(responseText);
-
-      // Refresh module data to sync with server
-      const moduleData = await getModuleDetails(currentModule.id);
-      if (moduleData) {
-        setCurrentModule(moduleData);
-        setModules((prev) =>
-          prev.map((m) => (m.id === moduleData.id ? moduleData : m)),
-        );
-      }
-
-      setEditingLesson(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset file input
-      }
-      alert(`Lesson created successfully! ID: ${data.lesson.id}`);
-    } catch (err) {
-      setError(
-        (err as Error).message || "An error occurred while creating the lesson",
-      );
-      console.error("[saveLesson] Error:", err);
-    } finally {
-      setIsSavingLesson(false);
-    }
-  };
-
-  const updateLesson = async (lessonId: string) => {
-    if (!sessionToken) {
-      setError("No session token available. Please log in again.");
-      console.error("[updateLesson] No session token");
-      return;
-    }
-    if (!currentModule.id) {
-      setError("No module selected.");
-      console.error("[updateLesson] No module ID");
-      return;
-    }
-    if (!editingLesson) {
-      setError("No lesson selected for updating.");
-      console.error("[updateLesson] No editing lesson");
-      return;
-    }
-    if (!editingLesson.title) {
-      setError("Lesson title is required.");
-      console.error("[updateLesson] Missing lesson title");
-      return;
-    }
-
-    try {
-      setIsSavingLesson(true);
       const formData = new FormData();
       formData.append("title", editingLesson.title);
       formData.append("type", editingLesson.type);
@@ -1591,14 +1506,25 @@ export function TeacherLearningModules() {
       );
       formData.append("active", "true");
 
-      if (
-        editingLesson.file &&
+      // file/url/text
+      const isMedia =
         editingLesson.file instanceof File &&
         (editingLesson.type === "video" ||
           editingLesson.type === "audio" ||
-          editingLesson.type === "pdf")
-      ) {
-        formData.append("file", editingLesson.file, editingLesson.file.name);
+          editingLesson.type === "pdf");
+
+      if (isMedia && editingLesson.file) {
+        const fileUrl = await uploadMediaByBucket(
+          editingLesson.file,
+          sessionToken,
+          (p) => {
+            setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+            setUploadInfo(p);
+          },
+        );
+
+        // ✅ Always send URL to Django for cloud uploads
+        formData.append("url", fileUrl);
       } else if (
         editingLesson.type === "text" &&
         editingLesson.content &&
@@ -1606,119 +1532,218 @@ export function TeacherLearningModules() {
       ) {
         formData.append("textContent", editingLesson.content);
       } else if (
-        (editingLesson.videoUrl || editingLesson.audioUrl) &&
-        (editingLesson.videoUrl?.startsWith("http") ||
-          editingLesson.audioUrl?.startsWith("http"))
+        editingLesson.videoUrl?.startsWith("http") ||
+        editingLesson.audioUrl?.startsWith("http")
       ) {
-        const url = editingLesson.videoUrl || editingLesson.audioUrl || "";
-        formData.append("url", url);
+        formData.append(
+          "url",
+          editingLesson.videoUrl || editingLesson.audioUrl || "",
+        );
       }
-
-      if (editingLesson.coverImage) {
+      // ✅ cover image upload
+      if (editingLesson.remove_cover) {
+        formData.append("remove_cover", "true");
+      } else if (editingLesson.coverImage instanceof File) {
         formData.append(
           "cover_image",
           editingLesson.coverImage,
           editingLesson.coverImage.name,
         );
-      } else if (editingLesson.remove_cover) {
-        formData.append("remove_cover", "true");
       }
-
-      for (const [key, value] of formData.entries()) {
-        console.log(
-          `[updateLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`,
-        );
-      }
-
-      const response = await fetch(
-        `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "X-Session-Token": sessionToken,
-          },
-          body: formData,
+      const resp = await uploadWithProgress<any>({
+        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/`,
+        method: "POST",
+        sessionToken,
+        apiKey: "",
+        body: formData,
+        onProgress: (p) => {
+          // if we see progress events, keep phase uploading
+          setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+          setUploadInfo(p);
         },
-      );
+      });
 
-      const responseText = await response.text();
+      const serverLesson = resp?.lesson ?? resp;
 
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          console.error(
-            "[updateLesson] Failed to parse error response:",
-            responseText.slice(0, 200),
-          );
-          throw new Error("Invalid response format from server");
-        }
-        console.error("[updateLesson] Fetch failed:", errorData);
-        if (response.status === 401 && errorData.redirect) {
-          window.location.href = errorData.redirect;
-          return;
-        }
-        throw new Error(errorData.error || "Failed to update lesson");
-      }
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error(
-          "[updateLesson] Failed to parse success response:",
-          responseText.slice(0, 200),
-        );
-        throw new Error("Invalid response format from server");
-      }
-      const updatedLesson: Lesson = {
+      const newLesson: Lesson = {
         ...editingLesson,
-        id: String(data.lesson.id),
-        coverImageUrl: data.lesson.cover_image
-          ? normalizeMedia(data.lesson.cover_image)
-          : undefined,
+        id: String(serverLesson.id),
+        coverImageUrl: serverLesson.cover_image
+          ? normalizeMedia(serverLesson.cover_image)
+          : editingLesson.coverImageUrl,
         coverImage: null,
         file: null,
         remove_cover: false,
       };
 
+      // update local state
       setCurrentModule((prev) => ({
         ...prev,
-        lessons: prev.lessons.map((lesson) =>
-          lesson.id === lessonId ? updatedLesson : lesson,
+        lessons: prev.lessons.map((l) =>
+          l.id === editingLesson.id ? newLesson : l,
+        ),
+      }));
+      setEditingLesson(newLesson);
+
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (coverImageInputRef.current) coverImageInputRef.current.value = "";
+
+      openFeedback("Lesson saved", "Lesson saved successfully.");
+    } catch (err: any) {
+      setError(err?.message || "An error occurred while creating the lesson");
+    } finally {
+      setIsSavingLesson(false);
+      setUploadPhase("idle");
+      setUploading(false);
+      setUploadInfo({percent: 0, loaded: 0, total: 0});
+    }
+  };
+  // ✅ REWRITE: updateLesson (UPDATE)
+  const updateLesson = async (lessonId: string) => {
+    if (!sessionToken)
+      return setError("No session token available. Please log in again.");
+    if (!currentModule.id) return setError("No module selected.");
+    if (!editingLesson) return setError("No lesson selected for updating.");
+    if (!editingLesson.title) return setError("Lesson title is required.");
+
+    // size checks
+    if (editingLesson.file) {
+      if (
+        editingLesson.type === "video" &&
+        editingLesson.file.size > MAX_VIDEO_BYTES
+      )
+        return setError("Video must be 500MB or less.");
+      if (
+        editingLesson.type === "audio" &&
+        editingLesson.file.size > MAX_AUDIO_BYTES
+      )
+        return setError("Audio must be 20MB or less.");
+      if (
+        editingLesson.type === "pdf" &&
+        editingLesson.file.size > MAX_PDF_BYTES
+      )
+        return setError("PDF must be 10MB or less.");
+    }
+    if (
+      editingLesson.coverImage &&
+      editingLesson.coverImage.size > MAX_IMAGE_BYTES
+    ) {
+      return setError("Cover image must be 1MB or less.");
+    }
+
+    try {
+      setIsSavingLesson(true);
+      setError(null);
+
+      setUploading(true);
+      setUploadPhase("uploading");
+      setUploadInfo({percent: 0, loaded: 0, total: 0});
+
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+      const formData = new FormData();
+      formData.append("title", editingLesson.title);
+      formData.append("type", editingLesson.type);
+      formData.append(
+        "duration",
+        (durationToMinutes(editingLesson.duration) * 60).toString(),
+      );
+      formData.append(
+        "meta",
+        JSON.stringify({
+          description: editingLesson.content || "",
+          tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
+        }),
+      );
+      formData.append("active", "true");
+
+      // file/url/text
+      const isMedia =
+        editingLesson.file instanceof File &&
+        (editingLesson.type === "video" ||
+          editingLesson.type === "audio" ||
+          editingLesson.type === "pdf");
+
+      if (isMedia && editingLesson.file) {
+        const fileUrl = await uploadMediaByBucket(
+          editingLesson.file,
+          sessionToken,
+          (p) => {
+            setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+            setUploadInfo(p);
+          },
+        );
+
+        // ✅ Always send URL to Django for cloud uploads
+        formData.append("url", fileUrl);
+      } else if (
+        editingLesson.type === "text" &&
+        editingLesson.content &&
+        !editingLesson.content.startsWith("http")
+      ) {
+        formData.append("textContent", editingLesson.content);
+      } else if (
+        editingLesson.videoUrl?.startsWith("http") ||
+        editingLesson.audioUrl?.startsWith("http")
+      ) {
+        formData.append(
+          "url",
+          editingLesson.videoUrl || editingLesson.audioUrl || "",
+        );
+      }
+      // ✅ cover image upload
+      if (editingLesson.remove_cover) {
+        formData.append("remove_cover", "true");
+      } else if (editingLesson.coverImage instanceof File) {
+        formData.append(
+          "cover_image",
+          editingLesson.coverImage,
+          editingLesson.coverImage.name,
+        );
+      }
+      const resp = await uploadWithProgress<any>({
+        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+        method: "PATCH",
+        sessionToken,
+        apiKey: "",
+        body: formData,
+        onProgress: (p) => {
+          setUploadPhase(p.percent >= 99 ? "finalizing" : "uploading");
+          setUploadInfo(p);
+        },
+      });
+
+      const serverLesson = resp?.lesson ?? resp;
+
+      const updatedLesson: Lesson = {
+        ...editingLesson,
+        id: String(serverLesson.id ?? lessonId),
+        coverImageUrl: serverLesson.cover_image
+          ? normalizeMedia(serverLesson.cover_image)
+          : editingLesson.coverImageUrl,
+        coverImage: null,
+        file: null,
+        remove_cover: false,
+      };
+      setCurrentModule((prev) => ({
+        ...prev,
+        lessons: prev.lessons.map((l) =>
+          l.id === lessonId ? updatedLesson : l,
         ),
       }));
       setEditingLesson(updatedLesson);
 
-      // Refresh module data to sync with server, but prioritize PATCH cover image if GET is stale
-      const moduleData = await getModuleDetails(currentModule.id);
-      if (moduleData) {
-        setCurrentModule(moduleData);
-        setModules((prev) =>
-          prev.map((m) => (m.id === moduleData.id ? moduleData : m)),
-        );
-        const syncedLessons = moduleData.lessons.map((lesson) => {
-          if (lesson.id === lessonId) {
-            return {
-              ...lesson,
-              coverImageUrl: updatedLesson.coverImageUrl, // Override with PATCH's cover image
-            };
-          }
-          return lesson;
-        });
-        setCurrentModule({ ...moduleData, lessons: syncedLessons });
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (coverImageInputRef.current) coverImageInputRef.current.value = "";
 
       openFeedback("Lesson updated", "Lesson was updated successfully.");
-    } catch (err) {
-      setError(
-        (err as Error).message || "An error occurred while updating the lesson",
-      );
-      console.error("[updateLesson] Error:", err);
+    } catch (err: any) {
+      setError(err?.message || "An error occurred while updating the lesson");
     } finally {
       setIsSavingLesson(false);
+      setUploadPhase("idle");
+      setUploading(false);
+      setUploadInfo({percent: 0, loaded: 0, total: 0});
     }
   };
 
@@ -1727,7 +1752,6 @@ export function TeacherLearningModules() {
     if (!cover) return "/placeholder.jpg";
     return normalizeMedia(cover);
   };
-
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "video":
@@ -1742,17 +1766,13 @@ export function TeacherLearningModules() {
         return FileText;
     }
   };
-
   function getFileName(input?: string | File | null): string {
     if (!input) return "";
-
     // If it's a File object, just return its name
     if (typeof File !== "undefined" && input instanceof File) {
       return input.name;
     }
-
     const str = String(input);
-
     // Try URL first (strips query/hash)
     try {
       const u = new URL(str);
@@ -1764,7 +1784,14 @@ export function TeacherLearningModules() {
       return decodeURIComponent(name);
     }
   }
-
+  const isPageLoading = isLoadingCourses || isLoadingCategories;
+  if (isPageLoading) {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <img src="/logo.png" alt="Loading" className="h-32 animate-pulse" />
+      </div>
+    );
+  }
   return (
     <div className="space-y-4 xs:p-4 sm:p-4 max-w-full mx-auto">
       <div>
@@ -1775,7 +1802,6 @@ export function TeacherLearningModules() {
           Create and manage comprehensive learning experiences
         </p>
       </div>
-
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
@@ -1822,7 +1848,6 @@ export function TeacherLearningModules() {
                   new Date(c.general_activation_date).getTime() < Date.now();
                 const isPrivate =
                   (c.course_type || "").toLowerCase() === "private";
-
                 return (
                   <Card
                     key={c.id}
@@ -1836,7 +1861,6 @@ export function TeacherLearningModules() {
                         {c.course_type ? ` • ${c.course_type}` : ""}
                       </CardDescription>
                     </CardHeader>
-
                     <CardContent className="flex flex-col gap-3 flex-1">
                       <div className="flex flex-col sm:flex-row gap-2">
                         {!isPrivate && (
@@ -1862,35 +1886,33 @@ export function TeacherLearningModules() {
                             Private
                           </Badge>
                         )}
-
                         {c.general_activation && (
                           <Badge variant="outline">
                             Expiry:{" "}
                             {c.general_activation_date
                               ? new Date(
-                                c.general_activation_date,
-                              ).toLocaleDateString()
+                                  c.general_activation_date,
+                                ).toLocaleDateString()
                               : "No expiry"}
                           </Badge>
                         )}
                       </div>
-
                       {c.general_activation &&
                         c.general_activation_date &&
                         new Date(c.general_activation_date).getTime() <
-                        Date.now() && (
+                          Date.now() && (
                           <Badge className="bg-red-600/80 text-white w-fit">
                             Expired
                           </Badge>
                         )}
-
                       <Button
                         onClick={() => openGA(c)}
                         disabled={isPrivate}
-                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${isPrivate
-                          ? "opacity-50 cursor-not-allowed"
-                          : "bg-[#f79771]/70 hover:bg-[#EF7B55]/90"
-                          }`}>
+                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${
+                          isPrivate
+                            ? "opacity-50 cursor-not-allowed"
+                            : "bg-[#f79771]/70 hover:bg-[#EF7B55]/90"
+                        }`}>
                         {isPrivate
                           ? "Not available for private courses"
                           : "Update Access"}
@@ -1902,7 +1924,6 @@ export function TeacherLearningModules() {
             </div>
           )}
         </TabsContent>
-
         <TabsContent value="create" className="space-y-3 xs:space-y-4">
           {isLoadingCourses || isLoadingCategories ? (
             <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
@@ -1939,7 +1960,6 @@ export function TeacherLearningModules() {
                       className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
-
                   <div className="space-y-2">
                     <Label
                       htmlFor="order"
@@ -1961,7 +1981,6 @@ export function TeacherLearningModules() {
                       className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
-
                   <div className="space-y-2">
                     <Label
                       htmlFor="description"
@@ -1982,7 +2001,6 @@ export function TeacherLearningModules() {
                       className="text-xs xs:text-sm sm:text-base"
                     />
                   </div>
-
                   <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs xs:text-sm sm:text-base">
@@ -2019,7 +2037,6 @@ export function TeacherLearningModules() {
                       </Select>
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-xs xs:text-sm sm:text-base">
                       Course
@@ -2058,7 +2075,6 @@ export function TeacherLearningModules() {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-xs xs:text-sm sm:text-base">
                       Category
@@ -2093,7 +2109,6 @@ export function TeacherLearningModules() {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label
                       htmlFor="duration"
@@ -2118,20 +2133,17 @@ export function TeacherLearningModules() {
                       Enter total minutes (e.g., 37 for 37 minutes)
                     </p>
                   </div>
-
                   <div className="pt-2 xs:pt-3 space-y-2">
                     <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
                       <span>Total Lessons:</span>
                       <span>{currentModule.lessonCount}</span>
                     </div>
                   </div>
-
                   {error && (
                     <p className="text-red-500 text-[0.85rem] xs:text-xs sm:text-sm">
                       {error}
                     </p>
                   )}
-
                   <div className="pt-2 xs:pt-3 space-y-2">
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
@@ -2169,7 +2181,6 @@ export function TeacherLearningModules() {
                   </div>
                 </CardContent>
               </Card>
-
               <Card className="md:col-span-1">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -2206,55 +2217,50 @@ export function TeacherLearningModules() {
                       return (
                         <div
                           key={lesson.id}
-                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${editingLesson?.id === lesson.id
-                            ? "border-primary bg-primary/5"
-                            : "hover:bg-muted/50"
-                            }`}
+                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
+                            editingLesson?.id === lesson.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:bg-muted/50"
+                          }`}
                           onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1 max-w-[85%]">
                               {/* Header row */}
                               <div className="flex items-center gap-1 xs:gap-2 mb-1">
                                 <Icon className="h-3 w-3 xs:h-4 xs:w-4" />
-
                                 <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium whitespace-nowrap">
                                   Lesson {index + 1}
                                 </span>
-
                                 <Badge
                                   variant="outline"
                                   className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs whitespace-nowrap">
                                   {lesson.type}
                                 </Badge>
-
                                 {normalizeCoverImageUrl(
                                   lesson.coverImageUrl,
                                 ) && (
-                                    <img
-                                      src={normalizeCoverImageUrl(
-                                        lesson.coverImageUrl,
-                                      )}
-                                      alt="Cover"
-                                      onError={(e) => {
-                                        e.currentTarget.src = "/placeholder.jpg";
-                                      }}
-                                      className="w-6 h-4 object-cover rounded ml-1 shrink-0"
-                                    />
-                                  )}
+                                  <img
+                                    src={normalizeCoverImageUrl(
+                                      lesson.coverImageUrl,
+                                    )}
+                                    alt="Cover"
+                                    onError={(e) => {
+                                      e.currentTarget.src = "/placeholder.jpg";
+                                    }}
+                                    className="w-6 h-4 object-cover rounded ml-1 shrink-0"
+                                  />
+                                )}
                               </div>
-
                               {/* Title with 2-line ellipsis */}
                               <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2 overflow-hidden text-ellipsis">
                                 {lesson.title || "Untitled lesson"}
                               </p>
-
                               {lesson.duration && (
                                 <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mt-0.5 xs:mt-1">
                                   {lesson.duration}
                                 </p>
                               )}
                             </div>
-
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2272,7 +2278,6 @@ export function TeacherLearningModules() {
                   )}
                 </CardContent>
               </Card>
-
               <Card className="md:col-span-1">
                 <CardHeader>
                   <CardTitle className="text-sm xs:text-base sm:text-lg">
@@ -2293,8 +2298,8 @@ export function TeacherLearningModules() {
                           Cover Image
                         </Label>
                         {editingLesson.coverImageUrl &&
-                          !editingLesson.coverImage &&
-                          !editingLesson.remove_cover ? (
+                        !editingLesson.coverImage &&
+                        !editingLesson.remove_cover ? (
                           <div className="flex items-center gap-2">
                             <img
                               src={normalizeCoverImageUrl(
@@ -2302,7 +2307,7 @@ export function TeacherLearningModules() {
                               )}
                               alt="Cover"
                               onError={(e) => {
-                                e.currentTarget.src = "/placeholder-cover.png";
+                                e.currentTarget.src = "/placeholder.svg";
                               }}
                               className="h-16 w-16 object-cover rounded"
                             />
@@ -2349,7 +2354,6 @@ export function TeacherLearningModules() {
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
-
                                 if (file.size > MAX_IMAGE_BYTES) {
                                   openFeedback(
                                     "Cover image too large",
@@ -2358,7 +2362,6 @@ export function TeacherLearningModules() {
                                   e.currentTarget.value = ""; // reset so user can re-select
                                   return;
                                 }
-
                                 updateLessonFields(editingLesson.id, {
                                   coverImage: file,
                                   remove_cover: false,
@@ -2417,14 +2420,14 @@ export function TeacherLearningModules() {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-2">
                         <Label
                           htmlFor="lesson-title"
                           className="text-xs xs:text-sm sm:text-base font-medium">
-                          {`Lesson ${editingLesson.type.charAt(0).toUpperCase() +
+                          {`Lesson ${
+                            editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
-                            }`}
+                          }`}
                         </Label>
                         <Input
                           id="lesson-title"
@@ -2438,7 +2441,6 @@ export function TeacherLearningModules() {
                           className="text-xs xs:text-sm sm:text-base w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label className="text-xs xs:text-sm sm:text-base">
                           Duration (Minutes)
@@ -2454,7 +2456,6 @@ export function TeacherLearningModules() {
                           className="text-xs xs:text-sm sm:text-base"
                         />
                       </div>
-
                       {/* Video Upload */}
                       {editingLesson.type === "video" && (
                         <div className="space-y-2">
@@ -2493,7 +2494,6 @@ export function TeacherLearningModules() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (!file) return;
-
                                   if (file.size > MAX_VIDEO_BYTES) {
                                     openFeedback(
                                       "Video too large",
@@ -2502,8 +2502,7 @@ export function TeacherLearningModules() {
                                     e.currentTarget.value = "";
                                     return;
                                   }
-
-                                  updateLessonFields(editingLesson.id, { file });
+                                  updateLessonFields(editingLesson.id, {file});
                                 }}
                               />
                               <Button
@@ -2518,7 +2517,6 @@ export function TeacherLearningModules() {
                           )}
                         </div>
                       )}
-
                       {/* Audio Upload */}
                       {editingLesson.type === "audio" && (
                         <div className="space-y-2">
@@ -2557,7 +2555,6 @@ export function TeacherLearningModules() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (!file) return;
-
                                   if (file.size > MAX_AUDIO_BYTES) {
                                     openFeedback(
                                       "Audio file too large",
@@ -2566,8 +2563,7 @@ export function TeacherLearningModules() {
                                     e.currentTarget.value = "";
                                     return;
                                   }
-
-                                  updateLessonFields(editingLesson.id, { file });
+                                  updateLessonFields(editingLesson.id, {file});
                                 }}
                               />
                               <Button
@@ -2582,7 +2578,6 @@ export function TeacherLearningModules() {
                           )}
                         </div>
                       )}
-
                       {/* PDF Upload */}
                       {editingLesson.type === "pdf" && (
                         <div className="space-y-2">
@@ -2621,7 +2616,6 @@ export function TeacherLearningModules() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (!file) return;
-
                                   if (file.size > MAX_PDF_BYTES) {
                                     openFeedback(
                                       "PDF too large",
@@ -2630,8 +2624,7 @@ export function TeacherLearningModules() {
                                     e.currentTarget.value = "";
                                     return;
                                   }
-
-                                  updateLessonFields(editingLesson.id, { file });
+                                  updateLessonFields(editingLesson.id, {file});
                                 }}
                               />
                               <Button
@@ -2646,7 +2639,6 @@ export function TeacherLearningModules() {
                           )}
                         </div>
                       )}
-
                       {/* Text Upload - Simplified, as per original */}
                       {editingLesson.type === "text" && (
                         <div className="space-y-2">
@@ -2666,11 +2658,10 @@ export function TeacherLearningModules() {
                           />
                         </div>
                       )}
-
                       <Button
                         onClick={() =>
                           typeof editingLesson.id === "string" &&
-                            editingLesson.id.startsWith("temp")
+                          editingLesson.id.startsWith("temp")
                             ? saveLesson()
                             : updateLesson(editingLesson.id)
                         }
@@ -2687,7 +2678,7 @@ export function TeacherLearningModules() {
                         {isSavingLesson
                           ? "Saving..."
                           : typeof editingLesson.id === "string" &&
-                            editingLesson.id.startsWith("temp")
+                              editingLesson.id.startsWith("temp")
                             ? "Save Lesson"
                             : "Update Lesson"}
                       </Button>
@@ -2703,12 +2694,34 @@ export function TeacherLearningModules() {
                       </p>
                     </div>
                   )}
+
+                  {uploading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {uploadPhase === "finalizing"
+                            ? "Finalizing…"
+                            : "Uploading…"}{" "}
+                          {uploadInfo.total > 0
+                            ? `${(uploadInfo.loaded / (1024 * 1024)).toFixed(1)}MB / ${(uploadInfo.total / (1024 * 1024)).toFixed(1)}MB`
+                            : ""}
+                        </span>
+                        <span>{uploadInfo.percent}%</span>
+                      </div>
+
+                      <div className="h-2 w-full rounded bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-[#EF7B55]"
+                          style={{width: `${uploadInfo.percent}%`}}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           )}
         </TabsContent>
-
         {/* Manage and Analytics tabs remain the same as original */}
         <TabsContent value="manage" className="space-y-3 xs:space-y-4">
           <div className="flex flex-wrap items-start xs:items-center justify-between gap-2 xs:gap-3">
@@ -2735,14 +2748,12 @@ export function TeacherLearningModules() {
                     className="pl-8 text-sm"
                   />
                 </div>
-
                 <Button
                   onClick={() => setSearch(searchQuery)}
                   className="px-3 bg-[#f79771] hover:bg-gray-300 shadow-md">
                   <Search className="h-4 w-4" />
                 </Button>
               </div>
-
               {/* Filters */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-3 w-full">
                 <Select
@@ -2757,7 +2768,6 @@ export function TeacherLearningModules() {
                     <SelectItem value="Advanced">Advanced</SelectItem>
                   </SelectContent>
                 </Select>
-
                 <Select value={courseFilter} onValueChange={setCourseFilter}>
                   <SelectTrigger className="w-full text-sm">
                     <SelectValue placeholder="All Courses" />
@@ -2773,7 +2783,6 @@ export function TeacherLearningModules() {
                       ))}
                   </SelectContent>
                 </Select>
-
                 <Select
                   value={categoryFilter}
                   onValueChange={setCategoryFilter}>
@@ -2793,7 +2802,6 @@ export function TeacherLearningModules() {
                       ))}
                   </SelectContent>
                 </Select>
-
                 {/* Create Button */}
                 <Button
                   onClick={() => {
@@ -2815,7 +2823,6 @@ export function TeacherLearningModules() {
               </div>
             </div>
           </div>
-
           {isLoadingModules ? (
             <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
               <Spinner size="md" className="text-[#EF7B55]" />
@@ -2835,7 +2842,6 @@ export function TeacherLearningModules() {
                 of {getPaginatedModules(modules, currentPageManage).totalCount}{" "}
                 Modules
               </div>
-
               <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {getPaginatedModules(
                   modules,
@@ -2854,7 +2860,6 @@ export function TeacherLearningModules() {
                               title={module.title}>
                               {shortenText(module.title, 45)}
                             </CardTitle>
-
                             <CardDescription
                               className="text-xs sm:text-sm"
                               title={module.description}>
@@ -2907,7 +2912,6 @@ export function TeacherLearningModules() {
                           </DropdownMenu>
                         </div>
                       </CardHeader>
-
                       <CardContent className="flex flex-col flex-1 justify-between space-y-3 xs:space-y-4">
                         <div>
                           <div className="flex items-center flex-wrap gap-2">
@@ -2938,7 +2942,6 @@ export function TeacherLearningModules() {
                               {module.course.name}
                             </Badge>
                           </div>
-
                           <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
                             <div className="flex items-center gap-1">
                               <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
@@ -2947,7 +2950,6 @@ export function TeacherLearningModules() {
                             <div>{module.createdDate}</div>
                           </div>
                         </div>
-
                         {/* 👇 Buttons pushed to bottom */}
                         <div className="flex gap-2 flex-col lg:flex-row mt-auto">
                           <Button
@@ -2982,7 +2984,6 @@ export function TeacherLearningModules() {
                               </>
                             )}
                           </Button>
-
                           <Button
                             variant="outline"
                             className="flex-1 text-xs xs:text-sm sm:text-base"
@@ -3019,9 +3020,8 @@ export function TeacherLearningModules() {
                   );
                 })}
               </div>
-
               {getPaginatedModules(modules, currentPageManage).totalCount ===
-                0 ? (
+              0 ? (
                 <div className="text-center py-8 xs:py-12">
                   <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
@@ -3063,8 +3063,6 @@ export function TeacherLearningModules() {
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-                    {getPaginatedModules(modules, currentPageManage)
-                      .totalPages > 5 && <PaginationEllipsis />}
                     <PaginationNext
                       onClick={() =>
                         setCurrentPageManage((prev) =>
@@ -3077,8 +3075,8 @@ export function TeacherLearningModules() {
                       }
                       className={
                         currentPageManage ===
-                          getPaginatedModules(modules, currentPageManage)
-                            .totalPages
+                        getPaginatedModules(modules, currentPageManage)
+                          .totalPages
                           ? "pointer-events-none opacity-50"
                           : ""
                       }
@@ -3089,7 +3087,6 @@ export function TeacherLearningModules() {
             </>
           )}
         </TabsContent>
-
         <TabsContent value="analytics" className="space-y-3 xs:space-y-4">
           {analyticsLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -3109,9 +3106,7 @@ export function TeacherLearningModules() {
                   Track performance and engagement of your learning modules
                 </p>
               </div>
-
-              {/*  */}
-
+              {/* */}
               <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="pb-1 xs:pb-2">
@@ -3125,7 +3120,6 @@ export function TeacherLearningModules() {
                     </div>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="pb-1 xs:pb-2">
                     <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
@@ -3139,7 +3133,6 @@ export function TeacherLearningModules() {
                   </CardContent>
                 </Card>
               </div>
-
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm xs:text-base sm:text-lg">
@@ -3175,7 +3168,6 @@ export function TeacherLearningModules() {
                       ))
                     )}
                   </div>
-
                   {analytics.pagination.total_pages > 1 && (
                     <Pagination className="mt-4">
                       <PaginationContent>
@@ -3190,7 +3182,7 @@ export function TeacherLearningModules() {
                           }
                         />
                         {Array.from(
-                          { length: analytics.pagination.total_pages },
+                          {length: analytics.pagination.total_pages},
                           (_, i) => (
                             <PaginationItem key={i + 1}>
                               <PaginationLink
@@ -3209,7 +3201,7 @@ export function TeacherLearningModules() {
                           }
                           className={
                             currentPageAnalytics ===
-                              analytics.pagination.total_pages
+                            analytics.pagination.total_pages
                               ? "pointer-events-none opacity-50"
                               : ""
                           }
@@ -3231,11 +3223,10 @@ export function TeacherLearningModules() {
           setPreviewModule(null);
         }}
       />
-
       {/* Feedback Dialog */}
       <AlertDialog
         open={feedbackDialog.open}
-        onOpenChange={(open) => setFeedbackDialog((prev) => ({ ...prev, open }))}>
+        onOpenChange={(open) => setFeedbackDialog((prev) => ({...prev, open}))}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{feedbackDialog.title}</AlertDialogTitle>
@@ -3248,14 +3239,13 @@ export function TeacherLearningModules() {
           <AlertDialogFooter>
             <AlertDialogAction
               onClick={() =>
-                setFeedbackDialog((prev) => ({ ...prev, open: false }))
+                setFeedbackDialog((prev) => ({...prev, open: false}))
               }>
               OK
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* Confirm Delete Module Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -3297,7 +3287,6 @@ export function TeacherLearningModules() {
               ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <div className="space-y-4 py-2">
             <div className="flex items-center justify-between gap-3">
               <Label className="text-sm">Enable general activation</Label>
@@ -3307,7 +3296,6 @@ export function TeacherLearningModules() {
                 onChange={(e) => setGaEnabled(e.target.checked)}
               />
             </div>
-
             <div className="space-y-2">
               <Label className="text-sm">Expiry date (optional)</Label>
               <Input
@@ -3318,7 +3306,6 @@ export function TeacherLearningModules() {
               />
             </div>
           </div>
-
           <AlertDialogFooter>
             <AlertDialogCancel disabled={gaSaving}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={saveGA} disabled={gaSaving}>

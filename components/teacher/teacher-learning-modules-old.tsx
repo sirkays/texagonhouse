@@ -1,6 +1,16 @@
 "use client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-import {useState, useRef, useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,10 +18,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,8 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -46,16 +56,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {getSession} from "next-auth/react";
-import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import {Spinner} from "../ui/spinner";
+import { getSession } from "next-auth/react";
+import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import { Spinner } from "../ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {MoreVertical} from "lucide-react";
+import { MoreVertical } from "lucide-react";
 
 // Interfaces
 interface Course {
@@ -82,7 +92,7 @@ interface Lesson {
   order?: number;
   active?: boolean;
   remove_cover: boolean; // NEW: Flag to indicate cover removal
-  meta?: {description: string; tags: string[]};
+  meta?: { description: string; tags: string[] };
 }
 
 interface Module {
@@ -101,43 +111,61 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: {id?: string; name: string};
+  course: { id?: string; name: string };
 }
 
 interface APIModule {
-  id: string;
+  id: string | number;
   title: string;
   description: string;
   difficulty: string;
-  category: {id: string; name: string};
+  category: { id: string | number; name: string } | null;
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: {id: string; name: string};
-  createdAt: string;
-  updatedAt: string;
-  lessons: any[]; // Backend lessons with cover_image
+  course: { id: string | number; name: string } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  lessons: any[];
   lessonCount: number;
+
+  // optional fields
+  enrollments?: number;
+  rating?: number;
+  // 👇 important: make type compatible with Module["type"]
+  type?: Module["type"] | string;
 }
 
 interface APIError {
   error: string;
   redirect?: string;
 }
-
+type TeacherCourse = {
+  id: string;
+  name: string;
+  subject: string;
+  classroom: string;
+  description: string;
+  isActive: boolean;
+  course_type?: string;
+  general_activation?: boolean;
+  general_activation_date?: string | null;
+};
 const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust module routes accordingly
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY =
+  process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
 
 const headers = (sessionToken: string | null) => ({
   Authorization: `Api-Key ${API_KEY}`,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 
 // Utilities
 const durationToMinutes = (duration: string): number => {
   if (!duration) return 0;
+  duration = String(duration);
   const parts = duration.match(/(\d+)h\s*(\d+)m/);
   if (!parts) return parseInt(duration) || 0;
   const hours = parseInt(parts[1]) || 0;
@@ -145,10 +173,16 @@ const durationToMinutes = (duration: string): number => {
   return hours * 60 + minutes;
 };
 
-const minutesToDuration = (minutes: number): string => {
-  if (!minutes) return "0m";
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+const minutesToDuration = (
+  minutes: number | string | null | undefined,
+): string => {
+  const total = Number(minutes);
+
+  if (!total || isNaN(total)) return "0m";
+
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
@@ -157,17 +191,40 @@ const formatDate = (dateString: string | undefined): string => {
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0];
 };
+const shortenText = (text: string, maxLength: number) => {
+  if (!text) return "";
+  return text.length > maxLength ? text.slice(0, maxLength).trim() + "…" : text;
+};
 
-// Add this utility function at the top with other utilities
-// function normalizeMedia(media: string | undefined): string | undefined {
-//   if (!media) return undefined;
-//   const BASE_URL = process.env.BASE_URL;
-//   const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
-//   if (cleaned.startsWith("http")) return cleaned;
-//   return `${BASE_URL}/media/covers/${cleaned}`;
-// }
+const normalizeDifficulty = (difficulty: string): Module["difficulty"] => {
+  const v = (difficulty || "").toLowerCase();
+  if (v === "beginner") return "Beginner";
+  if (v === "intermediate") return "Intermediate";
+  if (v === "advanced") return "Advanced";
+  // Fallback
+  return "Beginner";
+};
+
+const normalizeModuleType = (t?: string): Module["type"] => {
+  switch ((t || "").toLowerCase()) {
+    case "video":
+      return "video";
+    case "audio":
+      return "audio";
+    case "document":
+      return "document";
+    case "tutorial":
+      return "tutorial";
+    default:
+      return "video"; // sensible default
+  }
+};
 
 export function TeacherLearningModules() {
+  const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("create");
   const [previewModule, setPreviewModule] = useState<Module | null>(null);
@@ -188,7 +245,7 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: {id: undefined, name: ""},
+    course: { id: undefined, name: "" },
   };
   const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -208,9 +265,9 @@ export function TeacherLearningModules() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const modulesPerPage = 3;
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
-
+  const [loadingModuleId, setLoadingModuleId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<{
-    aggregates: {total_enrollments: number; completion_rate: number};
+    aggregates: { total_enrollments: number; completion_rate: number };
     pagination: {
       total_count: number;
       total_pages: number;
@@ -221,6 +278,132 @@ export function TeacherLearningModules() {
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(""); // NEW: Controlled input
+
+  const [courseFilter, setCourseFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // Feedback dialog for success/info messages
+  const [feedbackDialog, setFeedbackDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+  });
+  const [gaDialogOpen, setGaDialogOpen] = useState(false);
+  const [gaCourse, setGaCourse] = useState<TeacherCourse | null>(null);
+  const [gaEnabled, setGaEnabled] = useState(false);
+  const [gaDateLocal, setGaDateLocal] = useState<string>(""); // datetime-local
+  const [gaSaving, setGaSaving] = useState(false);
+  const MAX_IMAGE_BYTES = 1 * 1024 * 1024; // 1MB
+  const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
+  const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10MB
+  const MAX_PDF_BYTES = 5 * 1024 * 1024; // 5MB
+
+  const formatBytes = (bytes: number) =>
+    `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+
+  const isoToLocalInput = (iso?: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    // datetime-local expects "YYYY-MM-DDTHH:mm"
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate(),
+    )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const openGA = (course: TeacherCourse) => {
+    const isPrivate = (course.course_type || "").toLowerCase() === "private";
+    if (isPrivate) {
+      openFeedback(
+        "Private course",
+        "General access is not available for private courses.",
+      );
+      return;
+    }
+
+    setGaCourse(course);
+    setGaEnabled(Boolean(course.general_activation));
+    setGaDateLocal(isoToLocalInput(course.general_activation_date));
+    setGaDialogOpen(true);
+  };
+
+  const saveGA = async () => {
+    if (!gaCourse?.id) return;
+    setGaSaving(true);
+    try {
+      const payload = {
+        general_activation: gaEnabled,
+        general_activation_date: gaEnabled
+          ? gaDateLocal
+            ? new Date(gaDateLocal).toISOString()
+            : null
+          : null,
+      };
+
+      const res = await fetch(
+        `/api/teacher/courses/${gaCourse.id}/general-activation`,
+        {
+          method: "PATCH",
+          headers: headers(sessionToken),
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data?.detail || data?.error || "Update failed");
+
+      // Update local list
+      setTeacherCourses((prev) =>
+        prev.map((c) =>
+          c.id === gaCourse.id
+            ? {
+              ...c,
+              general_activation: data.general_activation,
+              general_activation_date: data.general_activation_date,
+            }
+            : c,
+        ),
+      );
+
+      setGaDialogOpen(false);
+      openFeedback("Saved", "General activation updated successfully.");
+    } catch (e: any) {
+      setCoursesError(e?.message || "Update failed");
+    } finally {
+      setGaSaving(false);
+    }
+  };
+
+  const openFeedback = (title: string, description?: string) => {
+    setFeedbackDialog({
+      open: true,
+      title,
+      description,
+    });
+  };
+
+  // Confirm delete dialog for modules
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState<string | null>(null);
+
+  const handleDeleteModuleClick = (moduleId: string) => {
+    setModuleToDelete(moduleId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteModule = async () => {
+    if (!moduleToDelete) return;
+    const id = moduleToDelete;
+    setDeleteDialogOpen(false);
+    setModuleToDelete(null);
+    await deleteModule(id);
+  };
 
   // Fetch session token
   useEffect(() => {
@@ -249,11 +432,13 @@ export function TeacherLearningModules() {
           }
           throw new Error(errorData.error || "Failed to fetch courses");
         }
-        const data: Course[] = await response.json();
+        let data: Course[] = await response.json();
+        // Normalize IDs to strings
+        data = data.map((c) => ({ ...c, id: String(c.id) }));
         setCourses(data);
       } catch (err) {
         setError(
-          (err as Error).message || "An error occurred while fetching courses"
+          (err as Error).message || "An error occurred while fetching courses",
         );
       } finally {
         setIsLoadingCourses(false);
@@ -276,12 +461,14 @@ export function TeacherLearningModules() {
           }
           throw new Error(errorData.error || "Failed to fetch categories");
         }
-        const data: Category[] = await response.json();
+        let data: Category[] = await response.json();
+        // Normalize IDs to strings
+        data = data.map((c) => ({ ...c, id: String(c.id) }));
         setCategories(data);
       } catch (err) {
         setError(
           (err as Error).message ||
-            "An error occurred while fetching categories"
+          "An error occurred while fetching categories",
         );
       } finally {
         setIsLoadingCategories(false);
@@ -293,6 +480,40 @@ export function TeacherLearningModules() {
       fetchCategories();
     }
   }, [sessionToken]);
+  useEffect(() => {
+    if (activeTab !== "course-access" || !sessionToken) return;
+
+    const load = async () => {
+      setCoursesLoading(true);
+      setCoursesError(null);
+      try {
+        const res = await fetch("/api/teacher/courses", {
+          method: "GET",
+          headers: headers(sessionToken),
+        });
+        const data = await res.json();
+        if (!res.ok)
+          throw new Error(
+            data?.detail || data?.error || "Failed to load courses",
+          );
+
+        setTeacherCourses(
+          (data ?? []).map((c: any) => ({
+            ...c,
+            id: String(c.id),
+            general_activation: Boolean(c.general_activation),
+            general_activation_date: c.general_activation_date ?? null,
+          })),
+        );
+      } catch (e: any) {
+        setCoursesError(e?.message || "Failed to load courses");
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    load();
+  }, [activeTab, sessionToken]);
 
   // Fetch modules
   useEffect(() => {
@@ -302,16 +523,30 @@ export function TeacherLearningModules() {
         setError(null);
         try {
           const query = new URLSearchParams();
+
           if (search) query.set("search", search);
           if (difficultyFilter)
             query.set("difficulty", difficultyFilter.toLowerCase());
+
+          // You were forcing active=true here; keep or change as needed
           query.set("active", "true");
+
+          // NEW: course filter (send course id as backend expects)
+          if (courseFilter && courseFilter !== "all") {
+            query.set("course", courseFilter);
+          }
+
+          // NEW: category filter (send category id)
+          if (categoryFilter && categoryFilter !== "all") {
+            query.set("category", categoryFilter);
+          }
+
           const response = await fetch(
             `${BASE_URL}/modules/?${query.toString()}`,
             {
               method: "GET",
               headers: headers(sessionToken),
-            }
+            },
           );
           if (!response.ok) {
             const errorData: APIError = await response.json();
@@ -321,34 +556,38 @@ export function TeacherLearningModules() {
             }
             throw new Error(errorData.error || "Failed to fetch modules");
           }
-          const data: APIModule[] = await response.json();
-          const sanitizedModules: Module[] = data.map((module) => ({
-            id: module.id,
-            title: module.title,
-            description: module.description,
-            type: module.type || "video",
-            duration: module.estimatedDuration,
-            difficulty:
-              module.difficulty.charAt(0).toUpperCase() +
-              module.difficulty.slice(1),
-            category: module.category?.name || "Uncategorized",
-            enrollments: module.enrollments || 0,
-            rating: module.rating || 0,
-            isPublished: module.isPublished,
-            createdDate: formatDate(module.createdAt),
-            course: {
-              id: module.course?.id || "",
-              name: module.course?.name || "",
-            },
-            lessons: module.lessons || [],
-            lessonCount: module.lessonCount || 0,
-            order: module.order,
-            active: module.active,
-          }));
+
+          let data: APIModule[] = await response.json();
+
+          const sanitizedModules: Module[] = data.map(
+            (module: APIModule): Module => ({
+              id: String(module.id),
+              title: module.title,
+              description: module.description,
+              type: normalizeModuleType(module.type),
+              duration: Number(module.estimatedDuration || 0), // ✅ FIX
+              difficulty: normalizeDifficulty(module.difficulty),
+              category: module.category?.name || "Uncategorized",
+              enrollments: module.enrollments ?? 0,
+              rating: module.rating ?? 0,
+              isPublished: module.isPublished,
+              createdDate: formatDate(module.createdAt || undefined),
+              course: {
+                id: module.course?.id ? String(module.course.id) : undefined,
+                name: module.course?.name || "",
+              },
+              lessons: module.lessons || [],
+              lessonCount: module.lessonCount || 0,
+              order: module.order,
+              active: module.active,
+            }),
+          );
+
           setModules(sanitizedModules);
         } catch (err) {
           setError(
-            (err as Error).message || "An error occurred while fetching modules"
+            (err as Error).message ||
+            "An error occurred while fetching modules",
           );
         } finally {
           setIsLoadingModules(false);
@@ -356,7 +595,14 @@ export function TeacherLearningModules() {
       };
       fetchModules();
     }
-  }, [activeTab, search, difficultyFilter, sessionToken]);
+  }, [
+    activeTab,
+    search,
+    difficultyFilter,
+    courseFilter,
+    categoryFilter,
+    sessionToken,
+  ]);
 
   // NEW: Fetch analytics separately
   useEffect(() => {
@@ -382,7 +628,16 @@ export function TeacherLearningModules() {
             throw new Error(err.detail || "Failed to load analytics");
           }
 
-          const data = await res.json();
+          let data = await res.json();
+          // Normalize module IDs
+          data.modules = data.modules.map((m: Module) => ({
+            ...m,
+            id: String(m.id),
+            course: {
+              ...m.course,
+              id: m.course?.id ? String(m.course.id) : undefined,
+            },
+          }));
           setAnalytics(data);
         } catch (err) {
           setAnalyticsError((err as Error).message);
@@ -401,9 +656,9 @@ export function TeacherLearningModules() {
       if (!currentModule.id && currentModule.course.id && sessionToken) {
         const nextOrder = await getNextOrder(
           currentModule.course.id,
-          sessionToken
+          sessionToken,
         );
-        setCurrentModule((prev) => ({...prev, order: nextOrder}));
+        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
       }
     };
     autoSetOrder();
@@ -428,7 +683,7 @@ export function TeacherLearningModules() {
         {
           method: "GET",
           headers: headers(sessionToken),
-        }
+        },
       );
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -439,27 +694,26 @@ export function TeacherLearningModules() {
       const lessonsWithCover =
         module.lessons?.map((lesson: any) => ({
           ...lesson,
+          id: String(lesson.id),
           coverImageUrl: lesson.cover_image
             ? normalizeMedia(lesson.cover_image)
             : null,
         })) || [];
 
       return {
-        id: module.id,
+        id: String(module.id),
         title: module.title,
         description: module.description,
-        type: module.type || "video",
+        type: normalizeModuleType(module.type),
         duration: module.estimatedDuration,
-        difficulty:
-          module.difficulty.charAt(0).toUpperCase() +
-          module.difficulty.slice(1),
+        difficulty: normalizeDifficulty(module.difficulty),
         category: module.category?.name || undefined,
-        enrollments: module.enrollments || 0,
-        rating: module.rating || 0,
+        enrollments: module.enrollments ?? 0,
+        rating: module.rating ?? 0,
         isPublished: module.isPublished,
-        createdDate: formatDate(module.createdAt),
+        createdDate: formatDate(module.createdAt || undefined),
         course: {
-          id: module.course?.id || "",
+          id: module.course?.id ? String(module.course.id) : undefined,
           name: module.course?.name || "",
         },
         lessons: lessonsWithCover,
@@ -470,7 +724,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An error occurred while fetching module details"
+        "An error occurred while fetching module details",
       );
       return null;
     }
@@ -499,6 +753,7 @@ export function TeacherLearningModules() {
       audioUrl: "",
       coverImage: null, // NEW
       coverImageUrl: "", // NEW
+      remove_cover: false,
     };
     setCurrentModule((prev) => ({
       ...prev,
@@ -512,11 +767,11 @@ export function TeacherLearningModules() {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? {...lesson, ...updates} : lesson
+        lesson.id === lessonId ? { ...lesson, ...updates } : lesson,
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
+      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
     }
   };
 
@@ -535,7 +790,7 @@ export function TeacherLearningModules() {
         {
           method: "DELETE",
           headers: headers(sessionToken),
-        }
+        },
       );
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -554,20 +809,20 @@ export function TeacherLearningModules() {
         prev.map((m) =>
           m.id === currentModule.id
             ? {
-                ...m,
-                lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
-                lessonCount: m.lessonCount - 1,
-              }
-            : m
-        )
+              ...m,
+              lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
+              lessonCount: m.lessonCount - 1,
+            }
+            : m,
+        ),
       );
       if (editingLesson?.id === lessonId) {
         setEditingLesson(null);
       }
-      alert("Lesson deleted successfully!");
+      openFeedback("Lesson deleted", "The lesson was deleted successfully.");
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while deleting the lesson"
+        (err as Error).message || "An error occurred while deleting the lesson",
       );
     }
   };
@@ -581,7 +836,7 @@ export function TeacherLearningModules() {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({active}),
+        body: JSON.stringify({ active }),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -590,22 +845,24 @@ export function TeacherLearningModules() {
           return;
         }
         throw new Error(
-          errorData.error || "Failed to publish/unpublish module"
+          errorData.error || "Failed to publish/unpublish module",
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m))
+        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m)),
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({...prev, isPublished: active}));
+        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
       }
-      alert(`Module ${active ? "published" : "unpublished"} successfully!`);
+      openFeedback(
+        `Module ${active ? "published" : "unpublished"}`,
+        `The module was ${active ? "published" : "unpublished"} successfully.`,
+      );
     } catch (err) {
       setError(
         (err as Error).message ||
-          `An error occurred while ${
-            active ? "publishing" : "unpublishing"
-          } the module`
+        `An error occurred while ${active ? "publishing" : "unpublishing"
+        } the module`,
       );
     }
   };
@@ -613,9 +870,6 @@ export function TeacherLearningModules() {
   const deleteModule = async (moduleId: string) => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
-      return;
-    }
-    if (!confirm("Are you sure you want to delete this module?")) {
       return;
     }
     try {
@@ -636,21 +890,21 @@ export function TeacherLearningModules() {
         setCurrentModule(initialModule);
         setEditingLesson(null);
       }
-      alert("Module deleted successfully!");
+      openFeedback("Module deleted", "The module was deleted successfully.");
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while deleting the module"
+        (err as Error).message || "An error occurred while deleting the module",
       );
     }
   };
 
   const getNextOrder = async (
     courseId: string,
-    sessionToken: string | null
+    sessionToken: string | null,
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({course_id: courseId});
+      const query = new URLSearchParams({ course_id: courseId });
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -663,6 +917,101 @@ export function TeacherLearningModules() {
       return maxOrder + 1;
     } catch (err) {
       return 1;
+    }
+  };
+
+  const createLesson = async (
+    moduleId: string,
+    lesson: Lesson,
+    order: number): Promise<Lesson | null> => {
+    if (!lesson.title) {
+      throw new Error("Lesson title is required.");
+    }
+    try {
+      const formData = new FormData();
+      formData.append("title", lesson.title);
+      formData.append("type", lesson.type); // Updated to "type" per API
+      formData.append(
+        "duration",
+        (durationToMinutes(lesson.duration) * 60).toString(),
+      ); // Updated to "duration"
+      formData.append("order", String(order));
+      formData.append(
+        "meta",
+        JSON.stringify({
+          description: lesson.content || "",
+          tags: lesson.title.toLowerCase().split(" ").filter(Boolean),
+        }),
+      );
+      formData.append("active", "true");
+
+      // Main file handling
+      if (
+        lesson.file &&
+        lesson.file instanceof File &&
+        (lesson.type === "video" ||
+          lesson.type === "audio" ||
+          lesson.type === "pdf")
+      ) {
+        formData.append("file", lesson.file, lesson.file.name);
+      } else if (
+        lesson.type === "text" &&
+        lesson.content &&
+        !lesson.content.startsWith("http")
+      ) {
+        formData.append("textContent", lesson.content); // Updated field name if needed
+      } else if (
+        (lesson.videoUrl || lesson.audioUrl) &&
+        (lesson.videoUrl?.startsWith("http") ||
+          lesson.audioUrl?.startsWith("http"))
+      ) {
+        const url = lesson.videoUrl || lesson.audioUrl || "";
+        formData.append("url", url);
+      }
+
+      // NEW: Cover image handling
+      if (lesson.coverImage && lesson.coverImage instanceof File) {
+        formData.append(
+          "cover_image",
+          lesson.coverImage,
+          lesson.coverImage.name,
+        );
+      }
+
+      const response = await fetch(
+        `/api/teacher/modules/${moduleId}/lessons/`,
+        {
+          method: "POST",
+          headers: {
+            "X-Session-Token": sessionToken || "",
+          },
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create lesson");
+      }
+
+      const data = await response.json();
+      const serverLesson = data?.lesson ?? data;
+
+      const newLesson: Lesson = {
+        ...lesson,
+        id: String(serverLesson.id),
+        coverImageUrl: serverLesson.cover_image
+          ? normalizeMedia(serverLesson.cover_image)
+          : undefined,
+        coverImage: null, // Clear temp file
+        file: null, // Clear temp file if any
+        remove_cover: false, // Reset if set
+      };
+
+      return newLesson;
+    } catch (err) {
+      console.error("[createLesson] Error:", err);
+      throw err;
     }
   };
 
@@ -685,6 +1034,10 @@ export function TeacherLearningModules() {
     }
     if (!currentModule.order || currentModule.order < 1) {
       setError("Please specify a valid order (1 or higher).");
+      return;
+    }
+    if (currentModule.lessons.length === 0) {
+      setError("Please add at least one lesson before creating the module.");
       return;
     }
     try {
@@ -718,50 +1071,82 @@ export function TeacherLearningModules() {
         }
         if (
           errorData.error?.includes(
-            "IntegrityError: duplicate key value violates unique constraint"
+            "IntegrityError: duplicate key value violates unique constraint",
           )
         ) {
           setError(
-            "The specified order already exists for this course. Please choose a different order."
+            "The specified order already exists for this course. Please choose a different order.",
           );
           return;
         }
         throw new Error(
           errorData.error ||
-            "Failed to create module. Please check the details and try again."
+          "Failed to create module. Please check the details and try again.",
         );
       }
       const data: APIModule = await response.json();
       const newModule: Module = {
-        id: data.id,
+        id: String(data.id),
         title: data.title,
         description: data.description,
-        type: currentModule.type,
+        type: currentModule.type, // keep whatever the UI had
         duration: data.estimatedDuration,
-        difficulty:
-          data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1),
+        difficulty: normalizeDifficulty(data.difficulty),
         category: data.category?.name || "Uncategorized",
-        enrollments: data.enrollments || 0,
-        rating: data.rating || 0,
+        enrollments: data.enrollments ?? 0,
+        rating: data.rating ?? 0,
         isPublished: data.isPublished,
-        createdDate: formatDate(data.createdAt),
+        createdDate: formatDate(data.createdAt || undefined),
         course: {
-          id: data.course?.id || "",
+          id: data.course?.id ? String(data.course.id) : undefined,
           name: data.course?.name || "",
         },
-        lessons: currentModule.lessons,
-        lessonCount: data.lessonCount || currentModule.lessonCount,
+        lessons: [],
+        lessonCount:
+          data.lessonCount ||
+          currentModule.lessonCount ||
+          currentModule.lessons.length,
         order: data.order,
         active: data.active,
       };
+
       setModules((prev) => [...prev, newModule]);
-      alert(`Module saved successfully! ID: ${newModule.id}`);
-      setCurrentModule(initialModule);
+
+      // Now create the lessons
+      const tempLessons = [...currentModule.lessons];
+      const createdLessons: Lesson[] = [];
+      for (let i = 0; i < tempLessons.length; i++) {
+        const tempLesson = tempLessons[i];
+        const savedLesson = await createLesson(newModule.id, tempLesson, i + 1);
+        if (savedLesson) createdLessons.push(savedLesson);
+      }
+
+
+      // Refresh module details
+      // Refresh module details (includes lessons)
+      const refreshedModule = await getModuleDetails(newModule.id);
+
+      if (refreshedModule) {
+        setCurrentModule(refreshedModule);     // ✅ keep it loaded
+        setEditingLesson(null);
+        setModules((prev) =>
+          prev.map((m) => (m.id === refreshedModule.id ? refreshedModule : m)),
+        );
+      } else {
+        // fallback (still don't wipe the form)
+        setCurrentModule((prev) => ({ ...prev, id: newModule.id }));
+      }
+
+      openFeedback("Module saved", "Module and lessons were saved successfully.");
+      // ❌ remove: setCurrentModule(initialModule);
+
+      //setCurrentModule(initialModule);
       setEditingLesson(null);
+      //setActiveTab("manage");
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An unexpected error occurred while saving the module. Please try again."
+        "An unexpected error occurred while saving the module. Please try again.",
       );
     } finally {
       setIsSaving(false);
@@ -789,18 +1174,33 @@ export function TeacherLearningModules() {
       setError("Please select a category.");
       return;
     }
+
     try {
       setIsSaving(true);
-      const payload = {
+
+      const payload: any = {
         title: currentModule.title,
         description: currentModule.description,
         difficulty: currentModule.difficulty.toLowerCase(),
-        estimatedDuration: currentModule.duration, // FIX: Send as number (minutes)
+        estimatedDuration: Number(currentModule.duration) || 0,
         order: currentModule.order,
       };
 
-      // Ensure estimatedDuration is a number
-      payload.estimatedDuration = Number(payload.estimatedDuration);
+      // 🔹 Send course_id (int) for backend
+      if (currentModule.course.id) {
+        payload.course_id = parseInt(currentModule.course.id, 10);
+      }
+
+      // 🔹 Send categoryId (same way you do in createModule)
+      const selectedCategory = categories.find(
+        (c) => c.name === currentModule.category,
+      );
+      if (selectedCategory?.id) {
+        payload.categoryId = parseInt(String(selectedCategory.id), 10);
+      } else {
+        // If you want to allow clearing category, send null
+        // payload.categoryId = null;
+      }
 
       const response = await fetch(
         `${BASE_URL}/modules/${currentModule.id}/update/`,
@@ -808,14 +1208,14 @@ export function TeacherLearningModules() {
           method: "PATCH",
           headers: headers(sessionToken),
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       let errorData;
       if (!response.ok) {
         try {
           errorData = await response.json();
-        } catch (parseErr) {
+        } catch {
           throw new Error("Server error occurred. Please try again later.");
         }
         if (response.status === 401 && errorData.redirect) {
@@ -824,37 +1224,38 @@ export function TeacherLearningModules() {
         }
         if (
           errorData.error?.includes(
-            "IntegrityError: duplicate key value violates unique constraint"
+            "IntegrityError: duplicate key value violates unique constraint",
           )
         ) {
           setError(
-            "The specified order already exists for this course. Please choose a different order."
+            "The specified order already exists for this course. Please choose a different order.",
           );
           return;
         }
         throw new Error(
           errorData.error ||
-            "Failed to update module. Please check the details and try again."
+          "Failed to update module. Please check the details and try again.",
         );
       }
 
-      const data: {module: APIModule} = await response.json();
+      const data: { module: APIModule } = await response.json();
+
       const updatedModule: Module = {
-        id: data.module.id,
+        id: String(data.module.id),
         title: data.module.title,
         description: data.module.description,
         type: currentModule.type,
         duration: data.module.estimatedDuration,
-        difficulty:
-          data.module.difficulty.charAt(0).toUpperCase() +
-          data.module.difficulty.slice(1),
+        difficulty: normalizeDifficulty(data.module.difficulty),
         category: data.module.category?.name || "Uncategorized",
-        enrollments: data.module.enrollments || currentModule.enrollments,
-        rating: data.module.rating || currentModule.rating,
+        enrollments: data.module.enrollments ?? currentModule.enrollments,
+        rating: data.module.rating ?? currentModule.rating,
         isPublished: data.module.isPublished,
-        createdDate: formatDate(data.module.createdAt),
+        createdDate: formatDate(data.module.createdAt || undefined),
         course: {
-          id: data.module.course?.id || "",
+          id: data.module.course?.id
+            ? String(data.module.course.id)
+            : undefined,
           name: data.module.course?.name || "",
         },
         lessons: currentModule.lessons,
@@ -862,19 +1263,32 @@ export function TeacherLearningModules() {
         order: data.module.order || currentModule.order,
         active: data.module.active,
       };
+
+      // Update list
       setModules((prev) =>
-        prev.map((m) => (m.id === updatedModule.id ? updatedModule : m))
+        prev.map((m) => (m.id === updatedModule.id ? updatedModule : m)),
       );
-      // Refresh to get latest data
+
+      // Refresh to be 100% in sync with backend (including lessons)
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
-        setCurrentModule(moduleData);
+        setCurrentModule((prev) => ({
+          ...moduleData,
+          lessons: moduleData.lessons?.length ? moduleData.lessons : prev.lessons,
+          lessonCount:
+            moduleData.lessonCount || moduleData.lessons?.length || prev.lessonCount,
+        }));
       }
-      alert(`Module updated successfully! ID: ${updatedModule.id}`);
+
+
+      openFeedback(
+        "Module updated",
+        `Module "${updatedModule.title}" was updated successfully.`,
+      );
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An unexpected error occurred while updating the module. Please try again."
+        "An unexpected error occurred while updating the module. Please try again.",
       );
     } finally {
       setIsSaving(false);
@@ -908,7 +1322,7 @@ export function TeacherLearningModules() {
       return data.url;
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while uploading the file"
+        (err as Error).message || "An error occurred while uploading the file",
       );
       return null;
     }
@@ -935,6 +1349,39 @@ export function TeacherLearningModules() {
       console.error("[saveLesson] Missing lesson title");
       return;
     }
+    if (editingLesson.file) {
+      if (
+        editingLesson.type === "video" &&
+        editingLesson.file.size > MAX_VIDEO_BYTES
+      ) {
+        setError("Video must be 50MB or less.");
+        return;
+      }
+
+      if (
+        editingLesson.type === "audio" &&
+        editingLesson.file.size > MAX_AUDIO_BYTES
+      ) {
+        setError("Audio must be 10MB or less.");
+        return;
+      }
+
+      if (
+        editingLesson.type === "pdf" &&
+        editingLesson.file.size > MAX_PDF_BYTES
+      ) {
+        setError("PDF must be 5MB or less.");
+        return;
+      }
+    }
+
+    if (
+      editingLesson.coverImage &&
+      editingLesson.coverImage.size > MAX_IMAGE_BYTES
+    ) {
+      setError("Cover image must be 1MB or less.");
+      return;
+    }
 
     try {
       setIsSavingLesson(true);
@@ -943,7 +1390,7 @@ export function TeacherLearningModules() {
       formData.append("type", editingLesson.type); // Updated to "type" per API
       formData.append(
         "duration",
-        (durationToMinutes(editingLesson.duration) * 60).toString()
+        (durationToMinutes(editingLesson.duration) * 60).toString(),
       ); // Updated to "duration"
       formData.append("order", (currentModule.lessons.length + 1).toString());
       formData.append(
@@ -951,7 +1398,7 @@ export function TeacherLearningModules() {
         JSON.stringify({
           description: editingLesson.content || "",
           tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        })
+        }),
       );
       formData.append("active", "true");
 
@@ -986,15 +1433,16 @@ export function TeacherLearningModules() {
         formData.append(
           "cover_image",
           editingLesson.coverImage,
-          editingLesson.coverImage.name
+          editingLesson.coverImage.name,
         );
       }
 
       // Log FormData contents for debugging
+
       for (const [key, value] of formData.entries()) {
         console.log(
           `[saveLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`
+          typeof value === "string" ? value : `[File: ${value.name}]`,
         );
       }
 
@@ -1006,7 +1454,7 @@ export function TeacherLearningModules() {
             "X-Session-Token": sessionToken,
           },
           body: formData,
-        }
+        },
       );
 
       const responseText = await response.text();
@@ -1018,7 +1466,7 @@ export function TeacherLearningModules() {
       } catch (e) {
         console.error(
           "[saveLesson] Failed to parse JSON:",
-          responseText.slice(0, 200)
+          responseText.slice(0, 200),
         );
         throw new Error("Invalid response format from server");
       }
@@ -1039,7 +1487,7 @@ export function TeacherLearningModules() {
 
       const newLesson: Lesson = {
         ...editingLesson,
-        id: serverLesson.id,
+        id: String(serverLesson.id),
         coverImageUrl: serverLesson.cover_image
           ? normalizeMedia(serverLesson.cover_image)
           : undefined,
@@ -1051,12 +1499,12 @@ export function TeacherLearningModules() {
       setCurrentModule((prev) => ({
         ...prev,
         lessons: prev.lessons.map((lesson) =>
-          lesson.id === editingLesson.id ? newLesson : lesson
+          lesson.id === editingLesson.id ? newLesson : lesson,
         ),
         lessonCount: prev.lessonCount, // Update if needed
       }));
       setEditingLesson(newLesson);
-      alert("Lesson saved successfully!");
+      openFeedback("Lesson saved", "Lesson saved successfully.");
 
       if (!response.ok) {
         let errorData;
@@ -1065,7 +1513,7 @@ export function TeacherLearningModules() {
         } catch (e) {
           console.error(
             "[saveLesson] Failed to parse error response:",
-            responseText.slice(0, 200)
+            responseText.slice(0, 200),
           );
           throw new Error("Invalid response format from server");
         }
@@ -1077,14 +1525,14 @@ export function TeacherLearningModules() {
         throw new Error(errorData.error || "Failed to create lesson");
       }
 
-      const data: {lesson: Lesson} = JSON.parse(responseText);
+      const data: { lesson: Lesson } = JSON.parse(responseText);
 
       // Refresh module data to sync with server
       const moduleData = await getModuleDetails(currentModule.id);
       if (moduleData) {
         setCurrentModule(moduleData);
         setModules((prev) =>
-          prev.map((m) => (m.id === moduleData.id ? moduleData : m))
+          prev.map((m) => (m.id === moduleData.id ? moduleData : m)),
         );
       }
 
@@ -1095,7 +1543,7 @@ export function TeacherLearningModules() {
       alert(`Lesson created successfully! ID: ${data.lesson.id}`);
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while creating the lesson"
+        (err as Error).message || "An error occurred while creating the lesson",
       );
       console.error("[saveLesson] Error:", err);
     } finally {
@@ -1132,14 +1580,14 @@ export function TeacherLearningModules() {
       formData.append("type", editingLesson.type);
       formData.append(
         "duration",
-        (durationToMinutes(editingLesson.duration) * 60).toString()
+        (durationToMinutes(editingLesson.duration) * 60).toString(),
       );
       formData.append(
         "meta",
         JSON.stringify({
           description: editingLesson.content || "",
           tags: editingLesson.title.toLowerCase().split(" ").filter(Boolean),
-        })
+        }),
       );
       formData.append("active", "true");
 
@@ -1170,7 +1618,7 @@ export function TeacherLearningModules() {
         formData.append(
           "cover_image",
           editingLesson.coverImage,
-          editingLesson.coverImage.name
+          editingLesson.coverImage.name,
         );
       } else if (editingLesson.remove_cover) {
         formData.append("remove_cover", "true");
@@ -1179,7 +1627,7 @@ export function TeacherLearningModules() {
       for (const [key, value] of formData.entries()) {
         console.log(
           `[updateLesson] ${key}:`,
-          typeof value === "string" ? value : `[File: ${value.name}]`
+          typeof value === "string" ? value : `[File: ${value.name}]`,
         );
       }
 
@@ -1191,7 +1639,7 @@ export function TeacherLearningModules() {
             "X-Session-Token": sessionToken,
           },
           body: formData,
-        }
+        },
       );
 
       const responseText = await response.text();
@@ -1203,7 +1651,7 @@ export function TeacherLearningModules() {
         } catch (e) {
           console.error(
             "[updateLesson] Failed to parse error response:",
-            responseText.slice(0, 200)
+            responseText.slice(0, 200),
           );
           throw new Error("Invalid response format from server");
         }
@@ -1221,14 +1669,13 @@ export function TeacherLearningModules() {
       } catch (e) {
         console.error(
           "[updateLesson] Failed to parse success response:",
-          responseText.slice(0, 200)
+          responseText.slice(0, 200),
         );
         throw new Error("Invalid response format from server");
       }
-
       const updatedLesson: Lesson = {
         ...editingLesson,
-        id: data.lesson.id,
+        id: String(data.lesson.id),
         coverImageUrl: data.lesson.cover_image
           ? normalizeMedia(data.lesson.cover_image)
           : undefined,
@@ -1240,7 +1687,7 @@ export function TeacherLearningModules() {
       setCurrentModule((prev) => ({
         ...prev,
         lessons: prev.lessons.map((lesson) =>
-          lesson.id === lessonId ? updatedLesson : lesson
+          lesson.id === lessonId ? updatedLesson : lesson,
         ),
       }));
       setEditingLesson(updatedLesson);
@@ -1250,7 +1697,7 @@ export function TeacherLearningModules() {
       if (moduleData) {
         setCurrentModule(moduleData);
         setModules((prev) =>
-          prev.map((m) => (m.id === moduleData.id ? moduleData : m))
+          prev.map((m) => (m.id === moduleData.id ? moduleData : m)),
         );
         const syncedLessons = moduleData.lessons.map((lesson) => {
           if (lesson.id === lessonId) {
@@ -1261,13 +1708,13 @@ export function TeacherLearningModules() {
           }
           return lesson;
         });
-        setCurrentModule({...moduleData, lessons: syncedLessons});
+        setCurrentModule({ ...moduleData, lessons: syncedLessons });
       }
 
-      alert("Lesson updated successfully!");
+      openFeedback("Lesson updated", "Lesson was updated successfully.");
     } catch (err) {
       setError(
-        (err as Error).message || "An error occurred while updating the lesson"
+        (err as Error).message || "An error occurred while updating the lesson",
       );
       console.error("[updateLesson] Error:", err);
     } finally {
@@ -1319,7 +1766,7 @@ export function TeacherLearningModules() {
   }
 
   return (
-    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
+    <div className="space-y-4 xs:p-4 sm:p-4 max-w-full mx-auto">
       <div>
         <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">
           Learning Modules
@@ -1340,29 +1787,126 @@ export function TeacherLearningModules() {
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
           <TabsTrigger
             value="create"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3">
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
             Module Analytics
           </TabsTrigger>
+          <TabsTrigger
+            value="course-access"
+            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            Course Access
+          </TabsTrigger>
         </TabsList>
+        <TabsContent value="course-access" className="space-y-3 xs:space-y-4">
+          {coursesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Spinner size="md" />
+            </div>
+          ) : coursesError ? (
+            <div className="text-center py-8 text-red-500">{coursesError}</div>
+          ) : (
+            <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {teacherCourses.map((c) => {
+                const expired =
+                  c.general_activation &&
+                  c.general_activation_date &&
+                  new Date(c.general_activation_date).getTime() < Date.now();
+                const isPrivate =
+                  (c.course_type || "").toLowerCase() === "private";
+
+                return (
+                  <Card
+                    key={c.id}
+                    className="flex flex-col h-full min-h-[240px]">
+                    <CardHeader>
+                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                        {c.name}
+                      </CardTitle>
+                      <CardDescription className="text-xs sm:text-sm line-clamp-1">
+                        {c.subject} • {c.classroom}
+                        {c.course_type ? ` • ${c.course_type}` : ""}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col gap-3 flex-1">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        {!isPrivate && (
+                          <span>
+                            {" "}
+                            <Badge
+                              variant={
+                                c.general_activation ? "default" : "secondary"
+                              }
+                              className={
+                                c.general_activation
+                                  ? "bg-[#EF7B55]/70 px-2"
+                                  : "bg-gray-500 text-white"
+                              }>
+                              {c.general_activation
+                                ? "General Access ON"
+                                : "General Access OFF"}
+                            </Badge>{" "}
+                          </span>
+                        )}
+                        {isPrivate && (
+                          <Badge className="bg-gray-700 text-white">
+                            Private
+                          </Badge>
+                        )}
+
+                        {c.general_activation && (
+                          <Badge variant="outline">
+                            Expiry:{" "}
+                            {c.general_activation_date
+                              ? new Date(
+                                c.general_activation_date,
+                              ).toLocaleDateString()
+                              : "No expiry"}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {c.general_activation &&
+                        c.general_activation_date &&
+                        new Date(c.general_activation_date).getTime() <
+                        Date.now() && (
+                          <Badge className="bg-red-600/80 text-white w-fit">
+                            Expired
+                          </Badge>
+                        )}
+
+                      <Button
+                        onClick={() => openGA(c)}
+                        disabled={isPrivate}
+                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${isPrivate
+                          ? "opacity-50 cursor-not-allowed"
+                          : "bg-[#f79771]/70 hover:bg-[#EF7B55]/90"
+                          }`}>
+                        {isPrivate
+                          ? "Not available for private courses"
+                          : "Update Access"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="create" className="space-y-3 xs:space-y-4">
           {isLoadingCourses || isLoadingCategories ? (
             <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
               <Spinner size="md" className="text-[#EF7B55]" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 xs:py-12 text-red-500">
-              <p className="text-[0.85rem] xs:text-xs sm:text-sm">{error}</p>
             </div>
           ) : (
             <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
@@ -1582,10 +2126,16 @@ export function TeacherLearningModules() {
                     </div>
                   </div>
 
+                  {error && (
+                    <p className="text-red-500 text-[0.85rem] xs:text-xs sm:text-sm">
+                      {error}
+                    </p>
+                  )}
+
                   <div className="pt-2 xs:pt-3 space-y-2">
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
-                      className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                      className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771]/80 shadow-md"
                       disabled={isSaving}>
                       {isSaving ? (
                         <Spinner
@@ -1598,18 +2148,18 @@ export function TeacherLearningModules() {
                       {isSaving
                         ? "Saving..."
                         : currentModule.id
-                        ? "Update Module"
-                        : "Save Module"}
+                          ? "Update Module"
+                          : "Save Module"}
                     </Button>
                     <Button
                       onClick={() =>
                         publishModule(
                           currentModule.id,
-                          !currentModule.isPublished
+                          !currentModule.isPublished,
                         )
                       }
                       variant="outline"
-                      className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                      className="w-full bg-transparent text-xs xs:text-sm sm:text-base"
                       disabled={!currentModule.id}>
                       <Upload className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                       {currentModule.isPublished
@@ -1634,7 +2184,7 @@ export function TeacherLearningModules() {
                     <Button
                       onClick={addLesson}
                       size="sm"
-                      className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300">
+                      className="text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771] shadow-md">
                       <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
                     </Button>
                   </div>
@@ -1656,53 +2206,59 @@ export function TeacherLearningModules() {
                       return (
                         <div
                           key={lesson.id}
-                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
-                            editingLesson?.id === lesson.id
-                              ? "border-primary bg-primary/5"
-                              : "hover:bg-muted/50"
-                          }`}
+                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${editingLesson?.id === lesson.id
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-muted/50"
+                            }`}
                           onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
+                            <div className="flex-1 max-w-[85%]">
+                              {/* Header row */}
                               <div className="flex items-center gap-1 xs:gap-2 mb-1">
                                 <Icon className="h-3 w-3 xs:h-4 xs:w-4" />
-                                <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
+
+                                <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium whitespace-nowrap">
                                   Lesson {index + 1}
                                 </span>
+
                                 <Badge
                                   variant="outline"
-                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                                  className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs whitespace-nowrap">
                                   {lesson.type}
                                 </Badge>
-                                {/* NEW: Cover image preview in list */}
+
                                 {normalizeCoverImageUrl(
-                                  lesson.coverImageUrl
+                                  lesson.coverImageUrl,
                                 ) && (
-                                  <img
-                                    src={normalizeCoverImageUrl(
-                                      lesson.coverImageUrl
-                                    )}
-                                    alt="Cover"
-                                    onError={(e) => {
-                                      e.currentTarget.src = "/placeholder.jpg";
-                                    }}
-                                    className="w-6 h-4 object-cover rounded ml-1"
-                                  />
-                                )}
+                                    <img
+                                      src={normalizeCoverImageUrl(
+                                        lesson.coverImageUrl,
+                                      )}
+                                      alt="Cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/placeholder.jpg";
+                                      }}
+                                      className="w-6 h-4 object-cover rounded ml-1 shrink-0"
+                                    />
+                                  )}
                               </div>
-                              <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
+
+                              {/* Title with 2-line ellipsis */}
+                              <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2 overflow-hidden text-ellipsis">
                                 {lesson.title || "Untitled lesson"}
                               </p>
+
                               {lesson.duration && (
                                 <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mt-0.5 xs:mt-1">
                                   {lesson.duration}
                                 </p>
                               )}
                             </div>
+
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="p-1 xs:p-2"
+                              className="p-1 xs:p-2 shrink-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteLesson(lesson.id);
@@ -1737,12 +2293,12 @@ export function TeacherLearningModules() {
                           Cover Image
                         </Label>
                         {editingLesson.coverImageUrl &&
-                        !editingLesson.coverImage &&
-                        !editingLesson.remove_cover ? (
+                          !editingLesson.coverImage &&
+                          !editingLesson.remove_cover ? (
                           <div className="flex items-center gap-2">
                             <img
                               src={normalizeCoverImageUrl(
-                                editingLesson.coverImageUrl
+                                editingLesson.coverImageUrl,
                               )}
                               alt="Cover"
                               onError={(e) => {
@@ -1792,20 +2348,21 @@ export function TeacherLearningModules() {
                               accept="image/jpeg,image/png,image/gif"
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) {
-                                  console.log(
-                                    "[LessonEditor] Cover image selected:",
-                                    {
-                                      name: file.name,
-                                      type: file.type,
-                                      size: file.size,
-                                    }
+                                if (!file) return;
+
+                                if (file.size > MAX_IMAGE_BYTES) {
+                                  openFeedback(
+                                    "Cover image too large",
+                                    `Please upload an image up to 1MB. Selected: ${formatBytes(file.size)}`,
                                   );
-                                  updateLessonFields(editingLesson.id, {
-                                    coverImage: file,
-                                    remove_cover: false,
-                                  });
+                                  e.currentTarget.value = ""; // reset so user can re-select
+                                  return;
                                 }
+
+                                updateLessonFields(editingLesson.id, {
+                                  coverImage: file,
+                                  remove_cover: false,
+                                });
                               }}
                             />
                             <Button
@@ -1865,10 +2422,9 @@ export function TeacherLearningModules() {
                         <Label
                           htmlFor="lesson-title"
                           className="text-xs xs:text-sm sm:text-base font-medium">
-                          {`Lesson ${
-                            editingLesson.type.charAt(0).toUpperCase() +
+                          {`Lesson ${editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
-                          }`}
+                            }`}
                         </Label>
                         <Input
                           id="lesson-title"
@@ -1910,7 +2466,7 @@ export function TeacherLearningModules() {
                             <div className="flex items-center gap-2">
                               <Input
                                 value={getFileName(
-                                  editingLesson.file || editingLesson.videoUrl
+                                  editingLesson.file || editingLesson.videoUrl,
                                 )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
@@ -1936,19 +2492,18 @@ export function TeacherLearningModules() {
                                 accept="video/mp4,video/mpeg,video/ogg,video/webm,video/x-matroska"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) {
-                                    console.log(
-                                      "[LessonEditor] File selected:",
-                                      {
-                                        name: file.name,
-                                        type: file.type,
-                                        size: file.size,
-                                      }
+                                  if (!file) return;
+
+                                  if (file.size > MAX_VIDEO_BYTES) {
+                                    openFeedback(
+                                      "Video too large",
+                                      `Please upload a video up to 50MB. Selected: ${formatBytes(file.size)}`,
                                     );
-                                    updateLessonFields(editingLesson.id, {
-                                      file, // Store the file object
-                                    });
+                                    e.currentTarget.value = "";
+                                    return;
                                   }
+
+                                  updateLessonFields(editingLesson.id, { file });
                                 }}
                               />
                               <Button
@@ -1975,7 +2530,7 @@ export function TeacherLearningModules() {
                             <div className="flex items-center gap-2">
                               <Input
                                 value={getFileName(
-                                  editingLesson.file || editingLesson.videoUrl
+                                  editingLesson.file || editingLesson.videoUrl,
                                 )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
@@ -2001,19 +2556,18 @@ export function TeacherLearningModules() {
                                 accept="audio/mpeg,audio/wav,audio/ogg,audio/mp3"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) {
-                                    console.log(
-                                      "[LessonEditor] File selected:",
-                                      {
-                                        name: file.name,
-                                        type: file.type,
-                                        size: file.size,
-                                      }
+                                  if (!file) return;
+
+                                  if (file.size > MAX_AUDIO_BYTES) {
+                                    openFeedback(
+                                      "Audio file too large",
+                                      `Maximum allowed size is 10MB. Selected: ${formatBytes(file.size)}`,
                                     );
-                                    updateLessonFields(editingLesson.id, {
-                                      file, // Store the file object
-                                    });
+                                    e.currentTarget.value = "";
+                                    return;
                                   }
+
+                                  updateLessonFields(editingLesson.id, { file });
                                 }}
                               />
                               <Button
@@ -2040,7 +2594,7 @@ export function TeacherLearningModules() {
                             <div className="flex items-center gap-2">
                               <Input
                                 value={getFileName(
-                                  editingLesson.file || editingLesson.videoUrl
+                                  editingLesson.file || editingLesson.videoUrl,
                                 )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
@@ -2066,19 +2620,18 @@ export function TeacherLearningModules() {
                                 accept="application/pdf,application/epub+zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) {
-                                    console.log(
-                                      "[LessonEditor] File selected:",
-                                      {
-                                        name: file.name,
-                                        type: file.type,
-                                        size: file.size,
-                                      }
+                                  if (!file) return;
+
+                                  if (file.size > MAX_PDF_BYTES) {
+                                    openFeedback(
+                                      "PDF too large",
+                                      `Maximum allowed size is 5MB. Selected: ${formatBytes(file.size)}`,
                                     );
-                                    updateLessonFields(editingLesson.id, {
-                                      file, // Store the file object
-                                    });
+                                    e.currentTarget.value = "";
+                                    return;
                                   }
+
+                                  updateLessonFields(editingLesson.id, { file });
                                 }}
                               />
                               <Button
@@ -2117,11 +2670,11 @@ export function TeacherLearningModules() {
                       <Button
                         onClick={() =>
                           typeof editingLesson.id === "string" &&
-                          editingLesson.id.startsWith("temp")
+                            editingLesson.id.startsWith("temp")
                             ? saveLesson()
                             : updateLesson(editingLesson.id)
                         }
-                        className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                        className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771]/80"
                         disabled={isSavingLesson}>
                         {isSavingLesson ? (
                           <Spinner
@@ -2135,8 +2688,8 @@ export function TeacherLearningModules() {
                           ? "Saving..."
                           : typeof editingLesson.id === "string" &&
                             editingLesson.id.startsWith("temp")
-                          ? "Save Lesson"
-                          : "Update Lesson"}
+                            ? "Save Lesson"
+                            : "Update Lesson"}
                       </Button>
                     </div>
                   ) : (
@@ -2167,49 +2720,99 @@ export function TeacherLearningModules() {
                 View and manage all your learning modules
               </p>
             </div>
-            <div className="flex gap-2 xs:gap-3 flex-col sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search modules..."
-                  className="pl-8 text-xs xs:text-sm sm:text-base"
-                />
+            <div className="flex flex-col gap-3 w-full">
+              {/* Search */}
+              <div className="flex gap-2 w-full">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search modules..."
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && setSearch(searchQuery)
+                    }
+                    className="pl-8 text-sm"
+                  />
+                </div>
+
+                <Button
+                  onClick={() => setSearch(searchQuery)}
+                  className="px-3 bg-[#f79771] hover:bg-gray-300 shadow-md">
+                  <Search className="h-4 w-4" />
+                </Button>
               </div>
-              <Select
-                value={difficultyFilter}
-                onValueChange={setDifficultyFilter}>
-                <SelectTrigger className="w-[140px] text-xs xs:text-sm sm:text-base">
-                  <SelectValue placeholder="Filter by difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    value="Beginner"
-                    className="text-xs xs:text-sm sm:text-base">
-                    Beginner
-                  </SelectItem>
-                  <SelectItem
-                    value="Intermediate"
-                    className="text-xs xs:text-sm sm:text-base">
-                    Intermediate
-                  </SelectItem>
-                  <SelectItem
-                    value="Advanced"
-                    className="text-xs xs:text-sm sm:text-base">
-                    Advanced
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                onClick={() => {
-                  setCurrentModule(initialModule);
-                  setActiveTab("create");
-                }}
-                className="text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md">
-                <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
-                Create New Module
-              </Button>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-3 w-full">
+                <Select
+                  value={difficultyFilter}
+                  onValueChange={setDifficultyFilter}>
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="Difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Beginner">Beginner</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={courseFilter} onValueChange={setCourseFilter}>
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="All Courses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Courses</SelectItem>
+                    {courses
+                      .filter((c) => c.id)
+                      .map((course) => (
+                        <SelectItem key={course.id} value={String(course.id)}>
+                          {course.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories
+                      .filter((cat) => cat.id)
+                      .map((category) => (
+                        <SelectItem
+                          key={category.id}
+                          value={String(category.id)}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Create Button */}
+                <Button
+                  onClick={() => {
+                    setCurrentModule(initialModule);
+                    setActiveTab("create");
+                  }}
+                  className="
+        w-full
+        lg:w-auto
+        bg-[#f79771]
+        hover:bg-gray-300
+        shadow-md
+        text-sm
+        flex items-center justify-center
+      ">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create New
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -2236,21 +2839,26 @@ export function TeacherLearningModules() {
               <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {getPaginatedModules(
                   modules,
-                  currentPageManage
+                  currentPageManage,
                 ).paginatedModules.map((module) => {
                   const Icon = getTypeIcon(module.type);
                   return (
                     <Card
                       key={module.id}
-                      className="hover:shadow-lg transition-shadow">
+                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
-                            <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
-                              {module.title}
+                            <CardTitle
+                              className="text-sm xs:text-base sm:text-lg"
+                              title={module.title}>
+                              {shortenText(module.title, 45)}
                             </CardTitle>
-                            <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2">
-                              {module.description}
+
+                            <CardDescription
+                              className="text-xs sm:text-sm"
+                              title={module.description}>
+                              {shortenText(module.description, 90)}
                             </CardDescription>
                           </div>
                           <DropdownMenu>
@@ -2264,7 +2872,7 @@ export function TeacherLearningModules() {
                               <DropdownMenuItem
                                 onClick={async () => {
                                   const moduleData = await getModuleDetails(
-                                    module.id
+                                    module.id,
                                   );
                                   if (moduleData) {
                                     setCurrentModule(moduleData);
@@ -2277,7 +2885,7 @@ export function TeacherLearningModules() {
                               <DropdownMenuItem
                                 onClick={async () => {
                                   const moduleData = await getModuleDetails(
-                                    module.id
+                                    module.id,
                                   );
                                   if (moduleData) {
                                     setPreviewModule(moduleData);
@@ -2288,7 +2896,9 @@ export function TeacherLearningModules() {
                                 <span>Preview</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => deleteModule(module.id)}
+                                onClick={() =>
+                                  handleDeleteModuleClick(module.id)
+                                }
                                 className="text-red-600">
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>Delete</span>
@@ -2297,81 +2907,111 @@ export function TeacherLearningModules() {
                           </DropdownMenu>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-3 xs:space-y-4">
-                        <div className="flex items-center flex-wrap gap-2">
-                          <Badge
-                            variant={
-                              module.isPublished ? "default" : "secondary"
-                            }
-                            className={
-                              module.isPublished
-                                ? "bg-[#EF7B55] hover:bg-[#EF7B553a] hover:bg-gray-300"
-                                : "bg-gray-500 text-white hover:bg-gray-600"
-                            }>
-                            {module.isPublished ? "Published" : "Draft"}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm">
-                            {module.difficulty}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm">
-                            {module.category || "Uncategorized"}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[0.85rem] xs:text-xs sm:text-sm">
-                            {module.course.name}
-                          </Badge>
+
+                      <CardContent className="flex flex-col flex-1 justify-between space-y-3 xs:space-y-4">
+                        <div>
+                          <div className="flex items-center flex-wrap gap-2">
+                            <Badge
+                              variant={
+                                module.isPublished ? "default" : "secondary"
+                              }
+                              className={
+                                module.isPublished
+                                  ? "bg-[#EF7B55]/70 hover:bg-[#EF7B55]/80"
+                                  : "bg-gray-500 text-white hover:bg-gray-600"
+                              }>
+                              {module.isPublished ? "Published" : "Draft"}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              {module.difficulty}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              {module.category || "Uncategorized"}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              {module.course.name}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              {module.duration} min
+                            </div>
+                            <div>{module.createdDate}</div>
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            {minutesToDuration(module.duration)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            {module.enrollments}
-                          </div>
-                          {/* <div className="flex items-center gap-1">
-                            <Star className="h-2.5 w-2.5 xs:h-3 xs:w-3 fill-yellow-400 text-yellow-400" />
-                            {module.rating}
-                          </div> */}
-                          <div>{module.createdDate}</div>
-                        </div>
-
-                        <div className="flex gap-2 flex-col lg:flex-row">
+                        {/* 👇 Buttons pushed to bottom */}
+                        <div className="flex gap-2 flex-col lg:flex-row mt-auto">
                           <Button
-                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771] hover:bg-gray-300 shadow-md"
+                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771]/90"
+                            disabled={loadingModuleId === module.id}
                             onClick={async () => {
-                              const moduleData = await getModuleDetails(
-                                module.id
-                              );
-                              if (moduleData) {
-                                setCurrentModule(moduleData);
-                                setActiveTab("create");
+                              setLoadingModuleId(module.id); // 🔹 start loading
+                              try {
+                                const moduleData = await getModuleDetails(
+                                  module.id,
+                                );
+                                if (moduleData) {
+                                  setCurrentModule(moduleData);
+                                  setActiveTab("create");
+                                }
+                              } finally {
+                                setLoadingModuleId(null); // 🔹 stop loading
                               }
                             }}>
-                            <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Edit
+                            {loadingModuleId === module.id ? (
+                              <>
+                                <Spinner
+                                  size="sm"
+                                  className="mr-1 xs:mr-2 text-white"
+                                />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Edit
+                              </>
+                            )}
                           </Button>
+
                           <Button
                             variant="outline"
-                            className="flex-1 text-xs xs:text-sm sm:text-base shadow-md"
+                            className="flex-1 text-xs xs:text-sm sm:text-base"
+                            disabled={loadingModuleId === module.id}
                             onClick={async () => {
-                              const moduleData = await getModuleDetails(
-                                module.id
-                              );
-                              if (moduleData) {
-                                setPreviewModule(moduleData);
-                                setIsPreviewOpen(true);
+                              setLoadingModuleId(module.id);
+                              try {
+                                const moduleData = await getModuleDetails(
+                                  module.id,
+                                );
+                                if (moduleData) {
+                                  setPreviewModule(moduleData);
+                                  setIsPreviewOpen(true);
+                                }
+                              } finally {
+                                setLoadingModuleId(null);
                               }
                             }}>
-                            <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            Preview
+                            {loadingModuleId === module.id ? (
+                              <>
+                                <Spinner size="sm" className="mr-1 xs:mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                Preview
+                              </>
+                            )}
                           </Button>
                         </div>
                       </CardContent>
@@ -2381,7 +3021,7 @@ export function TeacherLearningModules() {
               </div>
 
               {getPaginatedModules(modules, currentPageManage).totalCount ===
-              0 ? (
+                0 ? (
                 <div className="text-center py-8 xs:py-12">
                   <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
@@ -2409,7 +3049,7 @@ export function TeacherLearningModules() {
                         length: getPaginatedModules(modules, currentPageManage)
                           .totalPages,
                       },
-                      (_, index) => index + 1
+                      (_, index) => index + 1,
                     ).map((page) => (
                       <PaginationItem key={page}>
                         <PaginationLink
@@ -2431,14 +3071,14 @@ export function TeacherLearningModules() {
                           Math.min(
                             prev + 1,
                             getPaginatedModules(modules, currentPageManage)
-                              .totalPages
-                          )
+                              .totalPages,
+                          ),
                         )
                       }
                       className={
                         currentPageManage ===
-                        getPaginatedModules(modules, currentPageManage)
-                          .totalPages
+                          getPaginatedModules(modules, currentPageManage)
+                            .totalPages
                           ? "pointer-events-none opacity-50"
                           : ""
                       }
@@ -2526,13 +3166,9 @@ export function TeacherLearningModules() {
                               {module.title}
                             </h4>
                             <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                                {module.enrollments} enrolled
-                              </div>
-                              <div>
+                              {/*<div>
                                 Completion: {module.completion.toFixed(1)}%
-                              </div>
+                              </div>*/}
                             </div>
                           </div>
                         </div>
@@ -2554,7 +3190,7 @@ export function TeacherLearningModules() {
                           }
                         />
                         {Array.from(
-                          {length: analytics.pagination.total_pages},
+                          { length: analytics.pagination.total_pages },
                           (_, i) => (
                             <PaginationItem key={i + 1}>
                               <PaginationLink
@@ -2563,17 +3199,17 @@ export function TeacherLearningModules() {
                                 {i + 1}
                               </PaginationLink>
                             </PaginationItem>
-                          )
+                          ),
                         )}
                         <PaginationNext
                           onClick={() =>
                             setCurrentPageAnalytics((p) =>
-                              Math.min(p + 1, analytics.pagination.total_pages)
+                              Math.min(p + 1, analytics.pagination.total_pages),
                             )
                           }
                           className={
                             currentPageAnalytics ===
-                            analytics.pagination.total_pages
+                              analytics.pagination.total_pages
                               ? "pointer-events-none opacity-50"
                               : ""
                           }
@@ -2595,6 +3231,102 @@ export function TeacherLearningModules() {
           setPreviewModule(null);
         }}
       />
+
+      {/* Feedback Dialog */}
+      <AlertDialog
+        open={feedbackDialog.open}
+        onOpenChange={(open) => setFeedbackDialog((prev) => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{feedbackDialog.title}</AlertDialogTitle>
+            {feedbackDialog.description && (
+              <AlertDialogDescription>
+                {feedbackDialog.description}
+              </AlertDialogDescription>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() =>
+                setFeedbackDialog((prev) => ({ ...prev, open: false }))
+              }>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm Delete Module Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete module?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              module and all its lessons.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setModuleToDelete(null);
+              }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleConfirmDeleteModule}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={gaDialogOpen} onOpenChange={setGaDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Course general access</AlertDialogTitle>
+            <AlertDialogDescription>
+              {gaCourse ? (
+                <>
+                  Configure general access for <b>{gaCourse.name}</b>.
+                  <br />
+                  Students can log in without subscription when enabled, but
+                  lesson access stops after expiry.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Enable general activation</Label>
+              <input
+                type="checkbox"
+                checked={gaEnabled}
+                onChange={(e) => setGaEnabled(e.target.checked)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Expiry date (optional)</Label>
+              <Input
+                type="datetime-local"
+                value={gaDateLocal}
+                onChange={(e) => setGaDateLocal(e.target.value)}
+                disabled={!gaEnabled}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={gaSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={saveGA} disabled={gaSaving}>
+              {gaSaving ? "Saving..." : "Save"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
