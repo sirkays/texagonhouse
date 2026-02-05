@@ -56,6 +56,7 @@ export async function GET(req: Request) {
       course_type: course.course_type ?? "",
       general_activation: Boolean(course.general_activation),
       general_activation_date: course.general_activation_date ?? null,
+      freeze_code_submission:course.freeze_code_submission ?? true,
     }));
 
     const res = NextResponse.json(normalizedData, { status: 200 });

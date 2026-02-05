@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {useState, useRef, useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -17,10 +17,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -28,8 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Video,
@@ -55,16 +55,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {getSession} from "next-auth/react";
-import {PreviewModal} from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
-import {Spinner} from "../ui/spinner";
+import { getSession } from "next-auth/react";
+import { PreviewModal } from "@/components/ui/teacher-preview-modal"; // Adjust path based on your project structure
+import { Spinner } from "../ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {MoreVertical} from "lucide-react";
+import { MoreVertical } from "lucide-react";
 // Interfaces
 interface Course {
   id: string;
@@ -88,7 +88,7 @@ interface Lesson {
   order?: number;
   active?: boolean;
   remove_cover: boolean; // NEW: Flag to indicate cover removal
-  meta?: {description: string; tags: string[]};
+  meta?: { description: string; tags: string[] };
 }
 interface Module {
   id: string;
@@ -106,19 +106,19 @@ interface Module {
   lessonCount: number;
   order: number;
   active: boolean;
-  course: {id?: string; name: string};
+  course: { id?: string; name: string };
 }
 interface APIModule {
   id: string | number;
   title: string;
   description: string;
   difficulty: string;
-  category: {id: string | number; name: string} | null;
+  category: { id: string | number; name: string } | null;
   estimatedDuration: number;
   order: number;
   active: boolean;
   isPublished: boolean;
-  course: {id: string | number; name: string} | null;
+  course: { id: string | number; name: string } | null;
   createdAt: string | null;
   updatedAt: string | null;
   lessons: any[];
@@ -133,6 +133,7 @@ interface APIError {
   error: string;
   redirect?: string;
 }
+
 type TeacherCourse = {
   id: string;
   name: string;
@@ -143,7 +144,9 @@ type TeacherCourse = {
   course_type?: string;
   general_activation?: boolean;
   general_activation_date?: string | null;
+  freeze_code_submission?: boolean;
 };
+
 
 type UploadProgress = {
   percent: number; // 0..100
@@ -164,7 +167,7 @@ const BASE_URL = "/api/teacher"; // Updated to match lesson routes; adjust modul
 const headers = (sessionToken: string | null) => ({
   Authorization: ``,
   "Content-Type": "application/json",
-  ...(sessionToken && {"X-Session-Token": sessionToken}),
+  ...(sessionToken && { "X-Session-Token": sessionToken }),
 });
 // Utilities
 const durationToMinutes = (duration: string): number => {
@@ -245,8 +248,9 @@ export function TeacherLearningModules() {
     lessonCount: 0,
     order: 1,
     active: true,
-    course: {id: undefined, name: ""},
+    course: { id: undefined, name: "" },
   };
+  const [togglingCourseId, setTogglingCourseId] = useState<string | null>(null);
   const [currentModule, setCurrentModule] = useState<Module>(initialModule);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [currentPageManage, setCurrentPageManage] = useState(1);
@@ -267,7 +271,7 @@ export function TeacherLearningModules() {
   const coverImageInputRef = useRef<HTMLInputElement>(null); // Add this
   const [loadingModuleId, setLoadingModuleId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<{
-    aggregates: {total_enrollments: number; completion_rate: number};
+    aggregates: { total_enrollments: number; completion_rate: number };
     pagination: {
       total_count: number;
       total_pages: number;
@@ -333,7 +337,7 @@ export function TeacherLearningModules() {
     const sig = await fetch(
       `${DJANGO_BASE}/learning/api/cloudinary-signature/`,
       {
-        headers: {"X-Session-Token": sessionToken},
+        headers: { "X-Session-Token": sessionToken },
       },
     ).then(async (r) => {
       const j = await r.json().catch(() => ({}));
@@ -363,13 +367,13 @@ export function TeacherLearningModules() {
       xhr.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
         const percent = Math.min(99, Math.floor((e.loaded / e.total) * 100));
-        onProgress?.({percent, loaded: e.loaded, total: e.total});
+        onProgress?.({ percent, loaded: e.loaded, total: e.total });
       };
 
       xhr.onload = () => {
         const json = JSON.parse(xhr.responseText || "{}");
         if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.({percent: 100, loaded: file.size, total: file.size});
+          onProgress?.({ percent: 100, loaded: file.size, total: file.size });
           resolve(json);
         } else {
           reject(new Error(json?.error?.message || "Cloudinary upload failed"));
@@ -423,12 +427,12 @@ export function TeacherLearningModules() {
           99,
           Math.floor((evt.loaded / evt.total) * 100),
         );
-        onProgress?.({percent, loaded: evt.loaded, total: evt.total});
+        onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
       };
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.({percent: 100, loaded: file.size, total: file.size});
+          onProgress?.({ percent: 100, loaded: file.size, total: file.size });
           resolve();
         } else {
           reject(new Error(`S3 upload failed (${xhr.status})`));
@@ -472,7 +476,7 @@ export function TeacherLearningModules() {
           99,
           Math.floor((evt.loaded / evt.total) * 100),
         );
-        onProgress?.({percent, loaded: evt.loaded, total: evt.total});
+        onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
       };
 
       xhr.onload = () => {
@@ -480,10 +484,10 @@ export function TeacherLearningModules() {
         let json: any = null;
         try {
           json = text ? JSON.parse(text) : null;
-        } catch {}
+        } catch { }
 
         if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.({percent: 100, loaded: 1, total: 1});
+          onProgress?.({ percent: 100, loaded: 1, total: 1 });
           return resolve(json);
         }
         return reject(
@@ -524,6 +528,51 @@ export function TeacherLearningModules() {
     setGaDateLocal(isoToLocalInput(course.general_activation_date));
     setGaDialogOpen(true);
   };
+  const toggleCourseCodeSubmit = async (courseId: string) => {
+    if (!sessionToken) {
+      openFeedback("Error", "No session token available. Please log in again.");
+      return;
+    }
+
+    setTogglingCourseId(courseId);
+
+    try {
+      // ✅ Call Django directly (bypass Next route.ts params issue)
+      const res = await fetch(
+        `/api/teacher/courses/${courseId}/toggle-code-submit`,
+        {
+          method: "GET",
+          headers: { "X-Session-Token": sessionToken },
+        },
+      );
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || "Toggle failed");
+      }
+
+      // Prefer backend truth if returned; else optimistic flip.
+      setTeacherCourses((prev) =>
+        prev.map((c) => {
+          if (String(c.id) !== String(courseId)) return c;
+
+          const nextFreeze =
+            typeof data?.freeze_code_submission === "boolean"
+              ? data.freeze_code_submission
+              : !Boolean(c.freeze_code_submission);
+
+          return { ...c, freeze_code_submission: nextFreeze };
+        }),
+      );
+
+      openFeedback("Updated", "Code submission setting updated.");
+    } catch (e: any) {
+      openFeedback("Error", e?.message || "Toggle failed");
+    } finally {
+      setTogglingCourseId(null);
+    }
+  };
+
   const saveGA = async () => {
     if (!gaCourse?.id) return;
     setGaSaving(true);
@@ -552,10 +601,10 @@ export function TeacherLearningModules() {
         prev.map((c) =>
           c.id === gaCourse.id
             ? {
-                ...c,
-                general_activation: data.general_activation,
-                general_activation_date: data.general_activation_date,
-              }
+              ...c,
+              general_activation: data.general_activation,
+              general_activation_date: data.general_activation_date,
+            }
             : c,
         ),
       );
@@ -616,7 +665,7 @@ export function TeacherLearningModules() {
         }
         let data: Course[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({...c, id: String(c.id)}));
+        data = data.map((c) => ({ ...c, id: String(c.id) }));
         setCourses(data);
       } catch (err) {
         setError(
@@ -644,12 +693,12 @@ export function TeacherLearningModules() {
         }
         let data: Category[] = await response.json();
         // Normalize IDs to strings
-        data = data.map((c) => ({...c, id: String(c.id)}));
+        data = data.map((c) => ({ ...c, id: String(c.id) }));
         setCategories(data);
       } catch (err) {
         setError(
           (err as Error).message ||
-            "An error occurred while fetching categories",
+          "An error occurred while fetching categories",
         );
       } finally {
         setIsLoadingCategories(false);
@@ -681,8 +730,12 @@ export function TeacherLearningModules() {
             id: String(c.id),
             general_activation: Boolean(c.general_activation),
             general_activation_date: c.general_activation_date ?? null,
+
+            // ✅ keep it if backend returns it (fallback false)
+            freeze_code_submission: Boolean(c.freeze_code_submission),
           })),
         );
+
       } catch (e: any) {
         setCoursesError(e?.message || "Failed to load courses");
       } finally {
@@ -755,7 +808,7 @@ export function TeacherLearningModules() {
         } catch (err) {
           setError(
             (err as Error).message ||
-              "An error occurred while fetching modules",
+            "An error occurred while fetching modules",
           );
         } finally {
           setIsLoadingModules(false);
@@ -820,7 +873,7 @@ export function TeacherLearningModules() {
           currentModule.course.id,
           sessionToken,
         );
-        setCurrentModule((prev) => ({...prev, order: nextOrder}));
+        setCurrentModule((prev) => ({ ...prev, order: nextOrder }));
       }
     };
     autoSetOrder();
@@ -882,7 +935,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An error occurred while fetching module details",
+        "An error occurred while fetching module details",
       );
       return null;
     }
@@ -922,11 +975,11 @@ export function TeacherLearningModules() {
     setCurrentModule((prev) => ({
       ...prev,
       lessons: prev.lessons.map((lesson) =>
-        lesson.id === lessonId ? {...lesson, ...updates} : lesson,
+        lesson.id === lessonId ? { ...lesson, ...updates } : lesson,
       ),
     }));
     if (editingLesson?.id === lessonId) {
-      setEditingLesson((prev) => (prev ? {...prev, ...updates} : null));
+      setEditingLesson((prev) => (prev ? { ...prev, ...updates } : null));
     }
   };
   const deleteLesson = async (lessonId: string) => {
@@ -963,10 +1016,10 @@ export function TeacherLearningModules() {
         prev.map((m) =>
           m.id === currentModule.id
             ? {
-                ...m,
-                lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
-                lessonCount: m.lessonCount - 1,
-              }
+              ...m,
+              lessons: m.lessons.filter((lesson) => lesson.id !== lessonId),
+              lessonCount: m.lessonCount - 1,
+            }
             : m,
         ),
       );
@@ -989,7 +1042,7 @@ export function TeacherLearningModules() {
       const response = await fetch(`${BASE_URL}/modules/${moduleId}/publish/`, {
         method: "POST",
         headers: headers(sessionToken),
-        body: JSON.stringify({active}),
+        body: JSON.stringify({ active }),
       });
       if (!response.ok) {
         const errorData: APIError = await response.json();
@@ -1002,10 +1055,10 @@ export function TeacherLearningModules() {
         );
       }
       setModules((prev) =>
-        prev.map((m) => (m.id === moduleId ? {...m, isPublished: active} : m)),
+        prev.map((m) => (m.id === moduleId ? { ...m, isPublished: active } : m)),
       );
       if (currentModule.id === moduleId) {
-        setCurrentModule((prev) => ({...prev, isPublished: active}));
+        setCurrentModule((prev) => ({ ...prev, isPublished: active }));
       }
       openFeedback(
         `Module ${active ? "published" : "unpublished"}`,
@@ -1014,9 +1067,8 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          `An error occurred while ${
-            active ? "publishing" : "unpublishing"
-          } the module`,
+        `An error occurred while ${active ? "publishing" : "unpublishing"
+        } the module`,
       );
     }
   };
@@ -1056,7 +1108,7 @@ export function TeacherLearningModules() {
   ): Promise<number> => {
     if (!courseId || !sessionToken) return 1;
     try {
-      const query = new URLSearchParams({course_id: courseId});
+      const query = new URLSearchParams({ course_id: courseId });
       const response = await fetch(`${BASE_URL}/modules/?${query.toString()}`, {
         method: "GET",
         headers: headers(sessionToken),
@@ -1224,7 +1276,7 @@ export function TeacherLearningModules() {
         }
         throw new Error(
           errorData.error ||
-            "Failed to create module. Please check the details and try again.",
+          "Failed to create module. Please check the details and try again.",
         );
       }
       const data: APIModule = await response.json();
@@ -1284,7 +1336,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An unexpected error occurred while saving the module. Please try again.",
+        "An unexpected error occurred while saving the module. Please try again.",
       );
     } finally {
       setIsSaving(false);
@@ -1365,10 +1417,10 @@ export function TeacherLearningModules() {
         }
         throw new Error(
           errorData.error ||
-            "Failed to update module. Please check the details and try again.",
+          "Failed to update module. Please check the details and try again.",
         );
       }
-      const data: {module: APIModule} = await response.json();
+      const data: { module: APIModule } = await response.json();
       const updatedModule: Module = {
         id: String(data.module.id),
         title: data.module.title,
@@ -1408,7 +1460,7 @@ export function TeacherLearningModules() {
     } catch (err) {
       setError(
         (err as Error).message ||
-          "An unexpected error occurred while updating the module. Please try again.",
+        "An unexpected error occurred while updating the module. Please try again.",
       );
     } finally {
       setIsSaving(false);
@@ -1485,7 +1537,7 @@ export function TeacherLearningModules() {
       // ✅ reset progress UI
       setUploading(true);
       setUploadPhase("uploading");
-      setUploadInfo({percent: 0, loaded: 0, total: 0});
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
 
       // ✅ let React paint before starting the request
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -1595,7 +1647,7 @@ export function TeacherLearningModules() {
       setIsSavingLesson(false);
       setUploadPhase("idle");
       setUploading(false);
-      setUploadInfo({percent: 0, loaded: 0, total: 0});
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
     }
   };
   // ✅ REWRITE: updateLesson (UPDATE)
@@ -1637,7 +1689,7 @@ export function TeacherLearningModules() {
 
       setUploading(true);
       setUploadPhase("uploading");
-      setUploadInfo({percent: 0, loaded: 0, total: 0});
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
 
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
@@ -1743,7 +1795,7 @@ export function TeacherLearningModules() {
       setIsSavingLesson(false);
       setUploadPhase("idle");
       setUploading(false);
-      setUploadInfo({percent: 0, loaded: 0, total: 0});
+      setUploadInfo({ percent: 0, loaded: 0, total: 0 });
     }
   };
 
@@ -1891,16 +1943,25 @@ export function TeacherLearningModules() {
                             Expiry:{" "}
                             {c.general_activation_date
                               ? new Date(
-                                  c.general_activation_date,
-                                ).toLocaleDateString()
+                                c.general_activation_date,
+                              ).toLocaleDateString()
                               : "No expiry"}
                           </Badge>
                         )}
+
+                      </div>
+                      <div>
+                        <Badge
+                          variant="outline"
+                          className={c.freeze_code_submission ? "border-red-400 text-red-600" : ""}
+                        >
+                          Code Submit: {c.freeze_code_submission ? "Frozen" : "Allowed"}
+                        </Badge>
                       </div>
                       {c.general_activation &&
                         c.general_activation_date &&
                         new Date(c.general_activation_date).getTime() <
-                          Date.now() && (
+                        Date.now() && (
                           <Badge className="bg-red-600/80 text-white w-fit">
                             Expired
                           </Badge>
@@ -1908,14 +1969,30 @@ export function TeacherLearningModules() {
                       <Button
                         onClick={() => openGA(c)}
                         disabled={isPrivate}
-                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${
-                          isPrivate
-                            ? "opacity-50 cursor-not-allowed"
-                            : "bg-[#f79771]/70 hover:bg-[#EF7B55]/90"
-                        }`}>
+                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${isPrivate
+                          ? "opacity-50 cursor-not-allowed"
+                          : "bg-[#f79771]/70 hover:bg-[#EF7B55]/90"
+                          }`}>
                         {isPrivate
                           ? "Not available for private courses"
                           : "Update Access"}
+                      </Button>
+                      <Button
+                        onClick={() => toggleCourseCodeSubmit(String(c.id))}
+                        disabled={togglingCourseId === String(c.id)}
+                        variant="outline"
+                        className="w-full mt-2 text-xs xs:text-sm sm:text-base bg-transparent shadow-md"
+                      >
+                        {togglingCourseId === String(c.id) ? (
+                          <>
+                            <Spinner size="sm" className="mr-2" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            {c.freeze_code_submission ? "Unfreeze Code Submit" : "Freeze Code Submit"}
+                          </>
+                        )}
                       </Button>
                     </CardContent>
                   </Card>
@@ -2217,11 +2294,10 @@ export function TeacherLearningModules() {
                       return (
                         <div
                           key={lesson.id}
-                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${
-                            editingLesson?.id === lesson.id
-                              ? "border-primary bg-primary/5"
-                              : "hover:bg-muted/50"
-                          }`}
+                          className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${editingLesson?.id === lesson.id
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-muted/50"
+                            }`}
                           onClick={() => setEditingLesson(lesson)}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1 max-w-[85%]">
@@ -2239,17 +2315,17 @@ export function TeacherLearningModules() {
                                 {normalizeCoverImageUrl(
                                   lesson.coverImageUrl,
                                 ) && (
-                                  <img
-                                    src={normalizeCoverImageUrl(
-                                      lesson.coverImageUrl,
-                                    )}
-                                    alt="Cover"
-                                    onError={(e) => {
-                                      e.currentTarget.src = "/placeholder.jpg";
-                                    }}
-                                    className="w-6 h-4 object-cover rounded ml-1 shrink-0"
-                                  />
-                                )}
+                                    <img
+                                      src={normalizeCoverImageUrl(
+                                        lesson.coverImageUrl,
+                                      )}
+                                      alt="Cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/placeholder.jpg";
+                                      }}
+                                      className="w-6 h-4 object-cover rounded ml-1 shrink-0"
+                                    />
+                                  )}
                               </div>
                               {/* Title with 2-line ellipsis */}
                               <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2 overflow-hidden text-ellipsis">
@@ -2298,8 +2374,8 @@ export function TeacherLearningModules() {
                           Cover Image
                         </Label>
                         {editingLesson.coverImageUrl &&
-                        !editingLesson.coverImage &&
-                        !editingLesson.remove_cover ? (
+                          !editingLesson.coverImage &&
+                          !editingLesson.remove_cover ? (
                           <div className="flex items-center gap-2">
                             <img
                               src={normalizeCoverImageUrl(
@@ -2424,10 +2500,9 @@ export function TeacherLearningModules() {
                         <Label
                           htmlFor="lesson-title"
                           className="text-xs xs:text-sm sm:text-base font-medium">
-                          {`Lesson ${
-                            editingLesson.type.charAt(0).toUpperCase() +
+                          {`Lesson ${editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
-                          }`}
+                            }`}
                         </Label>
                         <Input
                           id="lesson-title"
@@ -2502,7 +2577,7 @@ export function TeacherLearningModules() {
                                     e.currentTarget.value = "";
                                     return;
                                   }
-                                  updateLessonFields(editingLesson.id, {file});
+                                  updateLessonFields(editingLesson.id, { file });
                                 }}
                               />
                               <Button
@@ -2563,7 +2638,7 @@ export function TeacherLearningModules() {
                                     e.currentTarget.value = "";
                                     return;
                                   }
-                                  updateLessonFields(editingLesson.id, {file});
+                                  updateLessonFields(editingLesson.id, { file });
                                 }}
                               />
                               <Button
@@ -2624,7 +2699,7 @@ export function TeacherLearningModules() {
                                     e.currentTarget.value = "";
                                     return;
                                   }
-                                  updateLessonFields(editingLesson.id, {file});
+                                  updateLessonFields(editingLesson.id, { file });
                                 }}
                               />
                               <Button
@@ -2661,7 +2736,7 @@ export function TeacherLearningModules() {
                       <Button
                         onClick={() =>
                           typeof editingLesson.id === "string" &&
-                          editingLesson.id.startsWith("temp")
+                            editingLesson.id.startsWith("temp")
                             ? saveLesson()
                             : updateLesson(editingLesson.id)
                         }
@@ -2678,7 +2753,7 @@ export function TeacherLearningModules() {
                         {isSavingLesson
                           ? "Saving..."
                           : typeof editingLesson.id === "string" &&
-                              editingLesson.id.startsWith("temp")
+                            editingLesson.id.startsWith("temp")
                             ? "Save Lesson"
                             : "Update Lesson"}
                       </Button>
@@ -2712,7 +2787,7 @@ export function TeacherLearningModules() {
                       <div className="h-2 w-full rounded bg-muted overflow-hidden">
                         <div
                           className="h-full bg-[#EF7B55]"
-                          style={{width: `${uploadInfo.percent}%`}}
+                          style={{ width: `${uploadInfo.percent}%` }}
                         />
                       </div>
                     </div>
@@ -3021,7 +3096,7 @@ export function TeacherLearningModules() {
                 })}
               </div>
               {getPaginatedModules(modules, currentPageManage).totalCount ===
-              0 ? (
+                0 ? (
                 <div className="text-center py-8 xs:py-12">
                   <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
                   <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
@@ -3075,8 +3150,8 @@ export function TeacherLearningModules() {
                       }
                       className={
                         currentPageManage ===
-                        getPaginatedModules(modules, currentPageManage)
-                          .totalPages
+                          getPaginatedModules(modules, currentPageManage)
+                            .totalPages
                           ? "pointer-events-none opacity-50"
                           : ""
                       }
@@ -3182,7 +3257,7 @@ export function TeacherLearningModules() {
                           }
                         />
                         {Array.from(
-                          {length: analytics.pagination.total_pages},
+                          { length: analytics.pagination.total_pages },
                           (_, i) => (
                             <PaginationItem key={i + 1}>
                               <PaginationLink
@@ -3201,7 +3276,7 @@ export function TeacherLearningModules() {
                           }
                           className={
                             currentPageAnalytics ===
-                            analytics.pagination.total_pages
+                              analytics.pagination.total_pages
                               ? "pointer-events-none opacity-50"
                               : ""
                           }
@@ -3226,7 +3301,7 @@ export function TeacherLearningModules() {
       {/* Feedback Dialog */}
       <AlertDialog
         open={feedbackDialog.open}
-        onOpenChange={(open) => setFeedbackDialog((prev) => ({...prev, open}))}>
+        onOpenChange={(open) => setFeedbackDialog((prev) => ({ ...prev, open }))}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{feedbackDialog.title}</AlertDialogTitle>
@@ -3239,7 +3314,7 @@ export function TeacherLearningModules() {
           <AlertDialogFooter>
             <AlertDialogAction
               onClick={() =>
-                setFeedbackDialog((prev) => ({...prev, open: false}))
+                setFeedbackDialog((prev) => ({ ...prev, open: false }))
               }>
               OK
             </AlertDialogAction>
