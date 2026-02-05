@@ -1785,13 +1785,13 @@ export function TeacherLearningModules() {
     }
   }
   const isPageLoading = isLoadingCourses || isLoadingCategories;
-  if (isPageLoading) {
-    return (
-      <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
-        <img src="/logo.png" alt="Loading" className="h-32 animate-pulse" />
-      </div>
-    );
-  }
+  // if (isPageLoading) {
+  //   return (
+  //     <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+  //       <img src="/logo.png" alt="Loading" className="h-32 animate-pulse" />
+  //     </div>
+  //   );
+  // }
   return (
     <div className="space-y-4 xs:p-4 sm:p-4 max-w-full mx-auto">
       <div>
