@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from "react";
-import {useState, useEffect} from "react";
-import {useSession} from "next-auth/react";
-import {useRouter} from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -13,8 +13,8 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Label} from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,11 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Textarea} from "@/components/ui/textarea";
-import {Spinner} from "@/components/ui/spinner";
-import {Check, ChevronsUpDown, ChevronLeft} from "lucide-react";
-import {cn} from "@/lib/utils";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import { Check, ChevronsUpDown, ChevronLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -42,7 +42,7 @@ interface Course {
 }
 
 export default function CreatePrivateTutoringPage() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   const [courses, setCourses] = useState<Course[]>([]);
@@ -52,7 +52,7 @@ export default function CreatePrivateTutoringPage() {
 
   // Form State (matching original modal names/defaults)
   const [privateCourseId, setPrivateCourseId] = useState<string>("");
-  const [privateTitle, setPrivateTitle] = useState("My Private Tutoring");
+  const [privateTitle, setPrivateTitle] = useState<string>("");
   const [ratePerHour, setRatePerHour] = useState<string>("");
   const [tutoringDurationDays, setTutoringDurationDays] = useState<number>(24);
   const [availableDays, setAvailableDays] = useState<string[]>([]);
@@ -69,7 +69,7 @@ export default function CreatePrivateTutoringPage() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch("/api/teacher/courses?course_type=private", {
+      const response = await fetch("/api/teacher/courses?course_type=public", {
         headers: {
           "Content-Type": "application/json",
           "X-Session-Token": session?.user?.sessionToken || "",
@@ -124,7 +124,7 @@ export default function CreatePrivateTutoringPage() {
           rate_per_hour: parseFloat(ratePerHour).toFixed(2),
           tutoring_duration_days: tutoringDurationDays,
           notes: privateNotes?.trim().slice(0, 225),
-          available_days: availableDays.map((day) => ({day})),
+          available_days: availableDays.map((day) => ({ day })),
         }),
       });
 
@@ -193,11 +193,11 @@ export default function CreatePrivateTutoringPage() {
                     className="w-full justify-between">
                     {privateCourseId
                       ? courses.find((c) => c.id.toString() === privateCourseId)
-                          ?.name +
-                        " (" +
-                        courses.find((c) => c.id.toString() === privateCourseId)
-                          ?.subject +
-                        ")"
+                        ?.name +
+                      " (" +
+                      courses.find((c) => c.id.toString() === privateCourseId)
+                        ?.subject +
+                      ")"
                       : "Select course..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -242,8 +242,10 @@ export default function CreatePrivateTutoringPage() {
                 value={privateTitle}
                 onChange={(e) => setPrivateTitle(e.target.value)}
                 placeholder="My Private Tutoring"
+                required
                 className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
+
             </div>
 
             <div className="space-y-2">
@@ -324,7 +326,7 @@ export default function CreatePrivateTutoringPage() {
                     className={cn(
                       "justify-start transition-colors",
                       availableDays.includes(d) &&
-                        "bg-[#EF7B55] hover:bg-[#F79771]"
+                      "bg-[#EF7B55] hover:bg-[#F79771]"
                     )}
                     onClick={() => toggleDay(d)}>
                     {availableDays.includes(d) && (
