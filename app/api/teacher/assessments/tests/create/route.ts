@@ -26,6 +26,7 @@ export async function POST(
       start_at: body.start_at || null,
       end_at: body.end_at || null,
       total_marks: body.total_marks || 0,
+      mode: body.mode || "online",
     };
 
     const { response, text, setCookie } = await djangoFetch(endpoint, {
@@ -101,6 +102,7 @@ export async function POST(
         updatedAt: data.test?.updatedAt || "",
         start_at: data.test?.start_at || null,
         end_at: data.test?.end_at || null,
+        mode: data.test?.mode || "online",
         questions: Array.isArray(data.test?.questions)
           ? data.test.questions.map((q: any) => ({
               id: q.id || "",
@@ -272,6 +274,7 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
           updatedAt: data.test?.updatedAt || "",
           start_at: data.test?.start_at || null,
           end_at: data.test?.end_at || null,
+          mode: data.test?.mode || "online",
           questions: Array.isArray(data.test?.questions)
             ? data.test.questions.map((q: any) => ({
                 id: q.id || "",

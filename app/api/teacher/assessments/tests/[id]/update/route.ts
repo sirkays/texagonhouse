@@ -96,7 +96,7 @@ export async function PUT(
         updatedAt: data.test?.updatedAt || "",
         start_at: data.test?.start_at || null,
         end_at: data.test?.end_at || null,
-        test_type: data.test?.mode || "online",
+        mode: data.test?.mode || "online",
         questions: Array.isArray(data.test?.questions)
           ? data.test.questions.map((q: any) => ({
               id: q.id || "",
