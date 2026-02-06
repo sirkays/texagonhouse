@@ -272,12 +272,19 @@ export function CodeEditor() {
     if (!r.ok) throw new Error("Failed to fetch snippet detail");
     return r.json() as Promise<Snippet>;
   };
+  
   const fetchLessons = async () => {
     try {
-      const res = await fetch("/api/student/lessons");
+      const params = new URLSearchParams({
+        freezed: "1",
+      });
+
+      const res = await fetch(`/api/student/lessons?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch lessons");
+
       const data = await res.json();
       const lessonList = Array.isArray(data) ? data : data.results || [];
+
       setLessons(
         lessonList.map((l: any) => ({
           id: String(l.id),
@@ -288,6 +295,7 @@ export function CodeEditor() {
       showCustomAlert("Failed to load lessons");
     }
   };
+
   const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
       return;

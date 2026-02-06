@@ -9,12 +9,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const moduleId = searchParams.get("module");
   const courseId = searchParams.get("course");
+  const freezed = searchParams.get("freezed");
 
   let path = "/api/lessons/";
-  if (moduleId || courseId) {
+  if (moduleId || courseId || freezed) {
     const params = new URLSearchParams();
     if (moduleId) params.append("module", moduleId);
     if (courseId) params.append("course", courseId);
+    if (freezed) params.append("freezed", freezed);
     path += `?${params.toString()}`;
   }
 
