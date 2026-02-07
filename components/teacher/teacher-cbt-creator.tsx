@@ -10,8 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {useState, useEffect, useCallback, useMemo} from "react";
-import {useRouter, useSearchParams} from "next/navigation";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -19,10 +19,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Textarea} from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -30,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {Badge} from "@/components/ui/badge";
-import {Tabs, TabsList, TabsTrigger, TabsContent} from "@/components/ui/tabs";
-import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Plus,
   Trash2,
@@ -70,7 +70,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {Spinner} from "@/components/ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -79,13 +79,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {ScrollArea} from "@/components/ui/scroll-area";
-import {Calendar} from "@/components/ui/calendar";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 // Import with type assertions
 const saveAs = require("file-saver").saveAs;
 const html2pdf = require("html2pdf.js");
 /* --------------------------------- Types -------------------------------- */
+type ManageStudentRow = {
+  id: number;
+  full_name: string;
+  admission_no: string;
+  dob: string | null;
+  is_exclude: boolean;
+};
+
+type StudentListResponse = {
+  results: ManageStudentRow[];
+  pagination: PaginationInfo;
+};
+
 interface Question {
   id: string;
   type: "single-choice" | "true-false" | "short-answer" | "essay";
@@ -302,6 +315,18 @@ export function TeacherCBTCreator() {
       type: opts.type ?? "info",
     });
   };
+  const [studentRows, setStudentRows] = useState<ManageStudentRow[]>([]);
+  const [studentPagination, setStudentPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 1,
+  });
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  // store excluded student IDs for payload
+  const [excludedStudentIds, setExcludedStudentIds] = useState<Set<number>>(new Set());
+
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("create");
   // Read tab from URL query parameter (for navigation from student performance detail page)
@@ -437,6 +462,61 @@ export function TeacherCBTCreator() {
       totalPoints,
     };
   };
+
+  const fetchCourseStudents = useCallback(async () => {
+    if (!currentTest.courseId) return;
+
+    setLoadingStudents(true);
+    try {
+      const params = new URLSearchParams();
+      params.append("course_id", currentTest.courseId);
+
+      // if editing existing test, include test_id so backend returns correct is_exclude
+      if (currentTest.id) params.append("test_id", currentTest.id);
+
+      params.append("page", String(studentPagination.page));
+      params.append("limit", String(studentPagination.limit));
+
+      const res = await fetch(`/api/teacher/fetch-course-students?${params.toString()}`);
+      const data: StudentListResponse = await res.json();
+
+      if (!res.ok) throw new Error("Failed to fetch students");
+
+      setStudentRows(data.results || []);
+      setStudentPagination(data.pagination);
+
+      // initialize excluded set from server (important for Edit)
+      const serverExcluded = new Set<number>(
+        (data.results || []).filter(s => s.is_exclude).map(s => s.id)
+      );
+      setExcludedStudentIds(serverExcluded);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingStudents(false);
+    }
+  }, [currentTest.courseId, currentTest.id, studentPagination.page, studentPagination.limit]);
+
+
+  // when course changes, reset student pagination + fetch
+  useEffect(() => {
+    if (!currentTest.courseId) return;
+    setStudentPagination((p) => ({ ...p, page: 1 }));
+  }, [currentTest.courseId]);
+
+  useEffect(() => {
+    if (activeTab === "manage-student" && currentTest.courseId) {
+      fetchCourseStudents();
+    }
+  }, [activeTab, currentTest.courseId, currentTest.id, fetchCourseStudents]);
+
+  // also load if editing (handleEditTest sets currentTest) and tab is manage-student
+  useEffect(() => {
+    if (currentTest.id && currentTest.courseId && activeTab === "manage-student") {
+      fetchCourseStudents();
+    }
+  }, [currentTest.id, currentTest.courseId, activeTab, fetchCourseStudents]);
+
   // ------------------------------------------------------------
   // 1) Download template .xlsx
   // ------------------------------------------------------------
@@ -505,7 +585,7 @@ export function TeacherCBTCreator() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, wsQuestions, "Questions");
     XLSX.utils.book_append_sheet(wb, wsGuide, "Guide");
-    const out = XLSX.write(wb, {bookType: "xlsx", type: "array"});
+    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const blob = new Blob([out], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
@@ -521,7 +601,7 @@ export function TeacherCBTCreator() {
     setIsSaving(true);
     try {
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, {type: "array"});
+      const wb = XLSX.read(buf, { type: "array" });
       const norm = (v: any) => String(v ?? "").trim();
       const lower = (v: any) => norm(v).toLowerCase();
       // Strict ref format: Q1, Q2, Q10 ...
@@ -544,7 +624,7 @@ export function TeacherCBTCreator() {
         return;
       }
       // --- 2) Validate headers strictly ---
-      const aoa = XLSX.utils.sheet_to_json<any[]>(ws, {header: 1, defval: ""});
+      const aoa = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "" });
       if (!aoa.length || aoa.length < 2) {
         showAlert({
           title: "Excel import failed",
@@ -582,7 +662,7 @@ export function TeacherCBTCreator() {
         return;
       }
       // Convert to objects
-      const rows = XLSX.utils.sheet_to_json<any>(ws, {defval: ""});
+      const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
       if (!rows.length) {
         showAlert({
           title: "Excel import failed",
@@ -844,7 +924,7 @@ export function TeacherCBTCreator() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, wsQuestions, "Questions");
     XLSX.utils.book_append_sheet(wb, wsMeta, "__META"); // keep this sheet in file
-    const out = XLSX.write(wb, {bookType: "xlsx", type: "array"});
+    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const blob = new Blob([out], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
@@ -924,7 +1004,7 @@ export function TeacherCBTCreator() {
         _endLocal: t.end_at ? toLocalInputValue(parseToDate(t.end_at)) : "",
       })),
     );
-    setPagination(data.pagination || {page: 1, limit: 3, total: 0, pages: 1});
+    setPagination(data.pagination || { page: 1, limit: 3, total: 0, pages: 1 });
     setLoadingTests(false);
   }, [pagination.page, pagination.limit, searchQuery, filterPublished, router]);
   const fetchTestById = async (testId: string): Promise<CBTTest | null> => {
@@ -1037,7 +1117,7 @@ export function TeacherCBTCreator() {
     }
     setStudentPerformances(data.performances || []);
     setPerformancePagination(
-      data.pagination || {page: 1, limit: 10, total: 0, pages: 1},
+      data.pagination || { page: 1, limit: 10, total: 0, pages: 1 },
     );
     setLoadingPerformances(false);
   }, [
@@ -1092,7 +1172,7 @@ export function TeacherCBTCreator() {
       ...prev,
       questions: prev.questions.map((q) => {
         if (q.id !== questionId) return q;
-        const updatedQuestion = {...q, ...updates};
+        const updatedQuestion = { ...q, ...updates };
         if (updates.type && updates.type !== q.type) {
           updatedQuestion.correctAnswer =
             updates.type === "single-choice"
@@ -1107,7 +1187,7 @@ export function TeacherCBTCreator() {
     if (editingQuestion?.id === questionId) {
       setEditingQuestion((prev) => {
         if (!prev) return null;
-        const updatedQuestion = {...prev, ...updates};
+        const updatedQuestion = { ...prev, ...updates };
         if (updates.type && updates.type !== prev.type) {
           updatedQuestion.correctAnswer =
             updates.type === "single-choice"
@@ -1122,34 +1202,34 @@ export function TeacherCBTCreator() {
   };
   /* -------------------------- Build Save Payload ------------------------- */
   function buildTestPayload(isEditing: boolean) {
-    // Convert local UI strings to ISO for backend; omit if empty
     const startISO = localInputToISO(currentTest._startLocal);
     const endISO = localInputToISO(currentTest._endLocal);
-    if (isEditing) {
-      return {
-        title: currentTest.title,
-        instructions: currentTest.instructions,
-        duration: currentTest.duration,
-        difficulty: currentTest.difficulty,
-        mode: currentTest.mode, // ✅ NEW
-        ...(startISO ? {start_at: startISO} : {}),
-        ...(endISO ? {end_at: endISO} : {}),
-        total_marks: currentTest.total_marks,
-      };
-    }
-    return {
+
+    const excluded_students = Array.from(excludedStudentIds); // ✅ NEW
+
+    const base = {
       title: currentTest.title,
       instructions: currentTest.instructions,
       duration: currentTest.duration,
       difficulty: currentTest.difficulty,
-      mode: currentTest.mode, // ✅ NEW
+      mode: currentTest.mode,
+      ...(startISO ? { start_at: startISO } : {}),
+      ...(endISO ? { end_at: endISO } : {}),
+      total_marks: currentTest.total_marks,
+      excluded_students, // ✅ NEW
+    };
+
+    if (isEditing) return base;
+
+    return {
+      ...base,
       course_id: Number.parseInt(currentTest.courseId || "0"),
       category: currentTest.category || "General",
-      ...(startISO ? {start_at: startISO} : {}),
-      ...(endISO ? {end_at: endISO} : {}),
-      total_marks: currentTest.total_marks,
     };
   }
+
+
+
   const saveTest = async () => {
     setIsSaving(true);
     try {
@@ -1162,7 +1242,7 @@ export function TeacherCBTCreator() {
       console.log("CREATE/UPDATE payload:", body);
       const response = await fetch(endpoint, {
         method,
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await response.json();
@@ -1191,7 +1271,7 @@ export function TeacherCBTCreator() {
         }
         const questionResponse = await fetch(questionEndpoint, {
           method: questionMethod,
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: question.type,
             question: question.question,
@@ -1201,7 +1281,7 @@ export function TeacherCBTCreator() {
                 ? Number(question.correctAnswer) || 0
                 : question.type === "true-false"
                   ? question.correctAnswer === "true" ||
-                    question.correctAnswer === true
+                  question.correctAnswer === true
                   : (question.correctAnswer as string)?.toString() || "",
             points: question.points,
             explanation: question.explanation || "",
@@ -1211,8 +1291,7 @@ export function TeacherCBTCreator() {
         if (!questionResponse.ok) {
           const questionData = await questionResponse.json();
           console.error(
-            `[saveTest] Failed to ${
-              questionMethod === "POST" ? "create" : "update"
+            `[saveTest] Failed to ${questionMethod === "POST" ? "create" : "update"
             } question ${question.id}:`,
             questionData.error,
           );
@@ -1298,7 +1377,7 @@ export function TeacherCBTCreator() {
       const startISO = localInputToISO(currentTest._startLocal);
       const endISO = localInputToISO(currentTest._endLocal);
 
-      const payload: any = {isPublished};
+      const payload: any = { isPublished };
       if (startISO) payload.start_at = startISO;
       if (endISO) payload.end_at = endISO;
       if (typeof currentTest.total_marks === "number")
@@ -1308,7 +1387,7 @@ export function TeacherCBTCreator() {
         `/api/teacher/assessments/tests/test/${testId}/publish`,
         {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         },
       );
@@ -1322,7 +1401,7 @@ export function TeacherCBTCreator() {
         }
         throw new Error(
           data.error ||
-            `Failed to ${isPublished ? "publish" : "unpublish"} test`,
+          `Failed to ${isPublished ? "publish" : "unpublish"} test`,
         );
       }
 
@@ -1351,7 +1430,7 @@ export function TeacherCBTCreator() {
         `/api/teacher/assessments/tests/test/${testId}/duplicate`,
         {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
         },
       );
       const data = await response.json();
@@ -1400,7 +1479,7 @@ export function TeacherCBTCreator() {
         `/api/teacher/assessments/tests/test/${testId}/questions/${questionId}/delete`,
         {
           method: "DELETE",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
         },
       );
       const data = await response.json();
@@ -1424,13 +1503,13 @@ export function TeacherCBTCreator() {
         prev.map((test) =>
           test.id === testId
             ? {
-                ...test,
-                questionsCount: test.questionsCount - 1,
-                totalPoints:
-                  test.totalPoints -
-                  (currentTest.questions.find((q) => q.id === questionId)
-                    ?.points || 0),
-              }
+              ...test,
+              questionsCount: test.questionsCount - 1,
+              totalPoints:
+                test.totalPoints -
+                (currentTest.questions.find((q) => q.id === questionId)
+                  ?.points || 0),
+            }
             : test,
         ),
       );
@@ -1454,7 +1533,7 @@ export function TeacherCBTCreator() {
         `/api/teacher/assessments/tests/test/${testId}/delete`,
         {
           method: "DELETE",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
         },
       );
       const data = await response.json();
@@ -1488,32 +1567,27 @@ export function TeacherCBTCreator() {
     router.push(`/teacher/student-performance/${performance.id}`);
   };
   const handlePageChange = (newPage: number) => {
-    setPagination((prev) => ({...prev, page: newPage}));
+    setPagination((prev) => ({ ...prev, page: newPage }));
   };
   const handlePerformancePageChange = (newPage: number) => {
-    setPerformancePagination((prev) => ({...prev, page: newPage}));
+    setPerformancePagination((prev) => ({ ...prev, page: newPage }));
   };
   const exportToCSV = (performance: StudentPerformance) => {
     const test = tests.find((t) => t.id === performance.testId);
     if (!test) return;
     let csvContent =
       "Student Name,Student ID,Email,Class,Test Title,Date,Duration,Total Questions,Passing Score,Total Score,Percentage,Status\n";
-    csvContent += `"${performance.studentName}","${performance.studentId}","${
-      performance.email
-    }","${performance.classGrade}","${test.title}","${
-      test.start_at ? new Date(test.start_at).toLocaleDateString() : "N/A"
-    }","${test.duration} minutes",${test.questionsCount},${
-      (test.total_marks || 0) * 0.7
-    },${performance.score},${performance.percentage},"${
-      performance.status
-    }"\n\n`;
+    csvContent += `"${performance.studentName}","${performance.studentId}","${performance.email
+      }","${performance.classGrade}","${test.title}","${test.start_at ? new Date(test.start_at).toLocaleDateString() : "N/A"
+      }","${test.duration} minutes",${test.questionsCount},${(test.total_marks || 0) * 0.7
+      },${performance.score},${performance.percentage},"${performance.status
+      }"\n\n`;
     csvContent += "Question,Selected Option,Correct Option,Status\n";
     (performance.answers || []).forEach((answer: any) => {
-      csvContent += `"${String(answer.question || "").replace(/"/g, '""')}","${
-        answer.selected ?? ""
-      }","${answer.correct ?? ""}","${answer.status ?? ""}"\n`;
+      csvContent += `"${String(answer.question || "").replace(/"/g, '""')}","${answer.selected ?? ""
+        }","${answer.correct ?? ""}","${answer.status ?? ""}"\n`;
     });
-    const blob = new Blob([csvContent], {type: "text/csv;charset=utf-8;"});
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, `${performance.studentName}_${test.title}_performance.csv`);
   };
   const exportToPDF = (performance: StudentPerformance) => {
@@ -1524,9 +1598,9 @@ export function TeacherCBTCreator() {
     const opt = {
       margin: 1,
       filename: `${performance.studentName}_${test.title}_performance.pdf`,
-      image: {type: "jpeg" as const, quality: 0.98},
-      html2canvas: {scale: 2},
-      jsPDF: {unit: "in", format: "letter", orientation: "portrait" as const},
+      image: { type: "jpeg" as const, quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "in", format: "letter", orientation: "portrait" as const },
     };
     html2pdf().from(element).set(opt).save();
   };
@@ -1573,7 +1647,7 @@ export function TeacherCBTCreator() {
 
   const handleSaveExpandedQuestion = () => {
     if (editingQuestion) {
-      updateQuestion(editingQuestion.id, {question: expandedQuestionText});
+      updateQuestion(editingQuestion.id, { question: expandedQuestionText });
       setIsQuestionExpandOpen(false);
     }
   };
@@ -1589,6 +1663,7 @@ export function TeacherCBTCreator() {
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col md:flex-row w-full gap-2 mb-14">
+
           <TabsTrigger
             value="create"
             className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
@@ -1613,6 +1688,14 @@ export function TeacherCBTCreator() {
             disabled={isSaving}>
             Student Performance
           </TabsTrigger>
+          <TabsTrigger
+            value="manage-student"
+            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+            disabled={isSaving}
+          >
+            Manage Student
+          </TabsTrigger>
+
         </TabsList>
         {/* ------------------------------ Create ------------------------------ */}
         <TabsContent value="create" className="space-y-6">
@@ -1695,7 +1778,7 @@ export function TeacherCBTCreator() {
                   <Select
                     value={currentTest.mode}
                     onValueChange={(value: "online" | "offline") =>
-                      setCurrentTest((prev) => ({...prev, mode: value}))
+                      setCurrentTest((prev) => ({ ...prev, mode: value }))
                     }
                     disabled={isSaving}>
                     <SelectTrigger>
@@ -1718,7 +1801,7 @@ export function TeacherCBTCreator() {
                   label="Start Date & Time"
                   valueLocal={currentTest._startLocal}
                   onChangeLocal={(v) =>
-                    setCurrentTest((prev) => ({...prev, _startLocal: v}))
+                    setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
                   }
                   disabled={isSaving}
                 />
@@ -1726,7 +1809,7 @@ export function TeacherCBTCreator() {
                   label="End Date & Time"
                   valueLocal={currentTest._endLocal}
                   onChangeLocal={(v) =>
-                    setCurrentTest((prev) => ({...prev, _endLocal: v}))
+                    setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
                   }
                   disabled={isSaving}
                 />
@@ -1752,7 +1835,7 @@ export function TeacherCBTCreator() {
                   <Select
                     value={currentTest.courseId || ""}
                     onValueChange={(value) =>
-                      setCurrentTest((prev) => ({...prev, courseId: value}))
+                      setCurrentTest((prev) => ({ ...prev, courseId: value }))
                     }
                     disabled={isSaving}>
                     <SelectTrigger>
@@ -1966,11 +2049,10 @@ export function TeacherCBTCreator() {
                     {currentTest.questions.map((question, index) => (
                       <div
                         key={question.id}
-                        className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md mb-2 ${
-                          editingQuestion?.id === question.id
-                            ? "border-primary bg-primary/5"
-                            : "hover:bg-muted/50"
-                        }`}
+                        className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md mb-2 ${editingQuestion?.id === question.id
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50"
+                          }`}
                         onClick={() => setEditingQuestion(question)}>
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -2021,7 +2103,7 @@ export function TeacherCBTCreator() {
                       <Select
                         value={editingQuestion.type}
                         onValueChange={(value: Question["type"]) =>
-                          updateQuestion(editingQuestion.id, {type: value})
+                          updateQuestion(editingQuestion.id, { type: value })
                         }
                         disabled={isSaving}>
                         <SelectTrigger>
@@ -2345,7 +2427,7 @@ export function TeacherCBTCreator() {
                 }
               />
               {Array.from(
-                {length: pagination.pages},
+                { length: pagination.pages },
                 (_, index) => index + 1,
               ).map((page) => (
                 <PaginationItem key={page}>
@@ -2588,11 +2670,10 @@ export function TeacherCBTCreator() {
                                   ? "default"
                                   : "destructive"
                               }
-                              className={`justify-self-start sm:justify-self-end ${
-                                performance.status === "Passed"
-                                  ? "bg-green-600"
-                                  : "bg-red-600"
-                              }`}>
+                              className={`justify-self-start sm:justify-self-end ${performance.status === "Passed"
+                                ? "bg-green-600"
+                                : "bg-red-600"
+                                }`}>
                               {performance.status}
                             </Badge>
                           </div>
@@ -2743,7 +2824,7 @@ export function TeacherCBTCreator() {
                 }
               />
               {Array.from(
-                {length: performancePagination.pages},
+                { length: performancePagination.pages },
                 (_, index) => index + 1,
               ).map((page) => (
                 <PaginationItem key={page}>
@@ -2777,6 +2858,98 @@ export function TeacherCBTCreator() {
             </PaginationContent>
           </Pagination>
         </TabsContent>
+
+        <TabsContent value="manage-student" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Manage Students</h2>
+              <p className="text-muted-foreground">Select who should be excluded from this CBT.</p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!currentTest.courseId}
+              onClick={() => fetchCourseStudents()}
+            >
+              Refresh
+            </Button>
+          </div>
+
+          {!currentTest.courseId ? (
+            <p className="text-muted-foreground">Select a course first to load students.</p>
+          ) : loadingStudents ? (
+            <div className="flex justify-center"><Spinner /></div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Enrolled Students</CardTitle>
+                <CardDescription>
+                  Page {studentPagination.page} of {studentPagination.pages} — Total {studentPagination.total}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Exclude</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Admission No</TableHead>
+                        <TableHead>DOB</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {studentRows.map((s) => {
+                        const checked = excludedStudentIds.has(s.id);
+                        return (
+                          <TableRow key={s.id}>
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  setExcludedStudentIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (e.target.checked) next.add(s.id);
+                                    else next.delete(s.id);
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>{s.full_name}</TableCell>
+                            <TableCell>{s.admission_no || "-"}</TableCell>
+                            <TableCell>{s.dob ? new Date(s.dob).toLocaleDateString() : "-"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* pagination controls */}
+                <div className="flex items-center justify-between mt-4">
+                  <Button
+                    variant="outline"
+                    disabled={studentPagination.page <= 1}
+                    onClick={() => setStudentPagination(p => ({ ...p, page: Math.max(p.page - 1, 1) }))}
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={studentPagination.page >= studentPagination.pages}
+                    onClick={() => setStudentPagination(p => ({ ...p, page: Math.min(p.page + 1, p.pages) }))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
       </Tabs>
       {/* ------------------------------ Edit Modal ------------------------------ */}
       <Dialog open={isEditTestOpen} onOpenChange={setIsEditTestOpen}>
@@ -2826,7 +2999,7 @@ export function TeacherCBTCreator() {
                     label="Start Date & Time"
                     valueLocal={currentTest._startLocal}
                     onChangeLocal={(v) =>
-                      setCurrentTest((prev) => ({...prev, _startLocal: v}))
+                      setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
                     }
                     disabled={isSaving}
                   />
@@ -2834,7 +3007,7 @@ export function TeacherCBTCreator() {
                     label="End Date & Time"
                     valueLocal={currentTest._endLocal}
                     onChangeLocal={(v) =>
-                      setCurrentTest((prev) => ({...prev, _endLocal: v}))
+                      setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
                     }
                     disabled={isSaving}
                   />
@@ -2914,7 +3087,7 @@ export function TeacherCBTCreator() {
                               <Select
                                 value={question.type}
                                 onValueChange={(value: Question["type"]) =>
-                                  updateQuestion(question.id, {type: value})
+                                  updateQuestion(question.id, { type: value })
                                 }
                                 disabled={isSaving}>
                                 <SelectTrigger>
@@ -3003,11 +3176,10 @@ export function TeacherCBTCreator() {
                             {question.type === "true-false" && (
                               <div className="space-y-2">
                                 <div
-                                  className={`p-2 border rounded ${
-                                    question.correctAnswer === true
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-gray-200"
-                                  }`}>
+                                  className={`p-2 border rounded ${question.correctAnswer === true
+                                    ? "border-green-500 bg-green-50"
+                                    : "border-gray-200"
+                                    }`}>
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                     <span className="text-sm">True</span>
@@ -3021,11 +3193,10 @@ export function TeacherCBTCreator() {
                                   </div>
                                 </div>
                                 <div
-                                  className={`p-2 border rounded ${
-                                    question.correctAnswer === false
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-gray-200"
-                                  }`}>
+                                  className={`p-2 border rounded ${question.correctAnswer === false
+                                    ? "border-green-500 bg-green-50"
+                                    : "border-gray-200"
+                                    }`}>
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                     <span className="text-sm">False</span>
@@ -3223,11 +3394,10 @@ export function TeacherCBTCreator() {
                               {question.options.map((option, optIndex) => (
                                 <div
                                   key={optIndex}
-                                  className={`p-2 border rounded ${
-                                    optIndex === question.correctAnswer
-                                      ? "border-[#f57c50] bg-[#f57c50]/10"
-                                      : "border-gray-200"
-                                  }`}>
+                                  className={`p-2 border rounded ${optIndex === question.correctAnswer
+                                    ? "border-[#f57c50] bg-[#f57c50]/10"
+                                    : "border-gray-200"
+                                    }`}>
                                   <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                     <span className="text-sm">{option}</span>
@@ -3246,11 +3416,10 @@ export function TeacherCBTCreator() {
                         {question.type === "true-false" && (
                           <div className="space-y-2">
                             <div
-                              className={`p-2 border rounded ${
-                                question.correctAnswer === true
-                                  ? "border-green-500 bg-green-50"
-                                  : "border-gray-200"
-                              }`}>
+                              className={`p-2 border rounded ${question.correctAnswer === true
+                                ? "border-green-500 bg-green-50"
+                                : "border-gray-200"
+                                }`}>
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                 <span className="text-sm">True</span>
@@ -3264,11 +3433,10 @@ export function TeacherCBTCreator() {
                               </div>
                             </div>
                             <div
-                              className={`p-2 border rounded ${
-                                question.correctAnswer === false
-                                  ? "border-green-500 bg-green-50"
-                                  : "border-gray-200"
-                              }`}>
+                              className={`p-2 border rounded ${question.correctAnswer === false
+                                ? "border-green-500 bg-green-50"
+                                : "border-gray-200"
+                                }`}>
                               <div className="flex items-center space-x-2">
                                 <div className="w-4 h-4 border border-gray-300 rounded-full" />
                                 <span className="text-sm">False</span>
@@ -3373,7 +3541,7 @@ export function TeacherCBTCreator() {
       </Dialog>
       <AlertDialog
         open={alertState.open}
-        onOpenChange={(open) => setAlertState((prev) => ({...prev, open}))}>
+        onOpenChange={(open) => setAlertState((prev) => ({ ...prev, open }))}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{alertState.title}</AlertDialogTitle>

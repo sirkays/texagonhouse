@@ -103,6 +103,7 @@ export async function POST(
         start_at: data.test?.start_at || null,
         end_at: data.test?.end_at || null,
         mode: data.test?.mode || "online",
+        excluded_students: data.test?.excluded_students || null,
         questions: Array.isArray(data.test?.questions)
           ? data.test.questions.map((q: any) => ({
               id: q.id || "",
@@ -275,6 +276,7 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
           start_at: data.test?.start_at || null,
           end_at: data.test?.end_at || null,
           mode: data.test?.mode || "online",
+          excluded_students: data.test?.excluded_students || null,
           questions: Array.isArray(data.test?.questions)
             ? data.test.questions.map((q: any) => ({
                 id: q.id || "",
