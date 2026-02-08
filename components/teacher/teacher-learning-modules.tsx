@@ -315,6 +315,8 @@ export function TeacherLearningModules() {
   const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 50MB
   const MAX_AUDIO_BYTES = 20 * 1024 * 1024; // 10MB
   const MAX_PDF_BYTES = 10 * 1024 * 1024; // 5MB
+  const isNewModule = !currentModule.id;          // module not saved yet
+  const canAddLessons = !!currentModule.id;       // module saved
 
   async function uploadMediaByBucket(
     file: File,
@@ -951,7 +953,13 @@ export function TeacherLearningModules() {
       totalCount: modules.length,
     };
   };
+
   const addLesson = () => {
+    if (!currentModule.id) {
+      openFeedback("Save module first", "Please save the module before adding lessons.");
+      return;
+    }
+
     const newLesson: Lesson = {
       id: `temp-${Date.now()}`,
       title: "",
@@ -960,10 +968,11 @@ export function TeacherLearningModules() {
       content: "",
       videoUrl: "",
       audioUrl: "",
-      coverImage: null, // NEW
-      coverImageUrl: "", // NEW
+      coverImage: null,
+      coverImageUrl: "",
       remove_cover: false,
     };
+
     setCurrentModule((prev) => ({
       ...prev,
       lessons: [...prev.lessons, newLesson],
@@ -971,6 +980,7 @@ export function TeacherLearningModules() {
     }));
     setEditingLesson(newLesson);
   };
+
   const updateLessonFields = (lessonId: string, updates: Partial<Lesson>) => {
     setCurrentModule((prev) => ({
       ...prev,
@@ -1033,6 +1043,7 @@ export function TeacherLearningModules() {
       );
     }
   };
+
   const publishModule = async (moduleId: string, active: boolean) => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -1231,10 +1242,10 @@ export function TeacherLearningModules() {
       setError("Please specify a valid order (1 or higher).");
       return;
     }
-    if (currentModule.lessons.length === 0) {
-      setError("Please add at least one lesson before creating the module.");
-      return;
-    }
+    // if (currentModule.lessons.length === 0) {
+    //   setError("Please add at least one lesson before creating the module.");
+    //   return;
+    // }
     try {
       setIsSaving(true);
       const payload = {
@@ -1305,31 +1316,38 @@ export function TeacherLearningModules() {
         active: data.active,
       };
       setModules((prev) => [...prev, newModule]);
+      setCurrentModule((prev) => ({
+        ...prev,
+        id: newModule.id,
+        // ensure a clean lesson state right after creation
+        lessons: [],
+        lessonCount: 0,
+      }));
+
       // Now create the lessons
-      const tempLessons = [...currentModule.lessons];
-      const createdLessons: Lesson[] = [];
-      for (const tempLesson of tempLessons) {
-        try {
-          const savedLesson = await createLesson(newModule.id, tempLesson);
-          if (savedLesson) {
-            createdLessons.push(savedLesson);
-          }
-        } catch (err) {
-          console.error("Failed to create lesson:", err);
-          // Continue, but log error
-        }
-      }
-      // Refresh module details
-      const refreshedModule = await getModuleDetails(newModule.id);
-      if (refreshedModule) {
-        setModules((prev) =>
-          prev.map((m) => (m.id === refreshedModule.id ? refreshedModule : m)),
-        );
-      }
-      openFeedback(
-        "Module saved",
-        "Module and lessons were saved successfully.",
-      );
+      // const tempLessons = [...currentModule.lessons];
+      // const createdLessons: Lesson[] = [];
+      // for (const tempLesson of tempLessons) {
+      //   try {
+      //     const savedLesson = await createLesson(newModule.id, tempLesson);
+      //     if (savedLesson) {
+      //       createdLessons.push(savedLesson);
+      //     }
+      //   } catch (err) {
+      //     console.error("Failed to create lesson:", err);
+      //     // Continue, but log error
+      //   }
+      // }
+      // // Refresh module details
+      // const refreshedModule = await getModuleDetails(newModule.id);
+      // if (refreshedModule) {
+      //   setModules((prev) =>
+      //     prev.map((m) => (m.id === refreshedModule.id ? refreshedModule : m)),
+      //   );
+      // }
+
+      openFeedback("Module saved", "Module saved. You can now add and save lessons.");
+
       //setCurrentModule(initialModule);
       setEditingLesson(null);
       //setActiveTab("manage");
@@ -2272,9 +2290,13 @@ export function TeacherLearningModules() {
                     <Button
                       onClick={addLesson}
                       size="sm"
-                      className="text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771] shadow-md">
+                      disabled={!canAddLessons}
+                      className="text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={!canAddLessons ? "Save the module first to add lessons" : "Add lesson"}
+                    >
                       <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
                     </Button>
+
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 xs:space-y-3">
@@ -2284,9 +2306,16 @@ export function TeacherLearningModules() {
                       <p className="text-[0.85rem] xs:text-xs sm:text-sm">
                         No lessons added yet
                       </p>
-                      <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
-                        Click the + button to add your first lesson
-                      </p>
+
+                      {!canAddLessons ? (
+                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                          Save the module first, then you can add lessons.
+                        </p>
+                      ) : (
+                        <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                          Click the + button to add your first lesson
+                        </p>
+                      )}
                     </div>
                   ) : (
                     currentModule.lessons.map((lesson, index) => {
