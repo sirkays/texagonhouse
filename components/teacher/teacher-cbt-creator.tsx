@@ -46,6 +46,7 @@ import {
   MoreHorizontal,
   CalendarDays,
   Maximize,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1993,7 +1994,7 @@ export function TeacherCBTCreator() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              {/* <CardContent className="space-y-3">
                 {currentTest.questions.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
@@ -2003,49 +2004,7 @@ export function TeacherCBTCreator() {
                     </p>
                   </div>
                 ) : (
-                  // <ScrollArea className="h-[calc(100vh-400px)] sm:h-auto pr-4">
-                  //   {currentTest.questions.map((question, index) => (
-                  //     <div
-                  //       key={question.id}
-                  //       className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md mb-2 ${
-                  //         editingQuestion?.id === question.id
-                  //           ? "border-primary bg-primary/5"
-                  //           : "hover:bg-muted/50"
-                  //       }`}
-                  //       onClick={() => setEditingQuestion(question)}>
-                  //       <div className="flex items-start justify-between">
-                  //         <div className="flex-1">
-                  //           <div className="flex items-center gap-2 mb-1">
-                  //             <span className="text-sm font-medium">
-                  //               Q{index + 1}
-                  //             </span>
-                  //             <Badge variant="outline" className="text-xs">
-                  //               {question.type.replace("-", " ")}
-                  //             </Badge>
-                  //             <span className="text-xs text-muted-foreground">
-                  //               {question.points} pts
-                  //             </span>
-                  //           </div>
-                  //           <p className="text-sm line-clamp-2 text-wrap">
-                  //             {question.question || "Untitled question"}
-                  //           </p>
-                  //         </div>
-                  //         <Button
-                  //           variant="ghost"
-                  //           size="sm"
-                  //           onClick={(e) => {
-                  //             e.stopPropagation();
-                  //             deleteQuestion(currentTest.id, question.id);
-                  //           }}
-                  //           disabled={isSaving}>
-                  //           <Trash2 className="h-3 w-3 text-[#DD2701]" />
-                  //         </Button>
-                  //       </div>
-                  //     </div>
-                  //   ))}
-                  // </ScrollArea>
-
-                  <ScrollArea className="h-[calc(100vh-400px)] sm:h-auto pr-4">
+                  <ScrollArea className="h-[calc(100vh)] max-h-[calc(100vh)] pr-4 overflow-y-auto">
                     {currentTest.questions.map((question, index) => (
                       <div
                         key={question.id}
@@ -2077,11 +2036,83 @@ export function TeacherCBTCreator() {
                             <Trash2 className="h-3 w-3 text-[#DD2701]" />
                           </Button>
                         </div>
+
                         <p className="text-sm break-all hyphens-auto line-clamp-2">
                           {question.question || "Untitled question"}
                         </p>
                       </div>
                     ))}
+                  </ScrollArea>
+                )}
+              </CardContent> */}
+              <CardContent className="space-y-3">
+                {/* Search Filter - Added */}
+                {currentTest.questions.length > 0 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search questions..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                )}
+
+                {currentTest.questions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No questions added yet</p>
+                    <p className="text-sm">
+                      Click the + button to add your first question
+                    </p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[calc(100vh)] max-h-[calc(100vh)] pr-4 overflow-y-auto">
+                    {currentTest.questions
+                      .filter((question) =>
+                        question.question
+                          ?.toLowerCase()
+                          .includes(searchTerm.toLowerCase()),
+                      )
+                      .map((question, index) => (
+                        <div
+                          key={question.id}
+                          className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md mb-2 ${
+                            editingQuestion?.id === question.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:bg-muted/50"
+                          }`}
+                          onClick={() => setEditingQuestion(question)}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">
+                                Q{index + 1}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {question.type.replace("-", " ")}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {question.points} pts
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteQuestion(currentTest.id, question.id);
+                              }}
+                              disabled={isSaving}>
+                              <Trash2 className="h-3 w-3 text-[#DD2701]" />
+                            </Button>
+                          </div>
+
+                          <p className="text-sm break-all hyphens-auto line-clamp-2">
+                            {question.question || "Untitled question"}
+                          </p>
+                        </div>
+                      ))}
                   </ScrollArea>
                 )}
               </CardContent>
