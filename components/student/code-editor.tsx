@@ -113,7 +113,7 @@ type MiniSubmission = {
   updated_at: string;
 };
 
-
+type SnipCtx = { id: number; title: string; lessonId: string };
 
 export function CodeEditor() {
 
@@ -142,6 +142,9 @@ export function CodeEditor() {
   const [webConsole, setWebConsole] = useState<string>("");
   const runIdRef = useRef(0);
 
+  const [snippetLoadingId, setSnippetLoadingId] = useState<number | null>(null);
+  const [deletingSnippetId, setDeletingSnippetId] = useState<number | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // State variables
   const [submissionTitle, setSubmissionTitle] = useState("");
@@ -226,6 +229,12 @@ export function CodeEditor() {
   const currentEditCtx = editCtxByLang[selectedLanguage as LangKey];
   const currentEditingId = currentEditCtx?.id ?? null;
 
+
+  const [snippetCtxByLang, setSnippetCtxByLang] =
+    useState<Partial<Record<LangKey, SnipCtx>>>({});
+
+  const currentSnippetId = snippetCtxByLang[selectedLanguage as LangKey]?.id ?? null;
+
   const setLessonForActiveLang = (value: string) => {
     setSelectedLesson(value);
     setLessonByLang((prev) => ({
@@ -272,7 +281,7 @@ export function CodeEditor() {
     if (!r.ok) throw new Error("Failed to fetch snippet detail");
     return r.json() as Promise<Snippet>;
   };
-  
+
   const fetchLessons = async () => {
     try {
       const params = new URLSearchParams({
@@ -297,46 +306,55 @@ export function CodeEditor() {
   };
 
   const saveAsFile = async () => {
-    if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim())
-      return;
+    if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim()) return;
+
     setIsSaving(true);
     try {
+      const lang = selectedLanguage as LangKey;
+
       const body: any = {
         title: saveFileName.trim(),
-        language: selectedLanguage,
-        code_text:
-          selectedLanguage === "html"
-            ? htmlCode
-            : selectedLanguage === "css"
-              ? cssCode
-              : code,
+        language: lang,
+        code_text: lang === "html" ? htmlCode : lang === "css" ? cssCode : code,
         lesson: selectedLesson ? parseInt(selectedLesson) : null,
       };
-      if (activeSnippetId) {
-        body.id = activeSnippetId;
-      }
+
+      const existingId = snippetCtxByLang[lang]?.id ?? null;
+      if (existingId) body.id = existingId;
+
       const res = await fetch("/api/code-ide/snippets", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Save failed");
       }
+
       const savedSnippet: Snippet = await res.json();
-      if (activeSnippetId) {
-        setMySnippets((prev) =>
-          prev.map((s) => (s.id === savedSnippet.id ? savedSnippet : s))
-        );
-        showCustomAlert("Snippet updated successfully!");
-      } else {
-        setMySnippets((prev) => [savedSnippet, ...prev]);
-        setActiveSnippetId(savedSnippet.id);
-        showCustomAlert("Snippet saved successfully!");
-      }
+
+      // update list
+      setMySnippets((prev) => {
+        const exists = prev.some((s) => s.id === savedSnippet.id);
+        return exists
+          ? prev.map((s) => (s.id === savedSnippet.id ? savedSnippet : s))
+          : [savedSnippet, ...prev];
+      });
+
+      // ✅ store snippet id per language so tabs never overwrite each other
+      setSnippetCtxByLang((prev) => ({
+        ...prev,
+        [lang]: {
+          id: savedSnippet.id,
+          title: savedSnippet.title,
+          lessonId: savedSnippet.lesson ? String(savedSnippet.lesson) : "",
+        },
+      }));
+
+      showCustomAlert(existingId ? "Snippet updated successfully!" : "Snippet saved successfully!");
+
       setShowSaveModal(false);
       setPrepopulatedSaveData(null);
     } catch (error) {
@@ -345,23 +363,26 @@ export function CodeEditor() {
       setIsSaving(false);
     }
   };
+
   const deleteSnippet = (id: number) => {
-    showCustomConfirm(
-      "Are you sure you want to delete this snippet?",
-      async () => {
-        try {
-          const res = await fetch(`/api/code-ide/snippets/${id}`, {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-          });
-          if (!res.ok) throw new Error("Delete failed");
-          setMySnippets((prev) => prev.filter((s) => s.id !== id));
-        } catch {
-          showCustomAlert("Delete failed: Endpoint not available");
-        }
+    showCustomConfirm("Are you sure you want to delete this snippet?", async () => {
+      setDeletingSnippetId(id);
+      try {
+        const res = await fetch(`/api/code-ide/snippets/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error("Delete failed");
+        setMySnippets((prev) => prev.filter((s) => s.id !== id));
+      } catch {
+        showCustomAlert("Delete failed: Endpoint not available");
+      } finally {
+        setDeletingSnippetId(null);
       }
-    );
+    });
   };
+
+
   const fetchFileContent = async (file: UploadedFile) => {
     try {
       const apiRes = await fetch(`/api/code-ide/uploads/${file.id}/content`, {
@@ -747,7 +768,12 @@ export function CodeEditor() {
     setCode(languages[selectedLanguage as keyof typeof languages].template);
     if (selectedLanguage === "html") setHtmlCode(languages.html.template);
     if (selectedLanguage === "css") setCssCode(languages.css.template);
-    setActiveSnippetId(null);
+    setSnippetCtxByLang((prev) => {
+      const copy = { ...prev };
+      delete copy[selectedLanguage as LangKey];
+      return copy;
+    });
+
     setSaveFileName("");
     setOutput("");
     setHtmlPreview("");
@@ -884,31 +910,44 @@ export function CodeEditor() {
       return "Invalid HTML syntax";
     }
   };
+
   const loadSnippet = async (snippet: Snippet) => {
+    setSnippetLoadingId(snippet.id);
     try {
       const detailedSnippet = await fetchSnippetDetail(snippet.id);
+
       setHtmlCode(languages.html.template);
       setCssCode(languages.css.template);
       setCode(languages.javascript.template);
-      if (detailedSnippet.language === "html") {
-        setHtmlCode(detailedSnippet.code_text);
-      } else if (detailedSnippet.language === "css") {
-        setCssCode(detailedSnippet.code_text);
-      } else {
-        setCode(detailedSnippet.code_text);
-      }
-      setActiveSnippetId(detailedSnippet.id);
+
+      if (detailedSnippet.language === "html") setHtmlCode(detailedSnippet.code_text);
+      else if (detailedSnippet.language === "css") setCssCode(detailedSnippet.code_text);
+      else setCode(detailedSnippet.code_text);
+
+      // ✅ per-language snippet id fix (if you implemented it)
+      // setSnippetCtxByLang((prev) => ({
+      //   ...prev,
+      //   [detailedSnippet.language as LangKey]: {
+      //     id: detailedSnippet.id,
+      //     title: detailedSnippet.title,
+      //     lessonId: detailedSnippet.lesson ? String(detailedSnippet.lesson) : "",
+      //   },
+      // }));
+
       setSaveFileName(detailedSnippet.title);
       setSelectedLanguage(detailedSnippet.language);
-      if (detailedSnippet.lesson)
-        setSelectedLesson(String(detailedSnippet.lesson));
+      if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
       setActiveTab("editor");
       setSyntaxError(null);
       setIsImagePreview(false);
-    } catch (err) {
+    } catch {
       showCustomAlert("Failed to load snippet");
+    } finally {
+      setSnippetLoadingId(null);
     }
   };
+
+
   const copySnippetUrl = (id: number) => {
     const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
     navigator.clipboard.writeText(url);
@@ -1159,7 +1198,12 @@ export function CodeEditor() {
 
   const handleNewFileCreate = () => {
     if (!newFileTitle.trim()) return showCustomAlert("Title required");
-    setActiveSnippetId(null);
+    setSnippetCtxByLang((prev) => {
+      const copy = { ...prev };
+      delete copy[selectedLanguage as LangKey];
+      return copy;
+    });
+
     setShowNewFileModal(false);
     setShowSaveModal(false);
     setNewFileTitle("");
@@ -1472,17 +1516,33 @@ export function CodeEditor() {
             <DialogDescription>{confirmMessage}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirm(false)}>
+            <Button variant="outline" disabled={confirmLoading} onClick={() => setShowConfirm(false)}>
               No
             </Button>
+
             <Button
+              disabled={confirmLoading}
               onClick={async () => {
-                if (onConfirmCallback) await onConfirmCallback();
-                setShowConfirm(false);
+                if (!onConfirmCallback) return;
+                setConfirmLoading(true);
+                try {
+                  await onConfirmCallback();
+                } finally {
+                  setConfirmLoading(false);
+                  setShowConfirm(false);
+                }
               }}
             >
-              Yes
+              {confirmLoading ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Processing...
+                </>
+              ) : (
+                "Yes"
+              )}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1994,16 +2054,6 @@ export function CodeEditor() {
                     variant="outline"
                     className="hover:bg-[#EF7B55]/20"
                     size="sm"
-                    onClick={() => setShowNewFileModal(true)}
-                    disabled={uploading}
-                  >
-                    <FilePlus className="h-4 w-4 mr-2" />
-                    New Snippet
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                   >
@@ -2126,9 +2176,18 @@ export function CodeEditor() {
                                   size="sm"
                                   className="w-full sm:w-auto px-3 py-1.5 bg-transparent hover:bg-[#EF7B55]/20"
                                   onClick={() => loadSnippet(s)}
+                                  disabled={snippetLoadingId === s.id}
                                 >
-                                  View
+                                  {snippetLoadingId === s.id ? (
+                                    <>
+                                      <Spinner size="sm" className="mr-2" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    "View"
+                                  )}
                                 </Button>
+
                               </div>
                             </div>
                           </Card>
@@ -2251,25 +2310,18 @@ export function CodeEditor() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteUploadedFile(file.id)}
-                                title={
-                                  deletingFileId === file.id
-                                    ? "Deleting..."
-                                    : "Delete file"
-                                }
-                                className="text-destructive hover:text-destructive flex-1 sm:flex-none"
-                                disabled={
-                                  loading ||
-                                  fileLoading === file.id ||
-                                  deletingFileId === file.id
-                                }
+                                onClick={() => deleteSnippet(file.id)}
+                                title={deletingSnippetId === file.id ? "Deleting..." : "Delete snippet"}
+                                className="text-destructive hover:text-destructive"
+                                disabled={deletingSnippetId === file.id || snippetLoadingId === file.id}
                               >
-                                {deletingFileId === file.id ? (
+                                {deletingSnippetId === file.id ? (
                                   <Spinner size="sm" className="h-4 w-4" />
                                 ) : (
                                   <Trash2 className="h-4 w-4" />
                                 )}
                               </Button>
+
                             </div>
                           </div>
                         </Card>

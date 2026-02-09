@@ -2625,7 +2625,7 @@ export function TeacherLearningModules() {
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
                             Video{" "}
-                            {editingLesson.file ? "File (${Selected})" : "Upload"}
+                            {editingLesson.file ? "File (Selected)" : "Upload"}
                           </Label>
                           {editingLesson.file || editingLesson.videoUrl ? (
                             <div className="flex items-center gap-2">
