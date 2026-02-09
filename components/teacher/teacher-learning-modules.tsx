@@ -81,6 +81,7 @@ interface Lesson {
   duration: string;
   videoUrl?: string;
   audioUrl?: string;
+  pdfUrl?: string;
   content?: string;
   file?: File | null;
   coverImage?: File | null; // NEW: Cover image file
@@ -970,6 +971,7 @@ export function TeacherLearningModules() {
       content: "",
       videoUrl: "",
       audioUrl: "",
+      pdfUrl: "",
       coverImage: null,
       coverImageUrl: "",
       remove_cover: false,
@@ -1137,93 +1139,95 @@ export function TeacherLearningModules() {
       return 1;
     }
   };
-  const createLesson = async (
-    moduleId: string,
-    lesson: Lesson,
-  ): Promise<Lesson | null> => {
-    if (!lesson.title) {
-      throw new Error("Lesson title is required.");
-    }
-    try {
-      const formData = new FormData();
-      formData.append("title", lesson.title);
-      formData.append("type", lesson.type); // Updated to "type" per API
-      formData.append(
-        "duration",
-        (durationToMinutes(lesson.duration) * 60).toString(),
-      ); // Updated to "duration"
-      formData.append("order", (currentModule.lessons.length + 1).toString());
-      formData.append(
-        "meta",
-        JSON.stringify({
-          description: lesson.content || "",
-          tags: lesson.title.toLowerCase().split(" ").filter(Boolean),
-        }),
-      );
-      formData.append("active", "true");
-      // Main file handling
-      if (
-        lesson.file &&
-        lesson.file instanceof File &&
-        (lesson.type === "video" ||
-          lesson.type === "audio" ||
-          lesson.type === "pdf")
-      ) {
-        formData.append("file", lesson.file, lesson.file.name);
-      } else if (
-        lesson.type === "text" &&
-        lesson.content &&
-        !lesson.content.startsWith("http")
-      ) {
-        formData.append("textContent", lesson.content); // Updated field name if needed
-      } else if (
-        (lesson.videoUrl || lesson.audioUrl) &&
-        (lesson.videoUrl?.startsWith("http") ||
-          lesson.audioUrl?.startsWith("http"))
-      ) {
-        const url = lesson.videoUrl || lesson.audioUrl || "";
-        formData.append("url", url);
-      }
-      // NEW: Cover image handling
-      if (lesson.coverImage && lesson.coverImage instanceof File) {
-        formData.append(
-          "cover_image",
-          lesson.coverImage,
-          lesson.coverImage.name,
-        );
-      }
-      const response = await fetch(
-        `/api/teacher/modules/${moduleId}/lessons/`,
-        {
-          method: "POST",
-          headers: {
-            "X-Session-Token": sessionToken || "",
-          },
-          body: formData,
-        },
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create lesson");
-      }
-      const data = await response.json();
-      const serverLesson = data?.lesson ?? data;
-      const newLesson: Lesson = {
-        ...lesson,
-        id: String(serverLesson.id),
-        coverImageUrl: serverLesson.cover_image
-          ? normalizeMedia(serverLesson.cover_image)
-          : undefined,
-        coverImage: null, // Clear temp file
-        file: null, // Clear temp file if any
-        remove_cover: false, // Reset if set
-      };
-      return newLesson;
-    } catch (err) {
-      console.error("[createLesson] Error:", err);
-      throw err;
-    }
-  };
+
+  // const createLesson = async (
+  //   moduleId: string,
+  //   lesson: Lesson,
+  // ): Promise<Lesson | null> => {
+  //   if (!lesson.title) {
+  //     throw new Error("Lesson title is required.");
+  //   }
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("title", lesson.title);
+  //     formData.append("type", lesson.type); // Updated to "type" per API
+  //     formData.append(
+  //       "duration",
+  //       (durationToMinutes(lesson.duration) * 60).toString(),
+  //     ); // Updated to "duration"
+  //     formData.append("order", (currentModule.lessons.length + 1).toString());
+  //     formData.append(
+  //       "meta",
+  //       JSON.stringify({
+  //         description: lesson.content || "",
+  //         tags: lesson.title.toLowerCase().split(" ").filter(Boolean),
+  //       }),
+  //     );
+  //     formData.append("active", "true");
+  //     // Main file handling
+  //     if (
+  //       lesson.file &&
+  //       lesson.file instanceof File &&
+  //       (lesson.type === "video" ||
+  //         lesson.type === "audio" ||
+  //         lesson.type === "pdf")
+  //     ) {
+  //       formData.append("file", lesson.file, lesson.file.name);
+  //     } else if (
+  //       lesson.type === "text" &&
+  //       lesson.content &&
+  //       !lesson.content.startsWith("http")
+  //     ) {
+  //       formData.append("textContent", lesson.content); // Updated field name if needed
+  //     } else if (
+  //       (lesson.videoUrl || lesson.audioUrl) &&
+  //       (lesson.videoUrl?.startsWith("http") ||
+  //         lesson.audioUrl?.startsWith("http"))
+  //     ) {
+  //       const url = lesson.videoUrl || lesson.audioUrl || "";
+  //       formData.append("url", url);
+  //     }
+  //     // NEW: Cover image handling
+  //     if (lesson.coverImage && lesson.coverImage instanceof File) {
+  //       formData.append(
+  //         "cover_image",
+  //         lesson.coverImage,
+  //         lesson.coverImage.name,
+  //       );
+  //     }
+  //     const response = await fetch(
+  //       `/api/teacher/modules/${moduleId}/lessons/`,
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           "X-Session-Token": sessionToken || "",
+  //         },
+  //         body: formData,
+  //       },
+  //     );
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "Failed to create lesson");
+  //     }
+  //     const data = await response.json();
+  //     const serverLesson = data?.lesson ?? data;
+  //     const newLesson: Lesson = {
+  //       ...lesson,
+  //       id: String(serverLesson.id),
+  //       coverImageUrl: serverLesson.cover_image
+  //         ? normalizeMedia(serverLesson.cover_image)
+  //         : undefined,
+  //       coverImage: null, // Clear temp file
+  //       file: null, // Clear temp file if any
+  //       remove_cover: false, // Reset if set
+  //     };
+  //     return newLesson;
+  //   } catch (err) {
+  //     console.error("[createLesson] Error:", err);
+  //     throw err;
+  //   }
+  // };
+
   const saveModule = async () => {
     if (!sessionToken) {
       setError("No session token available. Please log in again.");
@@ -1609,11 +1613,12 @@ export function TeacherLearningModules() {
         formData.append("textContent", editingLesson.content);
       } else if (
         editingLesson.videoUrl?.startsWith("http") ||
-        editingLesson.audioUrl?.startsWith("http")
+        editingLesson.audioUrl?.startsWith("http") ||
+        editingLesson.pdfUrl?.startsWith("http") 
       ) {
         formData.append(
           "url",
-          editingLesson.videoUrl || editingLesson.audioUrl || "",
+          editingLesson.videoUrl || editingLesson.audioUrl || editingLesson.pdfUrl || "",
         );
       }
       // ✅ cover image upload
@@ -1760,11 +1765,12 @@ export function TeacherLearningModules() {
         formData.append("textContent", editingLesson.content);
       } else if (
         editingLesson.videoUrl?.startsWith("http") ||
-        editingLesson.audioUrl?.startsWith("http")
+        editingLesson.audioUrl?.startsWith("http") ||
+        editingLesson.pdfUrl?.startsWith("http")
       ) {
         formData.append(
           "url",
-          editingLesson.videoUrl || editingLesson.audioUrl || "",
+          editingLesson.videoUrl || editingLesson.audioUrl || editingLesson.pdfUrl ||  "",
         );
       }
       // ✅ cover image upload
@@ -2550,6 +2556,7 @@ export function TeacherLearningModules() {
                               type: value,
                               videoUrl: "",
                               audioUrl: "",
+                              pdfUrl: "",
                               content: "",
                               file: null,
                               coverImage: null, // Reset cover when changing type
@@ -2618,9 +2625,9 @@ export function TeacherLearningModules() {
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
                             Video{" "}
-                            {editingLesson.file ? "File (Selected)" : "Upload"}
+                            {editingLesson.file ? "File (${Selected})" : "Upload"}
                           </Label>
-                          {editingLesson.file ? (
+                          {editingLesson.file || editingLesson.videoUrl ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 value={getFileName(
@@ -2679,13 +2686,13 @@ export function TeacherLearningModules() {
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
                             Audio{" "}
-                            {editingLesson.file ? "File (Selected)" : "Upload"}
+                            {editingLesson.file || editingLesson.audioUrl ? "File (Selected)" : "Upload"}
                           </Label>
-                          {editingLesson.file ? (
+                          {editingLesson.file || editingLesson.audioUrl ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 value={getFileName(
-                                  editingLesson.file || editingLesson.videoUrl,
+                                  editingLesson.file || editingLesson.audioUrl,
                                 )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
@@ -2740,13 +2747,13 @@ export function TeacherLearningModules() {
                         <div className="space-y-2">
                           <Label className="text-xs xs:text-sm sm:text-base">
                             PDF{" "}
-                            {editingLesson.file ? "File (Selected)" : "Upload"}
+                            {editingLesson.file || editingLesson.pdfUrl ? "File (Selected)" : "Upload"}
                           </Label>
-                          {editingLesson.file ? (
+                          {editingLesson.file || editingLesson.pdfUrl ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 value={getFileName(
-                                  editingLesson.file || editingLesson.videoUrl,
+                                  editingLesson.file || editingLesson.pdfUrl,
                                 )}
                                 readOnly
                                 className="text-xs xs:text-sm sm:text-base bg-gray-100"
