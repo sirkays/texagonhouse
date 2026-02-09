@@ -273,7 +273,7 @@ export function AudioPlayer({
                 />
                 <span className="text-sm text-muted-foreground w-8">{volume}%</span>
               </div>
-              {audioUrl && !audioUrl.startsWith("blob:") && navigator.onLine && (
+              {/* {audioUrl && !audioUrl.startsWith("blob:") && navigator.onLine && (
                 <Button
                   variant="outline"
                   className="w-full bg-transparent"
@@ -282,7 +282,7 @@ export function AudioPlayer({
                   <Download className="h-4 w-4 mr-2" />
                   Download Audio
                 </Button>
-              )}
+              )} */}
             </>
           )}
         </div>
