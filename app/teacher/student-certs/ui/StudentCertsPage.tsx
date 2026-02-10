@@ -1,9 +1,8 @@
-
 //texagon_academy/texagonui/app/teacher/student-certs/ui/StudentCertsPage.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import {useEffect, useState} from "react";
+import {Button} from "@/components/ui/button";
 import Link from "next/link";
 
 type CourseRow = {
@@ -14,7 +13,7 @@ type CourseRow = {
 };
 
 type CompletedStudentsResponse = {
-  course?: { id: number; name: string };
+  course?: {id: number; name: string};
   season?: null | {
     name: string;
     start_at: string; // backend returns datetimes; treat as ISO strings
@@ -40,7 +39,6 @@ type CompletedStudentsResponse = {
   }>;
 };
 
-
 export default function StudentCertsPage() {
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
@@ -56,7 +54,10 @@ export default function StudentCertsPage() {
     setLoadingCourses(true);
     setError("");
     try {
-      const res = await fetch("/api/teacher/courses", { method: "GET", cache: "no-store" });
+      const res = await fetch("/api/teacher/courses", {
+        method: "GET",
+        cache: "no-store",
+      });
       const text = await res.text();
       const json = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error(json?.detail ?? "Failed to load courses");
@@ -86,7 +87,8 @@ export default function StudentCertsPage() {
       });
       const text = await res.text();
       const json = text ? JSON.parse(text) : null;
-      if (!res.ok) throw new Error(json?.detail ?? "Failed to load enrolled students");
+      if (!res.ok)
+        throw new Error(json?.detail ?? "Failed to load enrolled students");
       setRows(json);
     } catch (e: any) {
       setError(e?.message ?? "Error");
@@ -96,24 +98,30 @@ export default function StudentCertsPage() {
     }
   }
 
-
   function fmtDate(d?: string | null) {
     if (!d) return "—";
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return d; // fallback if not ISO
-    return dt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    return dt.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   }
 
   async function approveTeacher(certId: number) {
-    console.log(certId, " emkvkldmvlfkmvlkfvm")
+    console.log(certId, " emkvkldmvlfkmvlkfvm");
     setBusyCertId(certId);
     setError("");
     try {
-      const res = await fetch(`/api/teacher/certificates/${certId}/approve/teacher/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approval: true }),
-      });
+      const res = await fetch(
+        `/api/teacher/certificates/${certId}/approve/teacher/`,
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({approval: true}),
+        },
+      );
       const text = await res.text();
       const json = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error(json?.detail ?? "Teacher approval failed");
@@ -126,7 +134,6 @@ export default function StudentCertsPage() {
     }
   }
 
-
   useEffect(() => {
     loadCourses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,7 +145,183 @@ export default function StudentCertsPage() {
   }, [selectedCourseId]);
 
   return (
+    // <div className="space-y-4">
+    //   <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+    //     <div>
+    //       <h1 className="text-lg sm:text-xl font-semibold text-slate-800">
+    //         Student Certificates
+    //       </h1>
+    //       <p className="text-sm text-slate-600">
+    //         Select a course to view enrolled students and approve certificates.
+    //       </p>
+    //     </div>
+
+    //     <div className="flex gap-2">
+    //       <Button variant="outline" onClick={loadCourses} disabled={loadingCourses}>
+    //         Refresh courses
+    //       </Button>
+    //       <Button
+    //         onClick={() => selectedCourseId && loadCompletedStudents(selectedCourseId)}
+    //         disabled={!selectedCourseId || loadingRows}
+    //       >
+    //         Refresh list
+    //       </Button>
+    //     </div>
+    //   </div>
+
+    //   {error ? (
+    //     <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
+    //       {error}
+    //     </div>
+    //   ) : null}
+
+    //   <div className="rounded-md border bg-white p-3">
+    //     <div className="text-sm font-medium text-slate-700 mb-2">Course</div>
+
+    //     {loadingCourses ? (
+    //       <div className="text-sm text-slate-600">Loading courses…</div>
+    //     ) : courses.length === 0 ? (
+    //       <div className="text-sm text-slate-600">No courses found.</div>
+    //     ) : (
+    //       <select
+    //         className="w-full sm:w-[420px] border rounded-md px-3 py-2 text-sm"
+    //         value={selectedCourseId ?? ""}
+    //         onChange={(e) => setSelectedCourseId(Number(e.target.value))}
+    //       >
+    //         {courses.map((c) => (
+    //           <option key={c.id} value={c.id}>
+    //             {c.name}
+    //             {c.subject ? ` • ${c.subject}` : ""}
+    //             {c.classroom ? ` • ${c.classroom}` : ""}
+    //           </option>
+    //         ))}
+    //       </select>
+    //     )}
+    //   </div>
+
+    //   <div className="rounded-md border bg-white p-3">
+    //     <div className="text-sm font-medium text-slate-700 mb-2">
+    //       Enrolled Students
+    //     </div>
+    //     {rows?.season ? (
+    //       <div className="text-xs text-slate-600">
+    //         <span className="font-semibold text-slate-700">Season:</span>{" "}
+    //         {rows.season.name} • {fmtDate(rows.season.start_at)} – {fmtDate(rows.season.end_at)}
+    //       </div>
+    //     ) : (
+    //       <div className="text-xs text-slate-500">Season: —</div>
+    //     )}
+    //     {loadingRows ? (
+    //       <div className="text-sm text-slate-600">Loading enrolled students…</div>
+    //     ) : !rows || !rows.results || rows.results.length === 0 ? (
+    //       <div className="text-sm text-slate-600">No enrolled students yet.</div>
+    //     ) : (
+    //       <div className="overflow-x-auto">
+    //         <table className="min-w-[900px] w-full border-collapse">
+    //           <thead>
+    //             <tr className="border-b">
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Student
+    //               </th>
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Email
+    //               </th>
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Progress
+    //               </th>
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Certificate
+    //               </th>
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Teacher
+    //               </th>
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Admin
+    //               </th>
+    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+    //                 Actions
+    //               </th>
+    //             </tr>
+    //           </thead>
+
+    //           <tbody>
+    //             {rows.results.map((r) => {
+    //               const cert = r.certificate;
+    //               return (
+    //                 <tr key={r.enrollment_id} className="border-b last:border-b-0">
+    //                   <td className="py-3 pr-3 text-sm text-slate-800">
+    //                     {r.student_name}
+    //                   </td>
+    //                   <td className="py-3 pr-3 text-sm text-slate-600">
+    //                     {r.student_email}
+    //                   </td>
+    //                   <td className="py-3 pr-3 text-sm text-slate-700">
+    //                     {r.progress_pct}%
+    //                   </td>
+
+    //                   <td className="py-3 pr-3 text-sm">
+    //                     {cert ? (
+    //                       <div>
+    //                         <div className="font-semibold text-slate-800">{cert.number}</div>
+    //                         <div className="text-xs text-slate-500">
+    //                           {cert.title}
+    //                         </div>
+    //                       </div>
+    //                     ) : (
+    //                       <span className="text-slate-500">No certificate</span>
+    //                     )}
+    //                   </td>
+
+    //                   <td className="py-3 pr-3 text-sm">
+    //                     {cert ? (cert.teacher_approved ? "✅ Approved" : "⏳ Pending") : "—"}
+    //                   </td>
+
+    //                   <td className="py-3 pr-3 text-sm">
+    //                     {cert ? (cert.admin_approved ? "✅ Approved" : "⏳ Pending") : "—"}
+    //                   </td>
+
+    //                   <td className="py-3 pr-3 text-sm">
+    //                     {!cert ? (
+    //                       <div className="flex flex-wrap gap-2">
+    //                         <Link
+    //                           className="inline-flex"
+    //                           href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}
+    //                         >
+    //                           <Button size="sm" variant="outline">View Progress</Button>
+    //                         </Link>
+    //                       </div>
+    //                     ) : (
+    //                       <div className="flex flex-wrap gap-2">
+    //                         <Button
+    //                           size="sm"
+    //                           variant="outline"
+    //                           disabled={busyCertId === cert.id || cert.teacher_approved}
+    //                           onClick={() => approveTeacher(cert.id)}
+    //                         >
+    //                           {cert.teacher_approved ? "Teacher Approved" : "Approve (Teacher)"}
+    //                         </Button>
+
+    //                         <Link
+    //                           className="inline-flex"
+    //                           href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}
+    //                         >
+    //                           <Button size="sm" variant="outline">View Progress</Button>
+    //                         </Link>
+    //                       </div>
+    //                     )}
+    //                   </td>
+    //                 </tr>
+    //               );
+    //             })}
+    //           </tbody>
+    //         </table>
+    //       </div>
+    //     )}
+    //   </div>
+    // </div>
+
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
           <h1 className="text-lg sm:text-xl font-semibold text-slate-800">
@@ -149,14 +332,20 @@ export default function StudentCertsPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadCourses} disabled={loadingCourses}>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={loadCourses}
+            disabled={loadingCourses}
+            className="w-full sm:w-auto">
             Refresh courses
           </Button>
           <Button
-            onClick={() => selectedCourseId && loadCompletedStudents(selectedCourseId)}
+            onClick={() =>
+              selectedCourseId && loadCompletedStudents(selectedCourseId)
+            }
             disabled={!selectedCourseId || loadingRows}
-          >
+            className="w-full sm:w-auto">
             Refresh list
           </Button>
         </div>
@@ -168,6 +357,7 @@ export default function StudentCertsPage() {
         </div>
       ) : null}
 
+      {/* Course Selector */}
       <div className="rounded-md border bg-white p-3">
         <div className="text-sm font-medium text-slate-700 mb-2">Course</div>
 
@@ -177,10 +367,9 @@ export default function StudentCertsPage() {
           <div className="text-sm text-slate-600">No courses found.</div>
         ) : (
           <select
-            className="w-full sm:w-[420px] border rounded-md px-3 py-2 text-sm"
+            className="w-full border rounded-md px-3 py-2 text-sm"
             value={selectedCourseId ?? ""}
-            onChange={(e) => setSelectedCourseId(Number(e.target.value))}
-          >
+            onChange={(e) => setSelectedCourseId(Number(e.target.value))}>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -192,124 +381,261 @@ export default function StudentCertsPage() {
         )}
       </div>
 
+      {/* Enrolled Students Section */}
       <div className="rounded-md border bg-white p-3">
         <div className="text-sm font-medium text-slate-700 mb-2">
           Enrolled Students
         </div>
+
         {rows?.season ? (
-          <div className="text-xs text-slate-600">
+          <div className="text-xs text-slate-600 mb-4">
             <span className="font-semibold text-slate-700">Season:</span>{" "}
-            {rows.season.name} • {fmtDate(rows.season.start_at)} – {fmtDate(rows.season.end_at)}
+            {rows.season.name} • {fmtDate(rows.season.start_at)} –{" "}
+            {fmtDate(rows.season.end_at)}
           </div>
         ) : (
-          <div className="text-xs text-slate-500">Season: —</div>
+          <div className="text-xs text-slate-500 mb-4">Season: —</div>
         )}
+
         {loadingRows ? (
-          <div className="text-sm text-slate-600">Loading enrolled students…</div>
+          <div className="text-sm text-slate-600">
+            Loading enrolled students…
+          </div>
         ) : !rows || !rows.results || rows.results.length === 0 ? (
-          <div className="text-sm text-slate-600">No enrolled students yet.</div>
+          <div className="text-sm text-slate-600">
+            No enrolled students yet.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full border-collapse">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Student
-                  </th>
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Email
-                  </th>
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Progress
-                  </th>
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Certificate
-                  </th>
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Teacher
-                  </th>
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Admin
-                  </th>
-                  <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+          <>
+            {/* ==================== MOBILE: CARDS ==================== */}
+            <div className="md:hidden space-y-4">
+              {rows.results.map((r) => {
+                const cert = r.certificate;
+                return (
+                  <div
+                    key={r.enrollment_id}
+                    className="border rounded-xl p-4 bg-white shadow-sm">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          {r.student_name}
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          {r.student_email}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-semibold text-slate-700">
+                          {r.progress_pct}%
+                        </div>
+                        <div className="text-xs text-slate-500">Progress</div>
+                      </div>
+                    </div>
 
-              <tbody>
-                {rows.results.map((r) => {
-                  const cert = r.certificate;
-                  return (
-                    <tr key={r.enrollment_id} className="border-b last:border-b-0">
-                      <td className="py-3 pr-3 text-sm text-slate-800">
-                        {r.student_name}
-                      </td>
-                      <td className="py-3 pr-3 text-sm text-slate-600">
-                        {r.student_email}
-                      </td>
-                      <td className="py-3 pr-3 text-sm text-slate-700">
-                        {r.progress_pct}%
-                      </td>
-
-                      <td className="py-3 pr-3 text-sm">
-                        {cert ? (
-                          <div>
-                            <div className="font-semibold text-slate-800">{cert.number}</div>
-                            <div className="text-xs text-slate-500">
-                              {cert.title}
-                            </div>
+                    {/* Certificate */}
+                    <div className="border-t border-slate-100 pt-4">
+                      {cert ? (
+                        <div>
+                          <div className="font-semibold text-slate-800">
+                            {cert.number}
                           </div>
-                        ) : (
-                          <span className="text-slate-500">No certificate</span>
-                        )}
-                      </td>
-
-                      <td className="py-3 pr-3 text-sm">
-                        {cert ? (cert.teacher_approved ? "✅ Approved" : "⏳ Pending") : "—"}
-                      </td>
-
-                      <td className="py-3 pr-3 text-sm">
-                        {cert ? (cert.admin_approved ? "✅ Approved" : "⏳ Pending") : "—"}
-                      </td>
-
-                      <td className="py-3 pr-3 text-sm">
-                        {!cert ? (
-                          <div className="flex flex-wrap gap-2">
-                            <Link
-                              className="inline-flex"
-                              href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}
-                            >
-                              <Button size="sm" variant="outline">View Progress</Button>
-                            </Link>
+                          <div className="text-sm text-slate-600 mt-1">
+                            {cert.title}
                           </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
+                        </div>
+                      ) : (
+                        <span className="text-slate-500">No certificate</span>
+                      )}
+                    </div>
+
+                    {/* Approval Status */}
+                    <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                      <div>
+                        <div className="text-xs text-slate-500 mb-1">
+                          Teacher
+                        </div>
+                        {cert
+                          ? cert.teacher_approved
+                            ? "✅ Approved"
+                            : "⏳ Pending"
+                          : "—"}
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500 mb-1">Admin</div>
+                        {cert
+                          ? cert.admin_approved
+                            ? "✅ Approved"
+                            : "⏳ Pending"
+                          : "—"}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-5 flex flex-col gap-2">
+                      {!cert ? (
+                        <Link
+                          href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full">
+                            View Progress
+                          </Button>
+                        </Link>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              busyCertId === cert.id || cert.teacher_approved
+                            }
+                            onClick={() => approveTeacher(cert.id)}
+                            className="w-full">
+                            {cert.teacher_approved
+                              ? "Teacher Approved"
+                              : "Approve (Teacher)"}
+                          </Button>
+
+                          <Link
+                            href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}>
                             <Button
                               size="sm"
                               variant="outline"
-                              disabled={busyCertId === cert.id || cert.teacher_approved}
-                              onClick={() => approveTeacher(cert.id)}
-                            >
-                              {cert.teacher_approved ? "Teacher Approved" : "Approve (Teacher)"}
+                              className="w-full">
+                              View Progress
                             </Button>
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
+            {/* ==================== DESKTOP: ORIGINAL TABLE (Unchanged) ==================== */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-[900px] w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Student
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Email
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Progress
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Certificate
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Teacher
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Admin
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-                            <Link
-                              className="inline-flex"
-                              href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}
-                            >
-                              <Button size="sm" variant="outline">View Progress</Button>
-                            </Link>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                <tbody>
+                  {rows.results.map((r) => {
+                    const cert = r.certificate;
+                    return (
+                      <tr
+                        key={r.enrollment_id}
+                        className="border-b last:border-b-0">
+                        <td className="py-3 pr-3 text-sm text-slate-800">
+                          {r.student_name}
+                        </td>
+                        <td className="py-3 pr-3 text-sm text-slate-600">
+                          {r.student_email}
+                        </td>
+                        <td className="py-3 pr-3 text-sm text-slate-700">
+                          {r.progress_pct}%
+                        </td>
+
+                        <td className="py-3 pr-3 text-sm">
+                          {cert ? (
+                            <div>
+                              <div className="font-semibold text-slate-800">
+                                {cert.number}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {cert.title}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500">
+                              No certificate
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3 pr-3 text-sm">
+                          {cert
+                            ? cert.teacher_approved
+                              ? "✅ Approved"
+                              : "⏳ Pending"
+                            : "—"}
+                        </td>
+
+                        <td className="py-3 pr-3 text-sm">
+                          {cert
+                            ? cert.admin_approved
+                              ? "✅ Approved"
+                              : "⏳ Pending"
+                            : "—"}
+                        </td>
+
+                        <td className="py-3 pr-3 text-sm">
+                          {!cert ? (
+                            <div className="flex flex-wrap gap-2">
+                              <Link
+                                className="inline-flex"
+                                href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}>
+                                <Button size="sm" variant="outline">
+                                  View Progress
+                                </Button>
+                              </Link>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={
+                                  busyCertId === cert.id ||
+                                  cert.teacher_approved
+                                }
+                                onClick={() => approveTeacher(cert.id)}>
+                                {cert.teacher_approved
+                                  ? "Teacher Approved"
+                                  : "Approve (Teacher)"}
+                              </Button>
+
+                              <Link
+                                className="inline-flex"
+                                href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}>
+                                <Button size="sm" variant="outline">
+                                  View Progress
+                                </Button>
+                              </Link>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
