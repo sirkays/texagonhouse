@@ -135,6 +135,32 @@ export function CodeEditor() {
     css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
   } as const;
 
+  const isProgrammaticLoadRef = useRef(false);
+  const isDirty = (lang: LangKey) => !!dirtyByLang[lang];
+
+  const [showReloadWarning, setShowReloadWarning] = useState(false);
+  const pendingReloadRef = useRef<null | (() => void)>(null);
+
+
+
+
+  // last saved title per language (separate from submissionTitle)
+  const [saveTitleByLang, setSaveTitleByLang] = useState<Partial<Record<LangKey, string>>>({});
+  const [dirtyByLang, setDirtyByLang] = useState<Partial<Record<LangKey, boolean>>>({});
+
+  const markDirty = (lang: LangKey) => {
+    setDirtyByLang((prev) => ({ ...prev, [lang]: true }));
+  };
+
+  const markSaved = (lang: LangKey) => {
+    setDirtyByLang((prev) => ({ ...prev, [lang]: false }));
+  };
+
+  const hasAnyUnsaved = () => Object.values(dirtyByLang).some(Boolean);
+
+  // optional: last saved code per language (used in part 2)
+  const [lastSavedCodeByLang, setLastSavedCodeByLang] =
+    useState<Partial<Record<LangKey, string>>>({});
 
   // Session and authentication
   const { data: session, status } = useSession();
@@ -243,6 +269,20 @@ export function CodeEditor() {
     }));
   };
 
+  const getCodeForLang = (lang: LangKey) => {
+    if (lang === "html") return htmlCode;
+    if (lang === "css") return cssCode;
+    return lang === "javascript" ? jsCode : codeBuffers[lang] ?? languages[lang].template;
+  };
+
+  const requestReload = (action: () => void) => {
+    if (hasAnyUnsaved()) {
+      pendingReloadRef.current = action;
+      setShowReloadWarning(true);
+    } else {
+      action();
+    }
+  };
   const setTitleForActiveLang = (value: string) => {
     setSubmissionTitle(value);
     setTitleByLang((prev) => ({
@@ -254,6 +294,36 @@ export function CodeEditor() {
     const t = (s || "").trim();
     if (!t) return "";
     return t.length > max ? t.slice(0, max).trimEnd() + "..." : t;
+  };
+
+  const openSaveModal = () => {
+    const lang = selectedLanguage as LangKey;
+
+    const prefillTitle =
+      saveTitleByLang[lang] ??
+      snippetCtxByLang[lang]?.title ??
+      "";
+
+    setSaveFileName(prefillTitle);
+    setShowSaveModal(true);
+  };
+
+  const handleResetClick = () => {
+    const lang = selectedLanguage as LangKey;
+
+    if (!isDirty(lang)) {
+      resetCode();
+      return;
+    }
+
+    showCustomConfirm(
+      "You have unsaved changes. Resetting will delete them. Continue?",
+      async () => {
+        // mark as clean AFTER reset
+        resetCode();
+        markSaved(lang);
+      }
+    );
   };
 
   // Helper functions
@@ -305,6 +375,36 @@ export function CodeEditor() {
     }
   };
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isReloadKey =
+        e.key === "F5" ||
+        ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "r"));
+
+      if (!isReloadKey) return;
+
+      if (hasAnyUnsaved()) {
+        e.preventDefault();
+        requestReload(() => window.location.reload());
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dirtyByLang]);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!hasAnyUnsaved()) return;
+      e.preventDefault();
+      e.returnValue = ""; // triggers native confirm dialog
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirtyByLang]);
+
+
   const saveAsFile = async () => {
     if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim()) return;
 
@@ -335,6 +435,11 @@ export function CodeEditor() {
 
       const savedSnippet: Snippet = await res.json();
 
+      setSaveTitleByLang((prev) => ({
+        ...prev,
+        [lang]: savedSnippet.title,
+      }));
+
       // update list
       setMySnippets((prev) => {
         const exists = prev.some((s) => s.id === savedSnippet.id);
@@ -352,6 +457,8 @@ export function CodeEditor() {
           lessonId: savedSnippet.lesson ? String(savedSnippet.lesson) : "",
         },
       }));
+      setLastSavedCodeByLang((prev) => ({ ...prev, [lang]: getCodeForLang(lang) }));
+      markSaved(lang);
 
       showCustomAlert(existingId ? "Snippet updated successfully!" : "Snippet saved successfully!");
 
@@ -543,6 +650,20 @@ export function CodeEditor() {
         [lang]: sub.code_text || languages[lang].template,
       }));
     }
+    isProgrammaticLoadRef.current = true;
+    try {
+      // setSelectedLanguage, setCode, setHtmlCode...
+    } finally {
+      // let CodeMirror settle before allowing dirty again
+      setTimeout(() => {
+        isProgrammaticLoadRef.current = false;
+      }, 0);
+    }
+
+    setSaveTitleByLang((prev) => ({
+      ...prev,
+      [lang]: sub.title ?? "",
+    }));
 
     setOutput("");
     setHtmlPreview("");
@@ -552,6 +673,8 @@ export function CodeEditor() {
     setImagePreviewUrl("");
     setActiveTab("editor");
   };
+
+
 
   const deleteUploadedFile = (id: number) => {
     showCustomConfirm(
@@ -576,6 +699,7 @@ export function CodeEditor() {
         }
       }
     );
+
   };
   const loadFile = async (file: UploadedFile) => {
     try {
@@ -764,15 +888,30 @@ export function CodeEditor() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
   const resetCode = () => {
-    setCode(languages[selectedLanguage as keyof typeof languages].template);
-    if (selectedLanguage === "html") setHtmlCode(languages.html.template);
-    if (selectedLanguage === "css") setCssCode(languages.css.template);
+    const lang = selectedLanguage as LangKey;
+
+    setCode(languages[lang].template);
+    if (lang === "html") setHtmlCode(languages.html.template);
+    if (lang === "css") setCssCode(languages.css.template);
+
+    // clear snippet association for this language
     setSnippetCtxByLang((prev) => {
       const copy = { ...prev };
-      delete copy[selectedLanguage as LangKey];
+      delete copy[lang];
       return copy;
     });
+
+    // clear saved-title cache for this language (so Save As opens blank)
+    setSaveTitleByLang((prev) => {
+      const copy = { ...prev };
+      delete copy[lang];
+      return copy;
+    });
+
+    // mark clean
+    setDirtyByLang((prev) => ({ ...prev, [lang]: false }));
 
     setSaveFileName("");
     setOutput("");
@@ -877,6 +1016,10 @@ export function CodeEditor() {
         </html>
       `);
     }
+    if (!isProgrammaticLoadRef.current) {
+      markDirty(selectedLanguage as LangKey);
+    }
+
   };
 
   const validateCSS = (css: string): string | null => {
@@ -924,17 +1067,20 @@ export function CodeEditor() {
       else if (detailedSnippet.language === "css") setCssCode(detailedSnippet.code_text);
       else setCode(detailedSnippet.code_text);
 
-      // ✅ per-language snippet id fix (if you implemented it)
-      // setSnippetCtxByLang((prev) => ({
-      //   ...prev,
-      //   [detailedSnippet.language as LangKey]: {
-      //     id: detailedSnippet.id,
-      //     title: detailedSnippet.title,
-      //     lessonId: detailedSnippet.lesson ? String(detailedSnippet.lesson) : "",
-      //   },
-      // }));
+      //✅ per-language snippet id fix (if you implemented it)
+      setSnippetCtxByLang((prev) => ({
+        ...prev,
+        [detailedSnippet.language as LangKey]: {
+          id: detailedSnippet.id,
+          title: detailedSnippet.title,
+          lessonId: detailedSnippet.lesson ? String(detailedSnippet.lesson) : "",
+        },
+      }));
+      setSaveTitleByLang((prev) => ({
+        ...prev,
+        [detailedSnippet.language as LangKey]: detailedSnippet.title,
+      }));
 
-      setSaveFileName(detailedSnippet.title);
       setSelectedLanguage(detailedSnippet.language);
       if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
       setActiveTab("editor");
@@ -945,6 +1091,16 @@ export function CodeEditor() {
     } finally {
       setSnippetLoadingId(null);
     }
+    isProgrammaticLoadRef.current = true;
+    try {
+      // setSelectedLanguage, setCode, setHtmlCode...
+    } finally {
+      // let CodeMirror settle before allowing dirty again
+      setTimeout(() => {
+        isProgrammaticLoadRef.current = false;
+      }, 0);
+    }
+
   };
 
 
@@ -1365,6 +1521,39 @@ export function CodeEditor() {
   }
   return (
     <>
+      <Dialog open={showReloadWarning} onOpenChange={setShowReloadWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unsaved changes</DialogTitle>
+            <DialogDescription>
+              You have code that hasn’t been saved. If you reload, unsaved changes will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                pendingReloadRef.current = null;
+                setShowReloadWarning(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#EF7B55] hover:bg-[#F79771]"
+              onClick={() => {
+                const action = pendingReloadRef.current;
+                pendingReloadRef.current = null;
+                setShowReloadWarning(false);
+                action?.();
+              }}
+            >
+              Reload anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1814,7 +2003,7 @@ export function CodeEditor() {
                     size="sm"
                     onClick={() => {
                       setIsRotating(true);
-                      resetCode();
+                      handleResetClick();
                       setTimeout(() => setIsRotating(false), 1000); // Match animation duration
                     }}
                   >
@@ -1920,7 +2109,7 @@ export function CodeEditor() {
                     variant="outline"
                     className="hover:bg-[#EF7B55]/20"
                     size="sm"
-                    onClick={() => setShowSaveModal(true)}
+                    onClick={openSaveModal}
                     disabled={loading || isImagePreview}
                   >
                     <Save className="mr-2 h-4 w-4" />
@@ -1969,15 +2158,6 @@ export function CodeEditor() {
                     disabled={loading || isImagePreview}
                   >
                     <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
-                    onClick={resetCode}
-                    disabled={loading}
-                  >
-                    <RotateCcw className="h-4 w-4" />
                   </Button>
                 </div>
                 {loading && (
