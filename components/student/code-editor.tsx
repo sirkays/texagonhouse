@@ -38,8 +38,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+
 import { Label } from "@/components/ui/label";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 // import {java} from "@codemirror/lang-java";
@@ -2073,11 +2074,12 @@ export function CodeEditor() {
                             ? cssCode
                             : code
                       }
-                      extensions={
-                        codeMirrorExtensions[
-                        selectedLanguage as keyof typeof codeMirrorExtensions
-                        ] as any
-                      }
+                      extensions={[
+                        ...(codeMirrorExtensions[
+                          selectedLanguage as keyof typeof codeMirrorExtensions
+                        ] as any),
+                        EditorView.lineWrapping, // ✅ wrap long lines
+                      ]}
                       theme={monokai}
                       height="50vh"
                       basicSetup={{
@@ -2089,6 +2091,7 @@ export function CodeEditor() {
                       onChange={handleCodeChange}
                       className="flex-1"
                     />
+
                   </div>
                 )}
                 {syntaxError && !isImagePreview && (
