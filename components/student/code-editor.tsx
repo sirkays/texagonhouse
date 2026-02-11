@@ -1192,6 +1192,8 @@ export function CodeEditor() {
     }
     setIsRunning(true);
     setOutput("");
+    setWebConsole("");
+
     setExecutionError("");
     setSuccessMessage(null);
     try {
@@ -2211,9 +2213,9 @@ export function CodeEditor() {
                 ) : (
                   <div className="output-console bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm overflow-auto">
                     <pre className="whitespace-pre-wrap">
-                      {webConsole || "Console output will appear here..."}
-
+                      {output || "Output will appear here..."}
                     </pre>
+
                   </div>
                 )}
               </CardContent>
