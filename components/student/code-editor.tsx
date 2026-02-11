@@ -38,8 +38,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+
 import { Label } from "@/components/ui/label";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 // import {java} from "@codemirror/lang-java";
@@ -1192,6 +1193,8 @@ export function CodeEditor() {
     }
     setIsRunning(true);
     setOutput("");
+    setWebConsole("");
+
     setExecutionError("");
     setSuccessMessage(null);
     try {
@@ -2071,11 +2074,12 @@ export function CodeEditor() {
                             ? cssCode
                             : code
                       }
-                      extensions={
-                        codeMirrorExtensions[
-                        selectedLanguage as keyof typeof codeMirrorExtensions
-                        ] as any
-                      }
+                      extensions={[
+                        ...(codeMirrorExtensions[
+                          selectedLanguage as keyof typeof codeMirrorExtensions
+                        ] as any),
+                        EditorView.lineWrapping, // ✅ wrap long lines
+                      ]}
                       theme={monokai}
                       height="50vh"
                       basicSetup={{
@@ -2087,6 +2091,7 @@ export function CodeEditor() {
                       onChange={handleCodeChange}
                       className="flex-1"
                     />
+
                   </div>
                 )}
                 {syntaxError && !isImagePreview && (
@@ -2211,9 +2216,9 @@ export function CodeEditor() {
                 ) : (
                   <div className="output-console bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm overflow-auto">
                     <pre className="whitespace-pre-wrap">
-                      {webConsole || "Console output will appear here..."}
-
+                      {output || "Output will appear here..."}
                     </pre>
+
                   </div>
                 )}
               </CardContent>
