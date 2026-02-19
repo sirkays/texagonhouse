@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
 import {
   Play,
   Download,
@@ -17,6 +16,7 @@ import {
   FilePlus,
   Upload,
   Save,
+  ExternalLink, Loader2, Maximize2,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -2288,10 +2288,38 @@ export function CodeEditor() {
                 {(selectedLanguage === "html" || selectedLanguage === "css") &&
                   htmlPreview ? (
                   <Tabs defaultValue="preview" className="h-full flex flex-col">
-                    <TabsList className="grid grid-cols-2 gap-2">
-                      <TabsTrigger value="preview">Preview</TabsTrigger>
-                      <TabsTrigger value="output">Console</TabsTrigger>
-                    </TabsList>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <TabsList className="grid grid-cols-2 gap-2">
+                        <TabsTrigger value="preview">Preview</TabsTrigger>
+                        <TabsTrigger value="output">Console</TabsTrigger>
+                      </TabsList>
+
+                      <div className="flex items-center gap-1">
+                        {/* Open in new tab */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Open in new tab"
+                          onClick={() => {
+                            const blob = new Blob([htmlPreview], { type: "text/html" });
+                            const url = URL.createObjectURL(blob);
+                            window.open(url, "_blank");
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+
+                        {/* Fullscreen */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Fullscreen"
+                          onClick={() => iframeRef.current?.requestFullscreen?.()}
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                     <TabsContent value="preview" className="flex-1">
                       <iframe
                         ref={iframeRef}
