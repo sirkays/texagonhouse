@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch the student's upload list from the backend
   const { response, text } = await djangoFetch(
-    `/code-ide/api/uploads/?label=${encodeURIComponent(label)}`,
+    `/code-ide/api/uploads/resolve/?label=${encodeURIComponent(label)}`,
     { method: "GET" }
   );
 
