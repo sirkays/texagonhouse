@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
       { status: 404 }
     );
   }
+  
 
   return NextResponse.redirect(result.url);
 }
