@@ -14,7 +14,6 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Fetch the student's upload list from the backend
   const { response, text } = await djangoFetch(
     `/code-ide/api/uploads/resolve/?label=${encodeURIComponent(label)}`,
     { method: "GET" }
@@ -31,18 +30,18 @@ export async function GET(req: NextRequest) {
   try {
     data = JSON.parse(text);
   } catch {
-    return NextResponse.json({ error: "Invalid response from server" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Invalid response from server" },
+      { status: 502 }
+    );
   }
 
-  // Backend may return a paginated object or a plain array
-  const results: any[] = Array.isArray(data) ? data : data.results ?? [];
+  // Backend may return paginated object or plain object
+  const result = Array.isArray(data)
+    ? data[0]
+    : data.results?.[0] ?? data;
 
-  // Filter client-side by exact label match (backend may do partial/icontains)
-  const match = results.find(
-    (f: any) => (f.label ?? "").toLowerCase() === label.toLowerCase()
-  );
-
-  if (!match) {
+  if (!result) {
     return NextResponse.json(
       { error: `No uploaded file found with label: "${label}"` },
       { status: 404 }
@@ -50,11 +49,11 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    id:            match.id,
-    label:         match.label,
-    original_name: match.original_name,
-    url:           match.url,
-    content_type:  match.content_type,
-    size_bytes:    match.size_bytes,
+    id: result.id,
+    label: result.label,
+    original_name: result.original_name,
+    url: result.url,
+    content_type: result.content_type,
+    size_bytes: result.size_bytes,
   });
 }
