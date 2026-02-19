@@ -142,6 +142,8 @@ export function CodeEditor() {
   const [showReloadWarning, setShowReloadWarning] = useState(false);
   const pendingReloadRef = useRef<null | (() => void)>(null);
 
+  const shortFileUrl = (file: UploadedFile) =>
+    `${window.location.origin}/api/code-ide/uploads/${file.id}/content`;
 
   const [showPythonInputModal, setShowPythonInputModal] = useState(false);
   const [pythonInputPrompts, setPythonInputPrompts] = useState<string[]>([]);
@@ -779,16 +781,14 @@ export function CodeEditor() {
       setLoading(false);
     }
   };
+
   const copyFileUrl = (file: UploadedFile) => {
     navigator.clipboard
-      .writeText(file.url)
-      .then(() => {
-        showCustomAlert("File URL copied to clipboard");
-      })
-      .catch(() => {
-        showCustomAlert("Failed to copy URL");
-      });
+      .writeText(shortFileUrl(file))
+      .then(() => showCustomAlert("File URL copied to clipboard"))
+      .catch(() => showCustomAlert("Failed to copy URL"));
   };
+
   const fetchSubmissions = async (lessonId?: string) => {
     const u = new URL("/api/code-ide/submissions", window.location.origin);
     if (lessonId) u.searchParams.set("lesson", lessonId);
@@ -2557,10 +2557,10 @@ export function CodeEditor() {
                               </p>
 
                               {/* URL — mobile-safe wrapping */}
-                              <div className="items-start gap-2 text-xs text-muted-foreground mt-1 min-w-0">
-                                <span className="break-all flex-1 min-w-0">
-                                  {file.url}
-                                </span>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 min-w-0">
+                                <code className="truncate bg-muted px-1.5 py-0.5 rounded font-mono">
+                                  /api/code-ide/uploads/{file.id}/content
+                                </code>
                               </div>
                             </div>
 
