@@ -48,12 +48,5 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({
-    id: result.id,
-    label: result.label,
-    original_name: result.original_name,
-    url: result.url,
-    content_type: result.content_type,
-    size_bytes: result.size_bytes,
-  });
+  return NextResponse.redirect(result.url);
 }
