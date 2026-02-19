@@ -143,7 +143,20 @@ export function CodeEditor() {
   const pendingReloadRef = useRef<null | (() => void)>(null);
 
 
+  const [showPythonInputModal, setShowPythonInputModal] = useState(false);
+  const [pythonInputPrompts, setPythonInputPrompts] = useState<string[]>([]);
+  const [pythonInputValues, setPythonInputValues] = useState<string[]>([]);
+  const pendingStdinRef = useRef<((stdin: string) => void) | null>(null);
 
+  const parsePythonInputs = (code: string): string[] => {
+    const regex = /input\s*\(\s*(?:"([^"]*?)"|'([^']*?)')?\s*\)/g;
+    const prompts: string[] = [];
+    let match;
+    while ((match = regex.exec(code)) !== null) {
+      prompts.push(match[1] ?? match[2] ?? `Input ${prompts.length + 1}`);
+    }
+    return prompts;
+  };
 
   // last saved title per language (separate from submissionTitle)
   const [saveTitleByLang, setSaveTitleByLang] = useState<Partial<Record<LangKey, string>>>({});
@@ -1171,19 +1184,59 @@ export function CodeEditor() {
           send("error", reason && reason.stack ? reason.stack : reason);
         });
 
-        // run user JS
-        try {
-          ${j ?? ""}
-        } catch (e) {
-          send("error", e && e.stack ? e.stack : e);
-        }
-      })();
-    </script>
+        })();
+            </script>
+
+            <script>
+              // user code runs at global scope so onclick= handlers can find functions
+              try {
+                ${j ?? ""}
+              } catch (e) {
+                const msg = e && e.stack ? e.stack : e;
+                try {
+                  window.parent.postMessage(
+                    { source: "web-iframe", type: "error", message: String(msg), runId: ${runId} },
+                    "*"
+                  );
+                } catch {}
+              }
+            </script>
   </body>
 </html>
 `;
 
-
+  const executeWithJudge0 = async (codeToRun: string, langId: number, stdin: string) => {
+    const res = await fetch(
+      "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        },
+        body: JSON.stringify({
+          source_code: codeToRun,
+          language_id: langId,
+          stdin,
+        }),
+      }
+    );
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const result = await res.json();
+    if (result.status?.id === 3) {
+      setOutput(result.stdout || "Success (no output)");
+      setSuccessMessage("Code executed successfully!");
+    } else if (result.status?.id === 6) {
+      setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
+    } else if (result.status?.id === 5) {
+      setOutput("Time Limit Exceeded");
+    } else if (result.status?.id === 4) {
+      setOutput(`Runtime Error:\n${result.stderr}`);
+    } else {
+      setOutput(result.stderr || result.stdout || "Unknown error");
+    }
+  };
 
   const runCode = async () => {
     if (isImagePreview) {
@@ -1237,58 +1290,32 @@ export function CodeEditor() {
         const cfg = languages[selectedLanguage as keyof typeof languages];
         if (cfg.judgeId) {
           try {
-            let codeToRun = code;
-            // if (
-            // selectedLanguage === "java" &&
-            // !code.includes("class Main") &&
-            // !code.includes("class ")
-            // ) {
-            // codeToRun = `public class Main {\n public static void main(String[] args) {\n ${code}\n }\n}`;
-            // } else if (
-            // selectedLanguage === "cpp" &&
-            // !code.includes("int main")
-            // ) {
-            // codeToRun = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n ${code}\n return 0;\n}`;
-            // }
-            const res = await fetch(
-              "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-RapidAPI-Key":
-                    "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
-                  "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-                },
-                body: JSON.stringify({
-                  source_code: codeToRun,
-                  language_id: cfg.judgeId,
-                  stdin: "happy\nindoors\nalone\nmedium\n",
-                }),
-              }
-            );
-            if (!res.ok) {
-              throw new Error(`API Error: ${res.status}`);
+            const prompts = selectedLanguage === "python" ? parsePythonInputs(code) : [];
+
+            if (prompts.length > 0) {
+              // Show input modal — execution continues in the callback
+              setPythonInputPrompts(prompts);
+              setPythonInputValues(Array(prompts.length).fill(""));
+              pendingStdinRef.current = async (stdin: string) => {
+                try {
+                  await executeWithJudge0(code, cfg.judgeId!, stdin);
+                } catch {
+                  setExecutionError("Online execution unavailable. Using local simulation.");
+                  setOutput("Simulated output for " + selectedLanguage);
+                } finally {
+                  setIsRunning(false);
+                  setActiveTab("output");
+                }
+              };
+              setShowPythonInputModal(true);
+              // Don't setIsRunning(false) here — modal confirm/cancel handles it
+              return;
             }
-            const result = await res.json();
-            if (result.status?.id === 3) {
-              setOutput(result.stdout || "Success (no output)");
-              setSuccessMessage("Code executed successfully!");
-            } else if (result.status?.id === 6) {
-              setOutput(
-                `Compilation Error:\n${result.compile_output || result.stderr}`
-              );
-            } else if (result.status?.id === 5) {
-              setOutput("Time Limit Exceeded");
-            } else if (result.status?.id === 4) {
-              setOutput(`Runtime Error:\n${result.stderr}`);
-            } else {
-              setOutput(result.stderr || result.stdout || "Unknown error");
-            }
-          } catch (e: any) {
-            setExecutionError(
-              "Online execution unavailable. Using local simulation."
-            );
+
+            // No input() calls — run immediately with empty stdin
+            await executeWithJudge0(code, cfg.judgeId, "");
+          } catch {
+            setExecutionError("Online execution unavailable. Using local simulation.");
             setOutput("Simulated output for " + selectedLanguage);
           }
         } else {
@@ -1736,6 +1763,74 @@ export function CodeEditor() {
             </Button>
 
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showPythonInputModal} onOpenChange={setShowPythonInputModal}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+          {/* Header */}
+          <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-white tracking-tight">
+                Program Input
+              </DialogTitle>
+              <DialogDescription className="text-sm text-white/50 mt-1">
+                Your code calls <code className="text-[#EF7B55]">input()</code> — provide values before running
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          {/* Input fields */}
+          <div className="px-6 py-5 space-y-4 bg-white dark:bg-[#0f0f23]">
+            {pythonInputPrompts.map((prompt, i) => (
+              <div key={i} className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {prompt || `Input ${i + 1}`}
+                </Label>
+                <Input
+                  placeholder={`Value for input ${i + 1}...`}
+                  value={pythonInputValues[i] ?? ""}
+                  onChange={(e) => {
+                    const updated = [...pythonInputValues];
+                    updated[i] = e.target.value;
+                    setPythonInputValues(updated);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && i === pythonInputPrompts.length - 1) {
+                      const stdin = pythonInputValues.join("\n");
+                      setShowPythonInputModal(false);
+                      pendingStdinRef.current?.(stdin);
+                    }
+                  }}
+                  autoFocus={i === 0}
+                  className="font-mono text-sm"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="px-6 pb-6 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPythonInputModal(false);
+                pendingStdinRef.current = null;
+                setIsRunning(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#EF7B55] hover:bg-[#F79771] text-white"
+              onClick={() => {
+                const stdin = pythonInputValues.join("\n");
+                setShowPythonInputModal(false);
+                pendingStdinRef.current?.(stdin);
+              }}
+            >
+              <Play className="mr-2 h-3.5 w-3.5" />
+              Run with inputs
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       <style jsx>{`
@@ -2547,19 +2642,55 @@ export function CodeEditor() {
               selectedLesson={selectedLesson}
               setSelectedLesson={setSelectedLesson}
               submissionTitle={submissionTitle}
-              setSubmissionTitle={setTitleForActiveLang} // ✅ IMPORTANT
+              setSubmissionTitle={setTitleForActiveLang}
               onSubmit={handleSubmissionTabSubmit}
               role={session?.user?.role || undefined}
               submissions={mySubmissions}
-              onGrade={async (id, upd) => {
-                await gradeSubmission(id, upd);
-              }}
-              onComment={async (id, msg) => {
-                await addComment(id, msg);
-              }}
+              onGrade={async (id, upd) => { await gradeSubmission(id, upd); }}
+              onComment={async (id, msg) => { await addComment(id, msg); }}
               fetchSubmissionDetail={fetchSubmissionDetail}
               onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
               showCustomAlert={showCustomAlert}
+              // ✅ NEW: pass all current code buffers
+              codeByLang={{
+                ...(jsCode !== languages.javascript.template && { javascript: jsCode }),
+                ...((codeBuffers["python"] ?? languages.python.template) !== languages.python.template && { python: codeBuffers["python"] }),
+                ...(htmlCode !== languages.html.template && { html: htmlCode }),
+                ...(cssCode !== languages.css.template && { css: cssCode }),
+              }}
+              // ✅ NEW: multi-language submit handler
+              onSubmitMultiple={async (selectedLangs) => {
+                const lessonId = selectedLesson;
+                const title = submissionTitle.trim() || null;
+                if (!lessonId) throw new Error("No lesson selected");
+                const results: Submission[] = [];
+                for (const lang of selectedLangs) {
+                  const codeText =
+                    lang === "html" ? htmlCode
+                      : lang === "css" ? cssCode
+                        : lang === "javascript" ? jsCode
+                          : codeBuffers[lang] ?? "";
+                  const body = {
+                    title,
+                    lesson: parseInt(lessonId),
+                    language: lang,
+                    code_text: codeText,
+                  };
+                  const res = await fetch("/api/code-ide/submissions/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                  });
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || `Failed to submit ${lang}`);
+                  }
+                  const created: Submission = await res.json();
+                  results.push(created);
+                }
+                setMySubmissions((prev) => [...results, ...prev]);
+                setSubmissionTitle("");
+              }}
             />
 
           </TabsContent>
@@ -2568,6 +2699,209 @@ export function CodeEditor() {
     </>
   );
 }
+
+// ─── Language Selection Modal ─────────────────────────────────────────────────
+
+const LANG_META: Record<string, { label: string; color: string; icon: string }> = {
+  javascript: { label: "JavaScript", color: "#F7DF1E", icon: "JS" },
+  python: { label: "Python", color: "#3776AB", icon: "PY" },
+  html: { label: "HTML", color: "#E34F26", icon: "HT" },
+  css: { label: "CSS", color: "#264DE4", icon: "CS" },
+};
+
+function LanguageSelectionModal({
+  open,
+  onClose,
+  codeByLang,
+  title,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  codeByLang: Partial<Record<string, string>>;
+  title: string;
+  onConfirm: (langs: string[]) => Promise<void>;
+}) {
+  const available = Object.keys(codeByLang).filter(
+    (lang) => (codeByLang[lang] ?? "").trim().length > 0
+  );
+
+  const [selected, setSelected] = useState<Set<string>>(new Set(available));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset selection whenever modal opens
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(available));
+      setError(null);
+    }
+  }, [open]);
+
+  const toggle = (lang: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(lang) ? next.delete(lang) : next.add(lang);
+      return next;
+    });
+  };
+
+  const handleConfirm = async () => {
+    if (selected.size === 0) {
+      setError("Select at least one language to submit.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onConfirm(Array.from(selected));
+      onClose();
+    } catch (e: any) {
+      setError(e.message ?? "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+        {/* Header */}
+        <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white tracking-tight">
+              Submit Code
+            </DialogTitle>
+            <DialogDescription className="text-sm text-white/50 mt-1">
+              Choose which languages to submit
+              {title ? (
+                <>
+                  {" "}as{" "}
+                  <span className="text-[#EF7B55] font-medium">"{title}"</span>
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Language Cards */}
+        <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-[#0f0f23]">
+          {available.map((lang) => {
+            const meta = LANG_META[lang] ?? { label: lang, color: "#888", icon: lang.slice(0, 2).toUpperCase() };
+            const code = codeByLang[lang] ?? "";
+            const preview = code.trim().split("\n").slice(0, 3).join("\n");
+            const isSelected = selected.has(lang);
+
+            return (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => toggle(lang)}
+                className={`
+                  relative text-left rounded-xl border-2 p-4 transition-all duration-200 group
+                  ${isSelected
+                    ? "border-[#EF7B55] bg-[#EF7B55]/5 shadow-md shadow-[#EF7B55]/10"
+                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-800/50"}
+                `}
+              >
+                {/* Check indicator */}
+                <span
+                  className={`
+                    absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center text-white text-xs transition-all
+                    ${isSelected
+                      ? "bg-[#EF7B55] border-[#EF7B55]"
+                      : "border-slate-300 dark:border-slate-600"}
+                  `}
+                >
+                  {isSelected && (
+                    <svg viewBox="0 0 10 8" fill="none" className="w-3 h-3">
+                      <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+
+                {/* Language badge */}
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-black text-white shadow-sm"
+                    style={{ backgroundColor: meta.color }}
+                  >
+                    {meta.icon}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
+                      {meta.label}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {code.trim().split("\n").length} line{code.trim().split("\n").length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Code preview */}
+                <pre className="text-[10px] text-slate-500 dark:text-slate-400 font-mono leading-relaxed overflow-hidden line-clamp-3 bg-slate-100 dark:bg-slate-900/60 rounded-md px-2.5 py-2">
+                  {preview || <span className="italic text-slate-400">(empty)</span>}
+                </pre>
+              </button>
+            );
+          })}
+
+          {available.length === 0 && (
+            <div className="col-span-2 text-center py-8 text-slate-400 text-sm">
+              No code found in any language tab.
+            </div>
+          )}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mx-6 -mt-2 mb-1 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="px-6 pb-6 flex items-center justify-between gap-3">
+          <p className="text-xs text-slate-400">
+            {selected.size} of {available.length} selected
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              disabled={submitting}
+              className="rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirm}
+              disabled={selected.size === 0 || submitting}
+              className="rounded-lg bg-[#EF7B55] hover:bg-[#F79771] text-white font-semibold px-5 gap-2"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Submitting {selected.size}…
+                </>
+              ) : (
+                <>
+                  Submit {selected.size > 1 ? `${selected.size} files` : "1 file"}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── SubmissionTab ────────────────────────────────────────────────────────────
+
 function SubmissionTab({
   lessons,
   selectedLesson,
@@ -2582,6 +2916,8 @@ function SubmissionTab({
   fetchSubmissionDetail,
   onLoadToEditor,
   showCustomAlert,
+  codeByLang,       // ✅ NEW
+  onSubmitMultiple, // ✅ NEW
 }: {
   lessons: { id: string; title: string }[];
   selectedLesson: string;
@@ -2596,22 +2932,19 @@ function SubmissionTab({
   fetchSubmissionDetail: (id: number) => Promise<Submission>;
   onLoadToEditor: (sub: Submission) => void;
   showCustomAlert: (message: string) => void;
+  codeByLang: Partial<Record<string, string>>;      // ✅ NEW
+  onSubmitMultiple: (langs: string[]) => Promise<void>; // ✅ NEW
 }) {
   const [viewing, setViewing] = useState<Submission | null>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lessonSearch, setLessonSearch] = useState("");
-  const handleSubmitClick = async () => {
-    setIsSubmitting(true);
-    try {
-      await onSubmit();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+
+  // ✅ NEW: modal state
+  const [showLangModal, setShowLangModal] = useState(false);
+
   const itemsPerPage = 10;
   const filteredSubmissions = submissions.filter((s) =>
     `${s.id} ${s.title ?? ""} ${s.status} ${s.language}`
@@ -2623,6 +2956,7 @@ function SubmissionTab({
     currentPage * itemsPerPage
   );
   const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
+
   const viewDetail = async (s: Submission) => {
     setLoading(true);
     try {
@@ -2634,6 +2968,7 @@ function SubmissionTab({
       setLoading(false);
     }
   };
+
   const sendComment = async () => {
     if (!viewing || !comment.trim()) return;
     try {
@@ -2645,111 +2980,63 @@ function SubmissionTab({
       showCustomAlert("Comment failed");
     }
   };
+
   const copySubmissionCode = (text: string) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        showCustomAlert("Code copied to clipboard");
-      })
-      .catch(() => {
-        showCustomAlert("Failed to copy code");
-      });
+    navigator.clipboard.writeText(text)
+      .then(() => showCustomAlert("Code copied to clipboard"))
+      .catch(() => showCustomAlert("Failed to copy code"));
   };
+
   return (
     <Card className="flex flex-col w-full submission-tab">
       <CardHeader>
         <CardTitle className="text-lg sm:text-xl">Code Submission</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-6">
-        {/* <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label
-              htmlFor="lesson-select"
-              className="block mb-2 text-sm font-medium">
-              Select Lesson
-            </Label>
-            <Select value={selectedLesson} onValueChange={setSelectedLesson}>
-              <SelectTrigger id="lesson-select">
-                <SelectValue placeholder="Select a lesson" />
-              </SelectTrigger>
-              <SelectContent>
-                {lessons.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label
-              htmlFor="submission-title"
-              className="block mb-2 text-sm font-medium">
-              Submission Title (optional)
-            </Label>
-            <Input
-              id="submission-title"
-              placeholder="Enter submission title"
-              value={submissionTitle}
-              onChange={(e) => setSubmissionTitle(e.target.value)}
-            />
-          </div>
-        </div>
-        <Button
-          onClick={handleSubmitClick}
-          disabled={!selectedLesson || isSubmitting}
-          className="w-full md:w-auto bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90">
-          {isSubmitting && <Spinner size="sm" className="mr-2 " />}
-          {isSubmitting ? "Submitting..." : "Submit Code"}
-        </Button> */}
+
+        {/* ✅ Language Selection Modal */}
+        <LanguageSelectionModal
+          open={showLangModal}
+          onClose={() => setShowLangModal(false)}
+          codeByLang={codeByLang}
+          title={submissionTitle}
+          onConfirm={async (langs) => {
+            await onSubmitMultiple(langs);
+            showCustomAlert(`Submitted ${langs.length} file${langs.length > 1 ? "s" : ""} successfully!`);
+          }}
+        />
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+          {/* Lesson selector */}
           <div className="w-full">
-            <Label
-              htmlFor="lesson-select"
-              className="block mb-2 text-sm font-medium"
-            >
+            <Label htmlFor="lesson-select" className="block mb-2 text-sm font-medium">
               Select Lesson
             </Label>
-
-            {/* START CHANGE: Updated Select Component */}
             <Select
               value={selectedLesson}
               onValueChange={setSelectedLesson}
-              onOpenChange={(open) => {
-                // Clear search when closed so it resets for next time
-                if (!open) setLessonSearch("");
-              }}
+              onOpenChange={(open) => { if (!open) setLessonSearch(""); }}
             >
               <SelectTrigger id="lesson-select">
                 <SelectValue placeholder="Select a lesson" />
               </SelectTrigger>
-
               <SelectContent>
-                {/* Search Input Sticky Header */}
                 <div className="p-2 sticky top-0 bg-popover z-10 border-b">
                   <Input
                     placeholder="Search lessons..."
                     value={lessonSearch}
                     onChange={(e) => setLessonSearch(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()} // Prevents Select from capturing keys
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="h-8 text-sm"
                     autoFocus={false}
                   />
                 </div>
-
                 <div className="max-h-[200px] overflow-y-auto mt-1">
                   {lessons
-                    .filter((l) =>
-                      l.title.toLowerCase().includes(lessonSearch.toLowerCase())
-                    )
+                    .filter((l) => l.title.toLowerCase().includes(lessonSearch.toLowerCase()))
                     .map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.title}
-                      </SelectItem>
+                      <SelectItem key={l.id} value={l.id}>{l.title}</SelectItem>
                     ))}
-
-                  {/* Empty State */}
                   {lessons.filter((l) =>
                     l.title.toLowerCase().includes(lessonSearch.toLowerCase())
                   ).length === 0 && (
@@ -2761,6 +3048,8 @@ function SubmissionTab({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Title */}
           <div className="w-full">
             <Label htmlFor="submission-title">
               Submission Title <span className="text-red-500">*</span>
@@ -2772,115 +3061,58 @@ function SubmissionTab({
               onChange={(e) => setSubmissionTitle(e.target.value)}
             />
           </div>
+
+          {/* ✅ Button now opens modal */}
           <Button
-            onClick={handleSubmitClick}
-            disabled={
-              !selectedLesson ||
-              !submissionTitle.trim() || // ✅ REQUIRED
-              isSubmitting
-            }
+            onClick={() => setShowLangModal(true)}
+            disabled={!selectedLesson || !submissionTitle.trim()}
             className="w-full md:w-auto bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90"
           >
-            {isSubmitting && <Spinner size="sm" className="mr-2 " />}
-            {isSubmitting ? "Submitting..." : "Submit Code"}
+            Submit Code
           </Button>
         </div>
 
+        {/* Detail view / list — unchanged below this point */}
         {viewing ? (
           <Card className="border rounded-md flex-1 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-base font-medium">
                 Submission #{viewing.id}
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setViewing(null)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setViewing(null)}>
                 Back to List
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground">Title</Label>
-                  <p>{viewing.title || "N/A"}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground">Status</Label>
-                  <p className="capitalize">{viewing.status}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground">Language</Label>
-                  <p className="capitalize">{viewing.language}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground">Score</Label>
-                  <p>{viewing.score ?? "Not graded"}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground">Graded By</Label>
-                  <p>
-                    {viewing.graded_by_name
-                      ? `${viewing.graded_by_name}`
-                      : "N/A"}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground">Graded At</Label>
-                  <p>
-                    {viewing.graded_at
-                      ? new Date(viewing.graded_at).toLocaleString()
-                      : "N/A"}
-                  </p>
-                </div>
-                <div className="space-y-1 md:col-span-2">
-                  <Label className="text-muted-foreground">Created</Label>
-                  <p>{new Date(viewing.created_at).toLocaleString()}</p>
-                </div>
+                <div className="space-y-1"><Label className="text-muted-foreground">Title</Label><p>{viewing.title || "N/A"}</p></div>
+                <div className="space-y-1"><Label className="text-muted-foreground">Status</Label><p className="capitalize">{viewing.status}</p></div>
+                <div className="space-y-1"><Label className="text-muted-foreground">Language</Label><p className="capitalize">{viewing.language}</p></div>
+                <div className="space-y-1"><Label className="text-muted-foreground">Score</Label><p>{viewing.score ?? "Not graded"}</p></div>
+                <div className="space-y-1"><Label className="text-muted-foreground">Graded By</Label><p>{viewing.graded_by_name ? `${viewing.graded_by_name}` : "N/A"}</p></div>
+                <div className="space-y-1"><Label className="text-muted-foreground">Graded At</Label><p>{viewing.graded_at ? new Date(viewing.graded_at).toLocaleString() : "N/A"}</p></div>
+                <div className="space-y-1 md:col-span-2"><Label className="text-muted-foreground">Created</Label><p>{new Date(viewing.created_at).toLocaleString()}</p></div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="font-medium">Code</Label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copySubmissionCode(viewing.code_text)}
-                    title="Copy code"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => copySubmissionCode(viewing.code_text)} title="Copy code"><Copy className="h-4 w-4" /></Button>
                 </div>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-48 border">
-                  {viewing.code_text}
-                </pre>
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-48 border">{viewing.code_text}</pre>
               </div>
               {viewing.feedback && (
                 <div className="space-y-2">
                   <Label className="font-medium">Feedback</Label>
-                  <p className="text-sm bg-muted p-4 rounded-md border">
-                    {viewing.feedback}
-                  </p>
+                  <p className="text-sm bg-muted p-4 rounded-md border">{viewing.feedback}</p>
                 </div>
               )}
               {viewing.correction_code && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="font-medium">Correction</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        copySubmissionCode(viewing.correction_code)
-                      }
-                      title="Copy correction code"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => copySubmissionCode(viewing.correction_code)} title="Copy correction code"><Copy className="h-4 w-4" /></Button>
                   </div>
-                  <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-48 border">
-                    {viewing.correction_code}
-                  </pre>
+                  <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-48 border">{viewing.correction_code}</pre>
                 </div>
               )}
               <div className="space-y-4">
@@ -2890,47 +3122,25 @@ function SubmissionTab({
                 </div>
                 <div className="space-y-3 max-h-48 overflow-auto">
                   {viewing.comments.map((c) => (
-                    <div
-                      key={c.id}
-                      className="bg-muted p-3 rounded-md space-y-1"
-                    >
+                    <div key={c.id} className="bg-muted p-3 rounded-md space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold">
-                          {c.author_name} ({c.author_role})
-                        </span>
-                        <span className="text-muted-foreground">
-                          {new Date(c.created_at).toLocaleString()}
-                        </span>
+                        <span className="font-semibold">{c.author_name} ({c.author_role})</span>
+                        <span className="text-muted-foreground">{new Date(c.created_at).toLocaleString()}</span>
                       </div>
                       <p className="text-sm">{c.message}</p>
                     </div>
                   ))}
                   {viewing.comments.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      No comments yet
-                    </p>
+                    <p className="text-sm text-muted-foreground text-center">No comments yet</p>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="Write a comment..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={sendComment} disabled={!comment.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+                  <Input placeholder="Write a comment..." value={comment} onChange={(e) => setComment(e.target.value)} className="flex-1" />
+                  <Button onClick={sendComment} disabled={!comment.trim()}><Send className="h-4 w-4" /></Button>
                 </div>
               </div>
               <div className="flex justify-end mt-4">
-                <Button
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLoadToEditor(viewing);
-                  }}
-                >
+                <Button variant="outline" onClick={(e) => { e.stopPropagation(); onLoadToEditor(viewing); }}>
                   Load to Editor
                 </Button>
               </div>
@@ -2942,10 +3152,7 @@ function SubmissionTab({
               <Input
                 placeholder="Search submissions..."
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
               <Card>
                 <CardHeader>
@@ -2955,85 +3162,129 @@ function SubmissionTab({
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y">
-                    {paginatedSubmissions.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex flex-col gap-3 p-4 hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between"
-                      // onClick={() => viewDetail(s)}
-                      >
-                        {/* Left info */}
-                        <div className="space-y-1 min-w-0">
-                          <p className="font-medium truncate">
-                            #{s.id}
-                            {s.title ? ` - ${s.title}` : ""}
-                          </p>
+                    {(() => {
+                      // Group by title (null/empty titles each get their own group keyed by id)
+                      const groups: Map<string, Submission[]> = new Map();
+                      paginatedSubmissions.forEach((s) => {
+                        const key = s.title?.trim() || `__id_${s.id}`;
+                        if (!groups.has(key)) groups.set(key, []);
+                        groups.get(key)!.push(s);
+                      });
 
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {s.language} • {s.status}
-                          </p>
-                        </div>
+                      return Array.from(groups.entries()).map(([key, group]) => {
+                        const displayTitle = group[0].title?.trim()
+                          ? group[0].title
+                          : `Submission #${group[0].id}`;
+                        const latestDate = group.reduce((latest, s) =>
+                          new Date(s.created_at) > new Date(latest.created_at) ? s : latest
+                        ).created_at;
+                        const allGraded = group.every((s) => s.score !== null);
+                        const avgScore = allGraded
+                          ? (
+                            group.reduce((sum, s) => sum + parseFloat(s.score ?? "0"), 0) /
+                            group.length
+                          ).toFixed(1)
+                          : null;
 
-                        {/* Right info + action */}
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                          <div className="text-left sm:text-right space-y-1">
-                            <p className="font-medium">{s.score ?? "--"} pts</p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(s.created_at).toLocaleDateString()}
-                            </p>
+                        return (
+                          <div key={key} className="p-4 space-y-3">
+                            {/* Group header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                              <div className="space-y-1 min-w-0">
+                                <p className="font-semibold truncate">{displayTitle}</p>
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {group.map((s) => (
+                                    <span
+                                      key={s.id}
+                                      className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border"
+                                      style={{
+                                        borderColor:
+                                          s.language === "javascript" ? "#F7DF1E"
+                                            : s.language === "python" ? "#3776AB"
+                                              : s.language === "html" ? "#E34F26"
+                                                : s.language === "css" ? "#264DE4"
+                                                  : "#888",
+                                        color:
+                                          s.language === "javascript" ? "#b8a800"
+                                            : s.language === "python" ? "#3776AB"
+                                              : s.language === "html" ? "#E34F26"
+                                                : s.language === "css" ? "#264DE4"
+                                                  : "#888",
+                                        backgroundColor:
+                                          s.language === "javascript" ? "#F7DF1E18"
+                                            : s.language === "python" ? "#3776AB18"
+                                              : s.language === "html" ? "#E34F2618"
+                                                : s.language === "css" ? "#264DE418"
+                                                  : "#88888818",
+                                      }}
+                                    >
+                                      {s.language.toUpperCase()}
+                                      <span className="text-muted-foreground capitalize">
+                                        · {s.status}
+                                      </span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col sm:items-end gap-1 shrink-0">
+                                <p className="text-sm font-medium">
+                                  {avgScore !== null ? `${avgScore} pts` : "--"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(latestDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Actions row */}
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              {/* Single "View Code" loads ALL languages in the group */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                  group.forEach((s) => onLoadToEditor(s));
+                                }}
+                              >
+                                View Code
+                                {group.length > 1 && (
+                                  <span className="ml-1.5 text-[10px] bg-muted px-1.5 py-0.5 rounded-full font-mono">
+                                    {group.length}
+                                  </span>
+                                )}
+                              </Button>
+
+                              {/* Individual Details per submission */}
+                              <div className="flex flex-wrap gap-2">
+                                {group.map((s) => (
+                                  <Button
+                                    key={s.id}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs text-muted-foreground hover:text-foreground border border-dashed"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      viewDetail(s);
+                                    }}
+                                  >
+                                    #{s.id} {s.language} · Details
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-
-                          <div className="flex gap-2 w-full sm:w-auto">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onLoadToEditor(s);
-                              }}
-                              className="w-full sm:w-auto"
-                            >
-                              View Code
-                            </Button>
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                viewDetail(s); // <-- opens the detail (comments + code)
-                              }}
-                              className="w-full sm:w-auto"
-                            >
-                              Details
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      });
+                    })()}
                   </div>
                 </CardContent>
               </Card>
               <div className="flex items-center justify-between text-sm">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <span>
-                  Page {currentPage} of {totalPages} (
-                  {filteredSubmissions.length} total)
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Previous</Button>
+                <span>Page {currentPage} of {totalPages} ({filteredSubmissions.length} total)</span>
+                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</Button>
               </div>
             </div>
           )
