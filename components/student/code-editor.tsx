@@ -783,8 +783,9 @@ export function CodeEditor() {
   };
 
   const copyFileUrl = (file: UploadedFile) => {
+    const short = `${window.location.origin}/api/code-ide/uploads/resolve?label=${encodeURIComponent(file.label || file.original_name)}`;
     navigator.clipboard
-      .writeText(shortFileUrl(file))
+      .writeText(short)
       .then(() => showCustomAlert("File URL copied to clipboard"))
       .catch(() => showCustomAlert("Failed to copy URL"));
   };
@@ -2559,7 +2560,7 @@ export function CodeEditor() {
                               {/* URL — mobile-safe wrapping */}
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 min-w-0">
                                 <code className="truncate bg-muted px-1.5 py-0.5 rounded font-mono">
-                                  /api/code-ide/uploads/{file.id}/content
+                                  /api/code-ide/uploads/resolve?label={encodeURIComponent(file.label || file.original_name)}
                                 </code>
                               </div>
                             </div>
