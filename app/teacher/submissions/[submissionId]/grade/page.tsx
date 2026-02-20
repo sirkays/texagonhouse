@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useSession } from "next-auth/react";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -42,6 +44,7 @@ interface SubmissionDetail {
   code_text: string;
   status: string;
   student_name: string;
+  student_id: string;
   lesson_title: string;
   course_name: string;
   class_name: string;
@@ -60,6 +63,8 @@ interface SubmissionDetail {
   // ✅ backend should provide this (from your serializer method)
   latest_same_title_submission?: Partial<Record<Lang, RelatedSubmissionMini>> | null;
 }
+
+
 
 const pickCode = (s: { code_text?: string | null; correction_code?: string | null }) =>
   (s.correction_code ?? "").trim() || (s.code_text ?? "").trim();
@@ -86,7 +91,7 @@ export default function GradePage() {
   const { submissionId } = useParams();
   const router = useRouter();
   const id = parseInt(submissionId as string, 10);
-
+  const { data: session } = useSession();
   const { submissions, setSubmissions } = useContext(SubmissionContext);
 
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
@@ -96,6 +101,54 @@ export default function GradePage() {
   const [error, setError] = useState<string | null>(null);
   const [runKey, setRunKey] = useState(0);
   const [webConsole, setWebConsole] = useState("");
+  const [showInputModal, setShowInputModal] = useState(false);
+  const [inputPrompts, setInputPrompts] = useState<string[]>([]);
+  const [inputValues, setInputValues] = useState<string[]>([]);
+  const pendingStdinRef = React.useRef<((stdin: string) => void) | null>(null);
+  // Add with other state declarations
+  const [resolvedPreview, setResolvedPreview] = useState("");
+
+  // Add this helper inside GradePage (above handleRun)
+  const resolveFileUrls = async (content: string): Promise<string> => {
+    const pattern = /\/api\/code-ide\/uploads\/file\?label=([^\s"'`)>]+)/g;
+    const matches = [...content.matchAll(pattern)];
+    if (matches.length === 0) return content;
+
+    const uniqueLabels = [...new Set(matches.map((m) => decodeURIComponent(m[1])))];
+    console.log(uniqueLabels, " called..")
+    const resolved = await Promise.all(
+      uniqueLabels.map(async (label) => {
+        try {
+          // let server read cookies/session -> no client-side token
+          // inside resolveFileUrls (client-side)
+          const res = await fetch(
+            `/api/code-ide/uploads/resolve?label=${encodeURIComponent(label)}`,
+            { method: "GET", credentials: "same-origin" } // ensure cookies are sent
+          );
+          if (!res.ok) return { label, url: null };
+          const data = await res.json();
+          return { label, url: data.url as string };
+        } catch {
+          return { label, url: null };
+        }
+      })
+    );
+
+    let result = content;
+    for (const { label, url } of resolved) {
+      if (!url) continue;
+      result = result.replaceAll(
+        `/api/code-ide/uploads/file?label=${encodeURIComponent(label)}`,
+        url
+      );
+      result = result.replaceAll(
+        `/api/code-ide/uploads/file?label=${label}`,
+        url
+      );
+    }
+    return result;
+  };
+
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -141,10 +194,6 @@ export default function GradePage() {
         if (!res.ok) throw new Error("Failed to fetch submission");
         const data = (await res.json()) as SubmissionDetail;
         setSubmission(data);
-        console.log("MAIN:", data.id, data.language);
-        console.log("LATEST MAP:", data.latest_same_title_submission);
-
-        console.log(data, " ALL DATA")
 
       } catch (err) {
         setError("Submission not found");
@@ -206,19 +255,16 @@ export default function GradePage() {
     return merged;
   }, [submission]);
 
-
   const {
-    files,
-    setFiles,
-    activeLang,
-    setActiveLang,
-    output,
-    isRunning,
-    run,
-    ready,
-    renderWeb,
-    download,
-  } = useCodeRunner(initialFiles);
+    files, setFiles, activeLang, setActiveLang,
+    output, isRunning, run, ready, renderWeb, download,
+  } = useCodeRunner(initialFiles, (prompts, resolve) => {
+    // called by runner when input() is detected
+    pendingStdinRef.current = resolve;
+    setInputPrompts(prompts);
+    setInputValues(Array(prompts.length).fill(""));
+    setShowInputModal(true);
+  });
 
   // Sync runner state when submission loads/changes
   useEffect(() => {
@@ -227,6 +273,16 @@ export default function GradePage() {
       setFiles(initialFiles);
     }
   }, [submission, initialFiles, setFiles, setActiveLang]);
+
+  // --- MOVE the resolve preview effect HERE (unconditionally) ---
+  useEffect(() => {
+    const resolve = async () => {
+      const raw = renderWeb();
+      const resolved = await resolveFileUrls(raw);
+      setResolvedPreview(resolved);
+    };
+    resolve();
+  }, [runKey, files, renderWeb]);
 
   const [activeTab, setActiveTab] = useState<Tab>("html");
 
@@ -370,6 +426,8 @@ export default function GradePage() {
     }
   };
 
+
+  // ✅ early returns AFTER all hooks
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-transparent">
@@ -385,10 +443,85 @@ export default function GradePage() {
       </p>
     );
   }
-
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto w-full px-3 py-4 sm:px-5 sm:py-6 max-w-6xl">
+        {/* Python Input Modal */}
+        <Dialog open={showInputModal} onOpenChange={(v) => {
+          if (!v) {
+            // cancelled — resolve with empty so runner doesn't hang
+            setShowInputModal(false);
+            pendingStdinRef.current?.("");
+            pendingStdinRef.current = null;
+          }
+        }}>
+          <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+            <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-white tracking-tight">
+                  Program Input
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/50 mt-1">
+                  Your code calls{" "}
+                  <code className="text-[#EF7B55]">input()</code> — provide values before running
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="px-6 py-5 space-y-4 bg-white dark:bg-[#0f0f23]">
+              {inputPrompts.map((prompt, i) => (
+                <div key={i} className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    {prompt || `Input ${i + 1}`}
+                  </Label>
+                  <input
+                    className="w-full px-3 py-2 text-sm font-mono border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50"
+                    placeholder={`Value for input ${i + 1}...`}
+                    value={inputValues[i] ?? ""}
+                    autoFocus={i === 0}
+                    onChange={(e) => {
+                      const updated = [...inputValues];
+                      updated[i] = e.target.value;
+                      setInputValues(updated);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && i === inputPrompts.length - 1) {
+                        const stdin = inputValues.join("\n");
+                        setShowInputModal(false);
+                        pendingStdinRef.current?.(stdin);
+                        pendingStdinRef.current = null;
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="px-6 pb-6 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowInputModal(false);
+                  pendingStdinRef.current?.("");
+                  pendingStdinRef.current = null;
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-[#EF7B55] hover:bg-[#F79771] text-white"
+                onClick={() => {
+                  const stdin = inputValues.join("\n");
+                  setShowInputModal(false);
+                  pendingStdinRef.current?.(stdin);
+                  pendingStdinRef.current = null;
+                }}
+              >
+                Run with inputs
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         {/* Back */}
         <Button
           variant="ghost"
@@ -541,8 +674,8 @@ export default function GradePage() {
                 <>
                   <iframe
                     key={runKey}
-                    srcDoc={`${renderWeb()}\n<!-- run:${runKey} -->`}
-                    sandbox="allow-scripts"
+                    srcDoc={resolvedPreview || renderWeb()}
+                    sandbox="allow-scripts allow-same-origin"
                     className="w-full h-64 sm:h-80 md:h-96"
                     title="Web Preview"
                   />

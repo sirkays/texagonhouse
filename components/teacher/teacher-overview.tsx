@@ -47,13 +47,7 @@ export function TeacherOverview() {
       }
 
       try {
-        const res = await fetch("/api/teacher/overview", {
-          headers: {
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken,
-          },
-        });
+        const res = await fetch("/api/teacher/overview",  { method: "GET" },);
 
         if (!res.ok) {
           console.error(

@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\app\api\code-ide\uploads\resolve\route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { djangoFetch } from "@/app/api/_lib/proxy";
 
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
       { status: 400 }
     );
   }
-
+  console.log(label," llllll")
   const { response, text } = await djangoFetch(
     `/code-ide/api/uploads/resolve/?label=${encodeURIComponent(label)}`,
     { method: "GET" }
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
       { status: 404 }
     );
   }
-  
+
 
   return NextResponse.redirect(result.url);
 }

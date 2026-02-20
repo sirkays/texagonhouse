@@ -142,8 +142,6 @@ export function CodeEditor() {
   const [showReloadWarning, setShowReloadWarning] = useState(false);
   const pendingReloadRef = useRef<null | (() => void)>(null);
 
-  const shortFileUrl = (file: UploadedFile) =>
-    `${window.location.origin}/api/code-ide/uploads/${file.id}/content`;
 
   const [showPythonInputModal, setShowPythonInputModal] = useState(false);
   const [pythonInputPrompts, setPythonInputPrompts] = useState<string[]>([]);
