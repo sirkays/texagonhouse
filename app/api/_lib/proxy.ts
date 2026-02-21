@@ -29,7 +29,6 @@ export async function djangoFetch(
       ? (session.user as any).sessionToken ?? undefined
       : undefined;
 
-  console.log(sessionToken, " fund ", session)
 
   // --- Cookies (App Router requires async access) ---
   const cookieStore = await cookies();

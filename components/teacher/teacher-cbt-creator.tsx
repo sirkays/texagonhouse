@@ -1049,7 +1049,6 @@ export function TeacherCBTCreator() {
     const mode = String(data.test.mode ?? "")
       .trim()
       .toLowerCase();
-    console.log(mode, " dmdmvfkmlfkmfklmvlfkmv");
     return {
       id: data.test.id || "",
       course_id: data.test.course_id || "",
