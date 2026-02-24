@@ -111,20 +111,25 @@ export function DashboardOverview() {
   
   const handleLogout = async () => {
     try {
-      // 1. (Optional) Keep your custom backend fetch if it does DB cleanup
+      // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
-      
+
       if (!response.ok) {
-        console.error("[Logout] Custom backend logout failed");
+        console.error("[AdminLayout] Backend logout failed");
       }
+
+      await signOut({redirect: false});
+
+      window.location.href = "/login";
     } catch (error) {
-      console.error("[Logout] Custom backend logout error:", error);
-    } finally {
-      // 2. Let NextAuth handle the heavy lifting (clearing cookies, cache, and redirecting)
-      await signOut({ callbackUrl: "/login" });
+      console.error("[AdminLayout] Logout error:", error);
+
+      // Fallback: Ensure the user is still visually logged out if an error occurs
+      await signOut({redirect: false});
+      window.location.href = "/login";
     }
   };
 

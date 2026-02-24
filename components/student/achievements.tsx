@@ -22,7 +22,7 @@ import {
   Gem,
   LogIn,
 } from "lucide-react";
-import {useSession} from "next-auth/react";
+import {signOut, useSession} from "next-auth/react";
 import {Button} from "@/components/ui/button";
 import {Spinner} from "@/components/ui/spinner";
 
@@ -101,26 +101,28 @@ export function Achievements() {
 
   const handleLogout = async () => {
     try {
+      // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
-      const data = await response.json();
+
       if (!response.ok) {
-        console.error("[Achievements] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
+        console.error("[AdminLayout] Backend logout failed");
       }
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+
+      await signOut({redirect: false});
+
       window.location.href = "/login";
     } catch (error) {
-      console.error("[Achievements] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
+      console.error("[AdminLayout] Logout error:", error);
+
+      // Fallback: Ensure the user is still visually logged out if an error occurs
+      await signOut({redirect: false});
       window.location.href = "/login";
     }
   };
-
+  
   useEffect(() => {
     const fetchAchievements = async () => {
       if (status !== "authenticated" || !sessionToken) {

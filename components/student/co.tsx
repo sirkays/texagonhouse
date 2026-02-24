@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Accordion,
@@ -583,10 +583,27 @@ const addComment = async (submissionId: number, message: string) => {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout-route", { method: "POST" }).catch(() => { });
-    document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-    document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-    window.location.href = "/login";
+    try {
+      // 1. Call your custom backend logout
+      const response = await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+      });
+
+      if (!response.ok) {
+        console.error("[AdminLayout] Backend logout failed");
+      }
+
+      await signOut({redirect: false});
+
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("[AdminLayout] Logout error:", error);
+
+      // Fallback: Ensure the user is still visually logged out if an error occurs
+      await signOut({redirect: false});
+      window.location.href = "/login";
+    }
   };
 
   useEffect(() => {
