@@ -1,5 +1,3 @@
-
-
 // app/notifications/layout.tsx
 "use client";
 

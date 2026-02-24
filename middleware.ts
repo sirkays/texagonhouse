@@ -14,7 +14,8 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith("/admin") ||
     pathname.startsWith("/student") ||
     pathname.startsWith("/teacher") ||
-    pathname.startsWith("/parent");
+    pathname.startsWith("/parent") ||
+    pathname.startsWith("/invoice"); // <-- Add this line
 
   if (!isProtected) return NextResponse.next();
 
@@ -95,5 +96,5 @@ function redirectToLogin(req: NextRequest, reason: string, clearCookies: boolean
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/student/:path*", "/teacher/:path*", "/parent/:path*"],
+  matcher: ["/admin/:path*", "/student/:path*", "/teacher/:path*", "/parent/:path*", "/invoice/:path*"],
 };
