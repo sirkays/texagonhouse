@@ -24,7 +24,7 @@ const StatusBar = () => {
   const [isLoading, setIsLoading] = useState(true);
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
+    [session?.user?.sessionToken],
   );
 
   // Fetch meetings directly
@@ -58,7 +58,7 @@ const StatusBar = () => {
             join_url: meeting.join_url,
           }))
           .filter(
-            (meeting: Meeting) => new Date(meeting.scheduled_at) > currentDate
+            (meeting: Meeting) => new Date(meeting.scheduled_at) > currentDate,
           );
 
         setUpcomingMeetings(meetings);
@@ -82,7 +82,7 @@ const StatusBar = () => {
     ?.filter((meeting) => meeting?.scheduled_at)
     .sort(
       (a, b) =>
-        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
     )[0];
 
   const formattedDate = nearestUpcomingMeeting?.scheduled_at
@@ -106,7 +106,7 @@ const StatusBar = () => {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -179,13 +179,6 @@ const StatusBar = () => {
           />
         </div>
       )}
-      {/* <Image
-        src="/liveBanner.png"
-        width={400}
-        height={400}
-        alt="home image"
-        className="max-md:hidden -ml-16"
-      /> */}
     </section>
   );
 };

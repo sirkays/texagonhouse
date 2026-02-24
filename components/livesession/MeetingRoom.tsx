@@ -67,12 +67,12 @@ const MeetingRoom = () => {
               ? 8
               : 12
             : participantCount > 50
-            ? width < 1024
-              ? 6
-              : 8
-            : width < 1024
-            ? 4
-            : 6
+              ? width < 1024
+                ? 6
+                : 8
+              : width < 1024
+                ? 4
+                : 6,
         );
       }
     };
@@ -100,7 +100,7 @@ const MeetingRoom = () => {
           duration: 4000,
           className:
             "!bg-red-600 !rounded-3xl !py-4 !px-4 !justify-center !text-sm sm:!text-base",
-        }
+        },
       );
     }
   };
@@ -205,15 +205,6 @@ const MeetingRoom = () => {
           className="flex flex-wrap justify-center gap-2 sm:gap-3"
           onLeave={() => router.push("/")}
         />
-
-        {/* Screen share */}
-        <button
-          onClick={handleScreenShare}
-          className={`cursor-pointer rounded-2xl p-2 transition-colors ${
-            isScreenSharing ? "bg-red-600" : "bg-[#19232d] hover:bg-[#4c535b]"
-          }`}>
-          <ScreenShare size={18} className="text-white sm:w-5 sm:h-5" />
-        </button>
 
         {/* Layout switcher */}
         <DropdownMenu>
