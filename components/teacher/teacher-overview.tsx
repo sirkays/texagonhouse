@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Progress} from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Users,
   BookOpen,
@@ -21,14 +21,54 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
-import {useEffect, useState, useMemo} from "react";
-import {useSession} from "next-auth/react";
-import {Spinner} from "@/components/ui/spinner";
+import { useEffect, useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
 
-// ... (keep all the interfaces the same: Stat, RecentActivity, TopCourse, RecentMaterial, TeacherOverviewData)
+interface Stat {
+  title: string;
+  value: string | number;
+  change: string;
+}
+
+interface RecentActivity {
+  type: string;
+  title: string;
+  action: string;
+  time: string;
+}
+
+interface Performance {
+  course_completion_rate: number;
+  test_pass_rate: number;
+}
+
+interface TopCourse {
+  title: string;
+  students: number;
+  rating?: number;
+  revenue?: string;
+  progress: number;
+}
+
+interface RecentMaterial {
+  title: string;
+  type: string;
+  size: string;
+  views?: number;
+  downloads?: number;
+}
+
+interface TeacherOverviewData {
+  stats: Stat[];
+  recent_activity: RecentActivity[];
+  performance: Performance;
+  top_courses: TopCourse[];
+  recent_materials: RecentMaterial[];
+}
 
 export function TeacherOverview() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const [data, setData] = useState<TeacherOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +87,7 @@ export function TeacherOverview() {
       }
 
       try {
-        const res = await fetch("/api/teacher/overview",  { method: "GET" },);
+        const res = await fetch("/api/teacher/overview", { method: "GET" });
 
         if (!res.ok) {
           console.error(

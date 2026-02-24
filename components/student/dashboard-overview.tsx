@@ -25,7 +25,7 @@ import {
   LogIn,
   Video,
 } from "lucide-react";
-import {useSession} from "next-auth/react";
+import {signOut, useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {Spinner} from "@/components/ui/spinner";
 
@@ -108,25 +108,23 @@ export function DashboardOverview() {
 
     return deviceId;
   }
+  
   const handleLogout = async () => {
     try {
+      // 1. (Optional) Keep your custom backend fetch if it does DB cleanup
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
-      const data = await response.json();
+      
       if (!response.ok) {
-        console.error("[DashboardOverview] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
+        console.error("[Logout] Custom backend logout failed");
       }
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
     } catch (error) {
-      console.error("[DashboardOverview] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
+      console.error("[Logout] Custom backend logout error:", error);
+    } finally {
+      // 2. Let NextAuth handle the heavy lifting (clearing cookies, cache, and redirecting)
+      await signOut({ callbackUrl: "/login" });
     }
   };
 

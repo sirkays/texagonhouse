@@ -222,28 +222,23 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   const handleLogout = async () => {
     try {
+      // 1. (Optional) Keep your custom backend fetch if it does DB cleanup
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
       });
-
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        console.error("[TeacherLayout] Logout failed:", data);
-        throw new Error(data.error || "Logout failed");
+        console.error("[Logout] Custom backend logout failed");
       }
-
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
     } catch (error) {
-      console.error("[TeacherLayout] Logout error:", error);
-      document.cookie = "next-auth.session-token=; Max-Age=0; path=/; secure";
-      document.cookie = "next-auth.csrf-token=; Max-Age=0; path=/; secure";
-      window.location.href = "/login";
+      console.error("[Logout] Custom backend logout error:", error);
+    } finally {
+      // 2. Let NextAuth handle the heavy lifting (clearing cookies, cache, and redirecting)
+      await signOut({ callbackUrl: "/login" });
     }
   };
+  
   return (
     <SidebarProvider className="bg-white">
       <LoadingContext.Provider value={{ setIsNavigating }}>
