@@ -73,8 +73,13 @@ export default async function middleware(req: NextRequest) {
 
 function redirectToLogin(req: NextRequest, reason: string, clearCookies: boolean) {
   const url = req.nextUrl.clone();
+  
+  // Capture the full current path the user was trying to visit
+  const callbackUrl = req.nextUrl.pathname + req.nextUrl.search;
+  
   url.pathname = "/login";
   url.searchParams.set("reason", reason);
+  url.searchParams.set("callbackUrl", callbackUrl); // Add this line
 
   const res = NextResponse.redirect(url);
 

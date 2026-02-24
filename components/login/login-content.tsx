@@ -2,13 +2,13 @@
 
 "use client";
 
-import {useState, useEffect, useCallback, useRef} from "react";
-import {Mail, Lock, Eye, EyeOff} from "lucide-react";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Spinner} from "@/components/ui/spinner";
-import {signIn, useSession} from "next-auth/react";
-import {useRouter, useSearchParams} from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 interface AnimatedWordsProps {
@@ -41,7 +41,7 @@ function AnimatedWords({
           style={{
             ...wordStyle,
             ...(animate
-              ? {animationDelay: `${startDelay + index * delayIncrement}s`}
+              ? { animationDelay: `${startDelay + index * delayIncrement}s` }
               : {}),
           }}>
           {splitType === "letter" ? (item === " " ? "\u00A0" : item) : item}
@@ -67,7 +67,7 @@ export default function LoginContent() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [forgotSuggestions, setForgotSuggestions] = useState<string[]>([]);
   const [showForgotSuggestions, setShowForgotSuggestions] = useState(false);
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
@@ -118,7 +118,7 @@ export default function LoginContent() {
     top: number;
     left: number;
     width: number;
-  }>({top: 0, left: 0, width: 0});
+  }>({ top: 0, left: 0, width: 0 });
 
   const updateSuggestionPosition = useCallback(() => {
     if (forgotInputRef.current) {
@@ -235,24 +235,33 @@ export default function LoginContent() {
   // Handle role-based redirection after successful login
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role) {
-      console.log(
-        "[LoginPage] Session authenticated, role:",
-        session.user.role,
-      );
       const role = session.user.role;
-      if (role === "admin") {
-        router.push("/admin");
-      } else if (role === "student") {
-        router.push("/student");
-      } else if (role === "teacher") {
-        router.push("/teacher");
-      } else if (role === "parent") {
-        router.push("/parent");
-      } else {
-        router.push("/login");
+      const callbackUrl = searchParams.get("callbackUrl");
+
+      // 1. If there's a callbackUrl, prioritize it
+      if (callbackUrl && callbackUrl !== "") {
+        // Security check: Don't redirect students to parent/admin paths
+        const isTryingAccessAdmin = callbackUrl.startsWith("/admin") || callbackUrl.startsWith("/invoice");
+
+        if (role === "student" && isTryingAccessAdmin) {
+          window.location.href = "/student"; // Override to their correct dashboard
+        } else {
+          window.location.href = callbackUrl;
+        }
+        return;
       }
+
+      // 2. Fallback to default role-based dashboards if no callbackUrl
+      const rolePaths: Record<string, string> = {
+        admin: "/admin",
+        student: "/student",
+        teacher: "/teacher",
+        parent: "/parent",
+      };
+
+      window.location.href = rolePaths[role] || "/login";
     }
-  }, [status, session, router]);
+  }, [status, session, searchParams]);
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,6 +311,8 @@ export default function LoginContent() {
     setLoginError("");
     setLoginLoading(true);
 
+    // We set redirect: false because we are handling the 
+    // redirection logic manually in the useEffect above
     const result = await signIn("credentials", {
       redirect: false,
       email,
@@ -309,14 +320,10 @@ export default function LoginContent() {
     });
 
     const ERROR_MAP: Record<string, string> = {
-      past_due:
-        "Your subscription is past due. Please renew or contact the school admin.",
-      subscription_missing:
-        "No active subscription was found for your account. Contact support.",
-      subscription_expired:
-        "Your subscription has expired. Please renew or contact support.",
-      subscription_cancelled:
-        "Your subscription is cancelled. Contact support.",
+      past_due: "Your subscription is past due. Please renew or contact the school admin.",
+      subscription_missing: "No active subscription was found for your account. Contact support.",
+      subscription_expired: "Your subscription has expired. Please renew or contact support.",
+      subscription_cancelled: "Your subscription is cancelled. Contact support.",
       invalid_credentials: "Invalid email or password.",
       not_active: "You are not yet activated.",
       login_failed: "Unable to sign in. Please try again.",
@@ -324,12 +331,13 @@ export default function LoginContent() {
 
     if (!result?.error) {
       saveEmail(email);
+      // Success: The useEffect hook above will now detect 'status === authenticated' 
+      // and perform the redirect to callbackUrl or default role path.
     } else {
       setLoginError(ERROR_MAP[result.error] ?? "Unable to sign in.");
+      setLoginLoading(false); // Only stop loading if there is an error
     }
-    setLoginLoading(false);
   };
-
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       <div className="w-full md:w-[40%] flex flex-col justify-center items-center bg-white p-10 md:p-8 min-h-screen md:min-h-auto">
@@ -446,7 +454,7 @@ export default function LoginContent() {
           </form>
           <div
             className="flex items-center justify-center"
-            style={{marginTop: "19px"}}>
+            style={{ marginTop: "19px" }}>
             <button
               onClick={() => setShowDialog(true)}
               className="text-sm text-blue-600 hover:underline focus:outline-none">
@@ -458,14 +466,14 @@ export default function LoginContent() {
 
       <div
         className="w-full md:w-[60%] flex flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center"
-        style={{backgroundImage: "url('/texagon_sva.svg')"}}>
+        style={{ backgroundImage: "url('/texagon_sva.svg')" }}>
         <div className="text-center z-10 px-4">
           <h2 className="text-5xl font-bold text-white mb-4">
             <AnimatedWords
               text="Africa's Foremost"
               startDelay={0}
               splitType="letter"
-              wordStyle={{fontSize: "5rem", fontWeight: "bold"}}
+              wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
               animate={shouldAnimate}
             />
           </h2>
@@ -474,7 +482,7 @@ export default function LoginContent() {
               text="4IR"
               startDelay={3.4}
               splitType="letter"
-              wordStyle={{fontSize: "8rem", fontWeight: "thin"}}
+              wordStyle={{ fontSize: "8rem", fontWeight: "thin" }}
               animate={shouldAnimate}
             />
           </h2>
@@ -483,7 +491,7 @@ export default function LoginContent() {
               text=" Curriculum"
               startDelay={4}
               splitType="letter"
-              wordStyle={{fontSize: "5rem", fontWeight: "bold"}}
+              wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
               animate={shouldAnimate}
             />
           </h2>
