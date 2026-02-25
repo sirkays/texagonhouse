@@ -1,4 +1,4 @@
-
+// texagon_academy\texagonui\components\livesession\MainMenu.tsx
 "use client";
 
 import {useSession} from "next-auth/react";
@@ -117,139 +117,8 @@ const MainMenu = () => {
   }, [session?.user]);
 
 
-  const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-  async function createMeetingWithRetries(maxRetries = 3) {
-    // sanity checks
-    if (status !== "authenticated" || !session?.user) return router.push("/login");
-    if (!client) {
-      toast.error("Video client not initialized. Try reloading the page.", { duration: 4000 });
-      return router.push("/");
-    }
-
-    if (!values.dateTime || !values.courseId || !values.title) {
-      toast.error("Please provide all required fields: date, course, and title", { duration: 3000 });
-      setIsCreatingMeeting(false);
-      setMeetingState(undefined);
-      return;
-    }
-
-    // Extra diagnostics we'll attach to errors to help debugging
-    const diag = {
-      userAgent: navigator.userAgent,
-      online: navigator.onLine,
-      protocol: window.location.protocol,
-      time: new Date().toISOString(),
-      sessionId: session?.user?.id,
-    };
-
-    let attempt = 0;
-    let lastErr: any = null;
-
-    while (attempt <= maxRetries) {
-      try {
-        attempt += 1;
-        console.info(`[createMeeting] attempt ${attempt}`, diag);
-
-        // Make sure client is ready - if the SDK exposes a ready / connect check use it.
-        if (!client) throw new Error("Stream client not available");
-
-        // create a call id
-        const id = crypto.randomUUID();
-        const call = client.call("default", id);
-
-        if (!call) {
-          throw new Error("client.call returned undefined — call object not created");
-        }
-
-        const startsAt = values.dateTime.toISOString();
-        const description = values.description || "No Description";
-
-        // ensure call exists on server
-        await call.getOrCreate({
-          data: {
-            starts_at: startsAt,
-            custom: { description },
-          },
-        });
-
-        await call.updateCallMembers({
-          update_members: [{ user_id: String(session.user.id) }],
-        });
-
-        // Create the live session entry on your backend
-        const resp = await fetch("/api/teacher/live-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            course_id: values.courseId,
-            title: values.title,
-            scheduled_at: startsAt,
-            duration_minutes: values.duration,
-            join_url: `main/meeting/${call.id}`,
-          }),
-        });
-
-        if (!resp.ok) {
-          const errorData = await resp.json().catch(() => ({}));
-          const errMsg = errorData.detail || errorData.error || "Failed to create live session";
-          const err = new Error(errMsg);
-          // attach status to error for later handling
-          // @ts-ignore
-          err.status = resp.status;
-          throw err;
-        }
-
-        // success path
-        const data = await resp.json();
-        if (meetingState === "Instant") {
-          router.push(`/main/meeting/${call.id}`);
-          toast.success("Setting up your meeting", { duration: 3000 });
-        } else if (meetingState === "Schedule") {
-          router.push("/main/home/upcoming");
-          toast.success(`Your meeting is scheduled at ${values.dateTime}`, { duration: 5000 });
-        }
-
-        setMeetingState(undefined);
-        setValues(initialValues);
-        return; // done
-      } catch (err: any) {
-        lastErr = err;
-        console.error("[createMeeting] error on attempt", attempt, err, diag);
-
-        // If it's specifically a WebSocket failure, we will retry a few times
-        const isWSFailure = !!(err && (err.isWSFailure || String(err).toLowerCase().includes("ws") || String(err).toLowerCase().includes("websocket")));
-
-        // If server returned 4xx/5xx we probably shouldn't retry (except maybe 500)
-        const statusCode = err?.status ?? err?.StatusCode ?? null;
-
-        if (attempt <= maxRetries && (isWSFailure || statusCode === 500 || statusCode === 502 || statusCode === 503)) {
-          const backoff = 400 * Math.pow(2, attempt - 1); // 400ms, 800ms, 1600ms...
-          toast.error(`Network issue creating meeting, retrying... (attempt ${attempt} of ${maxRetries})`, { duration: 2500 });
-          await wait(backoff);
-          continue; // retry
-        }
-
-        // Non-retryable: show a helpful toast that points to likely causes
-        const friendly = isWSFailure
-          ? "Connection problem: WebSocket handshake failed. Try switching networks, disabling VPN/Proxy/ad-blocker, or reloading."
-          : err.message || "Failed to create meeting";
-
-        toast.error(`Failed to create meeting: ${friendly}`, { duration: 6000 });
-        setMeetingState(undefined);
-        setIsCreatingMeeting(false);
-        return;
-      } finally {
-        // If we've exhausted attempts, surface last error
-        if (attempt > maxRetries && lastErr) {
-          console.error("[createMeeting] exhausted retries, last error:", lastErr);
-          setIsCreatingMeeting(false);
-          setMeetingState(undefined);
-        }
-      }
-    }
-  }
-
+  
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)
       return router.push("/login");
@@ -378,9 +247,7 @@ const MainMenu = () => {
 
   useEffect(() => {
     if (meetingState) {
-    createMeetingWithRetries().catch((e) => {
-      console.error("createMeetingWithRetries error (uncaught):", e);
-    });
+      createMeeting();
     }
   }, [meetingState]);
 
