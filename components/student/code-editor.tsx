@@ -865,21 +865,21 @@ export function CodeEditor() {
       // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
         console.error("[AdminLayout] Backend logout failed");
       }
 
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
 
       window.location.href = "/login";
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
 
       // Fallback: Ensure the user is still visually logged out if an error occurs
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
       window.location.href = "/login";
     }
   };
@@ -1012,7 +1012,13 @@ export function CodeEditor() {
       setCssCode(value);
     } else {
       setCode(value);
-      if (selectedLanguage === "javascript") setJsCode(value);
+      if (selectedLanguage === "javascript") {
+        setJsCode(value);
+      } else {
+        // Keep codeBuffers in sync for Python (and any other language)
+        // so codeByLang reflects live edits even before tab switching
+        setCodeBuffers((prev) => ({ ...prev, [selectedLanguage]: value }));
+      }
     }
 
     setSyntaxError(null);
