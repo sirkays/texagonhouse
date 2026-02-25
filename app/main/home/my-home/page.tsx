@@ -36,7 +36,7 @@ const MyRoomPage = () => {
   const [isCopying, setIsCopying] = useState(false);
 
   const user = session?.user;
-  const meetingId = `personal-${user?.id}-${Date.now()}`; // Unique ID to avoid reusing ended calls
+  const meetingId = user ? `personal-${user.id}` : null; // Unique ID to avoid reusing ended calls
 
   const startRoom = async () => {
     setIsStarting(true);
@@ -91,7 +91,7 @@ const MyRoomPage = () => {
         await newCall.join({create: false});
         console.log(
           "[MyRoomPage] New call created, navigating to:",
-          `/main/meeting/${newMeetingId}`
+          `/main/meeting/${newMeetingId}`,
         );
         router.push(`/main/meeting/${newMeetingId}`);
         return;
@@ -100,7 +100,7 @@ const MyRoomPage = () => {
       await personalCall.join({create: false});
       console.log(
         "[MyRoomPage] Joined call, navigating to:",
-        `/main/meeting/${meetingId}`
+        `/main/meeting/${meetingId}`,
       );
       router.push(`/main/meeting/${meetingId}`);
     } catch (err: any) {
