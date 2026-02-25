@@ -138,9 +138,9 @@ const MyRoomPage = () => {
           title="Meeting ID"
           description={meetingId || "Not available"}
         />
-        <PersonalMeetingInfo title="Invite Link" description={meetingLink} />
+        {/* <PersonalMeetingInfo title="Invite Link" description={meetingLink} /> */}
       </div>
-      <div className="flex gap-5">
+      {/* <div className="flex gap-5">
         <Button
           className="rounded bg-blue-700 p-4 hover:bg-blue-400 px-6"
           onClick={startRoom}
@@ -170,7 +170,7 @@ const MyRoomPage = () => {
             </>
           )}
         </Button>
-      </div>
+      </div> */}
     </section>
   );
 };
