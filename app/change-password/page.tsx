@@ -58,7 +58,7 @@ export default function ChangePassword() {
       return;
     }
 
-
+  
     // Prevent user from re-using current password (only possible for self-change on client)
     // session.user.email exists -> session implies signed-in user; we only know the current password on the client via the currentPassword field
     if (currentPassword && newPassword === currentPassword) {
@@ -97,7 +97,6 @@ export default function ChangePassword() {
         body.new_email = email;
       }
 
-      // inside handleSubmit try block
       const response = await fetch("/api/change-password", {
         method: "POST",
         headers: {
@@ -107,31 +106,9 @@ export default function ChangePassword() {
         body: JSON.stringify(body),
       });
 
-      // Read raw text first
-      const raw = await response.text();
-
-      // Try to parse JSON only if content-type indicates JSON
-      const ct = response.headers.get("content-type") || "";
-      let data: any;
-      if (ct.includes("application/json")) {
-        try {
-          data = JSON.parse(raw);
-        } catch (err) {
-          console.error("[change-password] JSON parse failed", { ct, raw });
-          setError("An unexpected error occurred. Please try again later.");
-          setLoading(false);
-          return;
-        }
-      } else {
-        // not JSON — log it and show user-friendly message
-        console.error("[change-password] Non-JSON response", { status: response.status, ct, raw });
-        setError("An unexpected error occurred. Please try again later.");
-        setLoading(false);
-        return;
-      }
-
+      const data = await response.json();
+      console.log(data, " res.. ", response.status)
       if (!response.ok) {
-        // existing error handling using `data` (parsed JSON)
         if (data.current_password) {
           setError(data.current_password);
         } else if (data.new_password?.length) {
@@ -147,7 +124,6 @@ export default function ChangePassword() {
         return;
       }
 
-      // ... success handling continues unchanged ...
       // If the backend requests email verification (OTP)
       if (data.email_verification_required) {
         setOtpRequired(true);
@@ -174,7 +150,7 @@ export default function ChangePassword() {
         router.push("/admin");
       }
     } catch (err) {
-      console.error("Password change error:", err);
+      console.log("Password change error:", err);
       setError("An unexpected error occurred. Please try again later.");
     } finally {
       setLoading(false);

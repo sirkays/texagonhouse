@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     },
   );
-  
+  console.log(response, " response... ", response.status)
   const proxyResponse = new NextResponse(text, {
     status: response.status,
     statusText: response.statusText,
