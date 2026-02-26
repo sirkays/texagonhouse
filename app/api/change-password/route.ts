@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   );
 
   // debug log
-  console.log("[proxy] upstream status", response.status, "content-type:", response.headers.get("content-type"), "body_len:", text?.length ?? 0);
+  //console.log("[proxy] upstream status", response.status, "content-type:", response.headers.get("content-type"), "body_len:", text?.length ?? 0);
 
   // Build safe headers to forward
   const headers = new Headers();
