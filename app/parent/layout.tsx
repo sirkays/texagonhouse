@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -84,6 +83,13 @@ const menuItems = [
     description: "Create and manage invoices",
     badge: "New",
     id: "payments",
+  },
+  {
+    title: "Profile Settings",
+    path: "/profile",
+    icon: Settings,
+    description: "Manage your profile settings",
+    id: "profile",
   },
 ];
 
@@ -204,7 +210,7 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
       window.location.href = "/login";
     }
   };
-  
+
   return (
     <SidebarProvider className="bg-white">
       <LoadingContext.Provider value={{setIsNavigating}}>

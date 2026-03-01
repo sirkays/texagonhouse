@@ -115,6 +115,13 @@ const menuItems = [
     id: "certificates",
     path: "/student/certificate",
   },
+  {
+    title: "Profile Settings",
+    path: "/profile",
+    icon: Settings,
+    description: "Manage your profile settings",
+    id: "profile",
+  },
 ];
 
 const LoadingContext = createContext<{

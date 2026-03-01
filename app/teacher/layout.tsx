@@ -36,8 +36,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,17 +46,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMediaQuery } from "react-responsive";
-import { useSession, signOut } from "next-auth/react";
-import { Spinner } from "@/components/ui/spinner";
-import { useNotificationStore } from "../stores/notificationStore";
-import { createContext, useContext, useEffect, useState } from "react";
+import {usePathname} from "next/navigation";
+import {useMediaQuery} from "react-responsive";
+import {useSession, signOut} from "next-auth/react";
+import {Spinner} from "@/components/ui/spinner";
+import {useNotificationStore} from "../stores/notificationStore";
+import {createContext, useContext, useEffect, useState} from "react";
 
 const menuItems = [
-  { title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher" },
+  {title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher"},
   {
     title: "Manage CBT",
     icon: TestTube,
@@ -124,6 +124,13 @@ const menuItems = [
     id: "certs",
     path: "/teacher/student-certs",
   },
+  {
+    title: "Profile Settings",
+    path: "/profile",
+    icon: Settings,
+    description: "Manage your profile settings",
+    id: "profile",
+  },
 ];
 
 const LoadingContext = createContext<{
@@ -132,9 +139,9 @@ const LoadingContext = createContext<{
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
-  const isMobile = useMediaQuery({ maxWidth: 639 });
-  const { setIsNavigating } = useContext(LoadingContext)!;
+  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
+  const isMobile = useMediaQuery({maxWidth: 639});
+  const {setIsNavigating} = useContext(LoadingContext)!;
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -197,8 +204,8 @@ function PageLoader() {
   );
 }
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+export default function TeacherLayout({children}: {children: React.ReactNode}) {
+  const {data: session, status} = useSession();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
@@ -245,7 +252,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   return (
     <SidebarProvider className="bg-white">
-      <LoadingContext.Provider value={{ setIsNavigating }}>
+      <LoadingContext.Provider value={{setIsNavigating}}>
         <div className="flex min-h-screen w-full font-sans">
           <Sidebar className="">
             <SidebarHeader className="bg-[#EF7B55] py-5">
