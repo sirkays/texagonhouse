@@ -107,7 +107,7 @@ export default function ChangePassword() {
       });
 
       const data = await response.json();
-
+      console.log(data, " res.. ", response.status)
       if (!response.ok) {
         if (data.current_password) {
           setError(data.current_password);
@@ -150,7 +150,7 @@ export default function ChangePassword() {
         router.push("/admin");
       }
     } catch (err) {
-      console.error("Password change error:", err);
+      console.log("Password change error:", err);
       setError("An unexpected error occurred. Please try again later.");
     } finally {
       setLoading(false);
@@ -221,17 +221,17 @@ export default function ChangePassword() {
     );
   }
 
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center p-8 max-w-md">
-          <h2 className="text-2xl font-bold mb-4">Please Sign In</h2>
-          <p className="text-gray-600 mb-6">You need to be signed in to change your password.</p>
-          <Button onClick={() => router.push("/login")}>Go to Login</Button>
-        </div>
-      </div>
-    );
-  }
+  // if (!session) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+  //       <div className="text-center p-8 max-w-md">
+  //         <h2 className="text-2xl font-bold mb-4">Please Sign In</h2>
+  //         <p className="text-gray-600 mb-6">You need to be signed in to change your password.</p>
+  //         <Button onClick={() => router.push("/login")}>Go to Login</Button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   // Main UI
   return (
