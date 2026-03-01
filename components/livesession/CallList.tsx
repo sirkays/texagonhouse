@@ -157,7 +157,7 @@ const CallList = ({
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Spinner size="lg" className="text-indigo-500" />
+        <Spinner size="lg" className="text-[#ef7b55]" />
       </div>
     );
   }
@@ -212,9 +212,9 @@ const CallList = ({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
               {isUpcoming ? (
-                <Calendar className="w-4 h-4 text-indigo-500" />
+                <Calendar className="w-4 h-4 text-[#ef7b55]" />
               ) : (
-                <Video className="w-4 h-4 text-indigo-500" />
+                <Video className="w-4 h-4 text-[#ef7b55]" />
               )}
               <span className="text-xs font-medium text-gray-600 uppercase">
                 {isUpcoming ? "Upcoming" : "Ended"}
@@ -243,8 +243,8 @@ const CallList = ({
               disabled={joining[meeting.id]}
               className={`px-4 py-2 rounded-md text-sm font-medium text-white transition-colors duration-200 disabled:opacity-50 ${
                 isUpcoming
-                  ? "bg-blue-700 text-slate-100 hover:bg-blue-800"
-                  : "bg-blue-700 text-slate-100 hover:bg-blue-800"
+                  ? "bg-[#ef7b55]/70 text-slate-100 hover:bg-[#ef7b55]/90"
+                  : "bg-[#ef7b55]/70 text-slate-100 hover:bg-[#ef7b55]/90"
               }`}>
               {joining[meeting.id] ? (
                 <Spinner size="sm" className="text-white" />
@@ -328,15 +328,15 @@ const CallList = ({
         return (
           <div
             key={meeting.id}
-            className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out border border-gray-100">
+            className="bg-white rounded-lg hover:shadow-lg transition-all duration-300 ease-in-out border border-[#ef7b55]/20">
             <div className="p-5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full opacity-50" />
+              <div className="absolute top-0 right-0 w-12 h-12 bg-[#ef7b55]/10 rounded-bl-full opacity-50" />
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   {type === "ended" || type === "recordings" ? (
-                    <Video className="w-4 h-4 text-indigo-500" />
+                    <Video className="w-4 h-4 text-[#ef7b55]" />
                   ) : (
-                    <Calendar className="w-4 h-4 text-indigo-500" />
+                    <Calendar className="w-4 h-4 text-[#ef7b55]" />
                   )}
                   <span className="text-xs font-medium text-gray-600 uppercase">
                     {type === "upcoming"
@@ -380,7 +380,7 @@ const CallList = ({
                       }
                     }}
                     disabled={joining[meeting.id]}
-                    className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors duration-200 disabled:opacity-50 bg-blue-700 hover:bg-blue-800">
+                    className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors duration-200 disabled:opacity-50 bg-[#ef7b55]/70 hover:bg-[#ef7b55]/90">
                     {joining[meeting.id] ? (
                       <Spinner size="sm" className="text-white" />
                     ) : type === "upcoming" ? (
