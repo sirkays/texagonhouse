@@ -1,4 +1,4 @@
-// app/notifications/layout.tsx
+// app/profile/layout.tsx
 "use client";
 
 import {ReactNode} from "react";
@@ -6,7 +6,7 @@ import {ArrowLeft} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {useRouter} from "next/navigation";
 
-export default function NotificationsLayout({children}: {children: ReactNode}) {
+export default function ProfileLayout({children}: {children: ReactNode}) {
   const router = useRouter();
 
   return (
@@ -23,7 +23,7 @@ export default function NotificationsLayout({children}: {children: ReactNode}) {
           </Button>
 
           <h1 className="text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">
-            Notifications
+            Profile Settings
           </h1>
         </div>
       </header>
