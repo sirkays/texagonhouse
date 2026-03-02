@@ -328,11 +328,11 @@ const StatusBar = () => {
       <section className="flex flex-col gap-5 items-center md:items-start text-black">
         <h2
           className="max-w-[273px] rounded-2xl p-4 text-center text-base font-light
-          bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800">
+          bg-[#4F46E5]/15 border border-[#4F46E5]/30 text-gray-800">
           Loading meetings...
         </h2>
         <DateAndTime />
-        <Loader2 className="h-24 w-24 text-[#f7b55] animate-spin" />
+        <Loader2 className="h-24 w-24 text-[#4F46E5] animate-spin" />
       </section>
     );
   }
@@ -343,7 +343,7 @@ const StatusBar = () => {
         <div className="flex flex-col gap-3 items-center md:items-start">
           <h2
             className="max-w-[273px] rounded-2xl p-4 text-center text-base font-light
-            bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800">
+            bg-[#4F46E5]/15 border border-[#4F46E5]/30 text-gray-800">
             Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
           </h2>
           <DateAndTime />
@@ -359,7 +359,7 @@ const StatusBar = () => {
         <div>
           <h2
             className="max-w-[273px] rounded-2xl p-4 mb-8 text-center text-base font-light
-            bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800">
+            bg-[#4F46E5]/15 border border-[#4F46E5]/30 text-gray-800">
             No Upcoming Meetings
           </h2>
           <DateAndTime />

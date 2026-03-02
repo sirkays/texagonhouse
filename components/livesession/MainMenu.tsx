@@ -45,6 +45,7 @@ interface Meeting {
 interface MenuItemCardProps {
   title: string;
   Icon: any;
+  color: string;
 }
 
 const initialValues = {
@@ -56,20 +57,25 @@ const initialValues = {
   duration: 60,
 };
 
-const MenuItemCard = ({title, Icon}: MenuItemCardProps) => {
+const MenuItemCard = ({title, Icon, color}: MenuItemCardProps) => {
   return (
     <div
       className="group flex flex-col items-center justify-center 
       rounded-2xl p-6 cursor-pointer transition-all duration-300
-      bg-white border border-[#f7b55]/40
-      hover:bg-[#f7b55]/10 hover:shadow-lg hover:scale-105">
-      <div
-        className="bg-[#f7b55]/20 p-4 rounded-xl mb-3 
-        group-hover:bg-[#f7b55]/30 transition">
-        <Icon size={28} className="text-[#f7b55]" />
+      bg-white border hover:shadow-lg hover:scale-105"
+      style={{
+        borderColor: `${color}40`,
+        backgroundColor: `${color}33`, // 20% opacity
+      }}>
+      <div className="p-4 rounded-xl mb-3 transition">
+        <Icon size={28} style={{color}} />
       </div>
 
-      <p className="text-sm sm:text-base font-semibold text-gray-800 group-hover:text-[#f7b55]">
+      <p
+        className="text-sm sm:text-base font-semibold text-gray-800 transition"
+        style={{
+          color: "#1f2937",
+        }}>
         {title}
       </p>
     </div>
@@ -851,10 +857,12 @@ const MainMenu = () => {
           //   </DialogContent>
           // </Dialog>
           <Dialog>
-            <DialogTrigger asChild>
-              <div>
-                <MenuItemCard title="New Meeting" Icon={PlusCircle} />
-              </div>
+            <DialogTrigger>
+              <MenuItemCard
+                title="New Meeting"
+                Icon={PlusCircle}
+                color="#EF7B55"
+              />
             </DialogTrigger>
 
             <DialogContent
@@ -875,6 +883,7 @@ const MainMenu = () => {
                   <DialogTitle className="text-lg sm:text-xl font-semibold text-center">
                     Start an Instant Meeting
                   </DialogTitle>
+
                   <DialogDescription className="text-center text-sm text-gray-500">
                     Fill in the details below
                   </DialogDescription>
@@ -1003,7 +1012,11 @@ const MainMenu = () => {
         {/* Join Meeting */}
         {/* <Dialog>
           <DialogTrigger>
-            <MenuItemCard title="Join Meeting" Icon={Users} />
+            <MenuItemCard
+                title="New Meeting"
+                Icon={PlusCircle}
+                color="#EF7B55"
+              />
           </DialogTrigger>
           <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
             <DialogHeader>
@@ -1048,7 +1061,7 @@ const MainMenu = () => {
         <Dialog>
           <DialogTrigger asChild>
             <div>
-              <MenuItemCard title="Join Meeting" Icon={Users} />
+              <MenuItemCard title="New Meeting" Icon={Users} color="#55C1EF" />
             </div>
           </DialogTrigger>
 
@@ -1117,6 +1130,7 @@ const MainMenu = () => {
             </div>
           </DialogContent>
         </Dialog>
+
         {/* Schedule Meeting */}
         {isTeacher && (
           // <Dialog>
@@ -1222,11 +1236,16 @@ const MainMenu = () => {
           //     </div>
           //   </DialogContent>
           // </Dialog>
-
           <Dialog>
             <DialogTrigger asChild>
               <div>
-                <MenuItemCard title="Schedule" Icon={CalendarDays} />
+                <div>
+                  <MenuItemCard
+                    title="New Meeting"
+                    Icon={CalendarDays}
+                    color="#4F46E5"
+                  />
+                </div>
               </div>
             </DialogTrigger>
 
