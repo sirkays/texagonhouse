@@ -1,11 +1,26 @@
 // texagon_academy\texagonui\app\teacher\live-sessions\page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Video, Wifi, Plus, X, Maximize2, Loader2, Radio,
-  BookOpen, UserPlus, UserMinus, ChevronDown, AlertCircle,
-  CheckCircle2, Search, Check, Trash2, RefreshCw, ShieldCheck,
+  Video,
+  Wifi,
+  Plus,
+  X,
+  Maximize2,
+  Loader2,
+  Radio,
+  BookOpen,
+  UserPlus,
+  UserMinus,
+  ChevronDown,
+  AlertCircle,
+  CheckCircle2,
+  Search,
+  Check,
+  Trash2,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 
 /* -------------------- Types -------------------- */
@@ -110,36 +125,25 @@ function MultiSelect({
     function handler(e: MouseEvent) {
       if (!ref.current) return;
 
-      // Protect interactions with the dropdown inner scrollbar:
       // If the click target is inside our component, do nothing.
       if (ref.current.contains(e.target as Node)) return;
 
-      // Heuristic: ignore clicks that are likely on the browser scrollbar area.
-      // Compute approximate scrollbar width and area.
+      // Heuristic: ignore clicks likely on the browser scrollbar area.
       try {
         const docEl = document.documentElement;
         const scrollbarWidth = window.innerWidth - docEl.clientWidth;
-        // If the event's clientX falls into the scrollbar zone at the far right,
-        // we ignore it (don't close) so scrollbar interactions won't immediately close dropdown.
         if (scrollbarWidth > 0) {
-          const scrollbarZoneStart = docEl.clientWidth; // clientWidth excludes scrollbar
-          // clientX is relative to viewport; if it's greater than or equal to clientWidth,
-          // it's in the scrollbar zone (some browsers). If it's very close to edge, ignore too.
-          if ((e as MouseEvent).clientX >= scrollbarZoneStart - 2) {
-            return;
-          }
+          const scrollbarZoneStart = docEl.clientWidth;
+          if ((e as MouseEvent).clientX >= scrollbarZoneStart - 2) return;
         }
       } catch {
-        // ignore any errors in calculation and fall back to closing
+        // ignore
       }
 
       setOpen(false);
     }
 
-    // use 'mousedown' so we close promptly on clicks outside, but with the heuristics above
-    if (open) {
-      document.addEventListener("mousedown", handler);
-    }
+    if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
@@ -203,8 +207,6 @@ function MultiSelect({
       </button>
 
       {open && (
-        // NOTE: we stopPropagation on mousedown so the document handler above
-        // doesn't immediately close the dropdown when interacting with the pane (scrollbar clicks etc).
         <div
           onMouseDown={(e) => e.stopPropagation()}
           className="absolute z-50 mt-1 w-full bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden"
@@ -257,7 +259,7 @@ function MultiSelect({
   );
 }
 
-/* -------------------- AllowedPanel & SummaryTile (unchanged, integrated) -------------------- */
+/* -------------------- AllowedPanel & SummaryTile -------------------- */
 function AllowedPanel({
   courses,
   users,
@@ -419,6 +421,10 @@ export default function LiveSessionsPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [joinLink, setJoinLink] = useState<string | null>(null);
 
+  const roomNameRequired = roomName.trim().length > 0;
+  const courseRequired = addCourseIds.size > 0; // "course_name required" => at least 1 course selected
+  const canStart = roomNameRequired && courseRequired && !startLoading;
+
   /* ---------- Fetch teacher's courses on mount ---------- */
   useEffect(() => {
     fetch("/api/teacher/assessments/courses")
@@ -454,7 +460,9 @@ export default function LiveSessionsPage() {
       if (studentsByCourse[cid] !== undefined || studentsLoadingMap[cid]) return;
       setStudentsLoadingMap((p) => ({ ...p, [cid]: true }));
       try {
-        const res = await fetch(`/api/teacher/fetch-course-students?course_id=${cid}&limit=200`);
+        const res = await fetch(
+          `/api/teacher/fetch-course-students?course_id=${cid}&limit=200`
+        );
         const data = await res.json();
         setStudentsByCourse((p) => ({ ...p, [cid]: data.results ?? [] }));
       } catch {
@@ -463,13 +471,16 @@ export default function LiveSessionsPage() {
         setStudentsLoadingMap((p) => ({ ...p, [cid]: false }));
       }
     });
-  }, [addCourseIds]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addCourseIds]);
 
   /* ---------- Fetch allowed list for a room ---------- */
   const fetchAllowed = useCallback(async (rid: string) => {
     setAllowedLoading(true);
     try {
-      const res = await fetch(`/api/konnect/get-allowed-room?room_id=${encodeURIComponent(rid)}`);
+      const res = await fetch(
+        `/api/konnect/get-allowed-room?room_id=${encodeURIComponent(rid)}`
+      );
       if (res.ok) {
         const data: AllowedRoomResponse = await res.json();
         setAllowedCourses(data.allowed_courses ?? []);
@@ -502,17 +513,30 @@ export default function LiveSessionsPage() {
     return next;
   }
 
-  /* ---------- Start room ---------- */
+  /* ---------- Start room (NOW validates required fields) ---------- */
   const handleStartRoom = useCallback(async () => {
-    setStartLoading(true);
     setError(null);
     setSuccessMsg(null);
     setChanges(null);
 
-    const payload: Record<string, unknown> = {};
-    if (roomName.trim()) payload.name = roomName.trim();
+    // Required: room_name + at least 1 course selected
+    if (!roomName.trim()) {
+      setError("Room Name is required.");
+      return;
+    }
+    if (addCourseIds.size === 0) {
+      setError("Please select at least one course to allow.");
+      return;
+    }
+
+    setStartLoading(true);
+
+    const payload: Record<string, unknown> = {
+      name: roomName.trim(),
+      add_course_ids: [...addCourseIds],
+    };
+
     if (welcomeMsg.trim()) payload.message = welcomeMsg.trim();
-    if (addCourseIds.size) payload.add_course_ids = [...addCourseIds];
     if (removeCourseIds.size) payload.remove_course_ids = [...removeCourseIds];
     if (addUserIds.size) payload.add_user_ids = [...addUserIds];
     if (removeUserIds.size) payload.remove_user_ids = [...removeUserIds];
@@ -556,7 +580,9 @@ export default function LiveSessionsPage() {
     setJoinLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/konnect/join-room?room_id=${encodeURIComponent(roomId)}`);
+      const res = await fetch(
+        `/api/konnect/join-room?room_id=${encodeURIComponent(roomId)}`
+      );
       const data = await res.json();
       if (!res.ok) {
         setError(data.detail ?? "Failed to join room.");
@@ -694,7 +720,7 @@ export default function LiveSessionsPage() {
       </div>
 
       <div className="max-w-2xl space-y-5">
-        {/* Rooms quick list (from /api/konnect/rooms) */}
+        {/* Rooms quick list */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -713,13 +739,27 @@ export default function LiveSessionsPage() {
           ) : rooms && rooms.results.length > 0 ? (
             <div className="space-y-2">
               {rooms.results.map((r) => (
-                <div key={r.id} className="flex items-center justify-between gap-3 p-2 bg-slate-50 rounded-md">
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 p-2 bg-slate-50 rounded-md"
+                >
                   <div>
-                    <div className="text-sm font-medium text-slate-800">{r.name}</div>
-                    <div className="text-xs text-slate-400">{r.creator_name} · {new Date(r.created_at || "").toLocaleString()}</div>
+                    <div className="text-sm font-medium text-slate-800">
+                      {r.name}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {r.creator_name} ·{" "}
+                      {new Date(r.created_at || "").toLocaleString()}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${r.status === "open" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                    <span
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                        r.status === "open"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-slate-100 text-slate-600 border-slate-200"
+                      }`}
+                    >
                       {r.status === "open" ? "OPEN" : r.status}
                     </span>
                     <button
@@ -746,7 +786,10 @@ export default function LiveSessionsPage() {
           <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
             <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-500" />
             <span>{error}</span>
-            <button className="ml-auto text-red-400 hover:text-red-600" onClick={() => setError(null)}>
+            <button
+              className="ml-auto text-red-400 hover:text-red-600"
+              onClick={() => setError(null)}
+            >
               <X size={14} />
             </button>
           </div>
@@ -764,7 +807,11 @@ export default function LiveSessionsPage() {
             <Wifi size={15} className="text-[#EF7B55]" />
             <span className="text-sm font-semibold text-slate-700">Room Setup</span>
             {roomId && (
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeCls(roomStatus)}`}>
+              <span
+                className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeCls(
+                  roomStatus
+                )}`}
+              >
                 {roomStatus === "open" ? "● LIVE" : roomStatus}
               </span>
             )}
@@ -773,15 +820,23 @@ export default function LiveSessionsPage() {
           <div className="p-5 space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
-                Room Name
+                Room Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                required
                 placeholder="e.g. Introduction to Algebra"
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 placeholder-slate-400 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/30 focus:border-[#EF7B55] transition"
+                className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-slate-50 placeholder-slate-400 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/30 transition ${
+                  roomNameRequired
+                    ? "border-slate-200 focus:border-[#EF7B55]"
+                    : "border-red-200 focus:border-red-400"
+                }`}
               />
+              {!roomNameRequired && (
+                <p className="mt-1 text-[11px] text-red-500">Room Name is required.</p>
+              )}
             </div>
 
             <div>
@@ -826,6 +881,18 @@ export default function LiveSessionsPage() {
                       Make Changes
                     </p>
 
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-500">
+                        Select at least <span className="font-semibold">one course</span>{" "}
+                        <span className="text-red-500">*</span>
+                      </p>
+                      {!courseRequired && (
+                        <span className="text-[11px] text-red-500 font-medium">
+                          Required
+                        </span>
+                      )}
+                    </div>
+
                     <MultiSelect
                       title="Add Courses"
                       icon={BookOpen}
@@ -834,7 +901,9 @@ export default function LiveSessionsPage() {
                       onToggle={(id) => {
                         setAddCourseIds((p) => toggle(p, id));
                         setRemoveCourseIds((p) => {
-                          const n = new Set(p); n.delete(id); return n;
+                          const n = new Set(p);
+                          n.delete(id);
+                          return n;
                         });
                       }}
                       loading={coursesLoading}
@@ -852,7 +921,9 @@ export default function LiveSessionsPage() {
                         onToggle={(id) => {
                           setRemoveCourseIds((p) => toggle(p, id));
                           setAddCourseIds((p) => {
-                            const n = new Set(p); n.delete(id); return n;
+                            const n = new Set(p);
+                            n.delete(id);
+                            return n;
                           });
                         }}
                         placeholder="Choose courses to revoke…"
@@ -870,7 +941,9 @@ export default function LiveSessionsPage() {
                         onToggle={(id) => {
                           setAddUserIds((p) => toggle(p, id));
                           setRemoveUserIds((p) => {
-                            const n = new Set(p); n.delete(id); return n;
+                            const n = new Set(p);
+                            n.delete(id);
+                            return n;
                           });
                         }}
                         loading={isStudentsLoading}
@@ -889,7 +962,9 @@ export default function LiveSessionsPage() {
                         onToggle={(id) => {
                           setRemoveUserIds((p) => toggle(p, id));
                           setAddUserIds((p) => {
-                            const n = new Set(p); n.delete(id); return n;
+                            const n = new Set(p);
+                            n.delete(id);
+                            return n;
                           });
                         }}
                         placeholder="Choose users to remove…"
@@ -910,7 +985,7 @@ export default function LiveSessionsPage() {
 
             <button
               type="button"
-              disabled={startLoading}
+              disabled={!canStart}
               onClick={handleStartRoom}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#EF7B55] text-white text-sm font-semibold hover:bg-[#d96a44] active:bg-[#c75e39] disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
@@ -921,6 +996,12 @@ export default function LiveSessionsPage() {
               )}
               {startLoading ? "Starting…" : roomId ? "Update & Restart Room" : "Start Room"}
             </button>
+            {!canStart && (
+              <p className="text-center text-[11px] text-slate-400">
+                Please provide <span className="font-semibold">Room Name</span> and select{" "}
+                <span className="font-semibold">at least one course</span>.
+              </p>
+            )}
           </div>
         </div>
 
@@ -942,7 +1023,11 @@ export default function LiveSessionsPage() {
                     {roomId}
                   </p>
                 </div>
-                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeCls(roomStatus)}`}>
+                <span
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeCls(
+                    roomStatus
+                  )}`}
+                >
                   {roomStatus === "open" ? "OPEN" : roomStatus}
                 </span>
               </div>
@@ -981,8 +1066,14 @@ export default function LiveSessionsPage() {
                       label="Students Removed"
                       ids={changes.users_removed}
                       names={[
-                        ...allStudents.map((s) => ({ id: s.id, name: s.full_name || s.admission_no })),
-                        ...allowedUsers.map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim() })),
+                        ...allStudents.map((s) => ({
+                          id: s.id,
+                          name: s.full_name || s.admission_no,
+                        })),
+                        ...allowedUsers.map((u) => ({
+                          id: u.id,
+                          name: `${u.first_name} ${u.last_name}`.trim(),
+                        })),
                       ]}
                       color="orange"
                     />
