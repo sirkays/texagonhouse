@@ -1,3 +1,4 @@
+// texagon_academy\texagonui\app\api\teacher\assessments\courses\route.ts
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
