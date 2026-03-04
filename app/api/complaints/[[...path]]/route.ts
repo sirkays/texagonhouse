@@ -1,3 +1,4 @@
+// app/api/complaints/[[...path]]/route.ts
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch, djangoFetchRaw } from "@/app/api/_lib/proxy";
@@ -35,8 +36,7 @@ async function proxy(req: Request, pathSegs?: string[]) {
   if (req.method === "GET" && !path) path = "list/";
   if (path && !path.endsWith("/")) path += "/";
 
-  // IMPORTANT: djangoFetch BASE_URL already points to your backend,
-  // so we pass only the relative path.
+  // djangoFetch BASE_URL already points to your backend, so we pass only the relative path.
   const backendPath = `/billing/api/complaints/${path}`;
 
   const method = req.method.toUpperCase();
@@ -52,7 +52,8 @@ async function proxy(req: Request, pathSegs?: string[]) {
       const form = await req.formData();
       body = form;
     } else if (reqCt.includes("application/json")) {
-      body = await req.text(); // keep as text, proxy.ts sets Content-Type=json (unless FormData)
+      // keep JSON as text; proxy.ts sets Content-Type: application/json (unless FormData)
+      body = await req.text();
     } else if (reqCt.includes("text/")) {
       body = await req.text();
     } else if (reqCt) {
@@ -65,7 +66,7 @@ async function proxy(req: Request, pathSegs?: string[]) {
     }
   }
 
-  // If we have a body and it’s not JSON, we should use djangoFetchRaw
+  // If we have a body and it’s not JSON or multipart, use djangoFetchRaw
   // because djangoFetch defaults Content-Type: application/json unless FormData.
   const isMultipart = reqCt.startsWith("multipart/form-data");
   const isJson = reqCt.includes("application/json");
@@ -79,8 +80,10 @@ async function proxy(req: Request, pathSegs?: string[]) {
           method,
           signal: t.signal,
           body,
-          // IMPORTANT: preserve original Content-Type for non-json bodies
-          headers: reqCt ? { "Content-Type": req.headers.get("content-type") as string } : {},
+          // preserve original Content-Type for non-json bodies
+          headers: reqCt
+            ? { "Content-Type": req.headers.get("content-type") as string }
+            : {},
         })
       : await djangoFetch(backendPath, {
           method,
@@ -92,8 +95,8 @@ async function proxy(req: Request, pathSegs?: string[]) {
     const response = result.response;
     const respCT = response.headers.get("content-type") || "";
 
-    // Read backend response
-    const raw = await response.text();
+    // IMPORTANT: djangoFetch/djangoFetchRaw already read the body into result.text
+    const raw = result.text;
 
     if (!response.ok) {
       const res = NextResponse.json(
@@ -105,6 +108,7 @@ async function proxy(req: Request, pathSegs?: string[]) {
 
     if (respCT.includes("application/json")) {
       const parsed = safeJsonParse(raw);
+
       if (parsed === null && raw) {
         const res = NextResponse.json(
           { error: "Invalid JSON from backend", details: raw.slice(0, 300) },
@@ -112,6 +116,7 @@ async function proxy(req: Request, pathSegs?: string[]) {
         );
         return attachSetCookie(res, result.setCookie);
       }
+
       const res = NextResponse.json(parsed, { status: response.status });
       return attachSetCookie(res, result.setCookie);
     }

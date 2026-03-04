@@ -21,8 +21,8 @@ export default function TransactionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSelectTransaction = (id: string) => {
-    setSelectedTransaction(id);
-    setIsModalOpen(true);
+    //setSelectedTransaction(id);
+    //setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
@@ -51,11 +51,11 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <TransactionDetailsModal
+      {/* <TransactionDetailsModal
         transactionId={selectedTransaction}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-      />
+      /> */}
     </div>
   );
 }
