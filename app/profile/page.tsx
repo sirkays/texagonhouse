@@ -138,173 +138,7 @@ export default function ProfilePage() {
   }
 
   return (
-    // <div className="min-h-screen bg-gray-50 py-6 px-3 sm:px-6 lg:px-8">
-    //   <div className="w-full max-w-5xl mx-auto">
-    //     {/* Header */}
-    //     <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 mb-6">
-    //       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    //         {/* Avatar + Name */}
-    //         <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 text-center sm:text-left">
-    //           <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border border-[#ef7b55]/40 shadow-sm">
-    //             <AvatarImage src="/avatar.png" />
-    //             <AvatarFallback>
-    //               {fullName.charAt(0).toUpperCase()}
-    //             </AvatarFallback>
-    //           </Avatar>
 
-    //           <div>
-    //             <h1 className="text-xl sm:text-2xl font-bold">{fullName}</h1>
-    //             <p className="text-gray-600 capitalize text-sm sm:text-base">
-    //               {role} at TechXagon Academy
-    //             </p>
-    //           </div>
-    //         </div>
-
-    //         <Badge className="capitalize bg-[#ef7b55] self-center sm:self-auto">
-    //           {role}
-    //         </Badge>
-    //       </div>
-    //     </div>
-
-    //     {/* Navigation + Edit Controls */}
-    //     <div className="flex justify-end sm:items-center gap-3 mb-6">
-    //       {!isEditing ? (
-    //         <Button
-    //           onClick={() => setIsEditing(true)}
-    //           variant="outline"
-    //           className="w-full sm:w-auto">
-    //           <Edit2 className="mr-2 h-4 w-4" />
-    //           Edit Profile
-    //         </Button>
-    //       ) : (
-    //         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-    //           <Button
-    //             onClick={handleSubmit}
-    //             disabled={saving}
-    //             className="w-full sm:w-auto bg-[#ef7b55] border-[#ef7b55] text-white hover:bg-[#ef7b55]/90">
-    //             {saving ? (
-    //               <Spinner size="sm" className="mr-2" />
-    //             ) : (
-    //               <Save className="mr-2 h-4 w-4" />
-    //             )}
-    //             Save Changes
-    //           </Button>
-
-    //           <Button
-    //             variant="ghost"
-    //             onClick={() => setIsEditing(false)}
-    //             className="w-full sm:w-auto">
-    //             <X className="mr-2 h-4 w-4" />
-    //             Cancel
-    //           </Button>
-    //         </div>
-    //       )}
-    //     </div>
-
-    //     {/* Alerts */}
-    //     {error && (
-    //       <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-center text-sm">
-    //         {error}
-    //       </div>
-    //     )}
-
-    //     {success && (
-    //       <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 text-center text-sm">
-    //         {success}
-    //       </div>
-    //     )}
-
-    //     {/* Personal Information */}
-    //     <Card className="mb-6 rounded-2xl shadow-sm">
-    //       <CardHeader>
-    //         <CardTitle className="text-lg sm:text-xl">
-    //           Personal Information
-    //         </CardTitle>
-    //       </CardHeader>
-
-    //       <CardContent>
-    //         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    //           <Input
-    //             value={firstName}
-    //             disabled={!isEditing}
-    //             onChange={(e) => setFirstName(e.target.value)}
-    //             placeholder="First Name"
-    //           />
-
-    //           <Input
-    //             value={lastName}
-    //             disabled={!isEditing}
-    //             onChange={(e) => setLastName(e.target.value)}
-    //             placeholder="Last Name"
-    //           />
-
-    //           <Input
-    //             value={email}
-    //             disabled={!isEditing}
-    //             onChange={(e) => setEmail(e.target.value)}
-    //             placeholder="Email"
-    //             className="md:col-span-2"
-    //           />
-
-    //           <Input
-    //             value={phone}
-    //             disabled={!isEditing}
-    //             onChange={(e) => setPhone(e.target.value)}
-    //             placeholder="Phone"
-    //             className="md:col-span-2"
-    //           />
-    //         </div>
-    //       </CardContent>
-    //     </Card>
-
-    //     {/* Role Specific */}
-    //     <Card className="rounded-2xl shadow-sm">
-    //       <CardHeader>
-    //         <CardTitle className="capitalize text-lg sm:text-xl">
-    //           {role} Details
-    //         </CardTitle>
-    //       </CardHeader>
-
-    //       <CardContent className="space-y-4">
-    //         {role === "teacher" && (
-    //           <>
-    //             <Textarea
-    //               value={bio}
-    //               disabled={!isEditing}
-    //               onChange={(e) => setBio(e.target.value)}
-    //               placeholder="Professional Bio"
-    //               className="min-h-[120px]"
-    //             />
-
-    //             <Input
-    //               type="number"
-    //               value={experience}
-    //               disabled={!isEditing}
-    //               onChange={(e) => setExperience(e.target.value)}
-    //               placeholder="Years of Experience"
-    //             />
-    //           </>
-    //         )}
-
-    //         {role === "parent" && (
-    //           <Textarea
-    //             value={address}
-    //             disabled={!isEditing}
-    //             onChange={(e) => setAddress(e.target.value)}
-    //             placeholder="Address"
-    //             className="min-h-[120px]"
-    //           />
-    //         )}
-
-    //         {role === "student" && (
-    //           <p className="text-gray-600 text-sm">
-    //             Students can update personal information above.
-    //           </p>
-    //         )}
-    //       </CardContent>
-    //     </Card>
-    //   </div>
-    // </div>
 
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-5xl mx-auto">
@@ -398,7 +232,8 @@ export default function ProfilePage() {
                 disabled={!isEditing}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="First Name"
-                className="backdrop-blur-md bg-white/50 border border-white/40 focus:bg-white/70 rounded-xl"
+                className="bg-white/90 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white 
+                focus:border-[#ef7b55] focus:ring-2 focus:ring-[#ef7b55]/20 rounded-xl shadow-sm transition-all"
               />
 
               <Input
@@ -406,7 +241,8 @@ export default function ProfilePage() {
                 disabled={!isEditing}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Last Name"
-                className="backdrop-blur-md bg-white/50 border border-white/40 focus:bg-white/70 rounded-xl"
+                className="bg-white/90 border border-slate-300 text-slate-900 placeholder:text-slate-400 
+                focus:bg-white focus:border-[#ef7b55] focus:ring-2 focus:ring-[#ef7b55]/20 rounded-xl shadow-sm transition-all"
               />
 
               <Input
@@ -414,7 +250,8 @@ export default function ProfilePage() {
                 disabled={!isEditing}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="md:col-span-2 backdrop-blur-md bg-white/50 border border-white/40 focus:bg-white/70 rounded-xl"
+                className="bg-white/90 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white
+                 focus:border-[#ef7b55] focus:ring-2 focus:ring-[#ef7b55]/20 rounded-xl shadow-sm transition-all"
               />
 
               <Input
@@ -422,7 +259,8 @@ export default function ProfilePage() {
                 disabled={!isEditing}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Phone"
-                className="md:col-span-2 backdrop-blur-md bg-white/50 border border-white/40 focus:bg-white/70 rounded-xl"
+                className="bg-white/90 border border-slate-300 text-slate-900 placeholder:text-slate-400
+                 focus:bg-white focus:border-[#ef7b55] focus:ring-2 focus:ring-[#ef7b55]/20 rounded-xl shadow-sm transition-all"
               />
             </div>
           </CardContent>

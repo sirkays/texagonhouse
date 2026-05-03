@@ -1,7 +1,21 @@
-import { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// CodeEditor.tsx
+//
+// Main IDE component, rewritten on top of useTabs() — the per-language
+// state machinery is gone. Each open document is now an independent Tab,
+// and the toolbar / status bar / save/submit panels read from the active
+// tab instead of a parallel map keyed by language.
+//
+// Issues addressed in this rewrite:
+//  #1 — "Update" button reads from the active tab's `submissionId`. New
+//        tab → no submissionId → button says "Submit", not "Update".
+//  #2 — "New file" calls openNewTab() which appends a tab; the current
+//        tab is not clobbered.
+//  #3 — Folder tree in Explorer; folder CRUD wired to backend.
+//  #4 — Save sends {title, language, folder} to backend; backend dedupes
+//        on (student, title, language, folder) — see views.py.
+//  #5 — Submissions panel paginates with Load more / Prev / Next.
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Play,
   Download,
@@ -9,144 +23,888 @@ import {
   RotateCcw,
   AlertCircle,
   LogIn,
-  MessageSquare,
   Send,
-  Link,
-  Trash2,
-  FilePlus,
-  Upload,
   Save,
-  ExternalLink, Loader2, Maximize2,
+  ExternalLink,
+  Loader2,
+  Maximize2,
+  FolderOpen,
+  GraduationCap,
+  Search,
+  Settings as SettingsIcon,
+  Sun,
+  Moon,
+  ChevronRight,
+  X,
+  Circle,
+  Terminal,
+  Eye,
+  Keyboard,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 
-import { Label } from "@/components/ui/label";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
-// import {java} from "@codemirror/lang-java";
-// import {cpp} from "@codemirror/lang-cpp";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 import { monokai } from "@uiw/codemirror-theme-monokai";
+import { githubLight } from "@uiw/codemirror-theme-github";
+import { indentUnit } from "@codemirror/language";
+
+import {
+  Folder,
+  Lesson,
+  Snippet,
+  Submission,
+  UploadedFile,
+  Comment,
+  Tab,
+  LangKey,
+  LANGUAGES,
+  InlinePanel,
+  SidebarPanel,
+  BottomPanel,
+  Toast,
+} from "./types";
+import { useTheme } from "./useTheme";
+import { useTabs } from "./useTabs";
+import { IDEStyles } from "./IDEStyles";
+import { LangBadge } from "./LangBadge";
+import { FilesSidebar } from "./FilesSidebar";
+import { SubmissionsSidebar } from "./SubmissionsSidebar";
+import { SearchSidebar } from "./SearchSidebar";
+import { SettingsSidebar } from "./SettingsSidebar";
+
 const codeMirrorExtensions = {
   javascript: [javascript()],
   python: [python()],
-  // java: [java()],
-  // cpp: [cpp()],
   html: [html()],
   css: [css()],
 } as const;
-type Snippet = {
-  id: number;
-  lesson: number | null;
-  title: string;
-  language: string;
-  code_text: string;
-  meta: any;
-  created_at: string;
-  updated_at: string;
-};
-type UploadedFile = {
-  id: number;
-  created_at: string;
-  updated_at: string;
-  student: number;
-  lesson: number | null;
-  label: string;
-  original_name: string;
-  content_type: string;
-  size_bytes: number;
-  url: string;
-};
-type Submission = {
-  id: number;
-  title?: string | null;
-  lesson: number;
-  student: number;
-  language: string;
-  code_text: string;
-  status: "submitted" | "graded" | "revised";
-  score: string | null;
-  feedback: string;
-  correction_code: string;
-  graded_by_name: number | null;
-  graded_at: string | null;
-  created_at: string;
-  updated_at: string;
-  comments: Comment[];
-};
-type Comment = {
-  id: number;
-  author: number;
-  author_role: "student" | "teacher";
-  author_name: string;
-  message: string;
-  created_at: string;
-};
 
-type MiniSubmission = {
-  id: number;
-  title?: string | null;
-  language: string;
-  code_text: string;
-  status: "submitted" | "graded" | "revised";
-  created_at: string;
-  updated_at: string;
-};
-
-type SnipCtx = { id: number; title: string; lessonId: string };
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 export function CodeEditor() {
+  // ─── Theme ──────────────────────────────────────────────────────────────
+  const { theme, isDark, toggleTheme, t } = useTheme();
+
+  // ─── Tabs (replaces all per-language state) ─────────────────────────────
+  const {
+    tabs,
+    activeTab,
+    activeId,
+    setActiveId,
+    updateTab,
+    updateActiveTab,
+    openNewTab,
+    closeTab,
+    openSnippet,
+    openSubmission,
+    openUploadAsTab,
+    isDirty,
+    hasAnyUnsaved,
+    buildPreviewFilesystem,
+  } = useTabs();
 
 
-  const languages = {
-    javascript: {
-      name: "JavaScript",
-      judgeId: 63,
-      template: `console.log("Hello, World!");`,
-    },
-    python: { name: "Python", judgeId: 71, template: `print("Hello, World!")` },
-    // java: {
-    // name: "Java",
-    // judgeId: 62,
-    // template: `System.out.println("Hello");`,
-    // },
-    // cpp: {name: "C++", judgeId: 54, template: `std::cout << "Hello";`},
-    html: { name: "HTML", judgeId: null, template: `<h1>Hello</h1>` },
-    css: { name: "CSS", judgeId: null, template: `body { color: red; }` },
-  } as const;
 
-  const isProgrammaticLoadRef = useRef(false);
-  const isDirty = (lang: LangKey) => !!dirtyByLang[lang];
+  // VS Code-style defaults: Python uses 4 spaces (PEP 8), others use 2.
+  const INDENT_BY_LANG: Record<LangKey, { size: number; unit: string }> = {
+    python:     { size: 4, unit: "    " },
+    javascript: { size: 2, unit: "  " },
+    html:       { size: 2, unit: "  " },
+    css:        { size: 2, unit: "  " },
+  };
 
-  const [showReloadWarning, setShowReloadWarning] = useState(false);
-  const pendingReloadRef = useRef<null | (() => void)>(null);
+  // ─── Session ────────────────────────────────────────────────────────────
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // ─── Data lists ─────────────────────────────────────────────────────────
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
+  const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  const [showPythonInputModal, setShowPythonInputModal] = useState(false);
+  // ─── Layout ─────────────────────────────────────────────────────────────
+  const [activePanel, setActivePanel] = useState<SidebarPanel>("files");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [bottomHeight, setBottomHeight] = useState(220);
+  const [bottomPanel, setBottomPanel] = useState<BottomPanel>("console");
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isResizingBottom, setIsResizingBottom] = useState(false);
+
+  // ─── Editor state ───────────────────────────────────────────────────────
+  const [output, setOutput] = useState("");
+  const [webConsole, setWebConsole] = useState("");
+  const [htmlPreview, setHtmlPreview] = useState("");
+  const [executionError, setExecutionError] = useState("");
+  const [syntaxError] = useState<string | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const runIdRef = useRef(0);
+
+  const [fontSize, setFontSize] = useState(13);
+  const minFontSize = 10;
+  const maxFontSize = 24;
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("code-ide-font-size");
+      if (stored) {
+        const n = parseInt(stored, 10);
+        if (!isNaN(n) && n >= minFontSize && n <= maxFontSize) setFontSize(n);
+      }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("code-ide-font-size", String(fontSize));
+    } catch {}
+  }, [fontSize]);
+  const incFontSize = () => setFontSize((f) => Math.min(maxFontSize, f + 1));
+  const decFontSize = () => setFontSize((f) => Math.max(minFontSize, f - 1));
+
+  const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
+
+  // ─── Inline panel (save / submit / stdin / shortcuts / newFolder) ──────
+  const [inlinePanel, setInlinePanel] = useState<InlinePanel>(null);
+  const closeInlinePanel = () => setInlinePanel(null);
+
+  // Save panel
+  const [saveFileName, setSaveFileName] = useState("");
+  const [saveFolderId, setSaveFolderId] = useState<string>(""); // '' = root
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Submit panel
+  const [submitDraftTitle, setSubmitDraftTitle] = useState("");
+  const [submitDraftLesson, setSubmitDraftLesson] = useState("");
+  const [submitSelectedTabIds, setSubmitSelectedTabIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [isSubmittingEditor, setIsSubmittingEditor] = useState(false);
+
+  // Stdin panel
   const [pythonInputPrompts, setPythonInputPrompts] = useState<string[]>([]);
   const [pythonInputValues, setPythonInputValues] = useState<string[]>([]);
   const pendingStdinRef = useRef<((stdin: string) => void) | null>(null);
+
+  // New folder panel
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderParent, setNewFolderParent] = useState<number | null>(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
+  // New file panel — remembers which folder the new tab should land in
+  // (null = root). Opened from the "+" tab button or any folder's "new file"
+  // action; the user picks a language before the tab is created.
+  const [newFileFolderId, setNewFileFolderId] = useState<number | null>(null);
+
+  // ─── Toasts ─────────────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
+  const pushToast = (message: string, kind: Toast["kind"] = "info") => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, message, kind }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+  const showCustomAlert = (message: string) => {
+    const m = message.toLowerCase();
+    const kind: Toast["kind"] =
+      m.includes("fail") || m.includes("error") || m.includes("invalid")
+        ? "error"
+        : m.includes("success") ||
+          m.includes("submitted") ||
+          m.includes("saved") ||
+          m.includes("copied") ||
+          m.includes("uploaded") ||
+          m.includes("deleted") ||
+          m.includes("updated") ||
+          m.includes("created")
+        ? "success"
+        : "info";
+    pushToast(message, kind);
+  };
+
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    message: string;
+    callback: () => Promise<void>;
+  } | null>(null);
+  const [confirmRunning, setConfirmRunning] = useState(false);
+  const showCustomConfirm = (
+    message: string,
+    callback: () => Promise<void>
+  ) => {
+    setPendingConfirm({ message, callback });
+  };
+
+  // ─── Loading-state per-item ────────────────────────────────────────────
+  const [snippetLoadingId, setSnippetLoadingId] = useState<number | null>(null);
+  const [deletingSnippetId, setDeletingSnippetId] = useState<number | null>(
+    null
+  );
+  const [fileLoading, setFileLoading] = useState<number | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Track which folder a multi-file upload should land in.
+  // null = root.
+  const uploadTargetFolderRef = useRef<number | null>(null);
+
+  // ─── Activity bar handlers ─────────────────────────────────────────────
+  const handleActivityClick = (panel: SidebarPanel) => {
+    if (activePanel === panel && !sidebarCollapsed) {
+      setSidebarCollapsed(true);
+    } else {
+      setActivePanel(panel);
+      setSidebarCollapsed(false);
+    }
+  };
+
+  // ─── Sidebar / bottom resize ────────────────────────────────────────────
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+    const onMove = (e: MouseEvent) => {
+      const next = Math.max(220, Math.min(500, e.clientX - 48));
+      setSidebarWidth(next);
+    };
+    const onUp = () => setIsResizingSidebar(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isResizingSidebar]);
+
+  useEffect(() => {
+    if (!isResizingBottom) return;
+    const onMove = (e: MouseEvent) => {
+      const fromBottom = window.innerHeight - e.clientY;
+      const next = Math.max(120, Math.min(window.innerHeight - 200, fromBottom));
+      setBottomHeight(next);
+    };
+    const onUp = () => setIsResizingBottom(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isResizingBottom]);
+
+  // ─── beforeunload guard ────────────────────────────────────────────────
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!hasAnyUnsaved) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasAnyUnsaved]);
+
+  // ─── Keyboard shortcuts ─────────────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (e.key === "Escape" && inlinePanel) {
+        const target = e.target as HTMLElement;
+        const isField =
+          target?.tagName === "INPUT" ||
+          target?.tagName === "TEXTAREA" ||
+          target?.tagName === "SELECT";
+        if (!isField) {
+          e.preventDefault();
+          if (inlinePanel === "stdin") {
+            pendingStdinRef.current = null;
+            setIsRunning(false);
+          }
+          setInlinePanel(null);
+        }
+      } else if (mod && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (activeTab && !activeTab.isImagePreview) openSavePanel();
+      } else if (mod && e.key === "Enter") {
+        e.preventDefault();
+        if (!isRunning) runCode();
+      } else if (mod && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setSidebarCollapsed((c) => !c);
+      } else if (mod && e.key === "/") {
+        e.preventDefault();
+        setInlinePanel((p) => (p === "shortcuts" ? null : "shortcuts"));
+      } else if (mod && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        setBottomPanel((p) => (p === null ? "console" : null));
+      } else if (mod && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        // Open the language picker so the user explicitly chooses
+        // JS / Python / HTML / CSS instead of inheriting the active tab.
+        handleNewFile(null);
+      } else if (mod && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        if (activeId) closeTab(activeId);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isRunning, inlinePanel, activeTab, activeId, closeTab]);
+
+  // ─── Iframe message bridge ─────────────────────────────────────────────
+  useEffect(() => {
+    const onMsg = (ev: MessageEvent) => {
+      const data = ev.data;
+      if (!data || data.source !== "web-iframe") return;
+      if (data.runId !== runIdRef.current) return;
+      const line =
+        data.type === "error"
+          ? `❌ ${data.message}`
+          : data.type === "warn"
+          ? `⚠ ${data.message}`
+          : data.message;
+      setWebConsole((prev) => (prev ? prev + "\n" + line : line));
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
+  // ─── Auth + initial data ────────────────────────────────────────────────
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status !== "authenticated" || !session?.user?.sessionToken) {
+      setError("Not authenticated");
+      setLoading(false);
+      return;
+    }
+    setError(null);
+    setLoading(false);
+  }, [session, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    Promise.all([
+      fetchLessons(),
+      fetchSnippets().then(setMySnippets).catch(() => setMySnippets([])),
+      fetchFolders().then(setFolders).catch(() => setFolders([])),
+      fetchSubmissions()
+        .then(setMySubmissions)
+        .catch(() => setMySubmissions([])),
+      fetch("/api/code-ide/uploads")
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setUploadedFiles)
+        .catch(() => setUploadedFiles([])),
+    ]).catch(() => {});
+  }, [status]);
+
+  // ─── API helpers ────────────────────────────────────────────────────────
+  const fetchLessons = async () => {
+    try {
+      const params = new URLSearchParams({ freezed: "1" });
+      const res = await fetch(`/api/student/lessons?${params.toString()}`);
+      if (!res.ok) {
+        // Surface the status — silent failures are how this kind of bug
+        // (empty dropdown with no toast) lives undetected.
+        const body = await res.text().catch(() => "");
+        // eslint-disable-next-line no-console
+        console.warn("[IDE] /api/student/lessons returned", res.status, body);
+        showCustomAlert(`Failed to load lessons (${res.status})`);
+        setLessons([]);
+        return;
+      }
+      const data = await res.json();
+      // Be liberal about response shape. Different deployments wrap the
+      // list in different envelopes; cover the common ones.
+      const list: any[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.results)
+        ? data.results
+        : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.lessons)
+        ? data.lessons
+        : [];
+      // eslint-disable-next-line no-console
+      console.debug("[IDE] lessons loaded:", list.length, list.slice(0, 3));
+      const mapped = list
+        .map((l: any) => ({
+          id: l && l.id != null ? String(l.id) : "",
+          title:
+            l?.title || l?.name || l?.topic || l?.label || `Lesson ${l?.id ?? "?"}`,
+        }))
+        .filter((l) => l.id);
+      setLessons(mapped);
+      if (mapped.length === 0) {
+        showCustomAlert(
+          "No lessons available for your account yet. Ask your teacher to assign one."
+        );
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[IDE] fetchLessons threw:", err);
+      showCustomAlert("Failed to load lessons");
+      setLessons([]);
+    }
+  };
+
+  const fetchSnippets = async (lessonId?: string): Promise<Snippet[]> => {
+    const u = new URL("/api/code-ide/snippets", window.location.origin);
+    if (lessonId) u.searchParams.set("lesson", lessonId);
+    const r = await fetch(u);
+    if (!r.ok) throw new Error("Failed to fetch snippets");
+    return r.json();
+  };
+
+  const fetchSnippetDetail = async (id: number): Promise<Snippet> => {
+    const r = await fetch(`/api/code-ide/snippets/${id}`);
+    if (!r.ok) throw new Error("Failed to fetch snippet detail");
+    return r.json();
+  };
+
+  const fetchFolders = async (): Promise<Folder[]> => {
+    const r = await fetch("/api/code-ide/folders");
+    if (!r.ok) throw new Error("Failed to fetch folders");
+    return r.json();
+  };
+
+  const fetchSubmissions = async (): Promise<Submission[]> => {
+    const r = await fetch("/api/code-ide/submissions", { cache: "no-store" });
+    if (!r.ok) throw new Error("Failed to fetch submissions");
+    return r.json();
+  };
+
+  const fetchSubmissionDetail = async (id: number): Promise<Submission> => {
+    const r = await fetch(`/api/code-ide/submissions/${id}`, {
+      cache: "no-store",
+    });
+    if (!r.ok) throw new Error("Failed to fetch submission detail");
+    return r.json();
+  };
+
+  // ─── Folder operations ─────────────────────────────────────────────────
+  const createFolder = async (parentId: number | null, name: string) => {
+    const res = await fetch("/api/code-ide/folders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, parent: parentId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || "Folder creation failed");
+    }
+    const f: Folder = await res.json();
+    setFolders((prev) => [...prev, f]);
+    return f;
+  };
+
+  const renameFolder = async (id: number, name: string) => {
+    const res = await fetch(`/api/code-ide/folders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showCustomAlert(`Rename failed: ${err.detail || err.error || "unknown"}`);
+      return;
+    }
+    const updated: Folder = await res.json();
+    setFolders((prev) => prev.map((f) => (f.id === id ? updated : f)));
+    showCustomAlert("Folder renamed");
+  };
+
+  const deleteFolder = (id: number) => {
+    showCustomConfirm(
+      "Delete this folder? Files inside will be moved to root.",
+      async () => {
+        // Try non-force first; if it fails because of contents, ask again
+        const res = await fetch(`/api/code-ide/folders/${id}/delete`, {
+          method: "DELETE",
+        });
+        if (res.status === 204) {
+          setFolders((prev) => prev.filter((f) => f.id !== id));
+          showCustomAlert("Folder deleted");
+          return;
+        }
+        if (res.status === 400) {
+          // Probably "folder not empty" — escalate to force-delete confirm
+          setPendingConfirm(null); // close current
+          showCustomConfirm(
+            "Folder is not empty. Delete folder AND all its contents?",
+            async () => {
+              const r2 = await fetch(
+                `/api/code-ide/folders/${id}/delete?force=1`,
+                { method: "DELETE" }
+              );
+              if (r2.status === 204) {
+                setFolders((prev) => prev.filter((f) => f.id !== id));
+                // Refresh snippets + uploads since some may have been deleted
+                fetchSnippets()
+                  .then(setMySnippets)
+                  .catch(() => {});
+                fetch("/api/code-ide/uploads")
+                  .then((r) => (r.ok ? r.json() : []))
+                  .then(setUploadedFiles)
+                  .catch(() => {});
+                showCustomAlert("Folder and contents deleted");
+              } else {
+                showCustomAlert("Force delete failed");
+              }
+            }
+          );
+          return;
+        }
+        showCustomAlert("Delete failed");
+      }
+    );
+  };
+
+  // ─── Tab actions: save / run / submit ──────────────────────────────────
+  const openSavePanel = () => {
+    if (!activeTab) return;
+    setSaveFileName(activeTab.title || "");
+    setSaveFolderId(
+      activeTab.folderId != null ? String(activeTab.folderId) : ""
+    );
+    setInlinePanel("save");
+  };
+
+  const saveActiveTab = async () => {
+    if (!activeTab) return;
+    const name = saveFileName.trim();
+    if (!name) return;
+    setIsSaving(true);
+    try {
+      const folderIdNum = saveFolderId ? parseInt(saveFolderId, 10) : null;
+      const body: any = {
+        title: name,
+        language: activeTab.language,
+        code_text: activeTab.code,
+        folder: folderIdNum,
+      };
+      // Backend will dedupe on (student, title, language, folder) when no id is sent.
+      // BUT: if this tab is already linked to a snippet AND the title/folder match,
+      // pass the id so backend updates that exact row.
+      if (activeTab.snippetId) {
+        body.id = activeTab.snippetId;
+      }
+      const res = await fetch("/api/code-ide/snippets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.detail || "Save failed");
+      }
+      const saved: Snippet = await res.json();
+      // Update tab to reflect saved state
+      updateActiveTab({
+        kind: "snippet",
+        snippetId: saved.id,
+        title: saved.title,
+        savedCode: activeTab.code,
+        folderId: saved.folder ?? null,
+        language: saved.language,
+      });
+      // Update the snippets list
+      setMySnippets((prev) => {
+        const exists = prev.some((s) => s.id === saved.id);
+        return exists
+          ? prev.map((s) => (s.id === saved.id ? saved : s))
+          : [saved, ...prev];
+      });
+      showCustomAlert(
+        activeTab.snippetId ? "Snippet updated" : "Snippet saved"
+      );
+      setInlinePanel(null);
+    } catch (err) {
+      showCustomAlert(`Save failed: ${(err as Error).message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openSubmitPanel = () => {
+    if (!activeTab) return;
+    setSubmitDraftTitle(
+      activeTab.submissionTitle || activeTab.title || ""
+    );
+    setSubmitDraftLesson(activeTab.lessonId || "");
+    // Default selection: tabs that have content. Always include the active tab.
+    const defaults = new Set<string>();
+    for (const t of tabs) {
+      const tpl = LANGUAGES[t.language].template.trim();
+      if (t.code.trim() && t.code.trim() !== tpl) defaults.add(t.id);
+    }
+    if (defaults.size === 0 && activeTab) defaults.add(activeTab.id);
+    setSubmitSelectedTabIds(defaults);
+    setInlinePanel("submit");
+  };
+
+  const toggleSubmitTab = (id: string) => {
+    setSubmitSelectedTabIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const confirmSubmit = async () => {
+    const title = submitDraftTitle.trim();
+    const lessonId = submitDraftLesson;
+
+    if (!title) return showCustomAlert("Submission Title is required");
+    if (!lessonId) return showCustomAlert("Please select a lesson");
+    if (submitSelectedTabIds.size === 0)
+      return showCustomAlert("Pick at least one file to submit");
+
+    setIsSubmittingEditor(true);
+    let okCount = 0;
+    const failures: string[] = [];
+    try {
+      for (const tabId of Array.from(submitSelectedTabIds)) {
+        const tab = tabs.find((t) => t.id === tabId);
+        if (!tab) continue;
+        try {
+          if (tab.submissionId) {
+            // Update existing submission
+            const res = await fetch(
+              `/api/code-ide/submissions/${tab.submissionId}`,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  title,
+                  language: tab.language,
+                  code_text: tab.code,
+                }),
+              }
+            );
+            if (!res.ok) throw new Error(await safeError(res));
+            const updated: Submission = await res.json();
+            setMySubmissions((prev) =>
+              prev.map((s) => (s.id === updated.id ? updated : s))
+            );
+            // Sync tab — keep it linked to its (now-updated) submission
+            updateTab(tab.id, {
+              submissionTitle: title,
+              lessonId,
+              savedCode: tab.code,
+            });
+            okCount++;
+          } else {
+            const res = await fetch("/api/code-ide/submissions/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title,
+                lesson: parseInt(lessonId, 10),
+                language: tab.language,
+                code_text: tab.code,
+              }),
+            });
+            if (!res.ok) throw new Error(await safeError(res));
+            const created: Submission = await res.json();
+            setMySubmissions((prev) => [created, ...prev]);
+            // Convert tab to a "submission" tab so future edits update in place
+            updateTab(tab.id, {
+              kind: "submission",
+              submissionId: created.id,
+              submissionTitle: title,
+              lessonId,
+              savedCode: tab.code,
+            });
+            okCount++;
+          }
+        } catch (e) {
+          failures.push(`${tab.title}: ${(e as Error).message}`);
+        }
+      }
+
+      if (okCount && !failures.length) {
+        showCustomAlert(
+          okCount === 1 ? "Submitted" : `Submitted ${okCount} files`
+        );
+        setInlinePanel(null);
+      } else if (okCount && failures.length) {
+        showCustomAlert(
+          `Submitted ${okCount}, failed ${failures.length}: ${failures.join("; ")}`
+        );
+      } else {
+        showCustomAlert(`Submission failed: ${failures.join("; ")}`);
+      }
+    } finally {
+      setIsSubmittingEditor(false);
+    }
+  };
+
+  // Helper to extract a readable error from a non-OK response
+  const safeError = async (res: Response) => {
+    try {
+      const j = await res.json();
+      return (
+        j.error ||
+        j.detail ||
+        Object.entries(j)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+          .join("; ")
+      );
+    } catch {
+      return await res.text().catch(() => `${res.status}`);
+    }
+  };
+
+  const handleEditorSubmitClick = () => {
+    if (!activeTab) return;
+    if (activeTab.submissionId) {
+      // Quick "update in place" path
+      handleQuickUpdateSubmission();
+    } else {
+      openSubmitPanel();
+    }
+  };
+
+  const handleQuickUpdateSubmission = async () => {
+    if (!activeTab || !activeTab.submissionId) return;
+    if (isSubmittingEditor) return;
+    const title = (activeTab.submissionTitle || activeTab.title || "").trim();
+    if (!title) return showCustomAlert("Submission Title is required");
+    setIsSubmittingEditor(true);
+    try {
+      const res = await fetch(
+        `/api/code-ide/submissions/${activeTab.submissionId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            language: activeTab.language,
+            code_text: activeTab.code,
+          }),
+        }
+      );
+      if (!res.ok) throw new Error(await safeError(res));
+      const updated: Submission = await res.json();
+      setMySubmissions((prev) =>
+        prev.map((s) => (s.id === updated.id ? updated : s))
+      );
+      updateActiveTab({
+        savedCode: activeTab.code,
+        submissionTitle: title,
+      });
+      showCustomAlert("Submission updated");
+    } catch (e) {
+      showCustomAlert(`Update failed: ${(e as Error).message}`);
+    } finally {
+      setIsSubmittingEditor(false);
+    }
+  };
+
+  // ─── Run code ──────────────────────────────────────────────────────────
+  const runCode = async () => {
+    if (!activeTab) return;
+    if (activeTab.isImagePreview) {
+      setOutput("Image preview mode: No code to execute");
+      setBottomPanel("console");
+      return;
+    }
+    setIsRunning(true);
+    setOutput("");
+    setWebConsole("");
+    setExecutionError("");
+    try {
+      if (error === "Session expired" || error === "Not authenticated") {
+        setOutput("Session expired. Please log in again.");
+        setBottomPanel("console");
+        return;
+      }
+
+      const lang = activeTab.language;
+      if (lang === "javascript") {
+        const logs: string[] = [];
+        const original = console.log;
+        console.log = (...a) => logs.push(a.map(String).join(" "));
+        try {
+          new Function(activeTab.code)();
+          setOutput(
+            logs.join("\n") || "Code executed successfully (no output)"
+          );
+          pushToast("Code executed successfully", "success");
+        } catch (e: any) {
+          setOutput(`Error: ${e.message}`);
+        } finally {
+          console.log = original;
+        }
+        setBottomPanel("console");
+      } else if (lang === "html" || lang === "css") {
+        runIdRef.current += 1;
+        const runId = runIdRef.current;
+        setWebConsole("");
+        // Pull HTML source from any open HTML tab. If none, fall back to a
+        // wrapper that injects the active CSS or JS into a basic page.
+        const htmlTab =
+          tabs.find((t) => t.language === "html" && t.id === activeTab.id) ||
+          tabs.find((t) => t.language === "html");
+        const fs = buildPreviewFilesystem();
+        const finalHtml =
+          htmlTab?.code ??
+          `<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>`;
+        setHtmlPreview(buildWebDoc(finalHtml, fs, runId));
+        setOutput("Rendered preview.");
+        pushToast("Rendered successfully", "success");
+        setBottomPanel("preview");
+      } else {
+        const cfg = LANGUAGES[lang];
+        if (cfg.judgeId) {
+          try {
+            const prompts =
+              lang === "python" ? parsePythonInputs(activeTab.code) : [];
+            if (prompts.length > 0) {
+              setPythonInputPrompts(prompts);
+              setPythonInputValues(Array(prompts.length).fill(""));
+              pendingStdinRef.current = async (stdin: string) => {
+                try {
+                  await executeWithJudge0(activeTab.code, cfg.judgeId!, stdin);
+                } catch {
+                  setExecutionError("Online execution unavailable.");
+                  setOutput("Simulated output for " + lang);
+                } finally {
+                  setIsRunning(false);
+                  setBottomPanel("console");
+                }
+              };
+              setInlinePanel("stdin");
+              return;
+            }
+            await executeWithJudge0(activeTab.code, cfg.judgeId, "");
+          } catch {
+            setExecutionError("Online execution unavailable.");
+            setOutput("Simulated output for " + lang);
+          }
+        } else {
+          setOutput("Language not supported for execution");
+        }
+        setBottomPanel("console");
+      }
+    } catch (e: any) {
+      setOutput(`Error: ${e.message}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   const parsePythonInputs = (code: string): string[] => {
     const regex = /input\s*\(\s*(?:"([^"]*?)"|'([^']*?)')?\s*\)/g;
@@ -158,1076 +916,87 @@ export function CodeEditor() {
     return prompts;
   };
 
-  // last saved title per language (separate from submissionTitle)
-  const [saveTitleByLang, setSaveTitleByLang] = useState<Partial<Record<LangKey, string>>>({});
-  const [dirtyByLang, setDirtyByLang] = useState<Partial<Record<LangKey, boolean>>>({});
-
-  const markDirty = (lang: LangKey) => {
-    setDirtyByLang((prev) => ({ ...prev, [lang]: true }));
-  };
-
-  const markSaved = (lang: LangKey) => {
-    setDirtyByLang((prev) => ({ ...prev, [lang]: false }));
-  };
-
-  const hasAnyUnsaved = () => Object.values(dirtyByLang).some(Boolean);
-
-  // optional: last saved code per language (used in part 2)
-  const [lastSavedCodeByLang, setLastSavedCodeByLang] =
-    useState<Partial<Record<LangKey, string>>>({});
-
-  // Session and authentication
-  const { data: session, status } = useSession();
-  const [jsCode, setJsCode] = useState<string>(languages.javascript.template);
-  const [webConsole, setWebConsole] = useState<string>("");
-  const runIdRef = useRef(0);
-
-  const [snippetLoadingId, setSnippetLoadingId] = useState<number | null>(null);
-  const [deletingSnippetId, setDeletingSnippetId] = useState<number | null>(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-
-  // State variables
-  const [submissionTitle, setSubmissionTitle] = useState("");
-  const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(
-    null
-  );
-  const [isSubmittingEditor, setIsSubmittingEditor] = useState(false);
-
-  const [selectedLanguage, setSelectedLanguage] = useState("javascript");
-  const [htmlCode, setHtmlCode] = useState("<h1>Hello</h1>");
-  const [cssCode, setCssCode] = useState("body { color: red; }");
-  const [code, setCode] = useState("");
-  const [output, setOutput] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [htmlPreview, setHtmlPreview] = useState("");
-  const [executionError, setExecutionError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [fileLoading, setFileLoading] = useState<number | null>(null);
-  const [deletingFileId, setDeletingFileId] = useState<number | null>(null);
-  const [syntaxError, setSyntaxError] = useState<string | null>(null);
-  const [codeBuffers, setCodeBuffers] = useState<Record<string, string>>({
-    javascript: languages.javascript.template,
-    python: languages.python.template,
-    // java: languages.java.template,
-    // cpp: languages.cpp.template,
-  });
-  const [isRotating, setIsRotating] = useState(false);
-  const [isImagePreview, setIsImagePreview] = useState(false);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveFileName, setSaveFileName] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [activeSnippetId, setActiveSnippetId] = useState<number | null>(null);
-  const [showNewFileModal, setShowNewFileModal] = useState(false);
-  const [newFileTitle, setNewFileTitle] = useState("");
-  const [newFileLesson, setNewFileLesson] = useState("");
-  const [prepopulatedSaveData, setPrepopulatedSaveData] = useState<{
-    title: string;
-    lesson: string;
-  } | null>(null);
-  const [selectedLesson, setSelectedLesson] = useState("");
-  const [activeTab, setActiveTab] = useState("editor");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [lessons, setLessons] = useState<{ id: string; title: string }[]>([]);
-  const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
-  const [mySnippets, setMySnippets] = useState<Snippet[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [uploadSuccessMessage, setUploadSuccessMessage] = useState<
-    string | null
-  >(null);
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState("");
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState("");
-  const [onConfirmCallback, setOnConfirmCallback] = useState<
-    (() => Promise<void>) | null
-  >(null);
-  // Refs
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const itemsPerPage = 10;
-  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
-
-  type LangKey = keyof typeof languages;
-
-  type EditCtx = {
-    id: number;
-    title: string | null;
-    lessonId: string; // keep as string for Select
-  };
-
-  const [editCtxByLang, setEditCtxByLang] = useState<Partial<Record<LangKey, EditCtx>>>({});
-  const [titleByLang, setTitleByLang] = useState<Partial<Record<LangKey, string>>>({});
-  const [lessonByLang, setLessonByLang] = useState<Partial<Record<LangKey, string>>>({});
-
-  // Helper: current language context
-  const currentEditCtx = editCtxByLang[selectedLanguage as LangKey];
-  const currentEditingId = currentEditCtx?.id ?? null;
-
-
-  const [snippetCtxByLang, setSnippetCtxByLang] =
-    useState<Partial<Record<LangKey, SnipCtx>>>({});
-
-  const currentSnippetId = snippetCtxByLang[selectedLanguage as LangKey]?.id ?? null;
-
-  const setLessonForActiveLang = (value: string) => {
-    setSelectedLesson(value);
-    setLessonByLang((prev) => ({
-      ...prev,
-      [selectedLanguage as LangKey]: value,
-    }));
-  };
-
-  const getCodeForLang = (lang: LangKey) => {
-    if (lang === "html") return htmlCode;
-    if (lang === "css") return cssCode;
-    return lang === "javascript" ? jsCode : codeBuffers[lang] ?? languages[lang].template;
-  };
-
-  const requestReload = (action: () => void) => {
-    if (hasAnyUnsaved()) {
-      pendingReloadRef.current = action;
-      setShowReloadWarning(true);
-    } else {
-      action();
-    }
-  };
-  const setTitleForActiveLang = (value: string) => {
-    setSubmissionTitle(value);
-    setTitleByLang((prev) => ({
-      ...prev,
-      [selectedLanguage as LangKey]: value,
-    }));
-  };
-  const shortLabel = (s: string, max = 18) => {
-    const t = (s || "").trim();
-    if (!t) return "";
-    return t.length > max ? t.slice(0, max).trimEnd() + "..." : t;
-  };
-
-  const openSaveModal = () => {
-    const lang = selectedLanguage as LangKey;
-
-    const prefillTitle =
-      saveTitleByLang[lang] ??
-      snippetCtxByLang[lang]?.title ??
-      "";
-
-    setSaveFileName(prefillTitle);
-    setShowSaveModal(true);
-  };
-
-  const handleResetClick = () => {
-    const lang = selectedLanguage as LangKey;
-
-    if (!isDirty(lang)) {
-      resetCode();
-      return;
-    }
-
-    showCustomConfirm(
-      "You have unsaved changes. Resetting will delete them. Continue?",
-      async () => {
-        // mark as clean AFTER reset
-        resetCode();
-        markSaved(lang);
-      }
-    );
-  };
-
-  // Helper functions
-  const showCustomAlert = (message: string) => {
-    setAlertMessage(message);
-    setShowAlert(true);
-  };
-  const showCustomConfirm = (
-    message: string,
-    callback: () => Promise<void>
+  const buildWebDoc = (
+    htmlSrc: string,
+    fs: Record<string, { content: string; lang: LangKey }>,
+    runId: number
   ) => {
-    setConfirmMessage(message);
-    setOnConfirmCallback(() => callback);
-    setShowConfirm(true);
-  };
-  const fetchSnippets = async (lessonId?: string) => {
-    const u = new URL("/api/code-ide/snippets", window.location.origin);
-    if (lessonId) u.searchParams.set("lesson", lessonId);
-    const r = await fetch(u);
-    if (!r.ok) throw new Error("Failed to fetch snippets");
-    return r.json() as Promise<Snippet[]>;
-  };
-  const fetchSnippetDetail = async (id: number) => {
-    const r = await fetch(`/api/code-ide/snippets/${id}`);
-    if (!r.ok) throw new Error("Failed to fetch snippet detail");
-    return r.json() as Promise<Snippet>;
-  };
+    let html = htmlSrc ?? "";
 
-  const fetchLessons = async () => {
-    try {
-      const params = new URLSearchParams({
-        freezed: "1",
-      });
-
-      const res = await fetch(`/api/student/lessons?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch lessons");
-
-      const data = await res.json();
-      const lessonList = Array.isArray(data) ? data : data.results || [];
-
-      setLessons(
-        lessonList.map((l: any) => ({
-          id: String(l.id),
-          title: l.title || l.name || l.topic || l.label || `Lesson ${l.id}`,
-        }))
-      );
-    } catch (err) {
-      showCustomAlert("Failed to load lessons");
-    }
-  };
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const isReloadKey =
-        e.key === "F5" ||
-        ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "r"));
-
-      if (!isReloadKey) return;
-
-      if (hasAnyUnsaved()) {
-        e.preventDefault();
-        requestReload(() => window.location.reload());
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dirtyByLang]);
-
-  useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!hasAnyUnsaved()) return;
-      e.preventDefault();
-      e.returnValue = ""; // triggers native confirm dialog
-    };
-
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirtyByLang]);
-
-
-  const saveAsFile = async () => {
-    if (!session?.user?.sessionToken || isImagePreview || !saveFileName.trim()) return;
-
-    setIsSaving(true);
-    try {
-      const lang = selectedLanguage as LangKey;
-
-      const body: any = {
-        title: saveFileName.trim(),
-        language: lang,
-        code_text: lang === "html" ? htmlCode : lang === "css" ? cssCode : code,
-        lesson: selectedLesson ? parseInt(selectedLesson) : null,
-      };
-
-      const existingId = snippetCtxByLang[lang]?.id ?? null;
-      if (existingId) body.id = existingId;
-
-      const res = await fetch("/api/code-ide/snippets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Save failed");
-      }
-
-      const savedSnippet: Snippet = await res.json();
-
-      setSaveTitleByLang((prev) => ({
-        ...prev,
-        [lang]: savedSnippet.title,
-      }));
-
-      // update list
-      setMySnippets((prev) => {
-        const exists = prev.some((s) => s.id === savedSnippet.id);
-        return exists
-          ? prev.map((s) => (s.id === savedSnippet.id ? savedSnippet : s))
-          : [savedSnippet, ...prev];
-      });
-
-      // ✅ store snippet id per language so tabs never overwrite each other
-      setSnippetCtxByLang((prev) => ({
-        ...prev,
-        [lang]: {
-          id: savedSnippet.id,
-          title: savedSnippet.title,
-          lessonId: savedSnippet.lesson ? String(savedSnippet.lesson) : "",
-        },
-      }));
-      setLastSavedCodeByLang((prev) => ({ ...prev, [lang]: getCodeForLang(lang) }));
-      markSaved(lang);
-
-      showCustomAlert(existingId ? "Snippet updated successfully!" : "Snippet saved successfully!");
-
-      setShowSaveModal(false);
-      setPrepopulatedSaveData(null);
-    } catch (error) {
-      showCustomAlert(`Save failed: ${(error as Error).message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const deleteSnippet = (id: number) => {
-    showCustomConfirm("Are you sure you want to delete this snippet?", async () => {
-      setDeletingSnippetId(id);
-      try {
-        const res = await fetch(`/api/code-ide/snippets/${id}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error("Delete failed");
-        setMySnippets((prev) => prev.filter((s) => s.id !== id));
-      } catch {
-        showCustomAlert("Delete failed: Endpoint not available");
-      } finally {
-        setDeletingSnippetId(null);
-      }
-    });
-  };
-
-
-  const fetchFileContent = async (file: UploadedFile) => {
-    try {
-      const apiRes = await fetch(`/api/code-ide/uploads/${file.id}/content`, {
-        headers: {
-          "Cache-Control": "no-cache",
-        },
-      });
-      if (!apiRes.ok) {
-        const errorText = await apiRes.text();
-        throw new Error(`Failed to fetch file content: ${apiRes.status}`);
-      }
-      const content = await apiRes.text();
-      return content;
-    } catch (error) {
-      throw new Error(
-        "File content unavailable. The file may be private or the server may be experiencing issues."
-      );
-    }
-  };
-  const uploadFile = async (file: File, lesson?: string, label?: string) => {
-    if (!session?.user?.sessionToken) return;
-    if (file.size > MAX_FILE_SIZE) {
-      showCustomAlert("File size exceeds 25MB limit");
-      return;
-    }
-    const formData = new FormData();
-    formData.append("file", file);
-    if (lesson) formData.append("lesson", lesson);
-    if (label) formData.append("label", label);
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-          const percent = (event.loaded / event.total) * 100;
-          setUploadProgress(percent);
-        }
-      });
-      const res = await new Promise<UploadedFile>((resolve, reject) => {
-        xhr.open("POST", "/api/code-ide/uploads");
-        xhr.setRequestHeader(
-          "Authorization",
-          `Bearer ${session.user.sessionToken}`
+    // Build virtual filesystem of blob URLs for css/js files among the tabs.
+    const virtualFiles: Record<string, { url: string; ext: "css" | "js" }> = {};
+    for (const [name, entry] of Object.entries(fs)) {
+      if (entry.lang === "css") {
+        const url = URL.createObjectURL(
+          new Blob([entry.content], { type: "text/css" })
         );
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(JSON.parse(xhr.responseText));
-          } else {
-            reject(new Error(`Upload failed: ${xhr.statusText}`));
-          }
-        };
-        xhr.onerror = () => reject(new Error("Upload failed"));
-        xhr.send(formData);
-      });
-      setUploadedFiles((prev) => [res, ...prev]);
-      setActiveTab("files");
-      setUploadSuccessMessage("File uploaded successfully!");
-      setTimeout(() => setUploadSuccessMessage(null), 3000);
-      return res;
-    } catch (error) {
-      showCustomAlert(`Upload failed: ${(error as Error).message}`);
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
-  const updateSubmission = async () => {
-    const lang = selectedLanguage as LangKey;
-    const ctx = editCtxByLang[lang];
-
-    if (!ctx?.id) throw new Error("No submission selected to update");
-
-    const lessonId = lessonByLang[lang] ?? selectedLesson;
-    if (!lessonId) throw new Error("No lesson selected");
-
-    const title = (titleByLang[lang] ?? submissionTitle).trim() || null;
-
-    const body = {
-      title,
-      language: lang,
-      code_text:
-        lang === "html" ? htmlCode : lang === "css" ? cssCode : code,
-    };
-
-    const res = await fetch(`/api/code-ide/submissions/${ctx.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Update failed");
-    }
-
-    const updated: Submission = await res.json();
-
-    // update list
-    setMySubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-
-    // refresh edit context (title/lesson may change)
-    setEditCtxByLang((prev) => ({
-      ...prev,
-      [lang]: {
-        id: updated.id,
-        title: updated.title ?? null,
-        lessonId: String(updated.lesson),
-      },
-    }));
-    setTitleByLang((prev) => ({ ...prev, [lang]: updated.title ?? "" }));
-    setLessonByLang((prev) => ({ ...prev, [lang]: String(updated.lesson) }));
-
-    return updated;
-  };
-
-  const loadSubmissionIntoEditor = (sub: Submission) => {
-    const lang = sub.language as LangKey;
-
-    // ✅ store editing context per language
-    setEditCtxByLang((prev) => ({
-      ...prev,
-      [lang]: {
-        id: sub.id,
-        title: sub.title ?? null,
-        lessonId: String(sub.lesson),
-      },
-    }));
-
-    // keep per-language title + lesson in sync
-    setTitleByLang((prev) => ({ ...prev, [lang]: sub.title ?? "" }));
-    setLessonByLang((prev) => ({ ...prev, [lang]: String(sub.lesson) }));
-
-    // switch UI to the right language tab
-    setSelectedLanguage(lang);
-
-    // restore form fields for that language
-    setSubmissionTitle(sub.title ?? "");
-    setSelectedLesson(String(sub.lesson));
-
-    // load code into correct buffer
-    if (lang === "html") {
-      setHtmlCode(sub.code_text || "");
-    } else if (lang === "css") {
-      setCssCode(sub.code_text || "");
-    } else {
-      setCode(sub.code_text || "");
-
-      // ✅ IMPORTANT: if it's JS, keep jsCode in sync
-      if (lang === "javascript") {
-        setJsCode(sub.code_text || "");
+        virtualFiles[name] = { url, ext: "css" };
+      } else if (entry.lang === "javascript") {
+        const url = URL.createObjectURL(
+          new Blob([entry.content], { type: "text/javascript" })
+        );
+        virtualFiles[name] = { url, ext: "js" };
       }
-
-      // ✅ keep buffers in sync so tab switching restores correctly
-      setCodeBuffers((prev) => ({
-        ...prev,
-        [lang]: sub.code_text || languages[lang].template,
-      }));
-    }
-    isProgrammaticLoadRef.current = true;
-    try {
-      // setSelectedLanguage, setCode, setHtmlCode...
-    } finally {
-      // let CodeMirror settle before allowing dirty again
-      setTimeout(() => {
-        isProgrammaticLoadRef.current = false;
-      }, 0);
     }
 
-    setSaveTitleByLang((prev) => ({
-      ...prev,
-      [lang]: sub.title ?? "",
-    }));
+    const basename = (p: string) =>
+      p.replace(/^\.?\//, "").split(/[?#]/)[0].toLowerCase();
 
-    setOutput("");
-    setHtmlPreview("");
-    setExecutionError("");
-    setSyntaxError(null);
-    setIsImagePreview(false);
-    setImagePreviewUrl("");
-    setActiveTab("editor");
-  };
-
-
-
-  const deleteUploadedFile = (id: number) => {
-    showCustomConfirm(
-      "Are you sure you want to delete this file?",
-      async () => {
-        setDeletingFileId(id);
-        try {
-          const res = await fetch(`/api/code-ide/uploads/${id}`, {
-            method: "DELETE",
-          });
-          if (!res.ok) {
-            const error = await res
-              .json()
-              .catch(() => ({ error: "Delete failed" }));
-            throw new Error(error.error || "Delete failed");
-          }
-          setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
-        } catch (error) {
-          showCustomAlert(`Delete failed: ${(error as Error).message}`);
-        } finally {
-          setDeletingFileId(null);
-        }
+    html = html.replace(
+      /(<link\b[^>]*\bhref\s*=\s*["'])([^"']+)(["'])/gi,
+      (full, pre, href, post) => {
+        const file = virtualFiles[basename(href)];
+        return file && file.ext === "css" ? `${pre}${file.url}${post}` : full;
       }
     );
 
-  };
-  const loadFile = async (file: UploadedFile) => {
-    try {
-      setFileLoading(file.id);
-      setLoading(true);
-      const contentType = file.content_type;
-      const extension = file.original_name.split(".").pop()?.toLowerCase();
-      const isImage =
-        contentType.includes("image/") ||
-        ["png", "jpg", "jpeg"].includes(extension || "");
-      if (isImage) {
-        setIsImagePreview(true);
-        setImagePreviewUrl(file.url);
-        setSelectedLanguage("html");
-        setHtmlCode(
-          `<img src="${file.url}" alt="${file.original_name}" style="max-width: 100%; height: auto;" />`
-        );
-        if (file.lesson) setSelectedLesson(String(file.lesson));
-        setActiveTab("editor");
-        return;
-      }
-      setIsImagePreview(false);
-      const content = await fetchFileContent(file);
-      const languageMap: { [key: string]: string } = {
-        "text/x-python": "python",
-        "application/javascript": "javascript",
-        "text/javascript": "javascript",
-        "text/html": "html",
-        "text/css": "css",
-        // "text/x-java": "java",
-        // "text/x-c++": "cpp",
-        "text/plain":
-          extension === "py"
-            ? "python"
-            : extension === "js"
-              ? "javascript"
-              : extension === "html"
-                ? "html"
-                : extension === "css"
-                  ? "css"
-                  : "javascript",
-      };
-      let language = languageMap[contentType] || "javascript";
-      if (contentType === "text/plain" && extension && languageMap[extension]) {
-        language = languageMap[extension];
-      }
-      if (language === "html") {
-        setHtmlCode(content);
-      } else if (language === "css") {
-        setCssCode(content);
-      } else {
-        setCode(content);
-      }
-      setSelectedLanguage(language);
-      if (file.lesson) setSelectedLesson(String(file.lesson));
-      setActiveTab("editor");
-    } catch (error) {
-      showCustomAlert(
-        `Failed to load file content: ${(error as Error).message}`
-      );
-    } finally {
-      setFileLoading(null);
-      setLoading(false);
-    }
-  };
-
-  const copyFileUrl = (file: UploadedFile) => {
-    const short = `${window.location.origin}/api/code-ide/uploads/resolve?label=${encodeURIComponent(file.label || file.original_name)}`;
-    navigator.clipboard
-      .writeText(short)
-      .then(() => showCustomAlert("File URL copied to clipboard"))
-      .catch(() => showCustomAlert("Failed to copy URL"));
-  };
-
-  const fetchSubmissions = async (lessonId?: string) => {
-    const u = new URL("/api/code-ide/submissions", window.location.origin);
-    if (lessonId) u.searchParams.set("lesson", lessonId);
-    const r = await fetch(u, { cache: "no-store" });
-    if (!r.ok) throw new Error("Failed to fetch submissions");
-    return r.json() as Promise<Submission[]>;
-  };
-  const fetchSubmissionDetail = async (id: number) => {
-    const r = await fetch(`/api/code-ide/submissions/${id}`, {
-      cache: "no-store",
-    });
-    if (!r.ok) throw new Error("Failed to fetch submission detail");
-    return r.json() as Promise<Submission>;
-  };
-  const addComment = async (submissionId: number, message: string) => {
-    const res = await fetch(
-      `/api/code-ide/submissions/${submissionId}/comments`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+    html = html.replace(
+      /(<script\b[^>]*\bsrc\s*=\s*["'])([^"']+)(["'])/gi,
+      (full, pre, src, post) => {
+        const file = virtualFiles[basename(src)];
+        return file && file.ext === "js" ? `${pre}${file.url}${post}` : full;
       }
     );
-    if (!res.ok) throw new Error("Comment failed");
-    return res.json() as Promise<Comment>;
-  };
-  const createSubmission = async () => {
-    if (!selectedLesson) throw new Error("No lesson selected");
-    const body = {
-      title: submissionTitle.trim() || null,
-      lesson: parseInt(selectedLesson),
-      language: selectedLanguage,
-      code_text:
-        selectedLanguage === "html"
-          ? htmlCode
-          : selectedLanguage === "css"
-            ? cssCode
-            : code,
-    };
-    const res = await fetch("/api/code-ide/submissions/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || "Submission failed");
-    }
-    const created: Submission = await res.json();
-    setMySubmissions((prev) => [created, ...prev]);
-    setSubmissionTitle("");
-    return created;
-  };
-  const gradeSubmission = async (
-    id: number,
-    updates: {
-      score?: string;
-      feedback?: string;
-      correction_code?: string;
-      status?: "graded" | "revised";
-    }
-  ) => {
-    const res = await fetch(`/api/code-ide/submissions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error("Grading failed");
-    const updated: Submission = await res.json();
-    setMySubmissions((prev) => prev.map((s) => (s.id === id ? updated : s)));
-    return updated;
-  };
-  const handleLogout = async () => {
-    try {
-      // 1. Call your custom backend logout
-      const response = await fetch("/api/auth/logout-route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
 
-      if (!response.ok) {
-        console.error("[AdminLayout] Backend logout failed");
-      }
-
-      await signOut({ redirect: false });
-
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("[AdminLayout] Logout error:", error);
-
-      // Fallback: Ensure the user is still visually logged out if an error occurs
-      await signOut({ redirect: false });
-      window.location.href = "/login";
-    }
-  };
-  const copyCode = () => {
-    const text =
-      selectedLanguage === "html"
-        ? htmlCode
-        : selectedLanguage === "css"
-          ? cssCode
-          : code;
-    navigator.clipboard.writeText(text);
-  };
-  const downloadCode = () => {
-    const ext = {
-      javascript: "js",
-      python: "py",
-      // java: "java",
-      // cpp: "cpp",
-      html: "html",
-      css: "css",
-    } as const;
-    const content =
-      selectedLanguage === "html"
-        ? htmlCode
-        : selectedLanguage === "css"
-          ? cssCode
-          : code;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = Object.assign(document.createElement("a"), {
-      href: url,
-      download: `code.${ext[selectedLanguage as keyof typeof ext]}`,
-    });
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const resetCode = () => {
-    const lang = selectedLanguage as LangKey;
-
-    setCode(languages[lang].template);
-    if (lang === "html") setHtmlCode(languages.html.template);
-    if (lang === "css") setCssCode(languages.css.template);
-
-    // clear snippet association for this language
-    setSnippetCtxByLang((prev) => {
-      const copy = { ...prev };
-      delete copy[lang];
-      return copy;
-    });
-
-    // clear saved-title cache for this language (so Save As opens blank)
-    setSaveTitleByLang((prev) => {
-      const copy = { ...prev };
-      delete copy[lang];
-      return copy;
-    });
-
-    // mark clean
-    setDirtyByLang((prev) => ({ ...prev, [lang]: false }));
-
-    setSaveFileName("");
-    setOutput("");
-    setHtmlPreview("");
-    setExecutionError("");
-    setSyntaxError(null);
-    setIsImagePreview(false);
-    setImagePreviewUrl("");
-    setActiveTab("editor");
-    setEditingSubmissionId(null);
-    setSubmissionTitle("");
-  };
-
-  const handleLanguageChange = (lang: string) => {
-    const languageKey = lang as LangKey;
-
-    // Save outgoing code buffer for JS/Python (non html/css)
-    if (selectedLanguage !== "html" && selectedLanguage !== "css") {
-      // ✅ if leaving JS tab, also persist jsCode
-      if (selectedLanguage === "javascript") {
-        setJsCode(code);
-      }
-
-      setCodeBuffers((prev) => ({
-        ...prev,
-        [selectedLanguage]: code,
-      }));
-    }
-
-
-    setSelectedLanguage(languageKey);
-
-    // Restore code per new language
-    if (languageKey === "html") {
-      // htmlCode already stateful
-    } else if (languageKey === "css") {
-      // cssCode already stateful
-    } else {
-      if (languageKey === "javascript") setCode(jsCode);
-      else setCode(codeBuffers[languageKey] || languages[languageKey].template);
-    }
-
-
-    // ✅ Restore per-language lesson + title so Update targets correct submission
-    const restoredLesson = lessonByLang[languageKey] ?? "";
-    const restoredTitle =
-      titleByLang[languageKey] ??
-      (editCtxByLang[languageKey]?.title ?? "") ??
-      "";
-
-    setSelectedLesson(restoredLesson);
-    setSubmissionTitle(restoredTitle);
-
-    setOutput("");
-    setHtmlPreview("");
-    setExecutionError("");
-    setSyntaxError(null);
-    setIsImagePreview(false);
-    setImagePreviewUrl("");
-    setActiveTab("editor");
-  };
-
-  const handleCodeChange = (value: string) => {
-    if (isImagePreview) return;
-    if (selectedLanguage === "html") {
-      setHtmlCode(value);
-    } else if (selectedLanguage === "css") {
-      setCssCode(value);
-    } else {
-      setCode(value);
-      if (selectedLanguage === "javascript") {
-        setJsCode(value);
-      } else {
-        // Keep codeBuffers in sync for Python (and any other language)
-        // so codeByLang reflects live edits even before tab switching
-        setCodeBuffers((prev) => ({ ...prev, [selectedLanguage]: value }));
-      }
-    }
-
-    setSyntaxError(null);
-    if (selectedLanguage === "javascript") {
-      try {
-        new Function(value);
-      } catch (e: any) {
-        setSyntaxError(`Syntax Error: ${e.message}`);
-      }
-    } else if (selectedLanguage === "css") {
-      const cssErrors = validateCSS(value);
-      if (cssErrors) {
-        setSyntaxError(cssErrors);
-      }
-    } else if (selectedLanguage === "html") {
-      const htmlErrors = validateHTML(value);
-      if (htmlErrors) {
-        setSyntaxError(htmlErrors);
-      }
-    }
-    if (selectedLanguage === "html" || selectedLanguage === "css") {
-      setHtmlPreview(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>${cssCode}</style>
-          </head>
-          <body>
-            ${htmlCode}
-          </body>
-        </html>
-      `);
-    }
-    if (!isProgrammaticLoadRef.current) {
-      markDirty(selectedLanguage as LangKey);
-    }
-
-  };
-
-  const validateCSS = (css: string): string | null => {
-    try {
-      if (css.includes("{")) {
-        const rules = css.split("}").map((rule) => rule.trim());
-        for (const rule of rules) {
-          if (rule && !rule.includes("{")) {
-            return "Missing opening brace";
+    const bridge = `
+      <script>
+        (function () {
+          const RUN_ID = ${runId};
+          function send(type, msg) {
+            try {
+              window.parent.postMessage(
+                { source: "web-iframe", type, message: String(msg), runId: RUN_ID },
+                "*"
+              );
+            } catch (e) {}
           }
-          if (rule && !rule.includes(";")) {
-            return "Missing semicolon in CSS rule";
-          }
-        }
-      }
-      return null;
-    } catch {
-      return "Invalid CSS syntax";
-    }
-  };
-  const validateHTML = (html: string): string | null => {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      const parserError = doc.querySelector("parsererror");
-      if (parserError) {
-        return "Invalid HTML syntax";
-      }
-      return null;
-    } catch {
-      return "Invalid HTML syntax";
-    }
-  };
-
-  const loadSnippet = async (snippet: Snippet) => {
-    setSnippetLoadingId(snippet.id);
-    try {
-      const detailedSnippet = await fetchSnippetDetail(snippet.id);
-
-      setHtmlCode(languages.html.template);
-      setCssCode(languages.css.template);
-      setCode(languages.javascript.template);
-
-      if (detailedSnippet.language === "html") setHtmlCode(detailedSnippet.code_text);
-      else if (detailedSnippet.language === "css") setCssCode(detailedSnippet.code_text);
-      else setCode(detailedSnippet.code_text);
-
-      //✅ per-language snippet id fix (if you implemented it)
-      setSnippetCtxByLang((prev) => ({
-        ...prev,
-        [detailedSnippet.language as LangKey]: {
-          id: detailedSnippet.id,
-          title: detailedSnippet.title,
-          lessonId: detailedSnippet.lesson ? String(detailedSnippet.lesson) : "",
-        },
-      }));
-      setSaveTitleByLang((prev) => ({
-        ...prev,
-        [detailedSnippet.language as LangKey]: detailedSnippet.title,
-      }));
-
-      setSelectedLanguage(detailedSnippet.language);
-      if (detailedSnippet.lesson) setSelectedLesson(String(detailedSnippet.lesson));
-      setActiveTab("editor");
-      setSyntaxError(null);
-      setIsImagePreview(false);
-    } catch {
-      showCustomAlert("Failed to load snippet");
-    } finally {
-      setSnippetLoadingId(null);
-    }
-    isProgrammaticLoadRef.current = true;
-    try {
-      // setSelectedLanguage, setCode, setHtmlCode...
-    } finally {
-      // let CodeMirror settle before allowing dirty again
-      setTimeout(() => {
-        isProgrammaticLoadRef.current = false;
-      }, 0);
-    }
-
-  };
-
-
-  const copySnippetUrl = (id: number) => {
-    const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
-    navigator.clipboard.writeText(url);
-    showCustomAlert("Snippet URL copied to clipboard");
-  };
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && fileInputRef.current) {
-      if (file.size > MAX_FILE_SIZE) {
-        showCustomAlert("File size exceeds 25MB limit");
-        return;
-      }
-      fileInputRef.current.value = "";
-      await uploadFile(
-        file,
-        selectedLesson || undefined,
-        `Uploaded ${file.name}`
-      );
-    }
-  };
-
-  const buildWebDoc = (h: string, c: string, j: string, runId: number) => `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <style>${c ?? ""}</style>
-  </head>
-
-  <body>
-    ${h ?? ""}
-
-    <script>
-      (function () {
-        const RUN_ID = ${runId};
-
-        function send(type, msg) {
-          try {
-            window.parent.postMessage(
-              { source: "web-iframe", type, message: String(msg), runId: RUN_ID },
-              "*"
-            );
-          } catch {}
-        }
-
-        // console bridge
-        const _log = console.log;
-        const _warn = console.warn;
-        const _err = console.error;
-
-        console.log = (...args) => { send("log", args.map(String).join(" ")); _log.apply(console, args); };
-        console.warn = (...args) => { send("warn", args.map(String).join(" ")); _warn.apply(console, args); };
-        console.error = (...args) => { send("error", args.map(String).join(" ")); _err.apply(console, args); };
-
-        // runtime errors
-        window.onerror = function (message, source, line, col, error) {
-          send("error", (error && error.stack) ? error.stack : message + " (" + line + ":" + col + ")");
-        };
-
-        // promise errors
-        window.addEventListener("unhandledrejection", function (event) {
-          const reason = event.reason;
-          send("error", reason && reason.stack ? reason.stack : reason);
-        });
-
+          const _log = console.log; const _warn = console.warn; const _err = console.error;
+          console.log = function () { send("log", Array.prototype.slice.call(arguments).map(String).join(" ")); _log.apply(console, arguments); };
+          console.warn = function () { send("warn", Array.prototype.slice.call(arguments).map(String).join(" ")); _warn.apply(console, arguments); };
+          console.error = function () { send("error", Array.prototype.slice.call(arguments).map(String).join(" ")); _err.apply(console, arguments); };
+          window.onerror = function (message, source, line, col, err) { send("error", (err && err.stack) ? err.stack : message + " (" + line + ":" + col + ")"); };
+          window.addEventListener("unhandledrejection", function (event) { const r = event.reason; send("error", r && r.stack ? r.stack : r); });
         })();
-            </script>
+      </script>
+    `;
+    if (/<head\b[^>]*>/i.test(html)) {
+      html = html.replace(/<head\b[^>]*>/i, (m) => m + bridge);
+    } else if (/<html\b[^>]*>/i.test(html)) {
+      html = html.replace(
+        /<html\b[^>]*>/i,
+        (m) => m + "<head>" + bridge + "</head>"
+      );
+    } else {
+      html = bridge + html;
+    }
+    return html;
+  };
 
-            <script>
-              // user code runs at global scope so onclick= handlers can find functions
-              try {
-                ${j ?? ""}
-              } catch (e) {
-                const msg = e && e.stack ? e.stack : e;
-                try {
-                  window.parent.postMessage(
-                    { source: "web-iframe", type: "error", message: String(msg), runId: ${runId} },
-                    "*"
-                  );
-                } catch {}
-              }
-            </script>
-  </body>
-</html>
-`;
-
-  const executeWithJudge0 = async (codeToRun: string, langId: number, stdin: string) => {
+  const executeWithJudge0 = async (
+    codeToRun: string,
+    langId: number,
+    stdin: string
+  ) => {
     const res = await fetch(
       "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
       {
@@ -1248,7 +1017,7 @@ export function CodeEditor() {
     const result = await res.json();
     if (result.status?.id === 3) {
       setOutput(result.stdout || "Success (no output)");
-      setSuccessMessage("Code executed successfully!");
+      pushToast("Code executed successfully", "success");
     } else if (result.status?.id === 6) {
       setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
     } else if (result.status?.id === 5) {
@@ -1260,294 +1029,310 @@ export function CodeEditor() {
     }
   };
 
-  const runCode = async () => {
-    if (isImagePreview) {
-      setOutput("Image preview mode: No code to execute");
-      setActiveTab("output");
+  // ─── Tab actions: copy / download / reset ──────────────────────────────
+  const copyCode = () => {
+    if (!activeTab) return;
+    navigator.clipboard.writeText(activeTab.code);
+    showCustomAlert("Code copied to clipboard");
+  };
+
+  const downloadCode = () => {
+    if (!activeTab) return;
+    const ext = LANGUAGES[activeTab.language].ext;
+    const blob = new Blob([activeTab.code], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const filename = `${activeTab.title || "code"}.${ext}`;
+    const a = Object.assign(document.createElement("a"), {
+      href: url,
+      download: filename,
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const resetCode = () => {
+    if (!activeTab) return;
+    const tpl = LANGUAGES[activeTab.language].template;
+    updateActiveTab({ code: tpl, savedCode: tpl });
+  };
+
+  const handleResetClick = () => {
+    if (!activeTab) return;
+    if (!isDirty(activeTab)) {
+      resetCode();
       return;
     }
-    setIsRunning(true);
-    setOutput("");
-    setWebConsole("");
+    showCustomConfirm(
+      "You have unsaved changes. Resetting will delete them. Continue?",
+      async () => {
+        resetCode();
+      }
+    );
+  };
 
-    setExecutionError("");
-    setSuccessMessage(null);
+  // ─── Snippet/file ops ──────────────────────────────────────────────────
+  const loadSnippet = async (s: Snippet) => {
+    setSnippetLoadingId(s.id);
     try {
-      if (error === "Session expired" || error === "Not authenticated") {
-        setOutput("Session expired. Please log in again.");
-        setActiveTab("output");
+      const full = await fetchSnippetDetail(s.id);
+      openSnippet(full);
+    } catch {
+      showCustomAlert("Failed to load snippet");
+    } finally {
+      setSnippetLoadingId(null);
+    }
+  };
+
+  const deleteSnippet = (id: number) => {
+    showCustomConfirm("Delete this snippet?", async () => {
+      setDeletingSnippetId(id);
+      try {
+        const res = await fetch(`/api/code-ide/snippets/${id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Delete failed");
+        setMySnippets((prev) => prev.filter((s) => s.id !== id));
+        showCustomAlert("Snippet deleted");
+      } catch {
+        showCustomAlert("Delete failed");
+      } finally {
+        setDeletingSnippetId(null);
+      }
+    });
+  };
+
+  const copySnippetUrl = (id: number) => {
+    const url = `${window.location.origin}/api/code-ide/snippets/${id}`;
+    navigator.clipboard.writeText(url);
+    showCustomAlert("Snippet URL copied to clipboard");
+  };
+
+  const fetchFileContent = async (file: UploadedFile) => {
+    const apiRes = await fetch(`/api/code-ide/uploads/${file.id}/content`, {
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!apiRes.ok)
+      throw new Error(`Failed to fetch file content: ${apiRes.status}`);
+    return await apiRes.text();
+  };
+
+  const loadFile = async (file: UploadedFile) => {
+    try {
+      setFileLoading(file.id);
+      const ext = file.original_name.split(".").pop()?.toLowerCase();
+      const isImage =
+        file.content_type.includes("image/") ||
+        ["png", "jpg", "jpeg", "gif", "svg"].includes(ext || "");
+      if (isImage) {
+        openUploadAsTab(file, null, true);
         return;
       }
-      if (selectedLanguage === "javascript") {
-        const logs: string[] = [];
-        const original = console.log;
-        console.log = (...a) => logs.push(a.map(String).join(" "));
-        try {
-          new Function(code)();
-          setOutput(
-            logs.join("\n") || "Code executed successfully (no output)"
-          );
-          setSuccessMessage("Code executed successfully!");
-        } catch (e: any) {
-          setOutput(`Error: ${e.message}`);
-        } finally {
-          console.log = original;
+      const content = await fetchFileContent(file);
+      openUploadAsTab(file, content, false);
+    } catch (err) {
+      showCustomAlert(`Failed to load file: ${(err as Error).message}`);
+    } finally {
+      setFileLoading(null);
+    }
+  };
+
+  const deleteUploadedFile = (id: number) => {
+    showCustomConfirm("Delete this file?", async () => {
+      setDeletingFileId(id);
+      try {
+        const res = await fetch(`/api/code-ide/uploads/${id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const error = await res.json().catch(() => ({ error: "Delete failed" }));
+          throw new Error(error.error || "Delete failed");
         }
-      } else if (selectedLanguage === "html" || selectedLanguage === "css") {
-        // new run
-        runIdRef.current += 1;
-        const runId = runIdRef.current;
-
-        setWebConsole(""); // clear console for this run
-
-        const finalHtml = htmlCode;
-        const finalCss = cssCode;
-        const finalJs = jsCode;
-
-        setHtmlPreview(buildWebDoc(finalHtml, finalCss, finalJs, runId));
-        setOutput("Rendered preview (HTML + CSS + JS).");
-        setSuccessMessage("Rendered successfully!");
+        setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
+        showCustomAlert("File deleted");
+      } catch (e) {
+        showCustomAlert(`Delete failed: ${(e as Error).message}`);
+      } finally {
+        setDeletingFileId(null);
       }
-      else {
-        const cfg = languages[selectedLanguage as keyof typeof languages];
-        if (cfg.judgeId) {
-          try {
-            const prompts = selectedLanguage === "python" ? parsePythonInputs(code) : [];
+    });
+  };
 
-            if (prompts.length > 0) {
-              // Show input modal — execution continues in the callback
-              setPythonInputPrompts(prompts);
-              setPythonInputValues(Array(prompts.length).fill(""));
-              pendingStdinRef.current = async (stdin: string) => {
-                try {
-                  await executeWithJudge0(code, cfg.judgeId!, stdin);
-                } catch {
-                  setExecutionError("Online execution unavailable. Using local simulation.");
-                  setOutput("Simulated output for " + selectedLanguage);
-                } finally {
-                  setIsRunning(false);
-                  setActiveTab("output");
-                }
-              };
-              setShowPythonInputModal(true);
-              // Don't setIsRunning(false) here — modal confirm/cancel handles it
-              return;
-            }
+  const copyFileUrl = (file: UploadedFile) => {
+    const short = `${window.location.origin}/api/code-ide/uploads/resolve?label=${encodeURIComponent(
+      file.label || file.original_name
+    )}`;
+    navigator.clipboard
+      .writeText(short)
+      .then(() => showCustomAlert("File URL copied to clipboard"))
+      .catch(() => showCustomAlert("Failed to copy URL"));
+  };
 
-            // No input() calls — run immediately with empty stdin
-            await executeWithJudge0(code, cfg.judgeId, "");
-          } catch {
-            setExecutionError("Online execution unavailable. Using local simulation.");
-            setOutput("Simulated output for " + selectedLanguage);
+  // ─── Upload handler (now folder-aware) ─────────────────────────────────
+  const handleUploadClick = (folderId: number | null) => {
+    uploadTargetFolderRef.current = folderId;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !fileInputRef.current) return;
+    if (file.size > MAX_FILE_SIZE) {
+      showCustomAlert("File size exceeds 25MB limit");
+      return;
+    }
+    fileInputRef.current.value = "";
+    await uploadFile(
+      file,
+      activeTab?.lessonId || undefined,
+      `Uploaded ${file.name}`,
+      uploadTargetFolderRef.current
+    );
+  };
+
+  const uploadFile = async (
+    file: File,
+    lesson: string | undefined,
+    label: string,
+    folderId: number | null
+  ) => {
+    if (!session?.user?.sessionToken) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    if (lesson) formData.append("lesson", lesson);
+    if (label) formData.append("label", label);
+    if (folderId != null) formData.append("folder", String(folderId));
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const res = await new Promise<UploadedFile>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            setUploadProgress((event.loaded / event.total) * 100);
           }
-        } else {
-          setOutput("Language not supported for execution");
-        }
-      }
-    } catch (e: any) {
-      setOutput(`Error: ${e.message}`);
+        });
+        xhr.open("POST", "/api/code-ide/uploads");
+        xhr.setRequestHeader(
+          "Authorization",
+          `Bearer ${session.user.sessionToken}`
+        );
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(new Error(`Upload failed: ${xhr.statusText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.send(formData);
+      });
+      setUploadedFiles((prev) => [res, ...prev]);
+      showCustomAlert("File uploaded successfully");
+      return res;
+    } catch (err) {
+      showCustomAlert(`Upload failed: ${(err as Error).message}`);
     } finally {
-      setIsRunning(false);
-      setActiveTab("output");
-      if (successMessage) {
-        setTimeout(() => setSuccessMessage(null), 3000);
-      }
+      setUploading(false);
+      setUploadProgress(0);
     }
   };
 
-
-  const handleEditorSubmit = async () => {
-    if (!submissionTitle.trim()) {
-      showCustomAlert("Submission Title is required");
-      return;
-    }
-
-    const lang = selectedLanguage as LangKey;
-    const isEditingThisLang = !!editCtxByLang[lang]?.id;
-    const lessonId = lessonByLang[lang] ?? selectedLesson;
-    if (!lessonId) return showCustomAlert("Please select a lesson");
-    if (isSubmittingEditor) return;
-
-    setIsSubmittingEditor(true);
-    try {
-      if (isEditingThisLang) {
-        await updateSubmission();
-        showCustomAlert("Submission updated successfully");
-      } else {
-        await createSubmission(); // (optional: also make createSubmission use lessonByLang/titleByLang like update does)
-        showCustomAlert("Submitted successfully");
+  const addComment = async (
+    submissionId: number,
+    message: string
+  ): Promise<Comment> => {
+    const res = await fetch(
+      `/api/code-ide/submissions/${submissionId}/comments`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
       }
-    } catch (error) {
-      showCustomAlert(
-        `${isEditingThisLang ? "Update" : "Submission"} failed: ${(error as Error).message
-        }`
-      );
+    );
+    if (!res.ok) throw new Error("Comment failed");
+    return res.json();
+  };
+
+  // ─── Logout ────────────────────────────────────────────────────────────
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      await signOut({ redirect: false });
+      window.location.href = "/login";
+    } catch {
+      await signOut({ redirect: false });
+      window.location.href = "/login";
+    }
+  };
+
+  // ─── New file: open the language picker ────────────────────────────────
+  // The picker is shown as an inline panel so the user can choose
+  // JavaScript / Python / HTML / CSS for the new tab. The picker remembers
+  // which folder triggered it so the resulting tab is pre-stamped with
+  // that folder for save.
+  const handleNewFile = (folderId: number | null) => {
+    setNewFileFolderId(folderId);
+    setInlinePanel("newFile");
+  };
+
+  // Called from inside the picker once the user has chosen a language.
+  // openNewTab returns the freshly-created Tab; we use its id directly so
+  // we don't depend on `activeId` being committed in the same render cycle.
+  const createNewFileWithLang = (language: LangKey) => {
+    const newTab = openNewTab(language);
+    if (newTab && newFileFolderId != null) {
+      updateTab(newTab.id, { folderId: newFileFolderId });
+    }
+    setInlinePanel(null);
+    setNewFileFolderId(null);
+  };
+
+  // ─── New folder action ─────────────────────────────────────────────────
+  const handleCreateFolderClick = (parentId: number | null) => {
+    setNewFolderParent(parentId);
+    setNewFolderName("");
+    setInlinePanel("newFolder");
+  };
+
+  const submitCreateFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    setCreatingFolder(true);
+    try {
+      await createFolder(newFolderParent, name);
+      showCustomAlert("Folder created");
+      setInlinePanel(null);
+    } catch (e) {
+      showCustomAlert(`Failed: ${(e as Error).message}`);
     } finally {
-      setIsSubmittingEditor(false);
+      setCreatingFolder(false);
     }
   };
 
+  // ─── Computed values ────────────────────────────────────────────────────
+  const lineCount = useMemo(() => {
+    if (!activeTab) return 0;
+    return activeTab.code.split("\n").length;
+  }, [activeTab]);
 
-  const handleSubmissionTabSubmit = async () => {
-    if (!submissionTitle.trim()) {
-      showCustomAlert("Submission Title is required");
-      return;
-    }
-    if (!selectedLesson) return showCustomAlert("Please select a lesson");
-
-    try {
-      // IMPORTANT: always create from Submission tab
-      await createSubmission();
-      showCustomAlert("Submitted successfully");
-    } catch (error) {
-      showCustomAlert(`Submission failed: ${(error as Error).message}`);
-    }
-  };
-
-  const handleNewFileCreate = () => {
-    if (!newFileTitle.trim()) return showCustomAlert("Title required");
-    setSnippetCtxByLang((prev) => {
-      const copy = { ...prev };
-      delete copy[selectedLanguage as LangKey];
-      return copy;
-    });
-
-    setShowNewFileModal(false);
-    setShowSaveModal(false);
-    setNewFileTitle("");
-    setNewFileLesson("");
-    resetCode();
-    setActiveTab("editor");
-    setPrepopulatedSaveData({
-      title: newFileTitle,
-      lesson: newFileLesson || "",
-    });
-    setTimeout(() => {
-      setSaveFileName(newFileTitle);
-      setSelectedLesson(newFileLesson || "");
-      setShowSaveModal(true);
-    }, 150);
-  };
-  const filteredSnippets = mySnippets.filter((s) =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  const filteredUploads = uploadedFiles.filter((f) =>
-    (f.label || f.original_name)
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
-  const paginatedSnippets = filteredSnippets.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-  const paginatedUploads = filteredUploads.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-  const totalSnippetPages = Math.ceil(filteredSnippets.length / itemsPerPage);
-  const totalUploadPages = Math.ceil(filteredUploads.length / itemsPerPage);
-
-  useEffect(() => {
-    const onMsg = (ev: MessageEvent) => {
-      const data = ev.data;
-      if (!data || data.source !== "web-iframe") return;
-
-      // ignore logs from old runs
-      if (data.runId !== runIdRef.current) return;
-
-      const line =
-        data.type === "error"
-          ? `❌ ${data.message}`
-          : data.type === "warn"
-            ? `⚠️ ${data.message}`
-            : data.message;
-
-      setWebConsole((prev) => (prev ? prev + "\n" + line : line));
-    };
-
-    window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
-  }, []);
-
-  // Effects
-  useEffect(() => {
-    if (status === "loading") return;
-
-    if (status !== "authenticated" || !session?.user?.sessionToken) {
-      setError("Not authenticated");
-      setLoading(false);
-      return;
-    }
-
-    setError(null);
-    setLoading(false);
-
-    // ✅ only set defaults if truly empty
-    if (!code && selectedLanguage !== "html" && selectedLanguage !== "css") {
-      setCode(languages[selectedLanguage as LangKey].template);
-    }
-    if (selectedLanguage === "html" && !htmlCode.trim()) {
-      setHtmlCode(languages.html.template);
-    }
-    if (selectedLanguage === "css" && !cssCode.trim()) {
-      setCssCode(languages.css.template);
-    }
-  }, [session, status]);
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    Promise.all([
-      fetchLessons(),
-      fetchSnippets().then((snips) => {
-        setMySnippets(snips);
-      }),
-      fetchSubmissions()
-        .then(setMySubmissions)
-        .catch(() => { }),
-      fetch("/api/code-ide/uploads")
-        .then((res) => (res.ok ? res.json() : []))
-        .then(setUploadedFiles)
-        .catch(() => setUploadedFiles([])),
-    ]).catch(() => { });
-  }, [status]);
-  useEffect(() => {
-    if (!session || isImagePreview) return;
-    const draft = {
-      language: selectedLanguage,
-      code:
-        selectedLanguage === "html"
-          ? htmlCode
-          : selectedLanguage === "css"
-            ? cssCode
-            : code,
-      htmlCode: selectedLanguage === "html" ? code : htmlCode,
-      cssCode: selectedLanguage === "css" ? code : cssCode,
-      lesson: selectedLesson,
-      timestamp: new Date().toISOString(),
-    };
-    localStorage.setItem("code-ide-draft", JSON.stringify(draft));
-  }, [
-    code,
-    htmlCode,
-    cssCode,
-    selectedLanguage,
-    selectedLesson,
-    session,
-    isImagePreview,
-  ]);
-  useEffect(() => {
-    if (prepopulatedSaveData) {
-      setSaveFileName(prepopulatedSaveData.title);
-      setSelectedLesson(prepopulatedSaveData.lesson);
-    }
-  }, [prepopulatedSaveData]);
+  // ─── Loading states ─────────────────────────────────────────────────────
   if (loading && !fileLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" className="text-orange-500" />
+      <div
+        className={`flex min-h-screen items-center justify-center ${
+          isDark ? "bg-[#0d1117]" : "bg-[#f6f8fa]"
+        }`}
+      >
+        <Spinner size="md" className="text-[#EF7B55]" />
       </div>
     );
   }
+
   if (error === "Session expired" || error === "Not authenticated") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 sm:p-6">
@@ -1571,1780 +1356,1692 @@ export function CodeEditor() {
       </div>
     );
   }
+
+  // Currently selected lesson (from active tab)
+  const currentLessonTitle = activeTab?.lessonId
+    ? lessons.find((l) => l.id === activeTab.lessonId)?.title || "No lesson"
+    : "No lesson";
+
+  // ─── Render ────────────────────────────────────────────────────────────
   return (
     <>
-      <Dialog open={showReloadWarning} onOpenChange={setShowReloadWarning}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Unsaved changes</DialogTitle>
-            <DialogDescription>
-              You have code that hasn’t been saved. If you reload, unsaved changes will be lost.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                pendingReloadRef.current = null;
-                setShowReloadWarning(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-[#EF7B55] hover:bg-[#F79771]"
-              onClick={() => {
-                const action = pendingReloadRef.current;
-                pendingReloadRef.current = null;
-                setShowReloadWarning(false);
-                action?.();
-              }}
-            >
-              Reload anyway
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IDEStyles t={t} isDark={isDark} fontSize={fontSize} />
 
-      <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Snippet</DialogTitle>
-            <DialogDescription>
-              Save your code as a snippet with title and optional lesson.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="snippet-title" className="text-right">
-                Title
-              </Label>
-              <Input
-                id="snippet-title"
-                className="col-span-3"
-                value={saveFileName}
-                onChange={(e) => setSaveFileName(e.target.value)}
-                placeholder="My code snippet"
-                autoFocus
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="snippet-lesson" className="text-right">
-                Lesson
-              </Label>
-              <Select
-                value={selectedLesson}
-                onValueChange={(value) => setLessonForActiveLang(value)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select lesson (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lessons.map((lesson) => (
-                    <SelectItem key={lesson.id} value={lesson.id}>
-                      {lesson.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowSaveModal(false);
-                setSaveFileName("");
-                setPrepopulatedSaveData(null);
-              }}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={saveAsFile}
-              disabled={!saveFileName.trim() || isSaving}
-              className="bg-[#EF7B55] hover:bg-[#F79771]"
-            >
-              {isSaving ? (
-                <Spinner size="sm" className="mr-2" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {isSaving ? "Saving..." : "Save Snippet"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showNewFileModal} onOpenChange={setShowNewFileModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Snippet</DialogTitle>
-            <DialogDescription>
-              Create a new snippet. Fill in details and click "Create" to start
-              editing.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="new-title" className="text-right">
-                Title
-              </Label>
-              <Input
-                id="new-title"
-                className="col-span-3"
-                value={newFileTitle}
-                onChange={(e) => setNewFileTitle(e.target.value)}
-                placeholder="My new snippet"
-                autoFocus
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="new-lesson" className="text-right">
-                Lesson
-              </Label>
-              <Select value={newFileLesson} onValueChange={setNewFileLesson}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select lesson (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lessons.map((lesson) => (
-                    <SelectItem key={lesson.id} value={lesson.id}>
-                      {lesson.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowNewFileModal(false);
-                setNewFileTitle("");
-                setNewFileLesson("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleNewFileCreate}
-              disabled={!newFileTitle.trim()}
-              className="bg-[#EF7B55] hover:bg-[#F79771]"
-            >
-              <FilePlus className="mr-2 h-4 w-4" />
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showAlert} onOpenChange={setShowAlert}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Alert</DialogTitle>
-            <DialogDescription>{alertMessage}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setShowAlert(false)}>OK</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm</DialogTitle>
-            <DialogDescription>{confirmMessage}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" disabled={confirmLoading} onClick={() => setShowConfirm(false)}>
-              No
-            </Button>
-
-            <Button
-              disabled={confirmLoading}
-              onClick={async () => {
-                if (!onConfirmCallback) return;
-                setConfirmLoading(true);
-                try {
-                  await onConfirmCallback();
-                } finally {
-                  setConfirmLoading(false);
-                  setShowConfirm(false);
-                }
-              }}
-            >
-              {confirmLoading ? (
-                <>
-                  <Spinner size="sm" className="mr-2" />
-                  Processing...
-                </>
-              ) : (
-                "Yes"
-              )}
-            </Button>
-
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showPythonInputModal} onOpenChange={setShowPythonInputModal}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
-          {/* Header */}
-          <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-white tracking-tight">
-                Program Input
-              </DialogTitle>
-              <DialogDescription className="text-sm text-white/50 mt-1">
-                Your code calls <code className="text-[#EF7B55]">input()</code> — provide values before running
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          {/* Input fields */}
-          <div className="px-6 py-5 space-y-4 bg-white dark:bg-[#0f0f23]">
-            {pythonInputPrompts.map((prompt, i) => (
-              <div key={i} className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  {prompt || `Input ${i + 1}`}
-                </Label>
-                <Input
-                  placeholder={`Value for input ${i + 1}...`}
-                  value={pythonInputValues[i] ?? ""}
-                  onChange={(e) => {
-                    const updated = [...pythonInputValues];
-                    updated[i] = e.target.value;
-                    setPythonInputValues(updated);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && i === pythonInputPrompts.length - 1) {
-                      const stdin = pythonInputValues.join("\n");
-                      setShowPythonInputModal(false);
-                      pendingStdinRef.current?.(stdin);
-                    }
-                  }}
-                  autoFocus={i === 0}
-                  className="font-mono text-sm"
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="px-6 pb-6 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowPythonInputModal(false);
-                pendingStdinRef.current = null;
-                setIsRunning(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-[#EF7B55] hover:bg-[#F79771] text-white"
-              onClick={() => {
-                const stdin = pythonInputValues.join("\n");
-                setShowPythonInputModal(false);
-                pendingStdinRef.current?.(stdin);
-              }}
-            >
-              <Play className="mr-2 h-3.5 w-3.5" />
-              Run with inputs
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <style jsx>{`
-        .code-editor-textarea {
-          background: #2b2b2b;
-          color: #f8f8f2;
-          font-family: "Fira Code", monospace;
-          border: none;
-          border-radius: 4px;
-          padding: 8px;
-          line-height: 1.5;
-          caret-color: #f8f8f2;
-          width: 100%;
-          box-sizing: border-box;
-        }
-        .code-editor-textarea:focus {
-          outline: none;
-          box-shadow: 0 0 0 2px #ef7b55;
-        }
-        .code-editor-textarea::selection {
-          background: #44475a;
-        }
-        .error-line {
-          border-left: 2px solid #ff5555;
-          background: #ff555522;
-        }
-        .tab-content {
-          background: #1e1e1e;
-          border-radius: 4px;
-          width: 100%;
-        }
-        .syntax-error {
-          background: #ff555522;
-          border: 1px solid #ff5555;
-          color: #ff5555;
-          padding: 6px;
-          border-radius: 4px;
-          margin-top: 6px;
-          font-size: 0.75rem;
-        }
-        .codemirror-container {
-          border-radius: 4px;
-          overflow: hidden;
-          border: 1px solid #44475a;
-          width: 100%;
-        }
-        .codemirror-container .cm-editor {
-          height: 50vh;
-          min-height: 200px;
-          max-height: 600px;
-          font-family: "Fira Code", monospace;
-          font-size: 0.875rem;
-          line-height: 1.5;
-        }
-        .codemirror-container .cm-focused {
-          outline: 2px solid #ef7b55;
-        }
-        .image-preview {
-          max-width: 100%;
-          height: auto;
-          border-radius: 4px;
-          border: 1px solid #44475a;
-          background: #2b2b2b;
-          padding: 8px;
-        }
-        .file-url {
-          font-size: 0.75rem;
-          color: #a0a0a0;
-          word-break: break-all;
-          margin-top: 4px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .language-tabs {
-          background: #f797712e;
-          border-radius: 4px;
-          margin-bottom: 6px;
-          width: 100%;
-          overflow-x: auto;
-        }
-        .language-tabs .tab-trigger {
-          flex: 1;
-          text-align: center;
-          padding: 6px 8px;
-          color: #334155;
-          font-size: 0.75rem;
-          font-weight: 500;
-          min-width: 80px;
-        }
-        .language-tabs .tab-trigger[data-state="active"] {
-          background: #ef7b55;
-          color: white;
-        }
-        .main-tabs {
-          width: 100%;
-          display: flex;
-          flex-wrap: wrap;
-        }
-        .main-tabs .tabs-list {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .main-tabs .tabs-trigger {
-          width: 100%;
-          padding: 8px;
-          font-size: 0.875rem;
-        }
-        @media (min-width: 640px) {
-          .main-tabs .tabs-list {
-            flex-direction: row;
-            gap: 8px;
-          }
-          .main-tabs .tabs-trigger {
-            width: auto;
-            padding: 8px 16px;
-          }
-          .language-tabs .tab-trigger {
-            font-size: 0.875rem;
-            padding: 8px 12px;
-          }
-          .codemirror-container .cm-editor {
-            font-size: 0.875rem;
-          }
-          .syntax-error {
-            font-size: 0.875rem;
-            padding: 8px;
-          }
-        }
-        @media (min-width: 1024px) {
-          .space-y-4 {
-            padding-left: 2rem;
-            padding-right: 2rem;
-          }
-          .codemirror-container .cm-editor {
-            height: 400px;
-            font-size: 0.875rem;
-          }
-          .language-tabs .tab-trigger {
-            font-size: 0.875rem;
-            padding: 8px 16px;
-          }
-        }
-        .output-iframe {
-          width: 100%;
-          height: 50vh;
-          min-height: 200px;
-          max-height: 600px;
-        }
-        .output-console {
-          width: 100%;
-          height: 50vh;
-          min-height: 200px;
-          max-height: 600px;
-        }
-        .editor-buttons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-        }
-        .editor-buttons button {
-          flex: 1 1 auto;
-          min-width: 80px;
-          padding: 6px;
-          font-size: 0.75rem;
-        }
-        @media (min-width: 640px) {
-          .editor-buttons {
-            gap: 8px;
-          }
-          .editor-buttons button {
-            min-width: 100px;
-            padding: 8px;
-            font-size: 0.875rem;
-          }
-        }
-        .files-tab {
-          width: 100%;
-        }
-        .files-tab .accordion-item {
-          font-size: 0.75rem;
-        }
-        @media (min-width: 640px) {
-          .files-tab .accordion-item {
-            font-size: 0.875rem;
-          }
-        }
-        .submission-tab .select-trigger {
-          width: 100%;
-        }
-        .submission-tab .submission-item {
-          font-size: 0.75rem;
-        }
-        @media (min-width: 640px) {
-          .submission-tab .submission-item {
-            font-size: 0.875rem;
-          }
-        }
-        .snippet-item {
-          font-size: 0.875rem;
-        }
-      `}</style>
-      <div className="space-y-4 py-4 px-4 sm:px-6 lg:px-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Code IDE</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Write, run, and test your code in multiple programming languages
-            with real-time execution
-          </p>
-        </div>
-        {executionError && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{executionError}</AlertDescription>
-          </Alert>
-        )}
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="main-tabs"
+      <div
+        className="ide-root"
+        style={{
+          height: "100%",
+          minHeight: "100vh",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* Top bar */}
+        <div
+          style={{
+            height: 36,
+            display: "flex",
+            alignItems: "center",
+            paddingLeft: 12,
+            paddingRight: 12,
+            background: t.bgAlt,
+            borderBottom: `1px solid ${t.borderMuted}`,
+            gap: 12,
+          }}
         >
-          <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-3 sm:mb-14">
-            <TabsTrigger
-              value="editor"
-              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 4,
+                background: t.accent,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontSize: 10,
+                fontWeight: 800,
+              }}
             >
-              Editor
-            </TabsTrigger>
-            <TabsTrigger
-              value="output"
-              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+              {"</>"}
+            </div>
+            <span>Code IDE</span>
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: t.textDim,
+              borderLeft: `1px solid ${t.borderMuted}`,
+              paddingLeft: 12,
+            }}
+            className="ide-mobile-hide"
+          >
+            Write, run, and submit code across multiple languages
+          </div>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <button
+              className="ide-btn ghost icon-only"
+              onClick={() => setInlinePanel("shortcuts")}
+              title="Keyboard shortcuts (⌘/)"
             >
-              Output
-            </TabsTrigger>
-            <TabsTrigger
-              value="files"
-              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+              <Keyboard className="h-3.5 w-3.5" />
+            </button>
+            <button
+              className="ide-btn ghost icon-only"
+              onClick={toggleTheme}
+              title={`Switch to ${isDark ? "light" : "dark"} theme`}
             >
-              Files
-            </TabsTrigger>
-            <TabsTrigger
-              value="submission"
-              className="tabs-trigger bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+              {isDark ? (
+                <Sun className="h-3.5 w-3.5" />
+              ) : (
+                <Moon className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Main row */}
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {/* Activity bar */}
+          <div
+            style={{
+              width: 48,
+              background: t.bgAlt,
+              borderRight: `1px solid ${t.borderMuted}`,
+              display: "flex",
+              flexDirection: "column",
+              flexShrink: 0,
+            }}
+          >
+            <button
+              className={`activity-icon ${
+                activePanel === "files" && !sidebarCollapsed ? "active" : ""
+              }`}
+              onClick={() => handleActivityClick("files")}
+              title="Files (⌘B to toggle)"
             >
-              Submission
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="editor" className="tab-content">
-            <Card className="flex flex-col w-full border-none">
-              <CardHeader className="p-0 py-4 sm:py-4">
-                {/* <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg sm:text-xl">
-                    Code Editor
-                  </CardTitle>
-                  <Button variant="outline" size="sm" onClick={resetCode}>
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div> */}
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg sm:text-xl">
-                    Code Editor
-                  </CardTitle>
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7855]/20"
-                    size="sm"
-                    onClick={() => {
-                      setIsRotating(true);
-                      handleResetClick();
-                      setTimeout(() => setIsRotating(false), 1000); // Match animation duration
+              <FolderOpen className="h-5 w-5" />
+            </button>
+            <button
+              className={`activity-icon ${
+                activePanel === "submissions" && !sidebarCollapsed
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() => handleActivityClick("submissions")}
+              title="Submissions"
+            >
+              <GraduationCap className="h-5 w-5" />
+            </button>
+            <button
+              className={`activity-icon ${
+                activePanel === "search" && !sidebarCollapsed ? "active" : ""
+              }`}
+              onClick={() => handleActivityClick("search")}
+              title="Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+            <div style={{ marginTop: "auto" }}>
+              <button
+                className={`activity-icon ${
+                  activePanel === "settings" && !sidebarCollapsed
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() => handleActivityClick("settings")}
+                title="Settings"
+              >
+                <SettingsIcon className="h-5 w-5" />
+              </button>
+              <button
+                className="activity-icon"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                title={
+                  sidebarCollapsed
+                    ? "Expand sidebar (⌘B)"
+                    : "Collapse sidebar (⌘B)"
+                }
+              >
+                {sidebarCollapsed ? (
+                  <ChevronsRight className="h-5 w-5" />
+                ) : (
+                  <ChevronsLeft className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          {!sidebarCollapsed && (
+            <>
+              <div
+                style={{
+                  width: sidebarWidth,
+                  background: t.bgPanel,
+                  borderRight: `1px solid ${t.borderMuted}`,
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <div
+                  style={{
+                    height: 32,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 6px 0 12px",
+                    borderBottom: `1px solid ${t.borderMuted}`,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                    color: t.textMuted,
+                    flexShrink: 0,
+                  }}
+                >
+                  <span>
+                    {activePanel === "files" && "Explorer"}
+                    {activePanel === "submissions" && "Submissions"}
+                    {activePanel === "search" && "Search"}
+                    {activePanel === "settings" && "Settings"}
+                  </span>
+                  <button
+                    className="ide-btn ghost icon-only"
+                    onClick={() => setSidebarCollapsed(true)}
+                    title="Collapse sidebar (⌘B)"
+                    style={{ marginLeft: "auto", height: 22, width: 22 }}
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div
+                  style={{ flex: 1, overflow: "auto", minHeight: 0 }}
+                  className="scroll-thin"
+                >
+                  {activePanel === "files" && (
+                    <FilesSidebar
+                      folders={folders}
+                      snippets={mySnippets}
+                      uploads={uploadedFiles}
+                      onLoadSnippet={loadSnippet}
+                      onLoadFile={loadFile}
+                      onDeleteSnippet={deleteSnippet}
+                      onDeleteFile={deleteUploadedFile}
+                      onCopySnippetUrl={copySnippetUrl}
+                      onCopyFileUrl={copyFileUrl}
+                      onUploadClick={handleUploadClick}
+                      onNewFile={handleNewFile}
+                      onCreateFolder={handleCreateFolderClick}
+                      onRenameFolder={renameFolder}
+                      onDeleteFolder={deleteFolder}
+                      snippetLoadingId={snippetLoadingId}
+                      fileLoadingId={fileLoading}
+                      deletingSnippetId={deletingSnippetId}
+                      deletingFileId={deletingFileId}
+                      activeSnippetId={activeTab?.snippetId ?? null}
+                      uploading={uploading}
+                      uploadProgress={uploadProgress}
+                      t={t}
+                    />
+                  )}
+                  {activePanel === "submissions" && (
+                    <SubmissionsSidebar
+                      submissions={mySubmissions}
+                      onLoad={openSubmission}
+                      fetchSubmissionDetail={fetchSubmissionDetail}
+                      onComment={addComment}
+                      showCustomAlert={showCustomAlert}
+                      t={t}
+                    />
+                  )}
+                  {activePanel === "search" && (
+                    <SearchSidebar
+                      snippets={mySnippets}
+                      onSelect={loadSnippet}
+                      t={t}
+                    />
+                  )}
+                  {activePanel === "settings" && (
+                    <SettingsSidebar
+                      theme={theme}
+                      onToggleTheme={toggleTheme}
+                      onLogout={handleLogout}
+                      fontSize={fontSize}
+                      onIncFontSize={incFontSize}
+                      onDecFontSize={decFontSize}
+                      minFontSize={minFontSize}
+                      maxFontSize={maxFontSize}
+                      t={t}
+                    />
+                  )}
+                </div>
+              </div>
+              <div
+                className={`resizer-x ${isResizingSidebar ? "active" : ""}`}
+                onMouseDown={() => setIsResizingSidebar(true)}
+              />
+            </>
+          )}
+
+          {/* Center column */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              minWidth: 0,
+            }}
+          >
+            {/* Breadcrumb */}
+            <div className="breadcrumb">
+              <span className="crumb">{currentLessonTitle}</span>
+              <ChevronRight className="h-3 w-3 crumb-sep" />
+              <span className="crumb">
+                {activeTab?.title || "untitled"}
+              </span>
+              <ChevronRight className="h-3 w-3 crumb-sep" />
+              <span className="crumb last ide-mono">
+                {activeTab ? LANGUAGES[activeTab.language].name : ""}
+              </span>
+
+              <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                <button
+                  className="ide-btn ghost icon-only"
+                  onClick={handleResetClick}
+                  title="Reset to template"
+                  disabled={loading || !!activeTab?.isImagePreview}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  className="ide-btn ghost icon-only"
+                  onClick={copyCode}
+                  title="Copy code"
+                  disabled={loading || !!activeTab?.isImagePreview}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  className="ide-btn ghost icon-only"
+                  onClick={downloadCode}
+                  title="Download"
+                  disabled={loading || !!activeTab?.isImagePreview}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* File tabs — one per open Tab */}
+            <div
+              style={{
+                display: "flex",
+                background: t.bgAlt,
+                borderBottom: `1px solid ${t.borderMuted}`,
+                overflowX: "auto",
+                flexShrink: 0,
+              }}
+              className="scroll-thin"
+            >
+              {tabs.map((tab) => {
+                const ext = LANGUAGES[tab.language].ext;
+                const dirty = tab.code !== tab.savedCode;
+                const isActive = tab.id === activeId;
+                return (
+                  <div
+                    key={tab.id}
+                    className={`file-tab ${isActive ? "active" : ""}`}
+                    onClick={() => setActiveId(tab.id)}
+                  >
+                    <LangBadge lang={tab.language} />
+                    <span className="ide-mono">
+                      {(tab.title || "untitled").slice(0, 22)}.{ext}
+                    </span>
+                    {dirty ? (
+                      <span className="dirty-dot" />
+                    ) : (
+                      <button
+                        className="file-tab-close"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (dirty) {
+                            showCustomConfirm(
+                              `Close ${tab.title}? You have unsaved changes.`,
+                              async () => closeTab(tab.id)
+                            );
+                          } else {
+                            closeTab(tab.id);
+                          }
+                        }}
+                        title="Close tab"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {/* New tab button — opens the language picker so the user can
+                  pick JS / Python / HTML / CSS for the new tab. */}
+              <button
+                className="ide-btn ghost"
+                style={{
+                  height: 36,
+                  borderRadius: 0,
+                  borderRight: `1px solid ${t.borderMuted}`,
+                  width: 36,
+                  padding: 0,
+                }}
+                onClick={() => handleNewFile(null)}
+                title="New tab (⌘N)"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Toolbar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 12px",
+                background: t.bgPanel,
+                borderBottom: `1px solid ${t.borderMuted}`,
+                flexShrink: 0,
+                flexWrap: "wrap",
+              }}
+            >
+              {activeTab && activeTab.language !== "css" && (
+                <button
+                  onClick={runCode}
+                  disabled={isRunning || !!error || loading}
+                  className="ide-btn primary"
+                  title="Run code (⌘↵)"
+                >
+                  {isRunning ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5" />
+                  )}
+                  {isRunning ? "Running..." : "Run"}
+                </button>
+              )}
+              <button
+                onClick={openSavePanel}
+                disabled={loading || !!activeTab?.isImagePreview}
+                className="ide-btn"
+                title="Save (⌘S)"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save
+              </button>
+              <button
+                onClick={handleEditorSubmitClick}
+                disabled={
+                  loading ||
+                  !!activeTab?.isImagePreview ||
+                  isSubmittingEditor
+                }
+                className="ide-btn"
+                title={
+                  activeTab?.submissionId
+                    ? "Update submission"
+                    : "Submit code"
+                }
+              >
+                {isSubmittingEditor ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                {/* The label is read from the active tab. New tab → no
+                    submissionId → label is "Submit". This fixes issue #1. */}
+                {activeTab?.submissionId ? "Update" : "Submit"}
+              </button>
+
+              <div
+                style={{
+                  marginLeft: "auto",
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                }}
+              >
+                <button
+                  className="ide-btn ghost icon-only"
+                  onClick={() =>
+                    setBottomPanel((p) => (p === "preview" ? null : "preview"))
+                  }
+                  title="Toggle preview"
+                  style={
+                    bottomPanel === "preview"
+                      ? { background: t.bgActive }
+                      : undefined
+                  }
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  className="ide-btn ghost icon-only"
+                  onClick={() =>
+                    setBottomPanel((p) =>
+                      p === "console" ? null : "console"
+                    )
+                  }
+                  title="Toggle console (⌘J)"
+                  style={
+                    bottomPanel === "console"
+                      ? { background: t.bgActive }
+                      : undefined
+                  }
+                >
+                  <Terminal className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Editor area */}
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                background: t.bg,
+              }}
+            >
+              <div
+                style={{
+                  flex: 1,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: 0,
+                }}
+              >
+                {/* Inline action panel */}
+                {inlinePanel && (
+                  <InlinePanelContent
+                    panel={inlinePanel}
+                    onClose={() => {
+                      if (inlinePanel === "stdin") {
+                        pendingStdinRef.current = null;
+                        setIsRunning(false);
+                      }
+                      closeInlinePanel();
+                    }}
+                    t={t}
+                    activeTab={activeTab}
+                    saveFileName={saveFileName}
+                    setSaveFileName={setSaveFileName}
+                    saveFolderId={saveFolderId}
+                    setSaveFolderId={setSaveFolderId}
+                    folders={folders}
+                    isSaving={isSaving}
+                    onSave={saveActiveTab}
+                    submitDraftTitle={submitDraftTitle}
+                    setSubmitDraftTitle={setSubmitDraftTitle}
+                    submitDraftLesson={submitDraftLesson}
+                    setSubmitDraftLesson={setSubmitDraftLesson}
+                    lessons={lessons}
+                    tabs={tabs}
+                    submitSelectedTabIds={submitSelectedTabIds}
+                    toggleSubmitTab={toggleSubmitTab}
+                    isSubmittingEditor={isSubmittingEditor}
+                    onConfirmSubmit={confirmSubmit}
+                    pythonInputPrompts={pythonInputPrompts}
+                    pythonInputValues={pythonInputValues}
+                    setPythonInputValues={setPythonInputValues}
+                    onStdinSubmit={() => {
+                      const stdin = pythonInputValues.join("\n");
+                      closeInlinePanel();
+                      pendingStdinRef.current?.(stdin);
+                    }}
+                    newFolderName={newFolderName}
+                    setNewFolderName={setNewFolderName}
+                    newFolderParent={newFolderParent}
+                    creatingFolder={creatingFolder}
+                    onSubmitCreateFolder={submitCreateFolder}
+                    newFileFolderId={newFileFolderId}
+                    onCreateNewFile={createNewFileWithLang}
+                  />
+                )}
+
+                {executionError && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      background: `${t.warning}15`,
+                      borderBottom: `1px solid ${t.borderMuted}`,
+                      color: t.warning,
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                     }}
                   >
-                    <RotateCcw
-                      className={`h-4 w-4 ${isRotating ? "animate-spin-ccw" : ""
-                        }`}
-                    />
-                  </Button>
-                </div>
-                <Tabs
-                  value={selectedLanguage}
-                  onValueChange={handleLanguageChange}
-                  className="language-tabs"
-                >
-                  <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-3 sm:mb-14">
-                    {Object.entries(languages).map(([key, lang]) => {
-                      const k = key as LangKey;
-                      const ctx = editCtxByLang[k];
-                      const label = (titleByLang[k] ?? ctx?.title ?? "").toString().trim();
-                      const display = label ? shortLabel(label, 18) : `#${ctx?.id}`;
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {executionError}
+                  </div>
+                )}
 
-                      return (
-                        <TabsTrigger
-                          key={key}
-                          value={key}
-                          className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-2"
-                        >
-                          <span>{lang.name}</span>
+                {syntaxError && !activeTab?.isImagePreview && (
+                  <div
+                    style={{
+                      padding: "6px 12px",
+                      background: `${t.danger}15`,
+                      borderBottom: `1px solid ${t.borderMuted}`,
+                      color: t.danger,
+                      fontSize: 11,
+                      fontFamily: "JetBrains Mono, monospace",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                    {syntaxError}
+                  </div>
+                )}
 
-                          {ctx?.id && (
-                            <span
-                              className="ml-1 rounded-md px-2 py-0.5 text-[10px] leading-none bg-black/10 data-[state=active]:bg-white/20 max-w-[110px] truncate"
-                              title={label || `Submission #${ctx.id}`}
-                            >
-                              {display}
-                            </span>
-                          )}
-                        </TabsTrigger>
-                      );
-                    })}
-
-
-                  </TabsList>
-                </Tabs>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col px-0">
-                {isImagePreview ? (
-                  <div className="image-preview">
+                {activeTab?.isImagePreview ? (
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 24,
+                      background: t.bgAlt,
+                      overflow: "auto",
+                    }}
+                  >
                     <img
-                      src={imagePreviewUrl}
-                      alt="Uploaded image"
-                      style={{ maxWidth: "100%", height: "auto" }}
+                      src={activeTab.imageUrl}
+                      alt="Preview"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                        border: `1px solid ${t.border}`,
+                        borderRadius: 4,
+                      }}
                     />
                   </div>
                 ) : (
+                  activeTab && (
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <CodeMirror
+                        key={activeTab.id}
+                        value={activeTab.code}
+                        extensions={[
+                          ...(codeMirrorExtensions[activeTab.language] as any),
+                          indentUnit.of(INDENT_BY_LANG[activeTab.language].unit),
+                          EditorView.lineWrapping,
+                          EditorView.updateListener.of((v) => {
+                            if (v.selectionSet) {
+                              const sel = v.state.selection.main.head;
+                              const line = v.state.doc.lineAt(sel);
+                              setCursorPos({
+                                line: line.number,
+                                col: sel - line.from + 1,
+                              });
+                            }
+                          }),
+                        ]}
+                        theme={isDark ? monokai : githubLight}
+                        height="100%"
+                        style={{ height: "100%" }}
+                        basicSetup={{
+                          lineNumbers: true,
+                          tabSize: INDENT_BY_LANG[activeTab.language].size,
+                          indentOnInput: true,
+                          bracketMatching: true,
+                          autocompletion: true,
+                          highlightActiveLine: true,
+                          highlightActiveLineGutter: true,
+                          foldGutter: true,
+                          searchKeymap: true,
+                        }}
+                        editable={!loading}
+                        onChange={(value) => updateActiveTab({ code: value })}
+                      />
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Bottom panel */}
+              {bottomPanel && (
+                <>
                   <div
-                    className={`codemirror-container ${syntaxError ? "error-line" : ""
-                      }`}
+                    className={`resizer-y ${isResizingBottom ? "active" : ""}`}
+                    onMouseDown={() => setIsResizingBottom(true)}
+                  />
+                  <div
+                    style={{
+                      height: bottomHeight,
+                      background: t.bgPanel,
+                      borderTop: `1px solid ${t.borderMuted}`,
+                      display: "flex",
+                      flexDirection: "column",
+                      flexShrink: 0,
+                    }}
                   >
-                    <CodeMirror
-                      value={
-                        selectedLanguage === "html"
-                          ? htmlCode
-                          : selectedLanguage === "css"
-                            ? cssCode
-                            : code
-                      }
-                      extensions={[
-                        ...(codeMirrorExtensions[
-                          selectedLanguage as keyof typeof codeMirrorExtensions
-                        ] as any),
-                        EditorView.lineWrapping, // ✅ wrap long lines
-                      ]}
-                      theme={monokai}
-                      height="50vh"
-                      basicSetup={{
-                        lineNumbers: true,
-                        tabSize: 2,
-                        indentOnInput: true,
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        height: 32,
+                        borderBottom: `1px solid ${t.borderMuted}`,
+                        paddingRight: 8,
                       }}
-                      editable={!loading}
-                      onChange={handleCodeChange}
-                      className="flex-1"
-                    />
-
-                  </div>
-                )}
-                {syntaxError && !isImagePreview && (
-                  <div className="syntax-error">{syntaxError}</div>
-                )}
-                <div className="editor-buttons mt-4">
-                  {selectedLanguage !== "css" && selectedLanguage !== "javascript" && (
-                    <Button
-                      onClick={runCode}
-                      disabled={isRunning || !!error || loading}
-                      className="bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
-                      size="sm"
                     >
-                      <Play className="mr-2 h-4 w-4" />
-                      {isRunning ? "Executing..." : "Run Code"}
-                    </Button>
-                  )}
+                      <BottomTab
+                        active={bottomPanel === "console"}
+                        onClick={() => setBottomPanel("console")}
+                        icon={<Terminal className="h-3 w-3" />}
+                        label="Console"
+                        t={t}
+                      />
+                      {(activeTab?.language === "html" ||
+                        activeTab?.language === "css") && (
+                        <BottomTab
+                          active={bottomPanel === "preview"}
+                          onClick={() => setBottomPanel("preview")}
+                          icon={<Eye className="h-3 w-3" />}
+                          label="Preview"
+                          t={t}
+                        />
+                      )}
+                      <div
+                        style={{
+                          marginLeft: "auto",
+                          display: "flex",
+                          gap: 4,
+                        }}
+                      >
+                        {bottomPanel === "preview" && htmlPreview && (
+                          <>
+                            <button
+                              className="ide-btn ghost icon-only"
+                              title="Open in new tab"
+                              onClick={() => {
+                                const blob = new Blob([htmlPreview], {
+                                  type: "text/html",
+                                });
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, "_blank");
+                              }}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              className="ide-btn ghost icon-only"
+                              title="Fullscreen"
+                              onClick={() =>
+                                iframeRef.current?.requestFullscreen?.()
+                              }
+                            >
+                              <Maximize2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          className="ide-btn ghost icon-only"
+                          onClick={() => setBottomPanel(null)}
+                          title="Close panel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
 
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
-                    onClick={openSaveModal}
-                    disabled={loading || isImagePreview}
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    Save As...
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
-                    onClick={handleEditorSubmit}
-                    disabled={
-                      !selectedLesson ||
-                      !submissionTitle.trim() || // ✅ REQUIRED
-                      loading ||
-                      isImagePreview ||
-                      isSubmittingEditor
-                    }
-                  >
-                    {isSubmittingEditor ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {editingSubmissionId ? "Updating..." : "Submitting..."}
-                      </>
-                    ) : currentEditingId ? (
-                      "Update Submission"
-                    ) : (
-                      "Submit"
-                    )}
-
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
-                    onClick={copyCode}
-                    disabled={loading || isImagePreview}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
-                    onClick={downloadCode}
-                    disabled={loading || isImagePreview}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-                {loading && (
-                  <div className="mt-2 p-2 bg-yellow-50 border rounded text-sm text-yellow-800">
-                    Loading file content...
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="output" className="tab-content">
-            <Card className="flex flex-col w-full">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">
-                  {selectedLanguage === "html" || selectedLanguage === "css"
-                    ? "Preview & Output"
-                    : "Output"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1">
-                {successMessage && (
-                  <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{successMessage}</AlertDescription>
-                  </Alert>
-                )}
-                {(selectedLanguage === "html" || selectedLanguage === "css") &&
-                  htmlPreview ? (
-                  <Tabs defaultValue="preview" className="h-full flex flex-col">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <TabsList className="grid grid-cols-2 gap-2">
-                        <TabsTrigger value="preview">Preview</TabsTrigger>
-                        <TabsTrigger value="output">Console</TabsTrigger>
-                      </TabsList>
-
-                      <div className="flex items-center gap-1">
-                        {/* Open in new tab */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          title="Open in new tab"
-                          onClick={() => {
-                            const blob = new Blob([htmlPreview], { type: "text/html" });
-                            const url = URL.createObjectURL(blob);
-                            window.open(url, "_blank");
+                    <div
+                      style={{
+                        flex: 1,
+                        overflow: "hidden",
+                        background:
+                          bottomPanel === "preview" ? "white" : t.bg,
+                      }}
+                      className="scroll-thin"
+                    >
+                      {bottomPanel === "preview" ? (
+                        htmlPreview ? (
+                          <iframe
+                            ref={iframeRef}
+                            srcDoc={htmlPreview}
+                            className="preview-iframe"
+                            title="Preview"
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              padding: 24,
+                              color: t.textMuted,
+                              fontSize: 12,
+                              textAlign: "center",
+                            }}
+                          >
+                            Run HTML/CSS to see preview
+                          </div>
+                        )
+                      ) : (
+                        <pre
+                          className="console-output scroll-thin"
+                          style={{
+                            color:
+                              activeTab?.language === "html" ||
+                              activeTab?.language === "css"
+                                ? t.text
+                                : t.success,
                           }}
                         >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-
-                        {/* Fullscreen */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          title="Fullscreen"
-                          onClick={() => iframeRef.current?.requestFullscreen?.()}
-                        >
-                          <Maximize2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <TabsContent value="preview" className="flex-1">
-                      <iframe
-                        ref={iframeRef}
-                        srcDoc={htmlPreview}
-                        className="output-iframe border rounded-md bg-white"
-                        title="HTML/CSS Preview"
-                      />
-                    </TabsContent>
-                    <TabsContent value="output" className="flex-1">
-                      <div className="output-console bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm overflow-auto">
-                        <pre className="whitespace-pre-wrap">
-                          {webConsole || "Console output will appear here..."}
-
+                          {activeTab?.language === "html" ||
+                          activeTab?.language === "css"
+                            ? webConsole ||
+                              "Console output will appear here..."
+                            : output || "Output will appear here..."}
                         </pre>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                ) : (
-                  <div className="output-console bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm overflow-auto">
-                    <pre className="whitespace-pre-wrap">
-                      {output || "Output will appear here..."}
-                    </pre>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="files" className="tab-content">
-            <Card className="flex flex-col w-full">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Files</CardTitle>
-                {uploadSuccessMessage && (
-                  <Alert className="mt-2 bg-green-50 border-green-200 text-green-800">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{uploadSuccessMessage}</AlertDescription>
-                  </Alert>
-                )}
-                <div className="w-full flex flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    className="hover:bg-[#EF7B55]/20"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    {uploading ? (
-                      <Spinner size="sm" className="mr-2" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
-                    )}
-                    {uploading ? "Uploading..." : "Upload File"}
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    accept=".js,.py,.html,.css,.txt,.json,.xml,.png,.jpg,.jpeg"
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </div>
-                {uploading && (
-                  <div className="mt-2">
-                    <Progress value={uploadProgress} className="w-full" />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Uploading: {Math.round(uploadProgress)}%
-                    </p>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col gap-4 files-tab">
-                <Input
-                  placeholder="Search files..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
+            {/* Status bar */}
+            <div className="status-bar">
+              <span className="status-item">
+                <Circle
+                  className="h-2 w-2"
+                  style={{
+                    fill: hasAnyUnsaved ? t.warning : t.success,
+                    color: hasAnyUnsaved ? t.warning : t.success,
                   }}
-                  className="w-full"
-                  disabled={uploading}
                 />
-                <Tabs defaultValue="saved" className="flex-1">
-                  <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row items-center w-full gap-2 mb-14">
-                    <TabsTrigger
-                      value="saved"
-                      className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
-                    >
-                      Saved Snippets
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="uploads"
-                      className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
-                    >
-                      Other Uploads
-                    </TabsTrigger>
-                  </TabsList>
-                  {/* Saved Snippets */}
-                  <TabsContent value="saved" className="space-y-4">
-                    {paginatedSnippets.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-8 text-sm sm:text-base">
-                        No snippets found. Create some using "New Snippet"!
-                      </p>
-                    ) : (
-                      paginatedSnippets
-                        .sort(
-                          (a, b) =>
-                            new Date(b.updated_at).getTime() -
-                            new Date(a.updated_at).getTime()
-                        )
-                        .map((s) => (
-                          <Card key={s.id} className="p-4 overflow-hidden">
-                            {/* Header */}
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                              {/* Title */}
-                              <span
-                                className="font-medium cursor-pointer hover:text-primary truncate w-full sm:max-w-[60%]"
-                                title="Click to load into editor"
-                              >
-                                {s.title}
-                              </span>
+                {hasAnyUnsaved ? "Unsaved changes" : "All saved"}
+              </span>
+              {activeTab && (
+                <>
+                  <span className="status-item ide-mono">
+                    {LANGUAGES[activeTab.language].name}
+                  </span>
+                  <span className="status-item ide-mono">
+                    Ln {cursorPos.line}, Col {cursorPos.col}
+                  </span>
+                  <span className="status-item ide-mono ide-mobile-hide">
+                    {lineCount} lines
+                  </span>
+                </>
+              )}
+              <span
+                className="status-item ide-mobile-hide"
+                style={{ marginLeft: "auto" }}
+              >
+                {currentLessonTitle}
+              </span>
 
-                              {/* Actions */}
-                              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-                                <span className="text-muted-foreground text-xs truncate max-w-[120px] sm:max-w-none">
-                                  {new Date(s.updated_at).toLocaleString()}
-                                </span>
+              <button
+                className="status-item clickable"
+                onClick={() => setInlinePanel("shortcuts")}
+                title="Keyboard shortcuts"
+              >
+                <Keyboard className="h-3 w-3" />
+                Shortcuts
+              </button>
+              <button className="status-item clickable" onClick={toggleTheme}>
+                {isDark ? (
+                  <Sun className="h-3 w-3" />
+                ) : (
+                  <Moon className="h-3 w-3" />
+                )}
+                {isDark ? "Dark" : "Light"}
+              </button>
+            </div>
+          </div>
+        </div>
 
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => copySnippetUrl(s.id)}
-                                    title="Copy snippet URL"
-                                  >
-                                    <Link className="h-4 w-4" />
-                                  </Button>
-
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteSnippet(s.id)}
-                                    title="Delete snippet"
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between mt-2 sm:mt-0 sm:flex-row gap-2">
-                              {/* Lesson */}
-                              {s.lesson && (
-                                <p className="text-xs text-muted-foreground mt-1 truncate">
-                                  Lesson {s.lesson}
-                                </p>
-                              )}
-                              {/* View Button */}
-                              <div className="mt-3">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full sm:w-auto px-3 py-1.5 bg-transparent hover:bg-[#EF7B55]/20"
-                                  onClick={() => loadSnippet(s)}
-                                  disabled={snippetLoadingId === s.id}
-                                >
-                                  {snippetLoadingId === s.id ? (
-                                    <>
-                                      <Spinner size="sm" className="mr-2" />
-                                      Loading...
-                                    </>
-                                  ) : (
-                                    "View"
-                                  )}
-                                </Button>
-
-                              </div>
-                            </div>
-                          </Card>
-                        ))
-                    )}
-
-                    {/* Pagination */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
-                      <Button
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage((p) => p - 1)}
-                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
-                        size="sm"
-                      >
-                        Previous
-                      </Button>
-
-                      <span className="text-sm text-center">
-                        Page {currentPage} of {totalSnippetPages} (
-                        {filteredSnippets.length} total)
-                      </span>
-
-                      <Button
-                        disabled={currentPage === totalSnippetPages}
-                        onClick={() => setCurrentPage((p) => p + 1)}
-                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
-                        size="sm"
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  {/* Other Uploads */}
-                  <TabsContent value="uploads" className="space-y-4">
-                    {uploading && (
-                      <Alert className="bg-blue-50 border-blue-200">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>Uploading file...</AlertDescription>
-                      </Alert>
-                    )}
-                    {paginatedUploads.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-8">
-                        {uploading
-                          ? "Upload in progress..."
-                          : "No uploaded files found"}
-                      </p>
-                    ) : (
-                      paginatedUploads.map((file) => (
-                        <Card
-                          key={file.id}
-                          className="p-3 sm:p-4 overflow-hidden"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
-                            {/* File Info */}
-                            <div className="flex-1 min-w-0">
-                              <h4
-                                className={`font-medium cursor-pointer hover:text-primary truncate text-sm sm:text-base ${fileLoading === file.id
-                                  ? "opacity-50 cursor-wait"
-                                  : ""
-                                  }`}
-                                onClick={() =>
-                                  !loading && !fileLoading && loadFile(file)
-                                }
-                                title={
-                                  fileLoading === file.id
-                                    ? "Loading..."
-                                    : "Click to load into editor"
-                                }
-                              >
-                                {file.label || file.original_name}
-                                {fileLoading === file.id && (
-                                  <Spinner size="sm" className="inline ml-2" />
-                                )}
-                              </h4>
-
-                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                                {file.original_name} •{" "}
-                                {Math.round(file.size_bytes / 1024)} KB •
-                                {file.lesson
-                                  ? ` Lesson ${file.lesson}`
-                                  : " No lesson"}
-                              </p>
-
-                              <p className="text-xs text-muted-foreground mt-1 truncate">
-                                {new Date(file.updated_at).toLocaleString()}
-                              </p>
-
-                              {/* URL — mobile-safe wrapping */}
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 min-w-0">
-                                <code className="truncate bg-muted px-1.5 py-0.5 rounded font-mono">
-                                  /api/code-ide/uploads/resolve?label={encodeURIComponent(file.label || file.original_name)}
-                                </code>
-                              </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyFileUrl(file)}
-                                title="Copy file URL"
-                                disabled={loading || fileLoading === file.id}
-                                className="flex-1 sm:flex-none"
-                              >
-                                <Link className="h-4 w-4" />
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyFileUrl(file)}
-                                title="Copy file URL"
-                                disabled={loading || fileLoading === file.id}
-                                className="shrink-0"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteSnippet(file.id)}
-                                title={deletingSnippetId === file.id ? "Deleting..." : "Delete snippet"}
-                                className="text-destructive hover:text-destructive"
-                                disabled={deletingSnippetId === file.id || snippetLoadingId === file.id}
-                              >
-                                {deletingSnippetId === file.id ? (
-                                  <Spinner size="sm" className="h-4 w-4" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </Button>
-
-                            </div>
-                          </div>
-                        </Card>
-                      ))
-                    )}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-                      <Button
-                        variant="outline"
-                        disabled={currentPage === 1 || uploading}
-                        onClick={() => setCurrentPage((p) => p - 1)}
-                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
-                      >
-                        Previous
-                      </Button>
-
-                      <span className="text-sm text-center sm:text-left">
-                        Page {currentPage} of {totalUploadPages} (
-                        {filteredUploads.length} total)
-                      </span>
-
-                      <Button
-                        variant="outline"
-                        disabled={currentPage === totalUploadPages || uploading}
-                        onClick={() => setCurrentPage((p) => p + 1)}
-                        className="w-full sm:w-auto bg-[#EF7B55]/70 hover:bg-[#F79771]/90"
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="submission" className="tab-content">
-            <SubmissionTab
-              lessons={lessons}
-              selectedLesson={selectedLesson}
-              setSelectedLesson={setSelectedLesson}
-              submissionTitle={submissionTitle}
-              setSubmissionTitle={setTitleForActiveLang}
-              onSubmit={handleSubmissionTabSubmit}
-              role={session?.user?.role || undefined}
-              submissions={mySubmissions}
-              onGrade={async (id, upd) => { await gradeSubmission(id, upd); }}
-              onComment={async (id, msg) => { await addComment(id, msg); }}
-              fetchSubmissionDetail={fetchSubmissionDetail}
-              onLoadToEditor={(sub) => loadSubmissionIntoEditor(sub)}
-              showCustomAlert={showCustomAlert}
-              // ✅ NEW: pass all current code buffers
-              codeByLang={{
-                ...(jsCode !== languages.javascript.template && { javascript: jsCode }),
-                ...((codeBuffers["python"] ?? languages.python.template) !== languages.python.template && { python: codeBuffers["python"] }),
-                ...(htmlCode !== languages.html.template && { html: htmlCode }),
-                ...(cssCode !== languages.css.template && { css: cssCode }),
-              }}
-              // ✅ NEW: multi-language submit handler
-              onSubmitMultiple={async (selectedLangs) => {
-                const lessonId = selectedLesson;
-                const title = submissionTitle.trim() || null;
-                if (!lessonId) throw new Error("No lesson selected");
-                const results: Submission[] = [];
-                for (const lang of selectedLangs) {
-                  const codeText =
-                    lang === "html" ? htmlCode
-                      : lang === "css" ? cssCode
-                        : lang === "javascript" ? jsCode
-                          : codeBuffers[lang] ?? "";
-                  const body = {
-                    title,
-                    lesson: parseInt(lessonId),
-                    language: lang,
-                    code_text: codeText,
-                  };
-                  const res = await fetch("/api/code-ide/submissions/create", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body),
-                  });
-                  if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.error || `Failed to submit ${lang}`);
-                  }
-                  const created: Submission = await res.json();
-                  results.push(created);
-                }
-                setMySubmissions((prev) => [...results, ...prev]);
-                setSubmissionTitle("");
-              }}
-            />
-
-          </TabsContent>
-        </Tabs>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".js,.py,.html,.css,.txt,.json,.xml,.png,.jpg,.jpeg,.svg,.md"
+          className="hidden"
+          disabled={uploading}
+        />
       </div>
+
+      {/* Toast stack */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 20,
+          zIndex: 1000,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          pointerEvents: "none",
+        }}
+      >
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            style={{
+              background:
+                toast.kind === "error"
+                  ? t.danger
+                  : toast.kind === "success"
+                  ? t.success
+                  : t.text,
+              color:
+                toast.kind === "info" && !isDark
+                  ? "white"
+                  : toast.kind === "info" && isDark
+                  ? t.bg
+                  : "white",
+              padding: "10px 14px",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+              maxWidth: 380,
+              minWidth: 220,
+              pointerEvents: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              animation: "ide-toast-in 180ms ease-out",
+            }}
+          >
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+            <span style={{ flex: 1, lineHeight: 1.4 }}>{toast.message}</span>
+            <button
+              onClick={() =>
+                setToasts((prev) => prev.filter((tt) => tt.id !== toast.id))
+              }
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "inherit",
+                opacity: 0.7,
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+              }}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Inline confirm */}
+      {pendingConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 32,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1001,
+            background: t.bgPanel,
+            border: `1px solid ${t.border}`,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+            borderRadius: 8,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            minWidth: 320,
+            maxWidth: 480,
+            animation: "ide-toast-in 180ms ease-out",
+          }}
+        >
+          <AlertCircle
+            className="h-4 w-4 flex-shrink-0"
+            style={{ color: t.warning }}
+          />
+          <span style={{ flex: 1, fontSize: 13, color: t.text }}>
+            {pendingConfirm.message}
+          </span>
+          <button
+            className="ide-btn"
+            onClick={() => setPendingConfirm(null)}
+            disabled={confirmRunning}
+            style={{ height: 26 }}
+          >
+            Cancel
+          </button>
+          <button
+            className="ide-btn primary"
+            onClick={async () => {
+              if (!pendingConfirm) return;
+              setConfirmRunning(true);
+              try {
+                await pendingConfirm.callback();
+              } finally {
+                setConfirmRunning(false);
+                setPendingConfirm(null);
+              }
+            }}
+            disabled={confirmRunning}
+            style={{ height: 26 }}
+          >
+            {confirmRunning ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Working
+              </>
+            ) : (
+              "Confirm"
+            )}
+          </button>
+        </div>
+      )}
     </>
   );
 }
 
-// ─── Language Selection Modal ─────────────────────────────────────────────────
-
-const LANG_META: Record<string, { label: string; color: string; icon: string }> = {
-  javascript: { label: "JavaScript", color: "#F7DF1E", icon: "JS" },
-  python: { label: "Python", color: "#3776AB", icon: "PY" },
-  html: { label: "HTML", color: "#E34F26", icon: "HT" },
-  css: { label: "CSS", color: "#264DE4", icon: "CS" },
-};
-
-function LanguageSelectionModal({
-  open,
-  onClose,
-  codeByLang,
-  title,
-  onConfirm,
+// ─── BottomTab ─────────────────────────────────────────────────────────
+function BottomTab({
+  active,
+  onClick,
+  icon,
+  label,
+  t,
 }: {
-  open: boolean;
-  onClose: () => void;
-  codeByLang: Partial<Record<string, string>>;
-  title: string;
-  onConfirm: (langs: string[]) => Promise<void>;
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  t: any;
 }) {
-  const available = Object.keys(codeByLang).filter(
-    (lang) => (codeByLang[lang] ?? "").trim().length > 0
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        height: 32,
+        padding: "0 12px",
+        fontSize: 11,
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+        fontWeight: 600,
+        color: active ? t.text : t.textMuted,
+        background: "transparent",
+        border: "none",
+        borderBottom: active
+          ? `1px solid ${t.accent}`
+          : "1px solid transparent",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+      }}
+    >
+      {icon}
+      {label}
+    </button>
   );
+}
 
-  const [selected, setSelected] = useState<Set<string>>(new Set(available));
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Reset selection whenever modal opens
-  useEffect(() => {
-    if (open) {
-      setSelected(new Set(available));
-      setError(null);
-    }
-  }, [open]);
-
-  const toggle = (lang: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(lang) ? next.delete(lang) : next.add(lang);
-      return next;
-    });
-  };
-
-  const handleConfirm = async () => {
-    if (selected.size === 0) {
-      setError("Select at least one language to submit.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onConfirm(Array.from(selected));
-      onClose();
-    } catch (e: any) {
-      setError(e.message ?? "Submission failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+// ─── Inline action panel renderer ───────────────────────────────────────
+function InlinePanelContent(props: any) {
+  const {
+    panel,
+    onClose,
+    t,
+    activeTab,
+    saveFileName,
+    setSaveFileName,
+    saveFolderId,
+    setSaveFolderId,
+    folders,
+    isSaving,
+    onSave,
+    submitDraftTitle,
+    setSubmitDraftTitle,
+    submitDraftLesson,
+    setSubmitDraftLesson,
+    lessons,
+    tabs,
+    submitSelectedTabIds,
+    toggleSubmitTab,
+    isSubmittingEditor,
+    onConfirmSubmit,
+    pythonInputPrompts,
+    pythonInputValues,
+    setPythonInputValues,
+    onStdinSubmit,
+    newFolderName,
+    setNewFolderName,
+    newFolderParent,
+    creatingFolder,
+    onSubmitCreateFolder,
+    newFileFolderId,
+    onCreateNewFile,
+  } = props;
 
   return (
+    <div
+      style={{
+        borderBottom: `1px solid ${t.borderMuted}`,
+        background: t.bgPanel,
+        padding: 12,
+        flexShrink: 0,
+        animation: "ide-toast-in 180ms ease-out",
+        maxHeight: "60vh",
+        overflow: "auto",
+      }}
+      className="scroll-thin"
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: 10,
+          paddingBottom: 8,
+          borderBottom: `1px solid ${t.borderMuted}`,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: 0.6,
+            color: t.textMuted,
+          }}
+        >
+          {panel === "save" && "Save snippet"}
+          {panel === "submit" && "Submit code"}
+          {panel === "stdin" && "Program input"}
+          {panel === "shortcuts" && "Keyboard shortcuts"}
+          {panel === "newFolder" && "New folder"}
+          {panel === "newFile" && "New file"}
+        </span>
+        <button
+          className="ide-btn ghost icon-only"
+          onClick={onClose}
+          title="Close (Esc)"
+          style={{ marginLeft: "auto", height: 22, width: 22 }}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
-        {/* Header */}
-        <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white tracking-tight">
-              Submit Code
-            </DialogTitle>
-            <DialogDescription className="text-sm text-white/50 mt-1">
-              Choose which languages to submit
-              {title ? (
-                <>
-                  {" "}as{" "}
-                  <span className="text-[#EF7B55] font-medium">"{title}"</span>
-                </>
-              ) : null}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
-        {/* Language Cards */}
-        <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-[#0f0f23]">
-          {available.map((lang) => {
-            const meta = LANG_META[lang] ?? { label: lang, color: "#888", icon: lang.slice(0, 2).toUpperCase() };
-            const code = codeByLang[lang] ?? "";
-            const preview = code.trim().split("\n").slice(0, 3).join("\n");
-            const isSelected = selected.has(lang);
-
-            return (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => toggle(lang)}
-                className={`
-                  relative text-left rounded-xl border-2 p-4 transition-all duration-200 group
-                  ${isSelected
-                    ? "border-[#EF7B55] bg-[#EF7B55]/5 shadow-md shadow-[#EF7B55]/10"
-                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-800/50"}
-                `}
-              >
-                {/* Check indicator */}
-                <span
-                  className={`
-                    absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center text-white text-xs transition-all
-                    ${isSelected
-                      ? "bg-[#EF7B55] border-[#EF7B55]"
-                      : "border-slate-300 dark:border-slate-600"}
-                  `}
-                >
-                  {isSelected && (
-                    <svg viewBox="0 0 10 8" fill="none" className="w-3 h-3">
-                      <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </span>
-
-                {/* Language badge */}
-                <div className="flex items-center gap-2.5 mb-3">
-                  <span
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-black text-white shadow-sm"
-                    style={{ backgroundColor: meta.color }}
-                  >
-                    {meta.icon}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
-                      {meta.label}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {code.trim().split("\n").length} line{code.trim().split("\n").length !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Code preview */}
-                <pre className="text-[10px] text-slate-500 dark:text-slate-400 font-mono leading-relaxed overflow-hidden line-clamp-3 bg-slate-100 dark:bg-slate-900/60 rounded-md px-2.5 py-2">
-                  {preview || <span className="italic text-slate-400">(empty)</span>}
-                </pre>
-              </button>
-            );
-          })}
-
-          {available.length === 0 && (
-            <div className="col-span-2 text-center py-8 text-slate-400 text-sm">
-              No code found in any language tab.
-            </div>
-          )}
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mx-6 -mt-2 mb-1 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
-            {error}
+      {panel === "save" && activeTab && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "auto 1fr auto 1fr",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <label style={{ fontSize: 12, color: t.textMuted }}>Filename</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <input
+              type="text"
+              className="ide-input"
+              value={saveFileName}
+              onChange={(e: any) => setSaveFileName(e.target.value)}
+              placeholder="my-snippet"
+              autoFocus
+              onKeyDown={(e: any) => {
+                if (e.key === "Enter" && saveFileName.trim()) onSave();
+                else if (e.key === "Escape") onClose();
+              }}
+              style={{ flex: 1 }}
+            />
+            <span
+              className="ide-mono"
+              style={{ fontSize: 12, color: t.textMuted }}
+            >
+              .{LANGUAGES[activeTab.language as LangKey].ext}
+            </span>
           </div>
-        )}
-
-        {/* Footer */}
-        <div className="px-6 pb-6 flex items-center justify-between gap-3">
-          <p className="text-xs text-slate-400">
-            {selected.size} of {available.length} selected
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+          <label style={{ fontSize: 12, color: t.textMuted }}>Folder</label>
+          <select
+            className="ide-input"
+            value={saveFolderId}
+            onChange={(e: any) => setSaveFolderId(e.target.value)}
+          >
+            <option value="">(root)</option>
+            {folders.map((f: Folder) => (
+              <option key={f.id} value={f.id}>
+                {f.path}
+              </option>
+            ))}
+          </select>
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              display: "flex",
+              gap: 6,
+              justifyContent: "flex-end",
+              marginTop: 4,
+            }}
+          >
+            <button
+              className="ide-btn"
               onClick={onClose}
-              disabled={submitting}
-              className="rounded-lg"
+              disabled={isSaving}
             >
               Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleConfirm}
-              disabled={selected.size === 0 || submitting}
-              className="rounded-lg bg-[#EF7B55] hover:bg-[#F79771] text-white font-semibold px-5 gap-2"
+            </button>
+            <button
+              className="ide-btn primary"
+              onClick={onSave}
+              disabled={!saveFileName.trim() || isSaving}
             >
-              {submitting ? (
+              {isSaving ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Submitting {selected.size}…
+                  Saving
                 </>
               ) : (
                 <>
-                  Submit {selected.size > 1 ? `${selected.size} files` : "1 file"}
+                  <Save className="h-3.5 w-3.5" />
+                  Save
                 </>
               )}
-            </Button>
+            </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+      )}
 
-// ─── SubmissionTab ────────────────────────────────────────────────────────────
-
-function SubmissionTab({
-  lessons,
-  selectedLesson,
-  setSelectedLesson,
-  submissionTitle,
-  setSubmissionTitle,
-  onSubmit,
-  role,
-  submissions,
-  onGrade,
-  onComment,
-  fetchSubmissionDetail,
-  onLoadToEditor,
-  showCustomAlert,
-  codeByLang,       // ✅ NEW
-  onSubmitMultiple, // ✅ NEW
-}: {
-  lessons: { id: string; title: string }[];
-  selectedLesson: string;
-  setSelectedLesson: (v: string) => void;
-  submissionTitle: string;
-  setSubmissionTitle: (v: string) => void;
-  onSubmit: () => Promise<void>;
-  role?: string;
-  submissions: Submission[];
-  onGrade: (id: number, upd: any) => Promise<void>;
-  onComment: (id: number, msg: string) => Promise<void>;
-  fetchSubmissionDetail: (id: number) => Promise<Submission>;
-  onLoadToEditor: (sub: Submission) => void;
-  showCustomAlert: (message: string) => void;
-  codeByLang: Partial<Record<string, string>>;      // ✅ NEW
-  onSubmitMultiple: (langs: string[]) => Promise<void>; // ✅ NEW
-}) {
-  const [viewing, setViewing] = useState<Submission | null>(null);
-  const [comment, setComment] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lessonSearch, setLessonSearch] = useState("");
-
-  // ✅ NEW: modal state
-  const [showLangModal, setShowLangModal] = useState(false);
-
-  const itemsPerPage = 10;
-  const filteredSubmissions = submissions.filter((s) =>
-    `${s.id} ${s.title ?? ""} ${s.status} ${s.language}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
-  const paginatedSubmissions = filteredSubmissions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-  const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
-
-  const viewDetail = async (s: Submission) => {
-    setLoading(true);
-    try {
-      const full = await fetchSubmissionDetail(s.id);
-      setViewing(full);
-    } catch {
-      showCustomAlert("Could not load details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendComment = async () => {
-    if (!viewing || !comment.trim()) return;
-    try {
-      await onComment(viewing.id, comment);
-      setComment("");
-      const fresh = await fetchSubmissionDetail(viewing.id);
-      setViewing(fresh);
-    } catch {
-      showCustomAlert("Comment failed");
-    }
-  };
-
-  const copySubmissionCode = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => showCustomAlert("Code copied to clipboard"))
-      .catch(() => showCustomAlert("Failed to copy code"));
-  };
-
-  return (
-    <Card className="flex flex-col w-full submission-tab">
-      <CardHeader>
-        <CardTitle className="text-lg sm:text-xl">Code Submission</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-6">
-
-        {/* ✅ Language Selection Modal */}
-        <LanguageSelectionModal
-          open={showLangModal}
-          onClose={() => setShowLangModal(false)}
-          codeByLang={codeByLang}
-          title={submissionTitle}
-          onConfirm={async (langs) => {
-            await onSubmitMultiple(langs);
-            showCustomAlert(`Submitted ${langs.length} file${langs.length > 1 ? "s" : ""} successfully!`);
+      {panel === "submit" && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
           }}
-        />
-
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
-          {/* Lesson selector */}
-          <div className="w-full">
-            <Label htmlFor="lesson-select" className="block mb-2 text-sm font-medium">
-              Select Lesson
-            </Label>
-            <Select
-              value={selectedLesson}
-              onValueChange={setSelectedLesson}
-              onOpenChange={(open) => { if (!open) setLessonSearch(""); }}
-            >
-              <SelectTrigger id="lesson-select">
-                <SelectValue placeholder="Select a lesson" />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="p-2 sticky top-0 bg-popover z-10 border-b">
-                  <Input
-                    placeholder="Search lessons..."
-                    value={lessonSearch}
-                    onChange={(e) => setLessonSearch(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    className="h-8 text-sm"
-                    autoFocus={false}
-                  />
-                </div>
-                <div className="max-h-[200px] overflow-y-auto mt-1">
-                  {lessons
-                    .filter((l) => l.title.toLowerCase().includes(lessonSearch.toLowerCase()))
-                    .map((l) => (
-                      <SelectItem key={l.id} value={l.id}>{l.title}</SelectItem>
-                    ))}
-                  {lessons.filter((l) =>
-                    l.title.toLowerCase().includes(lessonSearch.toLowerCase())
-                  ).length === 0 && (
-                      <div className="p-2 text-sm text-muted-foreground text-center">
-                        No lessons found
-                      </div>
-                    )}
-                </div>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Title */}
-          <div className="w-full">
-            <Label htmlFor="submission-title">
-              Submission Title <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="submission-title"
-              placeholder="Enter submission title"
-              value={submissionTitle}
-              onChange={(e) => setSubmissionTitle(e.target.value)}
-            />
-          </div>
-
-          {/* ✅ Button now opens modal */}
-          <Button
-            onClick={() => setShowLangModal(true)}
-            disabled={!selectedLesson || !submissionTitle.trim()}
-            className="w-full md:w-auto bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90"
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "auto 1fr auto 1fr",
+              gap: 10,
+              alignItems: "center",
+            }}
           >
-            Submit Code
-          </Button>
-        </div>
-
-        {/* Detail view / list — unchanged below this point */}
-        {viewing ? (
-          <Card className="border rounded-md flex-1 overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-base font-medium">
-                Submission #{viewing.id}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setViewing(null)}>
-                Back to List
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-1"><Label className="text-muted-foreground">Title</Label><p>{viewing.title || "N/A"}</p></div>
-                <div className="space-y-1"><Label className="text-muted-foreground">Status</Label><p className="capitalize">{viewing.status}</p></div>
-                <div className="space-y-1"><Label className="text-muted-foreground">Language</Label><p className="capitalize">{viewing.language}</p></div>
-                <div className="space-y-1"><Label className="text-muted-foreground">Score</Label><p>{viewing.score ?? "Not graded"}</p></div>
-                <div className="space-y-1"><Label className="text-muted-foreground">Graded By</Label><p>{viewing.graded_by_name ? `${viewing.graded_by_name}` : "N/A"}</p></div>
-                <div className="space-y-1"><Label className="text-muted-foreground">Graded At</Label><p>{viewing.graded_at ? new Date(viewing.graded_at).toLocaleString() : "N/A"}</p></div>
-                <div className="space-y-1 md:col-span-2"><Label className="text-muted-foreground">Created</Label><p>{new Date(viewing.created_at).toLocaleString()}</p></div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="font-medium">Code</Label>
-                  <Button variant="ghost" size="sm" onClick={() => copySubmissionCode(viewing.code_text)} title="Copy code"><Copy className="h-4 w-4" /></Button>
-                </div>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-48 border">{viewing.code_text}</pre>
-              </div>
-              {viewing.feedback && (
-                <div className="space-y-2">
-                  <Label className="font-medium">Feedback</Label>
-                  <p className="text-sm bg-muted p-4 rounded-md border">{viewing.feedback}</p>
-                </div>
+            <label style={{ fontSize: 12, color: t.textMuted }}>Title</label>
+            <input
+              type="text"
+              className="ide-input"
+              value={submitDraftTitle}
+              onChange={(e: any) => setSubmitDraftTitle(e.target.value)}
+              placeholder="e.g. Week 3 assignment"
+              autoFocus
+            />
+            <label style={{ fontSize: 12, color: t.textMuted }}>Lesson</label>
+            <select
+              className="ide-input"
+              value={submitDraftLesson}
+              onChange={(e: any) => setSubmitDraftLesson(e.target.value)}
+            >
+              {lessons.length === 0 ? (
+                <option value="">No lessons available</option>
+              ) : (
+                <option value="">Select a lesson…</option>
               )}
-              {viewing.correction_code && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="font-medium">Correction</Label>
-                    <Button variant="ghost" size="sm" onClick={() => copySubmissionCode(viewing.correction_code)} title="Copy correction code"><Copy className="h-4 w-4" /></Button>
-                  </div>
-                  <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-48 border">{viewing.correction_code}</pre>
-                </div>
-              )}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-medium">Comments</Label>
-                </div>
-                <div className="space-y-3 max-h-48 overflow-auto">
-                  {viewing.comments.map((c) => (
-                    <div key={c.id} className="bg-muted p-3 rounded-md space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold">{c.author_name} ({c.author_role})</span>
-                        <span className="text-muted-foreground">{new Date(c.created_at).toLocaleString()}</span>
-                      </div>
-                      <p className="text-sm">{c.message}</p>
-                    </div>
-                  ))}
-                  {viewing.comments.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center">No comments yet</p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Input placeholder="Write a comment..." value={comment} onChange={(e) => setComment(e.target.value)} className="flex-1" />
-                  <Button onClick={sendComment} disabled={!comment.trim()}><Send className="h-4 w-4" /></Button>
-                </div>
-              </div>
-              <div className="flex justify-end mt-4">
-                <Button variant="outline" onClick={(e) => { e.stopPropagation(); onLoadToEditor(viewing); }}>
-                  Load to Editor
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          submissions.length > 0 && (
-            <div className="space-y-4">
-              <Input
-                placeholder="Search submissions..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {role === "teacher" ? "All Submissions" : "My Submissions"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y">
-                    {(() => {
-                      // Group by title (null/empty titles each get their own group keyed by id)
-                      const groups: Map<string, Submission[]> = new Map();
-                      paginatedSubmissions.forEach((s) => {
-                        const key = s.title?.trim() || `__id_${s.id}`;
-                        if (!groups.has(key)) groups.set(key, []);
-                        groups.get(key)!.push(s);
-                      });
-
-                      return Array.from(groups.entries()).map(([key, group]) => {
-                        const displayTitle = group[0].title?.trim()
-                          ? group[0].title
-                          : `Submission #${group[0].id}`;
-                        const latestDate = group.reduce((latest, s) =>
-                          new Date(s.created_at) > new Date(latest.created_at) ? s : latest
-                        ).created_at;
-                        const allGraded = group.every((s) => s.score !== null);
-                        const avgScore = allGraded
-                          ? (
-                            group.reduce((sum, s) => sum + parseFloat(s.score ?? "0"), 0) /
-                            group.length
-                          ).toFixed(1)
-                          : null;
-
-                        return (
-                          <div key={key} className="p-4 space-y-3">
-                            {/* Group header */}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                              <div className="space-y-1 min-w-0">
-                                <p className="font-semibold truncate">{displayTitle}</p>
-                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                  {group.map((s) => (
-                                    <span
-                                      key={s.id}
-                                      className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border"
-                                      style={{
-                                        borderColor:
-                                          s.language === "javascript" ? "#F7DF1E"
-                                            : s.language === "python" ? "#3776AB"
-                                              : s.language === "html" ? "#E34F26"
-                                                : s.language === "css" ? "#264DE4"
-                                                  : "#888",
-                                        color:
-                                          s.language === "javascript" ? "#b8a800"
-                                            : s.language === "python" ? "#3776AB"
-                                              : s.language === "html" ? "#E34F26"
-                                                : s.language === "css" ? "#264DE4"
-                                                  : "#888",
-                                        backgroundColor:
-                                          s.language === "javascript" ? "#F7DF1E18"
-                                            : s.language === "python" ? "#3776AB18"
-                                              : s.language === "html" ? "#E34F2618"
-                                                : s.language === "css" ? "#264DE418"
-                                                  : "#88888818",
-                                      }}
-                                    >
-                                      {s.language.toUpperCase()}
-                                      <span className="text-muted-foreground capitalize">
-                                        · {s.status}
-                                      </span>
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col sm:items-end gap-1 shrink-0">
-                                <p className="text-sm font-medium">
-                                  {avgScore !== null ? `${avgScore} pts` : "--"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(latestDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Actions row */}
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              {/* Single "View Code" loads ALL languages in the group */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full sm:w-auto"
-                                onClick={() => {
-                                  group.forEach((s) => onLoadToEditor(s));
-                                }}
-                              >
-                                View Code
-                                {group.length > 1 && (
-                                  <span className="ml-1.5 text-[10px] bg-muted px-1.5 py-0.5 rounded-full font-mono">
-                                    {group.length}
-                                  </span>
-                                )}
-                              </Button>
-
-                              {/* Individual Details per submission */}
-                              <div className="flex flex-wrap gap-2">
-                                {group.map((s) => (
-                                  <Button
-                                    key={s.id}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs text-muted-foreground hover:text-foreground border border-dashed"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      viewDetail(s);
-                                    }}
-                                  >
-                                    #{s.id} {s.language} · Details
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="flex items-center justify-between text-sm">
-                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Previous</Button>
-                <span>Page {currentPage} of {totalPages} ({filteredSubmissions.length} total)</span>
-                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</Button>
-              </div>
-            </div>
-          )
-        )}
-        {loading && (
-          <div className="flex justify-center items-center h-32">
-            <Spinner size="md" />
+              {lessons.map((lesson: Lesson) => (
+                <option key={lesson.id} value={lesson.id}>
+                  {lesson.title}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: t.textMuted,
+                marginBottom: 6,
+                fontWeight: 500,
+              }}
+            >
+              Choose which open files to submit
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 6,
+              }}
+            >
+              {tabs.map((tab: Tab) => {
+                const empty = !tab.code.trim();
+                const isSelected = submitSelectedTabIds.has(tab.id);
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => !empty && toggleSubmitTab(tab.id)}
+                    disabled={empty}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      border: `1px solid ${
+                        isSelected ? t.accent : t.borderMuted
+                      }`,
+                      background: isSelected ? t.accentMuted : t.bgAlt,
+                      cursor: empty ? "not-allowed" : "pointer",
+                      opacity: empty ? 0.5 : 1,
+                      color: t.text,
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        border: `1.5px solid ${
+                          isSelected ? t.accent : t.textMuted
+                        }`,
+                        background: isSelected ? t.accent : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isSelected && (
+                        <svg
+                          width="9"
+                          height="7"
+                          viewBox="0 0 10 8"
+                          fill="none"
+                        >
+                          <path
+                            d="M1 4l2.5 2.5L9 1"
+                            stroke="white"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <LangBadge lang={tab.language} />
+                    <div
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <span
+                        className="ide-mono"
+                        style={{
+                          fontSize: 12,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {tab.title || "untitled"}.
+                        {LANGUAGES[tab.language].ext}
+                      </span>
+                      <span style={{ fontSize: 10, color: t.textMuted }}>
+                        {empty
+                          ? "(empty)"
+                          : tab.submissionId
+                          ? "will update existing"
+                          : "new submission"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 11, color: t.textMuted }}>
+              {submitSelectedTabIds.size} selected
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                className="ide-btn"
+                onClick={onClose}
+                disabled={isSubmittingEditor}
+              >
+                Cancel
+              </button>
+              <button
+                className="ide-btn primary"
+                onClick={onConfirmSubmit}
+                disabled={
+                  !submitDraftTitle.trim() ||
+                  !submitDraftLesson ||
+                  submitSelectedTabIds.size === 0 ||
+                  isSubmittingEditor
+                }
+              >
+                {isSubmittingEditor ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Submitting
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5" />
+                    Submit{" "}
+                    {submitSelectedTabIds.size > 1
+                      ? `${submitSelectedTabIds.size} files`
+                      : "1 file"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {panel === "stdin" && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div style={{ fontSize: 11, color: t.textMuted }}>
+            Your code calls{" "}
+            <code className="ide-mono" style={{ color: t.accent }}>
+              input()
+            </code>
+            . Provide values, then run.
+          </div>
+          {pythonInputPrompts.map((prompt: string, i: number) => (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "200px 1fr",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: 12,
+                  color: t.textMuted,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={prompt}
+              >
+                {prompt || `Input ${i + 1}`}
+              </label>
+              <input
+                type="text"
+                className="ide-input ide-mono"
+                placeholder={`Value for input ${i + 1}…`}
+                value={pythonInputValues[i] ?? ""}
+                onChange={(e: any) => {
+                  const updated = [...pythonInputValues];
+                  updated[i] = e.target.value;
+                  setPythonInputValues(updated);
+                }}
+                onKeyDown={(e: any) => {
+                  if (
+                    e.key === "Enter" &&
+                    i === pythonInputPrompts.length - 1
+                  ) {
+                    onStdinSubmit();
+                  } else if (e.key === "Escape") {
+                    onClose();
+                  }
+                }}
+                autoFocus={i === 0}
+              />
+            </div>
+          ))}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              justifyContent: "flex-end",
+            }}
+          >
+            <button className="ide-btn" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="ide-btn primary" onClick={onStdinSubmit}>
+              <Play className="h-3.5 w-3.5" />
+              Run with inputs
+            </button>
+          </div>
+        </div>
+      )}
+
+      {panel === "shortcuts" && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+            gap: 8,
+          }}
+        >
+          {[
+            ["Run code", "⌘", "↵"],
+            ["Save snippet", "⌘", "S"],
+            ["Toggle sidebar", "⌘", "B"],
+            ["Toggle console", "⌘", "J"],
+            ["New tab", "⌘", "N"],
+            ["Close tab", "⌘", "W"],
+            ["Show shortcuts", "⌘", "/"],
+          ].map(([label, k1, k2]) => (
+            <div
+              key={label as string}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "6px 10px",
+                borderRadius: 4,
+                background: t.bgAlt,
+                border: `1px solid ${t.borderMuted}`,
+                fontSize: 12,
+              }}
+            >
+              <span>{label}</span>
+              <span style={{ display: "flex", gap: 4 }}>
+                <kbd>{k1}</kbd>
+                <kbd>{k2}</kbd>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {panel === "newFolder" && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div style={{ fontSize: 11, color: t.textMuted }}>
+            {newFolderParent != null
+              ? "Create a subfolder inside the selected folder."
+              : "Create a folder at the root."}
+          </div>
+          <input
+            type="text"
+            className="ide-input"
+            placeholder="Folder name"
+            value={newFolderName}
+            onChange={(e: any) => setNewFolderName(e.target.value)}
+            autoFocus
+            onKeyDown={(e: any) => {
+              if (e.key === "Enter" && newFolderName.trim())
+                onSubmitCreateFolder();
+              else if (e.key === "Escape") onClose();
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              className="ide-btn"
+              onClick={onClose}
+              disabled={creatingFolder}
+            >
+              Cancel
+            </button>
+            <button
+              className="ide-btn primary"
+              onClick={onSubmitCreateFolder}
+              disabled={!newFolderName.trim() || creatingFolder}
+            >
+              {creatingFolder ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Creating
+                </>
+              ) : (
+                "Create"
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {panel === "newFile" && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 11, color: t.textMuted }}>
+            Pick a language for the new file.
+            {newFileFolderId != null
+              ? " It will be saved in the selected folder by default."
+              : ""}
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              gap: 8,
+            }}
+          >
+            {(Object.keys(LANGUAGES) as LangKey[]).map((lang) => {
+              const cfg = LANGUAGES[lang];
+              return (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => onCreateNewFile(lang)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 14px",
+                    borderRadius: 6,
+                    border: `1px solid ${t.borderMuted}`,
+                    background: t.bgAlt,
+                    color: t.text,
+                    textAlign: "left",
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                    transition: "all 0.12s",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      t.accent;
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      t.accentMuted;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      t.borderMuted;
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      t.bgAlt;
+                  }}
+                >
+                  <LangBadge lang={lang} size={20} />
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{ fontSize: 13, fontWeight: 600 }}
+                    >
+                      {cfg.name}
+                    </span>
+                    <span
+                      className="ide-mono"
+                      style={{
+                        fontSize: 11,
+                        color: t.textMuted,
+                      }}
+                    >
+                      untitled.{cfg.ext}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              justifyContent: "flex-end",
+            }}
+          >
+            <button className="ide-btn" onClick={onClose}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
+

@@ -1,42 +1,4 @@
-// // Motioned code file: app/layout.tsx
-// import Providers from "@/utils/providers";
-
-// import "react-datepicker/dist/react-datepicker.css";
-// import "@stream-io/video-react-sdk/dist/css/styles.css";
-// import {Toaster as SonnerToaster} from "@/components/ui/sonner";
-// import {Toaster as ShadcnToaster} from "@/components/ui/toaster";
-// import {SessionProvider} from "next-auth/react";
-// import type {Metadata} from "next";
-// import "./globals.css";
-
-// export const metadata: Metadata = {
-//   title: "Texagon Educational Platform",
-//   description:
-//     "A video conferencing and educational platform to help students learn and teachers teach.",
-//   generator: "Epic House",
-// };
-
-// export default function RootLayout({
-//   children,
-// }: Readonly<{
-//   children: React.ReactNode;
-// }>) {
-//   return (
-//     <html lang="en">
-//       <Providers>
-//         {/* <SessionProvider> */}
-//         <body>
-//           {children}
-//           <SonnerToaster />
-//           <ShadcnToaster />
-//         </body>
-//         {/* </SessionProvider> */}
-//       </Providers>
-//     </html>
-//     //{" "}
-//   );
-// }
-
+// texagonui\app
 import Providers from "@/utils/providers";
 
 import "react-datepicker/dist/react-datepicker.css";

@@ -1,3 +1,4 @@
+//texagonui\app\page.tsx
 import {Header} from "@/components/landing/header";
 import {HeroSection} from "@/components/landing/hero-section";
 import {DecorativeDots} from "@/components/landing/decorative-dots";

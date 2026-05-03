@@ -168,6 +168,7 @@ export async function POST(request: Request) {
   let body: any;
   try {
     body = await request.json();
+    console.log(body, " bbbbbbbbody")
   } catch (err: any) {
     console.error("[Route] Error parsing request body:", err);
     return NextResponse.json(
@@ -191,6 +192,7 @@ export async function POST(request: Request) {
     }
 
     try {
+      console.log("starter pack...")
       const t = withTimeout(180_000);
 
       const startFetch = await djangoFetch(

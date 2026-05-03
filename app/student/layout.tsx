@@ -8,16 +8,13 @@ import {
   Home,
   Settings,
   TestTube,
-  User,
   BookOpen,
-  Search,
   Bell,
   ChevronDown,
   Trophy,
   Medal,
   LogOut,
   Video,
-  MedalIcon,
   Award,
 } from "lucide-react";
 import {
@@ -26,103 +23,47 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {Spinner} from "@/components/ui/spinner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
-import {usePathname} from "next/navigation";
-import {useMediaQuery} from "react-responsive";
-import {signOut, useSession} from "next-auth/react";
-import {useNotificationStore} from "../stores/notificationStore";
-import {createContext, useContext, useEffect, useState} from "react";
+import { usePathname } from "next/navigation";
+import { useMediaQuery } from "react-responsive";
+import { signOut, useSession } from "next-auth/react";
+import { useNotificationStore } from "../stores/notificationStore";
+import { createContext, useContext, useEffect, useState } from "react";
 
 const menuItems = [
-  {
-    title: "Dashboard",
-    icon: Home,
-    id: "dashboard",
-    path: "/student",
-  },
-  {
-    title: "Code IDE",
-    icon: Code,
-    id: "ide",
-    path: "/student/code",
-  },
-  {
-    title: "CBT Tests",
-    icon: TestTube,
-    id: "cbt",
-    path: "/student/cbt",
-  },
-  {
-    title: "My Materials",
-    icon: BookOpen,
-    id: "materials",
-    path: "/student/materials",
-  },
-  {
-    title: "Resources",
-    icon: Book,
-    id: "resources",
-    path: "/student/resources",
-  },
-  {
-    title: "Learning Modules",
-    icon: GraduationCap,
-    id: "modules",
-    path: "/student/modules",
-  },
-  {
-    title: "Achievements",
-    icon: Trophy,
-    id: "achievements",
-    path: "/student/achievements",
-  },
-  {
-    title: "Leaderboard",
-    icon: Medal,
-    id: "leaderboard",
-    path: "/student/leaderboard",
-  },
-  {
-    title: "Live Sessions",
-    icon: Video,
-    id: "live-sessions",
-    path: "/main/home",
-  },
-  {
-    title: "Certificates",
-    icon: Award,
-    id: "certificates",
-    path: "/student/certificate",
-  },
-  {
-    title: "Profile Settings",
-    path: "/profile",
-    icon: Settings,
-    description: "Manage your profile settings",
-    id: "profile",
-  },
+  { title: "Dashboard", icon: Home, id: "dashboard", path: "/student" },
+  { title: "Code IDE", icon: Code, id: "ide", path: "/student/code" },
+  { title: "CBT Tests", icon: TestTube, id: "cbt", path: "/student/cbt" },
+  { title: "My Materials", icon: BookOpen, id: "materials", path: "/student/materials" },
+  { title: "Resources", icon: Book, id: "resources", path: "/student/resources" },
+  { title: "Learning Modules", icon: GraduationCap, id: "modules", path: "/student/modules" },
+  { title: "Achievements", icon: Trophy, id: "achievements", path: "/student/achievements" },
+  { title: "Leaderboard", icon: Medal, id: "leaderboard", path: "/student/leaderboard" },
+  { title: "Live Sessions", icon: Video, id: "live-sessions", path: "/main/home" },
+  { title: "Certificates", icon: Award, id: "certificates", path: "/student/certificate" },
+  { title: "Profile Settings", path: "/profile", icon: Settings, description: "Manage your profile settings", id: "profile" },
 ];
+
+// Routes that should fill the entire content area without header/padding
+const FULL_BLEED_ROUTES = ["/student/code"];
 
 const LoadingContext = createContext<{
   setIsNavigating: React.Dispatch<React.SetStateAction<boolean>>;
@@ -130,9 +71,9 @@ const LoadingContext = createContext<{
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
-  const isMobile = useMediaQuery({maxWidth: 639});
-  const {setIsNavigating} = useContext(LoadingContext)!;
+  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
+  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const { setIsNavigating } = useContext(LoadingContext)!;
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -150,6 +91,7 @@ function SidebarMenuContent() {
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.path}
+                  tooltip={item.title}
                   className={`
                     py-5
                     hover:bg-[#F797713a]
@@ -195,11 +137,13 @@ function PageLoader() {
   );
 }
 
-export default function StudentLayout({children}: {children: React.ReactNode}) {
-  const {data: session, status} = useSession();
+export default function StudentLayout({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
+
+  const isFullBleed = FULL_BLEED_ROUTES.some((p) => pathname?.startsWith(p));
 
   useEffect(() => {
     setIsNavigating(false);
@@ -220,37 +164,31 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
 
   const handleLogout = async () => {
     try {
-      // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
-
-      if (!response.ok) {
-        console.error("[AdminLayout] Backend logout failed");
-      }
-
-      await signOut({redirect: false});
-
+      if (!response.ok) console.error("[AdminLayout] Backend logout failed");
+      await signOut({ redirect: false });
       window.location.href = "/login";
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
-
-      // Fallback: Ensure the user is still visually logged out if an error occurs
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
       window.location.href = "/login";
     }
   };
 
   return (
     <SidebarProvider className="bg-white">
-      <LoadingContext.Provider value={{setIsNavigating}}>
-        <div className="flex min-h-screen w-full font-sans">
-          <Sidebar className="">
+      <LoadingContext.Provider value={{ setIsNavigating }}>
+        {/* Use h-screen + overflow-hidden so the right column can manage its own scrolling
+            (critical for the IDE to fill the viewport without page scroll) */}
+        <div className="flex h-screen w-full font-sans overflow-hidden">
+          <Sidebar collapsible="icon">
             <SidebarHeader className="bg-[#EF7B55] py-5">
               <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
-                <GraduationCap className="h-5 w-5 xs:h-6 xs:w-6 text-white text-primary" />
-                <span className="font-semibold text-white text-base xs:text-lg">
+                <GraduationCap className="h-5 w-5 xs:h-6 xs:w-6 text-white text-primary shrink-0" />
+                <span className="font-semibold text-white text-base xs:text-lg group-data-[collapsible=icon]:hidden">
                   TECHXAGON
                 </span>
               </div>
@@ -261,7 +199,7 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton>
+                      <SidebarMenuButton tooltip={session?.user?.name || "Account"}>
                         <Avatar className="h-5 w-5 xs:h-6 xs:w-6">
                           <AvatarImage src="/placeholder.svg?height=24&width=24" />
                           <AvatarFallback className="xs:text-[0.65rem] sm:text-xs">
@@ -288,10 +226,21 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>
+            {/* Click-anywhere-on-the-rail to expand when collapsed.
+                Always present, works on every page. */}
+            <SidebarRail />
           </Sidebar>
 
-          <div className="flex-1 flex flex-col">
-            <header className="sticky top-0 z-50 py-4">
+          {/* Right column. min-w-0 prevents flex children from overflowing horizontally. */}
+          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+            {/* Orange top header — rendered on every page so the SidebarTrigger is always available.
+                On full-bleed routes (the IDE), it shrinks to a slim bar containing just the trigger. */}
+            <header
+              className={
+                isFullBleed
+                  ? "sticky top-0 z-50 flex-shrink-0"
+                  : "sticky top-0 z-50 py-4 flex-shrink-0"
+              }>
               <style jsx>{`
                 header {
                   background: rgba(247, 151, 113, 0.3);
@@ -307,28 +256,40 @@ export default function StudentLayout({children}: {children: React.ReactNode}) {
                   background: transparent;
                 }
               `}</style>
-              <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
-                <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
-                <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
-
-                <Link href="/notifications">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative p-1 xs:p-2 hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent transition-colors"
-                    title="Notifications">
-                    <Bell className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1 right-2 bg-orange-500 text-white text-[10px] xs:text-xs font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
-              </div>
+              {isFullBleed ? (
+                <div className="flex h-9 items-center px-2 text-slate-800">
+                  <SidebarTrigger className="hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent" />
+                </div>
+              ) : (
+                <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
+                  <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+                  <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
+                  <Link href="/notifications">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative p-1 xs:p-2 hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent transition-colors"
+                      title="Notifications">
+                      <Bell className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 right-2 bg-orange-500 text-white text-[10px] xs:text-xs font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </header>
 
-            <main className="flex-1 p-3 xs:p-4 sm:p-6">
+            {/* On full-bleed routes: no padding, no overflow, lets the IDE manage its own size.
+                On normal routes: keep padding and allow scroll. */}
+            <main
+              className={
+                isFullBleed
+                  ? "flex-1 min-h-0 overflow-hidden"
+                  : "flex-1 p-3 xs:p-4 sm:p-6 overflow-auto"
+              }>
               {isNavigating ? <PageLoader /> : children}
             </main>
           </div>
