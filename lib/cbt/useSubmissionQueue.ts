@@ -13,12 +13,34 @@ export function useSubmissionQueue(
 
   const refresh = useCallback(async () => {
     const all = await listSubmissions();
-    setQueue(all);
+
+    setQueue((prev) => {
+      const isSame =
+        prev.length === all.length &&
+        prev.every((p, i) => {
+          const next = all[i];
+
+          return (
+            p.clientSubmissionId === next.clientSubmissionId &&
+            p.state === next.state &&
+            p.attempts === next.attempts &&
+            p.updatedAt === next.updatedAt
+          );
+        });
+
+      return isSame ? prev : all;
+    });
   }, []);
 
   const triggerSync = useCallback(async () => {
     if (!sessionToken) return;
+
+    // Do not set isSyncing, and do not attempt sync, when offline.
+    // This avoids a rapid true -> false flicker every 15 seconds offline.
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
     setIsSyncing(true);
+
     try {
       await runSync({
         sessionToken,
@@ -30,6 +52,7 @@ export function useSubmissionQueue(
           channelRef.current?.postMessage({ type: "queue-changed" });
         },
       });
+
       await gcConfirmed();
     } finally {
       setIsSyncing(false);
@@ -39,11 +62,14 @@ export function useSubmissionQueue(
 
   useEffect(() => {
     if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+
     const ch = new BroadcastChannel("cbt-queue");
     channelRef.current = ch;
+
     ch.onmessage = (e) => {
       if (e.data?.type === "queue-changed") refresh();
     };
+
     return () => {
       ch.close();
       channelRef.current = null;
@@ -52,16 +78,22 @@ export function useSubmissionQueue(
 
   useEffect(() => {
     refresh();
+
     const onOnline = () => triggerSync();
     window.addEventListener("online", onOnline);
+
     return () => window.removeEventListener("online", onOnline);
   }, [refresh, triggerSync]);
 
   useEffect(() => {
     if (!sessionToken) return;
+
     const interval = setInterval(() => {
+      // triggerSync already guards against offline internally, but keeping
+      // this check here avoids scheduling an async no-op when offline.
       if (navigator.onLine) triggerSync();
     }, 15_000);
+
     return () => clearInterval(interval);
   }, [sessionToken, triggerSync]);
 

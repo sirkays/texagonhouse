@@ -1339,7 +1339,10 @@ export function TeacherCBTCreator() {
         difficulty: data.test.difficulty || prev.difficulty,
         category: data.test.category || prev.category || "General",
         courseId: data.test.course_id?.toString() || prev.courseId || "",
-        isPublished: data.test.isPublished || prev.isPublished,
+        isPublished:
+          typeof data.test.isPublished === "boolean"
+            ? data.test.isPublished
+            : prev.isPublished,
         questionsCount: data.test.questionsCount || prev.questionsCount,
         createdAt: data.test.createdAt || prev.createdAt,
         updatedAt: data.test.updatedAt || prev.updatedAt,
@@ -1428,17 +1431,35 @@ export function TeacherCBTCreator() {
     }
   };
 
-  const publishTest = async (testId: string, isPublished: boolean) => {
-    setIsSaving(true); // ✅ add this
+  const publishTest = async (testId: string, nextPublishedState: boolean) => {
+    if (!testId) {
+      showAlert({
+        title: "Save test first",
+        message: "Please save the test before publishing it.",
+        type: "info",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+
     try {
       const startISO = localInputToISO(currentTest._startLocal);
       const endISO = localInputToISO(currentTest._endLocal);
 
-      const payload: any = { isPublished };
+      const payload: any = {
+        // Send both keys so it works with your current backend
+        // and any newer frontend/backend naming.
+        published: nextPublishedState,
+        isPublished: nextPublishedState,
+      };
+
       if (startISO) payload.start_at = startISO;
       if (endISO) payload.end_at = endISO;
-      if (typeof currentTest.total_marks === "number")
+
+      if (typeof currentTest.total_marks === "number") {
         payload.total_marks = currentTest.total_marks;
+      }
 
       const response = await fetch(
         `/api/teacher/assessments/tests/test/${testId}/publish`,
@@ -1456,28 +1477,70 @@ export function TeacherCBTCreator() {
           router.push("/login");
           return;
         }
+
         throw new Error(
+          data.detail ||
           data.error ||
-          `Failed to ${isPublished ? "publish" : "unpublish"} test`,
+          `Failed to ${nextPublishedState ? "publish" : "unpublish"} test`,
         );
       }
 
-      // ... your existing success state updates ...
+      const returnedTest = data.test || {};
+
+      const publishedFromServer =
+        typeof returnedTest.isPublished === "boolean"
+          ? returnedTest.isPublished
+          : nextPublishedState;
+
+      setCurrentTest((prev) => ({
+        ...prev,
+        ...returnedTest,
+        id: returnedTest.id?.toString?.() || prev.id,
+        courseId:
+          returnedTest.course_id?.toString?.() ||
+          returnedTest.courseId ||
+          prev.courseId,
+        isPublished: publishedFromServer,
+        start_at: returnedTest.start_at || prev.start_at || "",
+        end_at: returnedTest.end_at || prev.end_at || "",
+        _startLocal: returnedTest.start_at
+          ? toLocalInputValue(parseToDate(returnedTest.start_at))
+          : prev._startLocal,
+        _endLocal: returnedTest.end_at
+          ? toLocalInputValue(parseToDate(returnedTest.end_at))
+          : prev._endLocal,
+      }));
+
+      setTests((prev) =>
+        prev.map((test) =>
+          test.id === testId
+            ? {
+              ...test,
+              ...returnedTest,
+              id: returnedTest.id?.toString?.() || test.id,
+              isPublished: publishedFromServer,
+            }
+            : test,
+        ),
+      );
 
       showAlert({
         title:
-          data.message || `Test ${isPublished ? "published" : "unpublished"}`,
+          data.message ||
+          `Test ${publishedFromServer ? "published" : "unpublished"} successfully`,
         message: "",
         type: "success",
       });
+
+      fetchTests();
     } catch (error: any) {
       showAlert({
-        title: `Failed to ${isPublished ? "publish" : "unpublish"} test`,
+        title: `Failed to ${nextPublishedState ? "publish" : "unpublish"} test`,
         message: error.message || "An unexpected error occurred.",
         type: "error",
       });
     } finally {
-      setIsSaving(false); // ✅ add this
+      setIsSaving(false);
     }
   };
 
@@ -1930,19 +1993,18 @@ export function TeacherCBTCreator() {
                   </Button>
                   <Button
                     onClick={() =>
-                      publishTest(
-                        currentTest.id,
-                        currentTest.isPublished ? false : true,
-                      )
+                      publishTest(currentTest.id, !currentTest.isPublished)
                     }
                     variant="outline"
                     className="w-full bg-transparent shadow-md"
-                    disabled={isSaving || !currentTest.id}>
+                    disabled={isSaving || !currentTest.id}
+                  >
                     {isSaving ? (
                       <Spinner size="sm" className="mr-2" />
                     ) : (
                       <TestTube className="mr-2 h-4 w-4" />
                     )}
+
                     {isSaving
                       ? currentTest.isPublished
                         ? "Unpublishing..."

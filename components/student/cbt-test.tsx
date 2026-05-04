@@ -262,6 +262,9 @@ export function CBTTest() {
   });
   const [attemptsPage, setAttemptsPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   // ---- in-test state ----
@@ -740,23 +743,39 @@ export function CBTTest() {
   /* ---------- fetch list + attempts ---------- */
 
   useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
+
+  useEffect(() => {
     if (status === "loading") return;
 
     if (status !== "authenticated" || !sessionToken) {
       setError("Not authenticated");
       setLoading(false);
+      setRefreshing(false);
       return;
     }
 
-    fetchData();
+    // First fetch can use the full-page loader. Every later automatic
+    // re-fetch must be silent so the page does not unmount/remount.
+    fetchData(hasLoadedOnceRef.current);
   }, [sessionToken, status, attemptsPage]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
 
     if (!isOnline) {
       loadCachedData();
-      setLoading(false);
+      setHasLoadedOnce(true);
+      if (!silent) {
+        setLoading(false);
+      } else {
+        setRefreshing(false);
+      }
       return;
     }
 
@@ -780,7 +799,7 @@ export function CBTTest() {
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           setError("Session expired");
-          setLoading(false);
+          setHasLoadedOnce(true);
           return;
         }
 
@@ -836,14 +855,20 @@ export function CBTTest() {
       );
 
       setError(null);
+      setHasLoadedOnce(true);
     } catch (err: any) {
       if (!isOnline) {
         loadCachedData();
       } else {
         setError(err.message || "Failed to load assessments");
       }
+      setHasLoadedOnce(true);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      } else {
+        setRefreshing(false);
+      }
     }
   };
 
@@ -980,7 +1005,9 @@ export function CBTTest() {
     if (confirmedCount > lastConfirmedCountRef.current) {
       lastConfirmedCountRef.current = confirmedCount;
       refreshCompleted().catch(() => {});
-      fetchData();
+      // Do not call fetchData() here. It toggles the page-level loading flag
+      // and causes a full-page spinner/logo flash whenever a queued
+      // submission confirms. The completed registry is refreshed above.
     }
   }, [queue, refreshCompleted]);
 
@@ -1128,10 +1155,12 @@ export function CBTTest() {
     }
 
     const pendingWork = queue.some(
-      (q) => q.state === "queued" || q.state === "uploading"
+      (q) =>
+        (q.state === "queued" || q.state === "uploading") &&
+        q.payload?.mode === "online"
     );
 
-    if (pendingWork || isSyncing) {
+    if (pendingWork || (isSyncing && isOnline)) {
       showErrorModal(
         "Sync in progress",
         "Please wait until your previous submission finishes syncing before starting another test."
@@ -1647,7 +1676,7 @@ export function CBTTest() {
         setResumedFromSnapshot(false);
         await clearInProgress(currentTest);
         setAttemptsPage(1);
-        fetchData();
+        fetchData(true);
 
         return;
       }
@@ -1755,8 +1784,16 @@ export function CBTTest() {
 
         if (s <= 1) {
           clearInterval(timer);
-          window.location.reload();
-          return 0;
+
+          // Avoid hard reloads. Return to the list and refresh data silently
+          // so the UI stays mounted and does not flash the page logo.
+          setTimeout(() => {
+            handleResetToList();
+            refreshCompleted().catch(() => {});
+            fetchData(true);
+          }, 0);
+
+          return null;
         }
 
         return s - 1;
@@ -1764,7 +1801,7 @@ export function CBTTest() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [testCompleted]);
+  }, [testCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- reset ---------- */
 
@@ -1897,7 +1934,7 @@ export function CBTTest() {
 
   /* ---------- auth/loading states ---------- */
 
-  if (status === "loading" || loading) {
+  if (status === "loading" || (loading && !hasLoadedOnce)) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
         <Spinner />
@@ -1943,7 +1980,7 @@ export function CBTTest() {
           <CardContent className="space-y-4">
             {autoReloadSeconds !== null && (
               <p className="text-sm text-muted-foreground">
-                This page will refresh in {autoReloadSeconds} seconds.
+                This page will return to the test list in {autoReloadSeconds} seconds.
               </p>
             )}
 
@@ -1951,11 +1988,13 @@ export function CBTTest() {
               <Button onClick={handleResetToList}>Back to tests</Button>
               <Button
                 variant="outline"
+                disabled={refreshing}
                 onClick={() => {
                   refreshCompleted().catch(() => {});
-                  fetchData();
+                  fetchData(true);
                 }}
               >
+                {refreshing && <Spinner size="sm" className="mr-2" />}
                 Refresh now
               </Button>
             </div>
@@ -2385,11 +2424,18 @@ export function CBTTest() {
 
   const hasTests = Array.isArray(availableTests) && availableTests.length > 0;
 
+  // Only online-mode pending submissions block starting a new test.
+  // Offline-mode submissions are queued in IndexedDB and don't need to
+  // finish syncing before the student can take another offline test.
   const hasPendingSyncWork = queue.some(
-    (q) => q.state === "queued" || q.state === "uploading"
+    (q) =>
+      (q.state === "queued" || q.state === "uploading") &&
+      q.payload?.mode === "online"
   );
 
-  const isSyncBlocked = isSyncing || hasPendingSyncWork;
+  // Only show the sync-blocked banner when we are actually online and syncing,
+  // or when an online-mode submission is still waiting to be uploaded.
+  const isSyncBlocked = (isSyncing && isOnline) || hasPendingSyncWork;
 
   return (
     <div className="space-y-6">
@@ -2440,13 +2486,18 @@ export function CBTTest() {
 
           <Button
             variant="outline"
+            disabled={refreshing}
             onClick={() => {
               refreshCompleted().catch(() => {});
-              fetchData();
+              fetchData(true);
               triggerSync();
             }}
           >
-            <RotateCcw className="mr-2 h-4 w-4" />
+            {refreshing ? (
+              <Spinner size="sm" className="mr-2" />
+            ) : (
+              <RotateCcw className="mr-2 h-4 w-4" />
+            )}
             Refresh
           </Button>
         </div>
@@ -2678,7 +2729,7 @@ export function CBTTest() {
                             disabled={
                               isStarting ||
                               isLocallyCompleted ||
-                              isSyncBlocked ||
+                              (isSyncBlocked && (test.mode ?? "online") !== "offline") ||
                               (test.type === "exam" &&
                                 examAttempts >= maxAttempts) ||
                               (test.requiresSubscription && !isSubscriber)
