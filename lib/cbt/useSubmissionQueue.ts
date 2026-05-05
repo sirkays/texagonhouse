@@ -36,8 +36,18 @@ export function useSubmissionQueue(
     if (!sessionToken) return;
 
     // Do not set isSyncing, and do not attempt sync, when offline.
-    // This avoids a rapid true -> false flicker every 15 seconds offline.
+    // This avoids a rapid true -> false flicker every poll cycle offline.
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    // Check if there's actually work to do before flipping isSyncing.
+    // This prevents the "Syncing" badge and banner from flashing
+    // every poll cycle when the queue is empty.
+    const queued = await listSubmissions("queued");
+    if (queued.length === 0) {
+      // Still run GC for confirmed items, but silently.
+      await gcConfirmed().catch(() => {});
+      return;
+    }
 
     setIsSyncing(true);
 
@@ -55,6 +65,8 @@ export function useSubmissionQueue(
 
       await gcConfirmed();
     } finally {
+      // Reset syncing state before refreshing to prevent a brief flash
+      // where isSyncing is false but the queue state hasn't updated yet.
       setIsSyncing(false);
       await refresh();
     }
@@ -88,14 +100,16 @@ export function useSubmissionQueue(
   useEffect(() => {
     if (!sessionToken) return;
 
+    // Poll every 60 seconds instead of 15. The queue only has items when
+    // a test was submitted offline, so aggressive polling is unnecessary
+    // and was causing visible UI flickering (the "Syncing" badge/banner).
     const interval = setInterval(() => {
-      // triggerSync already guards against offline internally, but keeping
-      // this check here avoids scheduling an async no-op when offline.
       if (navigator.onLine) triggerSync();
-    }, 15_000);
+    }, 60_000);
 
     return () => clearInterval(interval);
   }, [sessionToken, triggerSync]);
 
   return { queue, isSyncing, triggerSync, refresh };
 }
+

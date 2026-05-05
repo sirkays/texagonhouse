@@ -227,10 +227,16 @@ export function CBTTest() {
 
   const userId = session?.user?.id?.toString() || "anon";
 
-  const sessionToken = useMemo(
-    () => session?.user?.sessionToken || null,
-    [session?.user?.sessionToken]
-  );
+  // Keep a stable ref of the session token so that background session
+  // re-validations don't cause dependency-array changes in effects.
+  const sessionTokenRaw = session?.user?.sessionToken || null;
+  const sessionTokenRef = useRef(sessionTokenRaw);
+  if (sessionTokenRaw) {
+    sessionTokenRef.current = sessionTokenRaw;
+  }
+
+  // sessionToken used for API calls — always the latest known-good value
+  const sessionToken = sessionTokenRef.current;
 
   const deviceId = useMemo(() => getOrCreateDeviceId(userId), [userId]);
 
@@ -251,7 +257,27 @@ export function CBTTest() {
       map[item.testId] = item;
     }
 
-    setCompleted(map);
+    // Only update state if the completed records actually changed.
+    // Without this check, every call creates a new object reference
+    // which triggers a re-render even when nothing changed.
+    setCompleted((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(map);
+      if (prevKeys.length !== nextKeys.length) return map;
+      for (const key of nextKeys) {
+        const p = prev[key];
+        const n = map[key];
+        if (
+          !p ||
+          p.syncStatus !== n.syncStatus ||
+          p.clientSubmissionId !== n.clientSubmissionId ||
+          p.completedAt !== n.completedAt
+        ) {
+          return map;
+        }
+      }
+      return prev;
+    });
   }, []);
 
   // ---- ui / list state ----
@@ -760,18 +786,43 @@ export function CBTTest() {
     hasLoadedOnceRef.current = hasLoadedOnce;
   }, [hasLoadedOnce]);
 
+  // Track whether the initial auth-triggered fetch has been done.
+  // Once done, only attemptsPage changes (or explicit refreshes) should
+  // re-fetch — NOT background session re-validations from NextAuth.
+  const initialFetchDoneRef = useRef(false);
+
   useEffect(() => {
     if (status === "loading") return;
 
     if (status !== "authenticated" || !sessionToken) {
-      setError("Not authenticated");
-      setLoading(false);
+      // Only show "not authenticated" if we've never loaded before.
+      // During a background session refetch, status can flicker briefly;
+      // we don't want to flash an error in that case.
+      if (!hasLoadedOnceRef.current) {
+        setError("Not authenticated");
+        setLoading(false);
+      }
       setRefreshing(false);
       return;
     }
 
+    // Skip re-fetching if the initial load was already done and
+    // the only thing that changed was the session status/token
+    // (i.e. a background NextAuth re-validation).
+    if (initialFetchDoneRef.current) return;
+
+    initialFetchDoneRef.current = true;
     fetchData(hasLoadedOnceRef.current);
-  }, [sessionToken, status, attemptsPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, sessionToken]);
+
+  // Separate effect for page changes — always re-fetch when the page changes.
+  useEffect(() => {
+    if (!initialFetchDoneRef.current) return; // initial fetch handles first load
+    if (!sessionToken) return;
+    fetchData(true); // silent refresh for page changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptsPage]);
 
   const fetchData = async (silent = false) => {
     if (!silent) {
@@ -2731,8 +2782,11 @@ if (!hasLoadedOnce && (status === "loading" || loading)) {
       (q.state === "queued" || q.state === "uploading") &&
       q.payload?.mode === "online"
   );
-
-  const isSyncBlocked = (isSyncing && isOnline) || hasPendingSyncWork;
+  // Only show the sync-blocked banner when there are actual items
+  // pending upload. Previously, `isSyncing && isOnline` would be true
+  // every poll cycle (even with an empty queue), causing the banner
+  // and "Syncing" badge to flash repeatedly.
+  const isSyncBlocked = hasPendingSyncWork;
 
   return (
     <div className="space-y-6">
