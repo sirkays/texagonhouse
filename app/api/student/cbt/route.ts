@@ -168,7 +168,6 @@ export async function POST(request: Request) {
   let body: any;
   try {
     body = await request.json();
-    console.log(body, " bbbbbbbbody")
   } catch (err: any) {
     console.error("[Route] Error parsing request body:", err);
     return NextResponse.json(
@@ -246,108 +245,118 @@ export async function POST(request: Request) {
 
   }
 
-  /**
-   * ✅ SUBMIT MODE (existing behaviour)
-   * Frontend sends answers payload to /api/student/cbt
-   * This proxies to Django: POST /assessments/api/tests/<id>/submit/
-   */
-  const testId = body.test || body.testPk || body.currentTest;
-  if (!testId) {
-    console.error("[Route] Missing test ID in request body");
-    return NextResponse.json(
-      { error: "Missing test ID (test/testPk/currentTest)" },
-      { status: 400 }
-    );
-  }
+/**
+ * ✅ SUBMIT MODE
+ * Frontend sends answers payload to /api/student/cbt
+ * This proxies to Django: POST /assessments/api/tests/<id>/submit/
+ */
+const testId = body.test || body.testPk || body.currentTest;
 
-  const answers = (body.answers || [])
-    .map((a: any) => {
-      const questionId = a.question;
-      if (!questionId) return null;
+if (!testId) {
+  console.error("[Route] Missing test ID in request body");
 
-      const cleaned: any = { question: Number(questionId) };
+  return NextResponse.json(
+    {
+      code: "INVALID_PAYLOAD",
+      detail: "Missing test ID (test/testPk/currentTest).",
+    },
+    { status: 400 }
+  );
+}
 
-      if (Array.isArray(a.choice)) {
-        cleaned.choices = a.choice.map(Number);
-      } else if (Array.isArray(a.choices)) {
-        cleaned.choices = a.choices.map(Number);
-      } else if (a.text !== undefined) {
-        cleaned.text = a.text;
-      } else if (a.choice !== undefined) {
-        const numeric = Number(a.choice);
-        if (!isNaN(numeric)) cleaned.choice = numeric;
+const answers = (body.answers || [])
+  .map((a: any) => {
+    const questionId = a.question;
+
+    if (!questionId) return null;
+
+    const cleaned: any = {
+      question: Number(questionId),
+    };
+
+    if (Array.isArray(a.choice)) {
+      cleaned.choices = a.choice.map(Number);
+    } else if (Array.isArray(a.choices)) {
+      cleaned.choices = a.choices.map(Number);
+    } else if (a.text !== undefined) {
+      cleaned.text = a.text;
+    } else if (a.choice !== undefined) {
+      const numeric = Number(a.choice);
+
+      if (!isNaN(numeric)) {
+        cleaned.choice = numeric;
+      } else {
+        cleaned.choice = a.choice;
       }
-
-      return cleaned;
-    })
-    .filter(Boolean);
-
-  const payload = {
-    answers,
-    started_at: body.started_at || new Date().toISOString(),
-    duration_seconds: body.duration_seconds || 0,
-    suspicious_activity: body.suspicious_activity || 0,
-  };
-
-  while (attempt < maxRetries) {
-    try {
-      const t = withTimeout(180_000);
-
-      const submitFetch = await djangoFetch(
-        `/assessments/api/tests/${testId}/submit/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(deviceId ? { "X-Device-Id": deviceId } : {}),
-          },
-          body: JSON.stringify(payload),
-          signal: t.signal,
-        }
-      );
-
-      t.clear();
-
-      if (!submitFetch.response.ok) {
-        const status = submitFetch.response.status;
-
-        const msg =
-          [500, 502, 503, 504].includes(status)
-            ? { error: "Connection error", details: "Unable to reach the server. Please try again." }
-            : { error: `Failed to submit test: ${submitFetch.text}` };
-
-        const res = NextResponse.json(msg, { status });
-        return attachSetCookie(res, submitFetch.setCookie);
-      }
-
-
-      const data = safeJsonParse(submitFetch.text);
-      const res = NextResponse.json(data, { status: 200 });
-      return attachSetCookie(res, submitFetch.setCookie);
-    } catch (err: any) {
-      console.error(
-        `[Route] Attempt ${attempt + 1} failed:`,
-        err?.message ?? err
-      );
-      attempt++;
-
-      if (attempt === maxRetries) {
-        return NextResponse.json(
-          {
-            error: "Connection error",
-            details: "Unable to reach the server. Please check your internet connection and try again.",
-          },
-          { status: 500 }
-        );
-      }
-
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * Math.pow(2, attempt))
-      );
     }
-  }
 
-  // Unreachable, but TypeScript likes it:
-  return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+    return cleaned;
+  })
+  .filter(Boolean);
+
+const payload = {
+  answers,
+  started_at: body.started_at || new Date().toISOString(),
+  duration_seconds: body.duration_seconds || 0,
+  suspicious_activity: body.suspicious_activity || 0,
+
+  /**
+   * These fields are important.
+   * Do not drop them before sending to Django.
+   */
+  client_submission_id: body.client_submission_id,
+  attempt_id: body.attempt_id,
+  expires_at_ms: body.expires_at_ms,
+  mode: body.mode,
+  auto_submitted: body.auto_submitted || false,
+  forced_submit_reason: body.forced_submit_reason || null,
+};
+
+try {
+  const t = withTimeout(180_000);
+
+  const submitFetch = await djangoFetch(
+    `/assessments/api/tests/${testId}/submit/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(deviceId ? { "X-Device-Id": deviceId } : {}),
+        ...(request.headers.get("x-idempotency-key")
+          ? {
+              "X-Idempotency-Key": request.headers.get("x-idempotency-key")!,
+            }
+          : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: t.signal,
+    }
+  );
+
+  t.clear();
+
+  const data = safeJsonParse(submitFetch.text);
+
+  /**
+   * ✅ Critical:
+   * Return Django's exact JSON and exact status.
+   * Do not wrap 400 responses in { error: "Failed..." }.
+   */
+  const res = NextResponse.json(data ?? {}, {
+    status: submitFetch.response.status,
+  });
+
+  return attachSetCookie(res, submitFetch.setCookie);
+} catch (err: any) {
+  console.error("[Route] Submit test failed:", err?.message ?? err);
+
+  return NextResponse.json(
+    {
+      code: "CONNECTION_ERROR",
+      detail:
+        "Unable to reach the server. Please check your internet connection and try again.",
+    },
+    { status: 503 }
+  );
+}
 }

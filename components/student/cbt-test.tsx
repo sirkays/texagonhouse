@@ -111,6 +111,9 @@ const TERMINAL_SUBMISSION_CODES = new Set([
   "ATTEMPT_ALREADY_SUBMITTED",
   "DUPLICATE_REPLAY",
   "TIME_ELAPSED",
+  "ATTEMPT_NOT_FOUND",
+  "NO_ACTIVE_ATTEMPT",
+  "ATTEMPT_NOT_STARTED",
 ]);
 
 /* ---------- helpers ---------- */
@@ -173,13 +176,13 @@ const mapQuestions = (list: any[]) =>
     options:
       normalizeType(q.type) === "true-false"
         ? [
-            { id: "true", text: "True" },
-            { id: "false", text: "False" },
-          ]
+          { id: "true", text: "True" },
+          { id: "false", text: "False" },
+        ]
         : (q.choices || []).map((c: any) => ({
-            id: c.id,
-            text: c.text,
-          })),
+          id: c.id,
+          text: c.text,
+        })),
     points: q.points,
   }));
 
@@ -267,6 +270,18 @@ export function CBTTest() {
   const hasLoadedOnceRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Used when a test is closed from inside the exam screen.
+   * Example: TIME_ELAPSED, NO_ACTIVE_ATTEMPT, ATTEMPT_NOT_FOUND.
+   * This displays on the CBT test list page instead of trapping the user
+   * inside the active test view with a modal.
+   */
+  const [listNotice, setListNotice] = useState<{
+    type: "warning" | "error" | "success";
+    title: string;
+    message: string;
+  } | null>(null);
+
   // ---- in-test state ----
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [currentMode, setCurrentMode] = useState<"online" | "offline">(
@@ -293,6 +308,8 @@ export function CBTTest() {
   const [pendingForcedSubmit, setPendingForcedSubmit] = useState(false);
   const [forcedSubmitReason, setForcedSubmitReason] =
     useState<ForcedSubmitReason>(null);
+  const [forcedSubmitRetries, setForcedSubmitRetries] = useState(0);
+  const MAX_FORCED_RETRIES = 6;
 
   // ---- security ----
   const [isSecureMode, setIsSecureMode] = useState(false);
@@ -347,7 +364,7 @@ export function CBTTest() {
   useEffect(() => {
     if (status !== "authenticated") return;
 
-    migrateLegacyCBTState(userId).catch(() => {});
+    migrateLegacyCBTState(userId).catch(() => { });
   }, [status, userId]);
 
   /* ---------- online/offline listeners ---------- */
@@ -372,7 +389,7 @@ export function CBTTest() {
   /* ---------- completed registry refresh + cross-tab updates ---------- */
 
   useEffect(() => {
-    refreshCompleted().catch(() => {});
+    refreshCompleted().catch(() => { });
   }, [refreshCompleted]);
 
   useEffect(() => {
@@ -385,7 +402,7 @@ export function CBTTest() {
         event.data?.type === "queue-changed" ||
         event.data?.type === "completed-changed"
       ) {
-        refreshCompleted().catch(() => {});
+        refreshCompleted().catch(() => { });
       }
     };
 
@@ -473,11 +490,6 @@ export function CBTTest() {
    * Used by resume/forced-submit paths where state may not have settled yet.
    * Returns true if submission succeeded or reached a terminal state.
    */
-  /**
-   * Submit a test from a snapshot, NOT from React state.
-   * Used by resume/forced-submit paths where state may not have settled yet.
-   * Returns true if submission succeeded or reached a terminal state.
-   */
   const submitFromSnapshot = useCallback(
     async (snap: InProgressAttempt): Promise<boolean> => {
       const test = availableTests.find(
@@ -498,7 +510,6 @@ export function CBTTest() {
         auto_submitted: true,
       };
 
-      // Helper: mark this test as terminally done locally.
       const markTerminal = async (
         data: any,
         reason: "submitted" | "expired" | "already_submitted"
@@ -562,7 +573,6 @@ export function CBTTest() {
             40000
           );
 
-          // Try to parse JSON. If it fails, capture text for inspection.
           let data: any = {};
           let rawText = "";
           const clonedResponse = res.clone();
@@ -586,13 +596,11 @@ export function CBTTest() {
             testId: snap.testId,
           });
 
-          // Happy path: success.
           if (res.ok) {
             await markTerminal(data, "submitted");
             return true;
           }
 
-          // Structured terminal codes.
           const code = data?.code;
 
           if (code === "TIME_ELAPSED") {
@@ -602,21 +610,28 @@ export function CBTTest() {
 
           if (
             code === "ATTEMPT_ALREADY_SUBMITTED" ||
-            code === "DUPLICATE_REPLAY"
+            code === "DUPLICATE_REPLAY" ||
+            code === "ATTEMPT_NOT_FOUND" ||
+            code === "NO_ACTIVE_ATTEMPT" ||
+            code === "ATTEMPT_NOT_STARTED"
           ) {
             await markTerminal(data, "already_submitted");
             return true;
           }
 
-          // Heuristic fallback: server returned 4xx without a clean code,
-          // but the message strongly suggests the attempt is over.
-          // Use heartbeat as ground truth before giving up.
           if (res.status >= 400 && res.status < 500) {
-            const blob = `${rawText} ${JSON.stringify(data || {})}`.toLowerCase();
+            const dataText = JSON.stringify(data || {}).toLowerCase();
+            const blob = `${rawText} ${dataText}`.toLowerCase();
+
             const looksTerminal =
               blob.includes("time elapsed") ||
+              blob.includes("time has elapsed") ||
+              blob.includes("time is up") ||
               blob.includes("already performed") ||
               blob.includes("already submitted") ||
+              blob.includes("not started") ||
+              blob.includes("no active attempt") ||
+              blob.includes("attempt not found") ||
               blob.includes("expired");
 
             if (looksTerminal) {
@@ -624,8 +639,6 @@ export function CBTTest() {
               return true;
             }
 
-            // Last-resort truth check: ask heartbeat whether the server already
-            // considers this attempt closed.
             try {
               const hb = await checkHeartbeat(
                 snap.testId,
@@ -645,15 +658,12 @@ export function CBTTest() {
             }
           }
 
-          // Genuinely unknown 4xx/5xx: keep retrying.
           return false;
         } catch {
-          // Network error.
           return false;
         }
       }
 
-      // Offline mode: enqueue. Always succeeds from the caller's POV.
       await enqueueSubmission({
         clientSubmissionId: snap.clientSubmissionId,
         testId: snap.testId,
@@ -697,6 +707,7 @@ export function CBTTest() {
     if (alreadyDone) {
       setPendingForcedSubmit(false);
       setForcedSubmitReason(null);
+      setForcedSubmitRetries(0);
       setTestCompleted(true);
       setIsSecureMode(false);
       setResumedFromSnapshot(false);
@@ -708,6 +719,7 @@ export function CBTTest() {
     if (!snap) {
       setPendingForcedSubmit(false);
       setForcedSubmitReason(null);
+      setForcedSubmitRetries(0);
       handleResetToList();
       showErrorModal(
         "Submission state lost",
@@ -729,10 +741,12 @@ export function CBTTest() {
     if (ok) {
       setPendingForcedSubmit(false);
       setForcedSubmitReason(null);
+      setForcedSubmitRetries(0);
       setTestCompleted(true);
       setIsSecureMode(false);
       setResumedFromSnapshot(false);
     } else {
+      setForcedSubmitRetries((n) => n + 1);
       showErrorModal(
         "Still trying",
         "We could not finalize your submission yet. Keep this tab open; it will retry automatically."
@@ -756,8 +770,6 @@ export function CBTTest() {
       return;
     }
 
-    // First fetch can use the full-page loader. Every later automatic
-    // re-fetch must be silent so the page does not unmount/remount.
     fetchData(hasLoadedOnceRef.current);
   }, [sessionToken, status, attemptsPage]);
 
@@ -811,8 +823,8 @@ export function CBTTest() {
       const tests = Array.isArray(d.tests)
         ? d.tests
         : Array.isArray(d.available_tests)
-        ? d.available_tests
-        : [];
+          ? d.available_tests
+          : [];
 
       setAvailableTests(tests);
       setTestResults(d.results || {});
@@ -825,13 +837,13 @@ export function CBTTest() {
         d.attempts && typeof d.attempts === "object"
           ? d.attempts
           : typeof d.count === "number" && Array.isArray(d.results)
-          ? {
+            ? {
               count: d.count,
               page: d.page ?? attemptsPage,
               page_size: d.page_size ?? 20,
               results: d.results,
             }
-          : {
+            : {
               count: 0,
               page: 1,
               page_size: 20,
@@ -936,6 +948,7 @@ export function CBTTest() {
           setIsSecureMode(false);
           setPendingForcedSubmit(false);
           setForcedSubmitReason(null);
+          setForcedSubmitRetries(0);
           setResumedFromSnapshot(false);
 
           showErrorModal(
@@ -1004,10 +1017,7 @@ export function CBTTest() {
 
     if (confirmedCount > lastConfirmedCountRef.current) {
       lastConfirmedCountRef.current = confirmedCount;
-      refreshCompleted().catch(() => {});
-      // Do not call fetchData() here. It toggles the page-level loading flag
-      // and causes a full-page spinner/logo flash whenever a queued
-      // submission confirms. The completed registry is refreshed above.
+      refreshCompleted().catch(() => { });
     }
   }, [queue, refreshCompleted]);
 
@@ -1031,6 +1041,7 @@ export function CBTTest() {
       if (alreadyDone) {
         setPendingForcedSubmit(false);
         setForcedSubmitReason(null);
+        setForcedSubmitRetries(0);
         setTestCompleted(true);
         setIsSecureMode(false);
         setResumedFromSnapshot(false);
@@ -1044,6 +1055,7 @@ export function CBTTest() {
       if (!snap) {
         setPendingForcedSubmit(false);
         setForcedSubmitReason(null);
+        setForcedSubmitRetries(0);
         handleResetToList();
         showErrorModal(
           "Submission state lost",
@@ -1059,9 +1071,12 @@ export function CBTTest() {
       if (ok) {
         setPendingForcedSubmit(false);
         setForcedSubmitReason(null);
+        setForcedSubmitRetries(0);
         setTestCompleted(true);
         setIsSecureMode(false);
         setResumedFromSnapshot(false);
+      } else {
+        setForcedSubmitRetries((n) => n + 1);
       }
     }, 250);
 
@@ -1076,6 +1091,7 @@ export function CBTTest() {
   useEffect(() => {
     if (!pendingForcedSubmit) return;
     if (!currentTest) return;
+    if (forcedSubmitRetries >= MAX_FORCED_RETRIES) return;
 
     const interval = setInterval(async () => {
       if (!navigator.onLine) return;
@@ -1085,6 +1101,7 @@ export function CBTTest() {
       if (alreadyDone) {
         setPendingForcedSubmit(false);
         setForcedSubmitReason(null);
+        setForcedSubmitRetries(0);
         setTestCompleted(true);
         setIsSecureMode(false);
         setResumedFromSnapshot(false);
@@ -1096,6 +1113,7 @@ export function CBTTest() {
       if (!snap) {
         setPendingForcedSubmit(false);
         setForcedSubmitReason(null);
+        setForcedSubmitRetries(0);
         handleResetToList();
         return;
       }
@@ -1105,14 +1123,23 @@ export function CBTTest() {
       if (ok) {
         setPendingForcedSubmit(false);
         setForcedSubmitReason(null);
+        setForcedSubmitRetries(0);
         setTestCompleted(true);
         setIsSecureMode(false);
         setResumedFromSnapshot(false);
+      } else {
+        setForcedSubmitRetries((n) => n + 1);
       }
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [pendingForcedSubmit, currentTest, submitFromSnapshot]);
+  }, [
+    pendingForcedSubmit,
+    currentTest,
+    submitFromSnapshot,
+    forcedSubmitRetries,
+    MAX_FORCED_RETRIES,
+  ]);
 
   /* ---------- start test ---------- */
 
@@ -1203,8 +1230,8 @@ export function CBTTest() {
       const items = Array.isArray(test.items)
         ? test.items
         : test.items
-        ? Object.values(test.items)
-        : [];
+          ? Object.values(test.items)
+          : [];
 
       const mapped = mapQuestions(items);
       const startedIso = new Date().toISOString();
@@ -1226,6 +1253,7 @@ export function CBTTest() {
       setClockSkewMs(0);
       setPendingForcedSubmit(false);
       setForcedSubmitReason(null);
+      setForcedSubmitRetries(0);
       setResumedFromSnapshot(false);
 
       await saveInProgress({
@@ -1302,6 +1330,7 @@ export function CBTTest() {
       setClockSkewMs(skew);
       setPendingForcedSubmit(false);
       setForcedSubmitReason(null);
+      setForcedSubmitRetries(0);
       setResumedFromSnapshot(false);
 
       await saveInProgress({
@@ -1372,7 +1401,7 @@ export function CBTTest() {
         onlineAttemptId,
         onlineExpiresAtMs,
         clockSkewMs,
-      }).catch(() => {});
+      }).catch(() => { });
     }, 250);
 
     return () => clearTimeout(timer);
@@ -1408,7 +1437,7 @@ export function CBTTest() {
       onlineAttemptId,
       onlineExpiresAtMs,
       clockSkewMs,
-    }).catch(() => {});
+    }).catch(() => { });
   }, [answers]);
 
   /* ---------- before unload save + warning ---------- */
@@ -1432,7 +1461,7 @@ export function CBTTest() {
           onlineAttemptId,
           onlineExpiresAtMs,
           clockSkewMs,
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       e.preventDefault();
@@ -1534,238 +1563,480 @@ export function CBTTest() {
       clearInterval(id);
     };
   }, [currentTest, currentMode, sessionToken, deviceId, refreshCompleted]);
-
-  /* ---------- submit ---------- */
-
-  const submitTest = useCallback(async () => {
-    if (!currentTest || isSubmitting) return;
-
-    setIsSubmitting(true);
-
-    try {
-      let csid = clientSubmissionId;
-
-      if (!csid) {
-        const snap = await loadInProgress(currentTest);
-        csid = snap?.clientSubmissionId ?? crypto.randomUUID();
-        setClientSubmissionId(csid);
-      }
-
-      const test = availableTests.find((t) => t.pk.toString() === currentTest);
-      const mode: "online" | "offline" = (test?.mode || currentMode) as any;
-
-      const submitAnswers = buildAnswersPayload(questions, answers);
-
-      const payload = {
-        client_submission_id: csid,
-        currentTest,
-        answers: submitAnswers,
-        started_at: startTime,
-        duration_seconds: initialTime - timeLeft,
-        suspicious_activity: suspiciousActivity || 0,
-        attempt_id: onlineAttemptId,
-        expires_at_ms: onlineExpiresAtMs,
-        mode,
-        auto_submitted: autoSubmitTriggeredRef.current || pendingForcedSubmit,
-        forced_submit_reason: forcedSubmitReason,
+const getTerminalSubmissionNotice = (code?: string, detail?: string) => {
+  switch (code) {
+    case "TIME_ELAPSED":
+      return {
+        type: "warning" as const,
+        title: "Time elapsed",
+        message:
+          detail ||
+          "The time for this test has expired. The attempt has been closed.",
       };
 
-      // ONLINE: must succeed immediately.
-      if (mode === "online") {
-        if (!navigator.onLine) {
-          setPendingForcedSubmit(true);
-          setForcedSubmitReason(
-            forcedSubmitReason ||
-              (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
-          );
-          return;
-        }
+    case "ATTEMPT_ALREADY_SUBMITTED":
+    case "DUPLICATE_REPLAY":
+      return {
+        type: "success" as const,
+        title: "Test already submitted",
+        message:
+          detail ||
+          "This test has already been submitted. You can continue with another available test.",
+      };
 
-        const res = await fetchWithTimeout(
-          `/api/student/cbt`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-Token": sessionToken!,
-              "X-Device-Id": deviceId,
-              "X-Idempotency-Key": csid,
-            },
-            body: JSON.stringify(payload),
-          },
-          40000
-        );
+    case "NO_ACTIVE_ATTEMPT":
+    case "ATTEMPT_NOT_FOUND":
+    case "ATTEMPT_NOT_STARTED":
+      return {
+        type: "warning" as const,
+        title: "Attempt no longer active",
+        message:
+          detail ||
+          "This test attempt no longer exists or is no longer active. You can start another available test.",
+      };
 
-        const data = await res.json().catch(() => ({}));
+    case "TEST_NOT_FOUND":
+      return {
+        type: "error" as const,
+        title: "Test not found",
+        message:
+          detail ||
+          "This test could not be found. Please select another available test.",
+      };
 
-        if (!res.ok) {
-          if (TERMINAL_SUBMISSION_CODES.has(data?.code)) {
-            await markTestCompleted({
-              testId: currentTest,
-              clientSubmissionId: csid,
-              completedAt: Date.now(),
-              syncStatus: "confirmed",
-              serverAttemptId: data?.attempt_id ?? null,
-              serverResponse: data,
-              testTitle: test?.title,
-              localScore: null,
-              localTotalPoints: null,
-            });
+    default:
+      return {
+        type: "warning" as const,
+        title: "Attempt closed",
+        message:
+          detail ||
+          "This attempt has been closed. You can continue with another available test.",
+      };
+  }
+};
 
-            await clearInProgress(currentTest);
-            await refreshCompleted();
+/**
+ * Important:
+ * This closes the active exam screen and returns the user to the CBT list.
+ * It must be used for terminal Django CBT errors so the user does not get
+ * stuck inside the test page with an HTTP 400 modal.
+ */
+const closeAttemptAndReturnToList = async ({
+  code,
+  detail,
+  data,
+  testId,
+  clientSubmissionId,
+  testTitle,
+  markCompleted,
+}: {
+  code?: string;
+  detail?: string;
+  data?: any;
+  testId: string;
+  clientSubmissionId?: string | null;
+  testTitle?: string;
+  markCompleted: boolean;
+}) => {
+  if (markCompleted && clientSubmissionId) {
+    await markTestCompleted({
+      testId,
+      clientSubmissionId,
+      completedAt: Date.now(),
+      syncStatus: "confirmed",
+      serverAttemptId: data?.attempt_id ?? data?.existing_attempt_id ?? null,
+      serverResponse: data || {},
+      testTitle,
+      localScore: typeof data?.score === "number" ? data.score : null,
+      localTotalPoints:
+        typeof data?.total_points === "number" ? data.total_points : null,
+    });
+  }
 
-            setTestResults((p) => ({
-              ...p,
-              [currentTest]: {
-                ...data,
-                title: test?.title,
-              },
-            }));
+  await clearInProgress(testId);
+  await refreshCompleted();
 
-            setTestCompleted(true);
-            setIsSecureMode(false);
-            setPendingForcedSubmit(false);
-            setForcedSubmitReason(null);
-            setResumedFromSnapshot(false);
+  setListNotice(getTerminalSubmissionNotice(code, detail));
 
-            showErrorModal(
-              data.code === "TIME_ELAPSED" ? "Time’s up" : "Already submitted",
-              data.code === "TIME_ELAPSED"
-                ? "The time for this test has ended. Your attempt has been recorded as expired."
-                : "This test has already been submitted on this account."
-            );
+  setTestResults((p) => ({
+    ...p,
+    [testId]: {
+      ...(data || {}),
+      title: testTitle,
+    },
+  }));
 
-            return;
-          }
+  setAttemptsPage(1);
 
-          showErrorModal(
-            "Submission failed",
-            data?.detail || `HTTP ${res.status}`
-          );
-          return;
-        }
+  /**
+   * This is the key action.
+   * It removes the active test screen and sends the user back to the test list.
+   */
+  handleResetToList();
 
-        await markTestCompleted({
-          testId: currentTest,
-          clientSubmissionId: csid,
-          completedAt: Date.now(),
-          syncStatus: "confirmed",
-          serverAttemptId: data.attempt_id ?? null,
-          serverResponse: data,
-          testTitle: test?.title,
-          localScore: typeof data.score === "number" ? data.score : null,
-          localTotalPoints:
-            typeof data.total_points === "number" ? data.total_points : null,
-        });
+  /**
+   * Refresh the list after resetting.
+   * Do not await this because the user should leave the exam screen immediately.
+   */
+  fetchData(true);
+};
+  /* ---------- submit ---------- */
 
-        await refreshCompleted();
+/* ---------- submit ---------- */
 
-        setTestResults((p) => ({
-          ...p,
-          [currentTest]: {
-            ...data,
-            title: test?.title,
-          },
-        }));
+const submitTest = useCallback(async () => {
+  if (!currentTest || isSubmitting) return;
 
-        setTestCompleted(true);
-        setIsSecureMode(false);
-        setPendingForcedSubmit(false);
-        setForcedSubmitReason(null);
-        setResumedFromSnapshot(false);
-        await clearInProgress(currentTest);
-        setAttemptsPage(1);
-        fetchData(true);
+  setIsSubmitting(true);
 
-        return;
-      }
+  try {
+    let csid = clientSubmissionId;
 
-      // OFFLINE: enqueue and let the queue retry with backoff.
-      await enqueueSubmission({
-        clientSubmissionId: csid,
-        testId: currentTest,
-        userId,
-        payload,
-        testTitle: test?.title,
-      });
+    if (!csid) {
+      const snap = await loadInProgress(currentTest);
+      csid = snap?.clientSubmissionId ?? crypto.randomUUID();
+      setClientSubmissionId(csid);
+    }
 
-      await markTestCompleted({
-        testId: currentTest,
-        clientSubmissionId: csid,
-        completedAt: Date.now(),
-        syncStatus: "pending",
-        testTitle: test?.title,
-        localScore: null,
-        localTotalPoints: null,
-      });
+    const test = availableTests.find(
+      (t) => t.pk?.toString() === currentTest
+    );
 
-      if (typeof BroadcastChannel !== "undefined") {
-        const channel = new BroadcastChannel("cbt-queue");
-        channel.postMessage({
-          type: "completed-changed",
-        });
-        channel.close();
-      }
+    const mode: "online" | "offline" = (test?.mode || currentMode) as any;
 
-      await refreshCompleted();
+    const submitAnswers = buildAnswersPayload(questions, answers);
 
-      setTestCompleted(true);
-      setIsSecureMode(false);
-      setPendingForcedSubmit(false);
-      setForcedSubmitReason(null);
-      setResumedFromSnapshot(false);
-      await clearInProgress(currentTest);
+    const payload = {
+      client_submission_id: csid,
+      currentTest,
+      answers: submitAnswers,
+      started_at: startTime,
+      duration_seconds: initialTime - timeLeft,
+      suspicious_activity: suspiciousActivity || 0,
+      attempt_id: onlineAttemptId,
+      expires_at_ms: onlineExpiresAtMs,
+      mode,
+      auto_submitted: autoSubmitTriggeredRef.current || pendingForcedSubmit,
+      forced_submit_reason: forcedSubmitReason,
+    };
 
-      if (navigator.onLine) triggerSync();
-    } catch (err: any) {
-      const test = availableTests.find((t) => t.pk.toString() === currentTest);
-      const mode: "online" | "offline" = (test?.mode || currentMode) as any;
-
-      if (mode === "offline") {
-        setTestCompleted(true);
-        setIsSecureMode(false);
-        setPendingForcedSubmit(false);
-        setForcedSubmitReason(null);
-        setResumedFromSnapshot(false);
-        await refreshCompleted();
-      } else if (!navigator.onLine) {
+    if (mode === "online") {
+      if (!navigator.onLine) {
         setPendingForcedSubmit(true);
         setForcedSubmitReason(
           forcedSubmitReason ||
             (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
         );
-      } else {
-        showErrorModal(
-          "Network error",
-          "Unable to submit this online test right now. Please reconnect and try again."
-        );
+        return;
       }
-    } finally {
-      setIsSubmitting(false);
+
+      const res = await fetchWithTimeout(
+        `/api/student/cbt`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessionToken!,
+            "X-Device-Id": deviceId,
+            "X-Idempotency-Key": csid,
+          },
+          body: JSON.stringify(payload),
+        },
+        40000
+      );
+
+      let data: any = {};
+      let rawText = "";
+
+      try {
+        rawText = await res.text();
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = {};
+      }
+
+      /**
+       * Defensive fallback:
+       * If the proxy still wraps Django's error inside `error`,
+       * try to extract the original Django JSON from the string.
+       *
+       * Example bad proxy body:
+       * {
+       *   error: "Failed to submit test: {\"code\":\"TIME_ELAPSED\",...}"
+       * }
+       */
+      if (!data?.code && typeof data?.error === "string") {
+        const match = data.error.match(/\{.*\}/);
+
+        if (match?.[0]) {
+          try {
+            const inner = JSON.parse(match[0]);
+            data = {
+              ...inner,
+              _proxyWrappedError: data.error,
+            };
+          } catch {
+            // keep original data
+          }
+        }
+      }
+
+      const code = data?.code;
+      const detail =
+        data?.detail ||
+        data?.details ||
+        data?.message ||
+        data?.error ||
+        rawText ||
+        `HTTP ${res.status}`;
+
+      console.log("[CBT submit response]", {
+        status: res.status,
+        ok: res.ok,
+        code,
+        detail,
+        raw: rawText?.slice(0, 300),
+      });
+
+      if (!res.ok) {
+        /**
+         * These are terminal CBT states.
+         * They should NOT leave the student inside the test screen.
+         */
+        if (TERMINAL_SUBMISSION_CODES.has(code)) {
+          const shouldMarkCompleted =
+            code === "TIME_ELAPSED" ||
+            code === "ATTEMPT_ALREADY_SUBMITTED" ||
+            code === "DUPLICATE_REPLAY";
+
+          await closeAttemptAndReturnToList({
+            code,
+            detail,
+            data,
+            testId: currentTest,
+            clientSubmissionId: csid,
+            testTitle: test?.title,
+            markCompleted: shouldMarkCompleted,
+          });
+
+          return;
+        }
+
+        /**
+         * Extra fallback:
+         * If Django/proxy did not expose `code`, but the text clearly says
+         * the attempt expired or does not exist, still close the test page.
+         */
+        const lowered = String(detail || "").toLowerCase();
+
+        const looksTerminal =
+          lowered.includes("time elapsed") ||
+          lowered.includes("time has elapsed") ||
+          lowered.includes("time is up") ||
+          lowered.includes("already expired") ||
+          lowered.includes("attempt already expired") ||
+          lowered.includes("already submitted") ||
+          lowered.includes("already performed") ||
+          lowered.includes("no active online attempt") ||
+          lowered.includes("no active attempt") ||
+          lowered.includes("attempt not found") ||
+          lowered.includes("attempt does not exist") ||
+          lowered.includes("not started");
+
+        if (looksTerminal && res.status >= 400 && res.status < 500) {
+          const inferredCode = lowered.includes("time")
+            ? "TIME_ELAPSED"
+            : lowered.includes("already")
+            ? "ATTEMPT_ALREADY_SUBMITTED"
+            : lowered.includes("not found") ||
+              lowered.includes("does not exist")
+            ? "ATTEMPT_NOT_FOUND"
+            : "NO_ACTIVE_ATTEMPT";
+
+          const shouldMarkCompleted =
+            inferredCode === "TIME_ELAPSED" ||
+            inferredCode === "ATTEMPT_ALREADY_SUBMITTED";
+
+          await closeAttemptAndReturnToList({
+            code: inferredCode,
+            detail,
+            data: {
+              ...data,
+              code: inferredCode,
+              detail,
+              _inferredFromText: true,
+            },
+            testId: currentTest,
+            clientSubmissionId: csid,
+            testTitle: test?.title,
+            markCompleted: shouldMarkCompleted,
+          });
+
+          return;
+        }
+
+        /**
+         * Non-terminal server validation errors remain on the test page.
+         * Example: invalid payload, auth issue, server error.
+         */
+        showErrorModal("Submission failed", detail);
+        return;
+      }
+
+      /**
+       * Normal successful submission.
+       */
+      await markTestCompleted({
+        testId: currentTest,
+        clientSubmissionId: csid,
+        completedAt: Date.now(),
+        syncStatus: "confirmed",
+        serverAttemptId: data?.attempt_id ?? null,
+        serverResponse: data,
+        testTitle: test?.title,
+        localScore: typeof data?.score === "number" ? data.score : null,
+        localTotalPoints:
+          typeof data?.total_points === "number" ? data.total_points : null,
+      });
+
+      await clearInProgress(currentTest);
+      await refreshCompleted();
+
+      setTestResults((p) => ({
+        ...p,
+        [currentTest]: {
+          ...data,
+          title: test?.title,
+        },
+      }));
+
+      setListNotice({
+        type: "success",
+        title: "Test submitted",
+        message: "Your test has been submitted successfully.",
+      });
+
+      setAttemptsPage(1);
+
+      /**
+       * Return to the CBT test list immediately.
+       * This avoids the completed screen countdown and lets the user continue.
+       */
+      handleResetToList();
+
+      fetchData(true);
+
+      return;
     }
-  }, [
-    currentTest,
-    currentMode,
-    clientSubmissionId,
-    isSubmitting,
-    availableTests,
-    questions,
-    answers,
-    startTime,
-    initialTime,
-    timeLeft,
-    suspiciousActivity,
-    onlineAttemptId,
-    onlineExpiresAtMs,
-    sessionToken,
-    deviceId,
-    userId,
-    triggerSync,
-    refreshCompleted,
-    pendingForcedSubmit,
-    forcedSubmitReason,
-  ]);
+
+    /**
+     * Offline tests are queued locally.
+     */
+    await enqueueSubmission({
+      clientSubmissionId: csid,
+      testId: currentTest,
+      userId,
+      payload,
+      testTitle: test?.title,
+    });
+
+    await markTestCompleted({
+      testId: currentTest,
+      clientSubmissionId: csid,
+      completedAt: Date.now(),
+      syncStatus: "pending",
+      testTitle: test?.title,
+      localScore: null,
+      localTotalPoints: null,
+    });
+
+    if (typeof BroadcastChannel !== "undefined") {
+      const channel = new BroadcastChannel("cbt-queue");
+
+      channel.postMessage({
+        type: "completed-changed",
+      });
+
+      channel.close();
+    }
+
+    await clearInProgress(currentTest);
+    await refreshCompleted();
+
+    setListNotice({
+      type: "success",
+      title: "Test saved",
+      message:
+        "Your offline test has been saved and will sync automatically when internet is available.",
+    });
+
+    handleResetToList();
+
+    if (navigator.onLine) {
+      triggerSync();
+    }
+  } catch (err: any) {
+    const test = availableTests.find(
+      (t) => t.pk?.toString() === currentTest
+    );
+
+    const mode: "online" | "offline" = (test?.mode || currentMode) as any;
+
+    console.error("[CBT submit exception]", err);
+
+    if (mode === "offline") {
+      setListNotice({
+        type: "success",
+        title: "Test saved",
+        message:
+          "Your offline test has been saved locally and will sync automatically.",
+      });
+
+      handleResetToList();
+      await refreshCompleted();
+    } else if (!navigator.onLine) {
+      setPendingForcedSubmit(true);
+      setForcedSubmitReason(
+        forcedSubmitReason ||
+          (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
+      );
+    } else {
+      showErrorModal(
+        "Network error",
+        err?.message ||
+          "Unable to submit this online test right now. Please reconnect and try again."
+      );
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+}, [
+  currentTest,
+  currentMode,
+  clientSubmissionId,
+  isSubmitting,
+  availableTests,
+  questions,
+  answers,
+  startTime,
+  initialTime,
+  timeLeft,
+  suspiciousActivity,
+  onlineAttemptId,
+  onlineExpiresAtMs,
+  sessionToken,
+  deviceId,
+  userId,
+  triggerSync,
+  refreshCompleted,
+  pendingForcedSubmit,
+  forcedSubmitReason,
+  closeAttemptAndReturnToList,
+]);
+
+useEffect(() => {
+  submitTestRef.current = submitTest;
+}, [submitTest]);
 
   useEffect(() => {
     submitTestRef.current = submitTest;
@@ -1785,11 +2056,9 @@ export function CBTTest() {
         if (s <= 1) {
           clearInterval(timer);
 
-          // Avoid hard reloads. Return to the list and refresh data silently
-          // so the UI stays mounted and does not flash the page logo.
           setTimeout(() => {
             handleResetToList();
-            refreshCompleted().catch(() => {});
+            refreshCompleted().catch(() => { });
             fetchData(true);
           }, 0);
 
@@ -1822,6 +2091,7 @@ export function CBTTest() {
     setClockSkewMs(0);
     setPendingForcedSubmit(false);
     setForcedSubmitReason(null);
+    setForcedSubmitRetries(0);
     setShowSubmitConfirm(false);
     setResumedFromSnapshot(false);
 
@@ -1860,8 +2130,6 @@ export function CBTTest() {
     window.location.reload();
   };
 
-  /* ---------- queue lookup helper ---------- */
-
   const queueByTestId = useMemo(() => {
     const map: Record<string, (typeof queue)[number]> = {};
 
@@ -1871,8 +2139,6 @@ export function CBTTest() {
 
     return map;
   }, [queue]);
-
-  /* ---------- truncated description ---------- */
 
   function TruncatedDescription({
     text,
@@ -1932,15 +2198,17 @@ export function CBTTest() {
     </Dialog>
   );
 
-  /* ---------- auth/loading states ---------- */
-
-  if (status === "loading" || (loading && !hasLoadedOnce)) {
-    return (
-      <div className="flex min-h-[300px] items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
+// Only show the full-page spinner on the very first render, before we've
+// ever loaded data. After that, keep rendering the existing UI even while
+// NextAuth re-validates the session in the background — otherwise every
+// /api/auth/session poll causes a logo flash.
+if (!hasLoadedOnce && (status === "loading" || loading)) {
+  return (
+    <div className="flex min-h-[300px] items-center justify-center">
+      <Spinner />
+    </div>
+  );
+}
 
   if (status !== "authenticated") {
     return (
@@ -1957,8 +2225,6 @@ export function CBTTest() {
       </Card>
     );
   }
-
-  /* ---------- completed view ---------- */
 
   if (testCompleted) {
     return (
@@ -1990,7 +2256,7 @@ export function CBTTest() {
                 variant="outline"
                 disabled={refreshing}
                 onClick={() => {
-                  refreshCompleted().catch(() => {});
+                  refreshCompleted().catch(() => { });
                   fetchData(true);
                 }}
               >
@@ -2003,8 +2269,6 @@ export function CBTTest() {
       </div>
     );
   }
-
-  /* ---------- active test view ---------- */
 
   if (currentTest) {
     const test = availableTests.find((t) => t.pk?.toString() === currentTest);
@@ -2061,6 +2325,47 @@ export function CBTTest() {
                 >
                   Check status / retry now
                 </Button>
+
+                {forcedSubmitRetries >= MAX_FORCED_RETRIES && (
+                  <>
+                    <p className="mt-2 text-xs text-amber-700">
+                      The server isn’t accepting this submission. Your attempt
+                      may already have been recorded as expired. You can return
+                      to the test list; your local record will be marked so this
+                      screen does not keep trapping you here.
+                    </p>
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={async () => {
+                        if (currentTest && clientSubmissionId) {
+                          await markTestCompleted({
+                            testId: currentTest,
+                            clientSubmissionId,
+                            completedAt: Date.now(),
+                            syncStatus: "failed",
+                            testTitle: availableTests.find(
+                              (t) => t.pk?.toString() === currentTest
+                            )?.title,
+                            localScore: null,
+                            localTotalPoints: null,
+                          });
+
+                          await clearInProgress(currentTest);
+                          await refreshCompleted();
+                        }
+
+                        setPendingForcedSubmit(false);
+                        setForcedSubmitReason(null);
+                        setForcedSubmitRetries(0);
+                        handleResetToList();
+                      }}
+                    >
+                      Return to test list
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -2152,9 +2457,8 @@ export function CBTTest() {
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               <span
-                className={`font-mono ${
-                  timeLeft < 300 ? "text-red-600" : ""
-                }`}
+                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""
+                  }`}
               >
                 {formatTime(timeLeft)}
               </span>
@@ -2232,7 +2536,7 @@ export function CBTTest() {
                 <p className="text-lg">{currentQ?.question}</p>
 
                 {currentQ?.type === "single-choice" ||
-                currentQ?.type === "true-false" ? (
+                  currentQ?.type === "true-false" ? (
                   <RadioGroup
                     value={answers[currentQuestion] || ""}
                     onValueChange={(val) =>
@@ -2327,8 +2631,8 @@ export function CBTTest() {
                         currentQuestion === index
                           ? "default"
                           : answers[index]
-                          ? "secondary"
-                          : "outline"
+                            ? "secondary"
+                            : "outline"
                       }
                       size="sm"
                       onClick={() => setCurrentQuestion(index)}
@@ -2372,8 +2676,6 @@ export function CBTTest() {
       </div>
     );
   }
-
-  /* ---------- list view ---------- */
 
   const safeNum = (v: any) => {
     const n = typeof v === "string" ? parseFloat(v) : Number(v);
@@ -2424,17 +2726,12 @@ export function CBTTest() {
 
   const hasTests = Array.isArray(availableTests) && availableTests.length > 0;
 
-  // Only online-mode pending submissions block starting a new test.
-  // Offline-mode submissions are queued in IndexedDB and don't need to
-  // finish syncing before the student can take another offline test.
   const hasPendingSyncWork = queue.some(
     (q) =>
       (q.state === "queued" || q.state === "uploading") &&
       q.payload?.mode === "online"
   );
 
-  // Only show the sync-blocked banner when we are actually online and syncing,
-  // or when an online-mode submission is still waiting to be uploaded.
   const isSyncBlocked = (isSyncing && isOnline) || hasPendingSyncWork;
 
   return (
@@ -2488,7 +2785,7 @@ export function CBTTest() {
             variant="outline"
             disabled={refreshing}
             onClick={() => {
-              refreshCompleted().catch(() => {});
+              refreshCompleted().catch(() => { });
               fetchData(true);
               triggerSync();
             }}
@@ -2502,6 +2799,20 @@ export function CBTTest() {
           </Button>
         </div>
       </div>
+
+      {listNotice && (
+        <div
+          className={`rounded-lg border p-3 text-sm ${listNotice.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : listNotice.type === "error"
+                ? "border-red-200 bg-red-50 text-red-900"
+                : "border-amber-200 bg-amber-50 text-amber-900"
+            }`}
+        >
+          <div className="font-semibold">{listNotice.title}</div>
+          <div className="mt-0.5">{listNotice.message}</div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -2527,10 +2838,9 @@ export function CBTTest() {
                 <div className="text-xs text-amber-800/80 mt-0.5">
                   New tests are temporarily unavailable until sync completes.
                   {hasPendingSyncWork &&
-                    ` (${
-                      queue.filter(
-                        (q) => q.state === "queued" || q.state === "uploading"
-                      ).length
+                    ` (${queue.filter(
+                      (q) => q.state === "queued" || q.state === "uploading"
+                    ).length
                     } pending)`}
                 </div>
               </div>
@@ -2576,22 +2886,20 @@ export function CBTTest() {
                   return (
                     <Card
                       key={test.pk}
-                      className={`group flex flex-col h-full overflow-hidden transition-all duration-200 ${
-                        isLocallyCompleted
-                          ? "border-emerald-200 bg-emerald-50/30 opacity-90"
-                          : "hover:shadow-lg hover:border-[#EF7B55]/40 border-slate-200"
-                      }`}
+                      className={`group flex flex-col h-full overflow-hidden transition-all duration-200 ${isLocallyCompleted
+                        ? "border-emerald-200 bg-emerald-50/30 opacity-90"
+                        : "hover:shadow-lg hover:border-[#EF7B55]/40 border-slate-200"
+                        }`}
                     >
                       <div
-                        className={`h-1 w-full ${
-                          isPendingSync
-                            ? "bg-amber-400"
-                            : isConfirmedSync
+                        className={`h-1 w-full ${isPendingSync
+                          ? "bg-amber-400"
+                          : isConfirmedSync
                             ? "bg-emerald-400"
                             : isFailedSync
-                            ? "bg-red-400"
-                            : "bg-gradient-to-r from-[#EF7B55] to-[#F79771]"
-                        }`}
+                              ? "bg-red-400"
+                              : "bg-gradient-to-r from-[#EF7B55] to-[#F79771]"
+                          }`}
                       />
 
                       <CardHeader className="space-y-3 pb-3">
@@ -2604,11 +2912,10 @@ export function CBTTest() {
                         <div className="flex flex-wrap gap-1.5">
                           <Badge
                             variant="outline"
-                            className={`text-[10px] font-medium uppercase tracking-wide ${
-                              (test.mode || "online") === "offline"
-                                ? "border-emerald-200 text-emerald-700 bg-emerald-50"
-                                : "border-blue-200 text-blue-700 bg-blue-50"
-                            }`}
+                            className={`text-[10px] font-medium uppercase tracking-wide ${(test.mode || "online") === "offline"
+                              ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+                              : "border-blue-200 text-blue-700 bg-blue-50"
+                              }`}
                           >
                             {test.mode || "online"}
                           </Badge>
@@ -2751,8 +3058,8 @@ export function CBTTest() {
                                 {isPendingSync
                                   ? "Awaiting sync"
                                   : isConfirmedSync
-                                  ? "Submitted"
-                                  : "Sync failed"}
+                                    ? "Submitted"
+                                    : "Sync failed"}
                               </>
                             ) : (
                               <>
@@ -2887,8 +3194,8 @@ export function CBTTest() {
                             {attempt.submitted_at
                               ? new Date(attempt.submitted_at).toLocaleString()
                               : attempt.started_at
-                              ? new Date(attempt.started_at).toLocaleString()
-                              : "—"}
+                                ? new Date(attempt.started_at).toLocaleString()
+                                : "—"}
                           </CardDescription>
                         </div>
 
