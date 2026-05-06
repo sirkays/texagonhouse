@@ -2,27 +2,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsUpDown,
+  Check, ChevronLeft, ChevronRight, ChevronsUpDown,
+  Search, Filter, RotateCcw, Code2, Eye, Clock, CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "../ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
 import { cn } from "@/lib/utils";
 
 interface Submission {
@@ -35,579 +20,358 @@ interface Submission {
   course_name: string;
   class_name: string | null;
   language: string;
+  score?: number | null;
 }
 
-interface FilterOption {
-  id: number;
-  name: string;
-}
+interface FilterOption { id: number; name: string; }
+
+const STATUS_CONFIG: Record<string, { icon: React.ElementType; label: string; bg: string; text: string; dot: string }> = {
+  submitted: { icon: Clock, label: "Pending", bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+  graded: { icon: CheckCircle2, label: "Graded", bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
+  revised: { icon: AlertCircle, label: "Revised", bg: "bg-sky-50", text: "text-sky-700", dot: "bg-sky-500" },
+};
+
+const LANG_COLORS: Record<string, string> = {
+  python: "from-blue-50 to-blue-100/60 text-blue-600 border-blue-200",
+  javascript: "from-yellow-50 to-amber-100/60 text-amber-700 border-amber-200",
+  html: "from-orange-50 to-orange-100/60 text-orange-600 border-orange-200",
+  css: "from-purple-50 to-purple-100/60 text-purple-600 border-purple-200",
+  java: "from-red-50 to-red-100/60 text-red-600 border-red-200",
+};
 
 const SubmissionList: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [courses, setCourses] = useState<FilterOption[]>([]);
   const [classes, setClasses] = useState<FilterOption[]>([]);
-  const [loading, setLoading] = useState(true); // initial / global loading
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-
-  // applied filters used for fetching
-  const [filters, setFilters] = useState<{
-    course_id?: number;
-    classroom_id?: number;
-    startDate?: string;
-    endDate?: string;
-    search?: string;
-  }>({});
-
-  // local draft filters changed by the user; applied only when user clicks Apply
+  const [filters, setFilters] = useState<{ course_id?: number; classroom_id?: number; startDate?: string; endDate?: string; search?: string }>({});
   const [draftFilters, setDraftFilters] = useState<typeof filters>({});
-
-  // which action is currently showing a button-level spinner: 'search' | 'apply' | null
   const [actionInProgress, setActionInProgress] = useState<"search" | "apply" | null>(null);
-
-  // helper ref to remember last action that triggered a fetch (keeps effect simple)
   const lastActionRef = useRef<"search" | "apply" | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const pageSize = 10;
 
-  const pageSize = 5;
-
-  // Fetch detail to get ID for a given submission ID
-  const fetchDetailForId = async (
-    id: number,
-  ): Promise<{
-    course?: { id: number; name: string };
-    classroom?: { id: number; name: string };
-  } | null> => {
+  const fetchDetailForId = async (id: number): Promise<{ course?: { id: number; name: string }; classroom?: { id: number; name: string } } | null> => {
     try {
       const res = await fetch(`/api/teacher/code/submissions/${id}`);
       if (!res.ok) return null;
       return await res.json();
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   };
 
-  // Extract filter options by fetching details for unique names
   const extractFilters = async (results: Submission[]) => {
-    const uniqueCourses = [
-      ...new Set(results.map((s) => s.course_name).filter(Boolean)),
-    ];
-    const uniqueClasses = [
-      ...new Set(results.map((s) => s.class_name).filter(Boolean)),
-    ];
-
+    const uniqueCourses = [...new Set(results.map((s) => s.course_name).filter(Boolean))];
+    const uniqueClasses = [...new Set(results.map((s) => s.class_name).filter(Boolean))];
     const coursePromises = uniqueCourses.map(async (name) => {
       const sampleSub = results.find((s) => s.course_name === name);
       if (!sampleSub) return null;
       const detail = await fetchDetailForId(sampleSub.id);
-      if (detail?.course) {
-        return { id: detail.course.id, name };
-      }
-      return null;
+      return detail?.course ? { id: detail.course.id, name } : null;
     });
-
     const classPromises = uniqueClasses.map(async (name) => {
       const sampleSub = results.find((s) => s.class_name === name);
       if (!sampleSub) return null;
       const detail = await fetchDetailForId(sampleSub.id);
-      if (detail?.classroom) {
-        return { id: detail.classroom.id, name };
-      }
-      return null;
+      return detail?.classroom ? { id: detail.classroom.id, name } : null;
     });
-
-    const courseResults = (await Promise.all(coursePromises)).filter(
-      (c): c is { id: number; name: string } => c !== null,
-    );
-    const classResults = (await Promise.all(classPromises)).filter(
-      (c): c is { id: number; name: string } => c !== null,
-    );
-
+    const courseResults = (await Promise.all(coursePromises)).filter((c): c is { id: number; name: string } => c !== null);
+    const classResults = (await Promise.all(classPromises)).filter((c): c is { id: number; name: string } => c !== null);
     setCourses(courseResults.sort((a, b) => a.name.localeCompare(b.name)));
     setClasses(classResults.sort((a, b) => a.name.localeCompare(b.name)));
   };
 
-  // helper: format created_at
   const formatDate = (iso?: string) => {
     if (!iso) return "-";
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "-";
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-    });
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
   };
 
-  // Initial load to get results for building filter lists
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
         const res = await fetch(`/api/teacher/code/submissions?page_size=100`);
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error("API Fetch Error:", res.status, errText);
-          throw new Error(`Failed to fetch: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Failed: ${res.status}`);
         const data = await res.json();
         const results: Submission[] = data.results || [];
         await extractFilters(results);
-        // Set first page (applied filters still empty)
         setSubmissions(results.slice(0, pageSize));
       } catch (err: any) {
         console.error("Load Error:", err.message);
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refetch when applied filters or page change
   useEffect(() => {
-    // don't fetch until filter options have been loaded (so labels are available)
     if (courses.length === 0 && classes.length === 0) return;
-
     const fetchPage = async () => {
-      setLoading(true); // keep global loading for the content area
-      // mark which button should show spinner
+      setLoading(true);
       setActionInProgress(lastActionRef.current);
-
       const params = new URLSearchParams();
-
       if (filters.course_id) params.append("course_id", filters.course_id.toString());
       if (filters.classroom_id) params.append("classroom_id", filters.classroom_id.toString());
-
       if (filters.startDate) params.append("created_at__gte", filters.startDate);
       if (filters.endDate) params.append("created_at__lte", filters.endDate);
       if (filters.search) params.append("search", filters.search);
-
       params.append("page", currentPage.toString());
       params.append("page_size", pageSize.toString());
-
       try {
         const res = await fetch(`/api/teacher/code/submissions?${params}`);
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
         setSubmissions(data.results || []);
-      } catch (err) {
-        console.error(err);
-        setSubmissions([]);
-      } finally {
-        setLoading(false);
-        // clear action spinner
-        lastActionRef.current = null;
-        setActionInProgress(null);
-      }
+      } catch { setSubmissions([]); }
+      finally { setLoading(false); lastActionRef.current = null; setActionInProgress(null); }
     };
-
     fetchPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, filters, courses.length, classes.length]);
 
   const hasNext = submissions.length === pageSize;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "graded":
-        return "bg-green-100 text-green-800";
-      case "submitted":
-        return "bg-yellow-100 text-yellow-800";
-      case "revised":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  const applyFilters = () => { lastActionRef.current = "apply"; setActionInProgress("apply"); setFilters({ ...draftFilters }); setCurrentPage(1); };
+  const resetFilters = () => { lastActionRef.current = "apply"; setActionInProgress("apply"); setDraftFilters({}); setFilters({}); setCurrentPage(1); };
 
-  const handleDraftDateChange = (key: "startDate" | "endDate", value: string) => {
-    setDraftFilters((prev) => ({ ...prev, [key]: value || undefined }));
-  };
-
-  // Apply draftFilters to actual filters (trigger fetch)
-  const applyFilters = () => {
-    // mark action so effect knows which button to show spinner for
-    lastActionRef.current = "apply";
-    setActionInProgress("apply");
-    // use a new object reference so React state changes even if values are same
-    setFilters({ ...draftFilters });
-    setCurrentPage(1);
-  };
-
-  // Reset both draft and applied filters
-  const resetFilters = () => {
-    lastActionRef.current = "apply";
-    setActionInProgress("apply");
-    setDraftFilters({});
-    setFilters({});
-    setCurrentPage(1);
-  };
-
-  // Enter key on search triggers apply (search action)
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      // treat Enter as a quick search
-      lastActionRef.current = "search";
-      setActionInProgress("search");
-      // create new filters object so effect triggers even if search text unchanged
-      setFilters((prev) => ({ ...prev, search: draftFilters.search }));
-      setCurrentPage(1);
-    }
+    if (e.key === "Enter") { lastActionRef.current = "search"; setActionInProgress("search"); setFilters((p) => ({ ...p, search: draftFilters.search })); setCurrentPage(1); }
   };
-
-  // Clicking the small search button performs a quick apply (search action)
-  const handleSearchClick = () => {
-    lastActionRef.current = "search";
-    setActionInProgress("search");
-    // always create a new object to ensure the effect runs even when value unchanged
-    setFilters((prev) => ({ ...prev, search: draftFilters.search }));
-    setCurrentPage(1);
-  };
+  const handleSearchClick = () => { lastActionRef.current = "search"; setActionInProgress("search"); setFilters((p) => ({ ...p, search: draftFilters.search })); setCurrentPage(1); };
 
   if (loading && submissions.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-transparent">
-        <Spinner size="md" className="text-orange-500" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="md" className="text-[#EF7B55]" />
+          <p className="text-sm text-slate-400 animate-pulse">Loading submissions...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-3">
-      {/* Filters */}
-      <div className="flex flex-col gap-1 w-full">
-        <p className="text-xs text-muted-foreground">Search</p>
-
-        {/* Search input + Button (inline) */}
-        <div className="flex gap-2 w-full">
+    <div className="space-y-4">
+      {/* Search + Filter Toggle */}
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={draftFilters.search || ""}
             onChange={(e) => setDraftFilters((p) => ({ ...p, search: e.target.value || undefined }))}
             onKeyDown={onSearchKeyDown}
-            placeholder="Search by student, title..."
-            className="
-              flex-1
-              px-3 py-2.5
-              text-sm
-              border border-[#EF7B55]/30
-              rounded-md
-              focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50
-            "
+            placeholder="Search by student name, title..."
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/30 focus:border-[#EF7B55]/40 transition-all"
           />
-
-          <Button
-            size="sm"
-            onClick={handleSearchClick}
-            className="flex items-center gap-2 px-3"
-            aria-label="Search"
-            disabled={actionInProgress === "apply" || actionInProgress === "search" && actionInProgress !== "search"}>
-            {actionInProgress === "search" ? (
-              <Spinner size="sm" />
-            ) : (
-              <>
-                <span className="hidden sm:inline">Search</span>
-              </>
-            )}
-          </Button>
         </div>
+        <Button onClick={handleSearchClick} disabled={actionInProgress !== null} className="bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-xl px-4 h-[42px]">
+          {actionInProgress === "search" ? <Spinner size="sm" /> : <Search className="w-4 h-4" />}
+        </Button>
+        <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className={cn("rounded-xl border-slate-200 h-[42px] px-3 hover:bg-slate-50", showFilters && "bg-[#EF7B55]/5 border-[#EF7B55]/30 text-[#EF7B55]")}>
+          <Filter className="w-4 h-4" />
+        </Button>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              className="w-full sm:w-48 justify-between">
-              {draftFilters.classroom_id
-                ? classes.find((c) => c.id === draftFilters.classroom_id)?.name
-                : "All Classes"}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full sm:w-48 p-0">
-            <Command>
-              <CommandInput placeholder="Search class..." className="h-9" />
-              <CommandEmpty>No class found.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="All Classes"
-                  onSelect={() => {
-                    setDraftFilters((prev) => ({ ...prev, classroom_id: undefined }));
-                  }}>
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      !draftFilters.classroom_id ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  All Classes
-                </CommandItem>
-                {classes.map((c) => (
-                  <CommandItem
-                    key={c.id}
-                    value={c.name}
-                    onSelect={() => {
-                      setDraftFilters((prev) => ({ ...prev, classroom_id: c.id }));
-                    }}>
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        draftFilters.classroom_id === c.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {c.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              className="w-full sm:w-48 justify-between">
-              {draftFilters.course_id
-                ? courses.find((c) => c.id === draftFilters.course_id)?.name
-                : "All Courses"}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full sm:w-48 p-0">
-            <Command>
-              <CommandInput placeholder="Search course..." className="h-9" />
-              <CommandEmpty>No course found.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="All Courses"
-                  onSelect={() => {
-                    setDraftFilters((prev) => ({ ...prev, course_id: undefined }));
-                  }}>
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      !draftFilters.course_id ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  All Courses
-                </CommandItem>
-                {courses.map((c) => (
-                  <CommandItem
-                    key={c.id}
-                    value={c.name}
-                    onSelect={() => {
-                      setDraftFilters((prev) => ({ ...prev, course_id: c.id }));
-                    }}>
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        draftFilters.course_id === c.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {c.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
-
-        <div className="flex flex-col gap-1 w-full sm:w-auto">
-          <p className="text-xs text-muted-foreground">Start Date</p>
-          <input
-            type="date"
-            value={draftFilters.startDate || ""}
-            onChange={(e) => handleDraftDateChange("startDate", e.target.value)}
-            className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1 w-full sm:w-auto">
-          <p className="text-xs text-muted-foreground">End Date</p>
-          <input
-            type="date"
-            value={draftFilters.endDate || ""}
-            onChange={(e) => handleDraftDateChange("endDate", e.target.value)}
-            className="w-full sm:w-48 px-3 py-2 border border-[#EF7B55]/30 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#EF7B55]/50"
-          />
-        </div>
-
-        {/* Apply / Reset buttons */}
-        <div className="flex items-end gap-2">
-          <Button
-            onClick={applyFilters}
-            disabled={actionInProgress === "search" || actionInProgress === "apply"}
-            className="h-9">
-            {actionInProgress === "apply" ? <Spinner size="sm" /> : "Apply filters"}
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={resetFilters}
-            disabled={actionInProgress === "search" || actionInProgress === "apply"}
-            className="h-9">
-            Reset
-          </Button>
-        </div>
-      </div>
-
-      {/* ================= MOBILE CARDS ================= */}
-      <div className="space-y-4 sm:hidden">
-        {submissions.map((s) => (
-          <div
-            key={s.id}
-            className="rounded-xl border border-[#EF7B55]/20 p-4 shadow-sm space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium text-slate-800">{s.student_name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDate(s.created_at)}
-                </p>
-              </div>
-
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                  s.status,
-                )}`}>
-                {s.status}
-              </span>
-            </div>
-
-            <div className="text-sm space-y-1">
-              <p>
-                <span className="text-muted-foreground">Title:</span>{" "}
-                {s.title || "-"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Lesson:</span>{" "}
-                {s.lesson_title}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Class:</span>{" "}
-                {s.class_name ?? "-"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Course:</span>{" "}
-                {s.course_name}
-              </p>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              {s.status !== "graded" && (
-                <Button
-                  size="sm"
-                  className="flex-1 bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90 text-white"
-                  asChild>
-                  <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+      {/* Collapsible Filters */}
+      {showFilters && (
+        <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Class Filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between bg-white border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg h-10 text-sm">
+                  {draftFilters.classroom_id ? classes.find((c) => c.id === draftFilters.classroom_id)?.name : "All Classes"}
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                 </Button>
-              )}
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search class..." className="h-9" />
+                  <CommandEmpty>No class found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem value="All Classes" onSelect={() => setDraftFilters((p) => ({ ...p, classroom_id: undefined }))}>
+                      <Check className={cn("mr-2 h-4 w-4", !draftFilters.classroom_id ? "opacity-100" : "opacity-0")} />All Classes
+                    </CommandItem>
+                    {classes.map((c) => (
+                      <CommandItem key={c.id} value={c.name} onSelect={() => setDraftFilters((p) => ({ ...p, classroom_id: c.id }))}>
+                        <Check className={cn("mr-2 h-4 w-4", draftFilters.classroom_id === c.id ? "opacity-100" : "opacity-0")} />{c.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Course Filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between bg-white border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg h-10 text-sm">
+                  {draftFilters.course_id ? courses.find((c) => c.id === draftFilters.course_id)?.name : "All Courses"}
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search course..." className="h-9" />
+                  <CommandEmpty>No course found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem value="All Courses" onSelect={() => setDraftFilters((p) => ({ ...p, course_id: undefined }))}>
+                      <Check className={cn("mr-2 h-4 w-4", !draftFilters.course_id ? "opacity-100" : "opacity-0")} />All Courses
+                    </CommandItem>
+                    {courses.map((c) => (
+                      <CommandItem key={c.id} value={c.name} onSelect={() => setDraftFilters((p) => ({ ...p, course_id: c.id }))}>
+                        <Check className={cn("mr-2 h-4 w-4", draftFilters.course_id === c.id ? "opacity-100" : "opacity-0")} />{c.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Date Filters */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">From</label>
+              <input type="date" value={draftFilters.startDate || ""} onChange={(e) => setDraftFilters((p) => ({ ...p, startDate: e.target.value || undefined }))}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/30 h-10" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">To</label>
+              <input type="date" value={draftFilters.endDate || ""} onChange={(e) => setDraftFilters((p) => ({ ...p, endDate: e.target.value || undefined }))}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/30 h-10" />
             </div>
           </div>
-        ))}
+          <div className="flex items-center gap-2 pt-1">
+            <Button onClick={applyFilters} disabled={actionInProgress !== null} className="bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg h-9 px-4 text-sm">
+              {actionInProgress === "apply" ? <Spinner size="sm" /> : "Apply Filters"}
+            </Button>
+            <Button variant="ghost" onClick={resetFilters} disabled={actionInProgress !== null} className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg h-9 px-4 text-sm">
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />Reset
+            </Button>
+          </div>
+        </div>
+      )}
 
+      {/* Stats Bar */}
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {["submitted", "graded", "revised"].map((s) => {
+          const cfg = STATUS_CONFIG[s];
+          const Icon = cfg.icon;
+          return (
+            <div key={s} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-100", cfg.bg)}>
+              <Icon className={cn("w-3.5 h-3.5", cfg.text)} />
+              <span className={cn("text-xs font-medium", cfg.text)}>{cfg.label}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* MOBILE CARDS */}
+      <div className="space-y-3 sm:hidden">
+        {submissions.map((s) => {
+          const sCfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.submitted;
+          const lColor = LANG_COLORS[s.language] || LANG_COLORS.python;
+          return (
+            <div key={s.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 hover:border-[#EF7B55]/30 hover:shadow-sm transition-all group">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-slate-800 text-sm">{s.student_name}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(s.created_at)}</p>
+                </div>
+                <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium", sCfg.bg, sCfg.text)}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full", sCfg.dot)} />{sCfg.label}
+                </span>
+              </div>
+              <div className="text-sm space-y-1.5">
+                <p><span className="text-slate-400">Title:</span> <span className="text-slate-700">{s.title || "-"}</span></p>
+                <p><span className="text-slate-400">Lesson:</span> <span className="text-slate-700">{s.lesson_title}</span></p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r", lColor)}>
+                    <Code2 className="w-3 h-3" />{s.language}
+                  </span>
+                  {s.score != null && <span className="text-xs text-emerald-600 font-mono font-semibold">{s.score}/100</span>}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" variant="outline" className="flex-1 rounded-lg text-xs h-8 border-slate-200 text-slate-600 hover:bg-slate-50" asChild>
+                  <a href={`/teacher/submissions/${s.id}/code`}><Eye className="w-3 h-3 mr-1" />View</a>
+                </Button>
+                {s.status !== "graded" && (
+                  <Button size="sm" className="flex-1 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-xs h-8" asChild>
+                    <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {submissions.length === 0 && !loading && (
-          <p className="text-center text-sm text-muted-foreground py-6">
-            No submissions found.
-          </p>
+          <div className="text-center py-12">
+            <Code2 className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+            <p className="text-sm text-slate-400">No submissions found.</p>
+          </div>
         )}
       </div>
 
-      {/* ================= DESKTOP TABLE ================= */}
+      {/* DESKTOP TABLE */}
       <div className="hidden sm:block">
-        <div className="overflow-x-auto rounded-xl border border-[#EF7B55]/20 shadow-sm">
-          <table className="w-full min-w-[760px] table-auto">
-            <thead className="bg-[#EF7B55]/5">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Student
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Title
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Language
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Lesson
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Class
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Course
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Submitted
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Status
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium uppercase">
-                  Actions
-                </th>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[800px] table-auto">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/80">
+                {["Student", "Title", "Language", "Lesson", "Class", "Course", "Submitted", "Status", "Score", "Actions"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{h}</th>
+                ))}
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[#EF7B55]/10">
-              {submissions.map((s) => (
-                <tr
-                  key={s.id}
-                  className="hover:bg-[#EF7B55]/5 transition-colors">
-                  <td className="px-4 py-3 text-sm">{s.student_name}</td>
-
-                  <td className="px-4 py-3 text-sm">{s.title || "-"}</td>
-
-                  <td className="px-4 py-3 text-sm">{s.language}</td>
-
-                  <td className="px-4 py-3 text-sm">{s.lesson_title}</td>
-
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {s.class_name ?? "-"}
-                  </td>
-
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {s.course_name}
-                  </td>
-
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {formatDate(s.created_at)}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                        s.status,
-                      )}`}>
-                      {s.status}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex gap-2">
-                      {s.status !== "graded" && (
-                        <Button
-                          size="sm"
-                          className="bg-[#EF7B55]/70 hover:bg-[#EF7B55]/90 text-white"
-                          asChild>
-                          <a href={`/teacher/submissions/${s.id}/grade`}>
-                            Grade
-                          </a>
+            <tbody className="divide-y divide-slate-100">
+              {submissions.map((s) => {
+                const sCfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.submitted;
+                const lColor = LANG_COLORS[s.language] || LANG_COLORS.python;
+                return (
+                  <tr key={s.id} className="hover:bg-[#EF7B55]/[0.02] transition-colors group">
+                    <td className="px-4 py-3 text-sm text-slate-800 font-medium">{s.student_name}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[150px] truncate">{s.title || "-"}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r", lColor)}>
+                        <Code2 className="w-3 h-3" />{s.language}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[140px] truncate">{s.lesson_title}</td>
+                    <td className="px-4 py-3 text-sm text-slate-400">{s.class_name ?? "-"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-400 max-w-[120px] truncate">{s.course_name}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400 font-mono">{formatDate(s.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium", sCfg.bg, sCfg.text)}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", sCfg.dot)} />{sCfg.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono">
+                      {s.score != null ? <span className="text-emerald-600 font-semibold">{s.score}</span> : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg" asChild>
+                          <a href={`/teacher/submissions/${s.id}/code`}><Eye className="w-3.5 h-3.5" /></a>
                         </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {s.status !== "graded" && (
+                          <Button size="sm" className="h-7 px-3 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-[11px]" asChild>
+                            <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-
           {submissions.length === 0 && !loading && (
-            <div className="text-center py-8 text-muted-foreground">
-              No submissions found.
+            <div className="text-center py-16">
+              <Code2 className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">No submissions found.</p>
             </div>
           )}
         </div>
@@ -615,34 +379,15 @@ const SubmissionList: React.FC = () => {
 
       {/* Pagination */}
       {submissions.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">Page {currentPage}</p>
-
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-slate-400 font-mono">Page {currentPage}</p>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                // pagination is not shown with a button-level spinner; use global loading
-                lastActionRef.current = null;
-                setActionInProgress(null);
-                setCurrentPage((p) => Math.max(1, p - 1));
-              }}
-              disabled={currentPage === 1}
-              className="h-9 w-9">
+            <Button variant="outline" size="icon" onClick={() => { lastActionRef.current = null; setActionInProgress(null); setCurrentPage((p) => Math.max(1, p - 1)); }}
+              disabled={currentPage === 1} className="h-8 w-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                lastActionRef.current = null;
-                setActionInProgress(null);
-                setCurrentPage((p) => p + 1);
-              }}
-              disabled={!hasNext}
-              className="h-9 w-9">
+            <Button variant="outline" size="icon" onClick={() => { lastActionRef.current = null; setActionInProgress(null); setCurrentPage((p) => p + 1); }}
+              disabled={!hasNext} className="h-8 w-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

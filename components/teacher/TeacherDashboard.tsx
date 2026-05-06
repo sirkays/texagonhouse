@@ -6,8 +6,7 @@ import SubmissionList from "./SubmissionList";
 
 const TeacherDashboard: React.FC = () => {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Code Submissions</h1>
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
       <SubmissionList />
     </div>
   );

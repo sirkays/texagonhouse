@@ -444,8 +444,8 @@ export default function GradePage() {
     );
   }
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto w-full px-3 py-4 sm:px-5 sm:py-6 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="mx-auto w-full px-3 py-4 sm:px-6 sm:py-6 max-w-6xl">
         {/* Python Input Modal */}
         <Dialog open={showInputModal} onOpenChange={(v) => {
           if (!v) {
@@ -455,27 +455,27 @@ export default function GradePage() {
             pendingStdinRef.current = null;
           }
         }}>
-          <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
-            <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
+          <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border border-slate-200 shadow-2xl">
+            <div className="px-7 pt-7 pb-5 bg-gradient-to-br from-[#EF7B55] to-[#F79771]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold text-white tracking-tight">
                   Program Input
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/50 mt-1">
+                <DialogDescription className="text-sm text-white/70 mt-1">
                   Your code calls{" "}
-                  <code className="text-[#EF7B55]">input()</code> — provide values before running
+                  <code className="text-white font-semibold">input()</code> — provide values before running
                 </DialogDescription>
               </DialogHeader>
             </div>
 
-            <div className="px-6 py-5 space-y-4 bg-white dark:bg-[#0f0f23]">
+            <div className="px-6 py-5 space-y-4 bg-white">
               {inputPrompts.map((prompt, i) => (
                 <div key={i} className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <Label className="text-sm font-medium text-slate-700">
                     {prompt || `Input ${i + 1}`}
                   </Label>
                   <input
-                    className="w-full px-3 py-2 text-sm font-mono border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50"
+                    className="w-full px-3 py-2 text-sm font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/40 bg-slate-50"
                     placeholder={`Value for input ${i + 1}...`}
                     value={inputValues[i] ?? ""}
                     autoFocus={i === 0}
@@ -526,21 +526,45 @@ export default function GradePage() {
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-4 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs h-9">
+          className="mb-4 text-[#EF7B55] hover:bg-[#EF7B55]/10 text-xs h-9 rounded-lg">
           <ArrowLeft className="w-4 h-4 mr-1.5" />
-          Back
+          Back to Submissions
         </Button>
 
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mb-5">
-          Grade Submission
-        </h1>
+        {/* Submission Info Header */}
+        {submission && (
+          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 mb-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-slate-800">Grade Submission</h1>
+                <p className="text-sm text-slate-500 mt-1">
+                  {submission.student_name} • {(submission as any).lesson?.title || ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                  submission.status === "graded" ? "bg-emerald-50 text-emerald-700" :
+                  submission.status === "revised" ? "bg-sky-50 text-sky-700" :
+                  "bg-amber-50 text-amber-700"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    submission.status === "graded" ? "bg-emerald-500" :
+                    submission.status === "revised" ? "bg-sky-500" :
+                    "bg-amber-500"
+                  }`} />
+                  {submission.status}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Score */}
-          <div className="space-y-3">
-            <Label htmlFor="score" className="text-sm font-semibold">
-              Score <span className="text-[#EF7B55] font-bold">{score}</span>
-              /100
+          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
+            <Label htmlFor="score" className="text-sm font-semibold text-slate-700">
+              Score <span className="text-[#EF7B55] font-bold text-lg">{score}</span>
+              <span className="text-slate-400">/100</span>
             </Label>
 
             <div className="flex items-center gap-3">
@@ -562,7 +586,7 @@ export default function GradePage() {
                     Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
                   )
                 }
-                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 ${errors.score ? "border-red-500" : "border-[#EF7B55]/30"
+                className={`w-16 px-2 py-1.5 text-sm text-center border rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/40 ${errors.score ? "border-red-400" : "border-slate-200"
                   }`}
                 min="0"
                 max="100"
@@ -575,8 +599,8 @@ export default function GradePage() {
           </div>
 
           {/* Feedback */}
-          <div className="space-y-2">
-            <Label htmlFor="feedback" className="text-sm font-semibold">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-2">
+            <Label htmlFor="feedback" className="text-sm font-semibold text-slate-700">
               Feedback
             </Label>
             <Textarea
@@ -584,12 +608,14 @@ export default function GradePage() {
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="Great logic, but add error handling..."
-              className="min-h-32 resize-none text-sm focus:ring-2 focus:ring-[#EF7B55]/50"
+              className="min-h-32 resize-none text-sm border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#EF7B55]/40 rounded-lg"
             />
           </div>
 
           {/* Tabs */}
-          <div className="flex flex-wrap gap-1 mb-3 border-b border-[#EF7B55]/20 text-xs sm:text-sm">
+          {/* Code Editor Section */}
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="flex flex-wrap gap-1 p-2 border-b border-slate-100 bg-slate-50/80">
             {Object.entries(LANG_LABEL).map(([k, l]) => {
               const lang = k as Lang;
               const disabled = isLangDisabled(lang);
@@ -602,11 +628,11 @@ export default function GradePage() {
                     setActiveTab(lang);
                     setActiveLang(lang);
                   }}
-                  className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ${activeTab === lang
-                    ? "bg-[#EF7B55] text-white"
+                  className={`px-3 py-1.5 rounded-lg transition text-xs sm:text-sm font-medium ${activeTab === lang
+                    ? "bg-[#EF7B55] text-white shadow-sm"
                     : disabled
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
+                      ? "bg-transparent text-slate-300 cursor-not-allowed"
+                      : "bg-transparent hover:bg-slate-200/60 text-slate-600"
                     }`}
                 >
                   {l}
@@ -614,13 +640,12 @@ export default function GradePage() {
               );
             })}
 
-
             <button
               type="button"
               onClick={() => setActiveTab("output")}
-              className={`px-3 py-1.5 rounded-t-md transition text-xs sm:text-sm ml-1 ${activeTab === "output"
-                ? "bg-[#EF7B55] text-white"
-                : "bg-gray-50 hover:bg-[#EF7B55]/10 text-slate-700"
+              className={`px-3 py-1.5 rounded-lg transition text-xs sm:text-sm font-medium ml-auto ${activeTab === "output"
+                ? "bg-[#EF7B55] text-white shadow-sm"
+                : "bg-transparent hover:bg-slate-200/60 text-slate-600"
                 }`}>
               Output
             </button>
@@ -628,7 +653,7 @@ export default function GradePage() {
 
           {/* Mobile Select */}
           <select
-            className="mb-4 w-full p-2.5 text-sm border border-[#EF7B55]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/50 md:hidden"
+            className="mx-2 mb-2 w-[calc(100%-1rem)] p-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/40 md:hidden"
             value={activeTab}
             onChange={(e) => {
               const t = e.target.value as Tab;
@@ -646,7 +671,7 @@ export default function GradePage() {
 
           {/* Editor / Output */}
           {activeTab !== "output" ? (
-            <div className="border border-[#EF7B55]/20 rounded-xl overflow-hidden shadow-sm">
+            <div className="overflow-hidden">
               <Editor
                 height="50dvh"
                 language={activeTab}
@@ -654,14 +679,14 @@ export default function GradePage() {
                 onChange={(v) => updateFile(activeTab as Lang, v ?? "")}
                 options={{
                   readOnly: false,
-                  theme: "vs-dark",
+                  theme: "vs",
                   minimap: { enabled: false },
                   wordWrap: "on",
                   fontSize: 13,
                   padding: { top: 12, bottom: 12 },
                   lineNumbers: "on",
                   scrollBeyondLastLine: false,
-                  folding: false,
+                  folding: true,
                   glyphMargin: false,
                   lineDecorationsWidth: 0,
                   lineNumbersMinChars: 3,
@@ -669,29 +694,30 @@ export default function GradePage() {
               />
             </div>
           ) : (
-            <div className="mt-3 border border-[#EF7B55]/20 rounded-xl overflow-hidden shadow-sm">
+            <div className="overflow-hidden">
               {["html", "css", "javascript"].includes(activeLang) ? (
                 <>
                   <iframe
                     key={runKey}
                     srcDoc={resolvedPreview || renderWeb()}
                     sandbox="allow-scripts allow-same-origin"
-                    className="w-full h-64 sm:h-80 md:h-96"
+                    className="w-full h-64 sm:h-80 md:h-96 bg-white"
                     title="Web Preview"
                   />
 
-                  <pre className="bg-slate-900 text-slate-100 p-3 mt-2 rounded-lg overflow-auto max-h-48 font-mono text-xs sm:text-sm">
+                  <pre className="bg-slate-800 text-slate-100 p-3 mx-2 mb-2 rounded-lg overflow-auto max-h-48 font-mono text-xs sm:text-sm">
                     {webConsole || "Console output will appear here..."}
                   </pre>
                 </>
               ) : (
-                <pre className="bg-slate-900 text-green-400 p-3 sm:p-4 rounded-lg overflow-auto h-64 sm:h-80 md:h-96 font-mono text-xs sm:text-sm">
+                <pre className="bg-slate-800 text-emerald-400 p-3 sm:p-4 m-2 rounded-lg overflow-auto h-64 sm:h-80 md:h-96 font-mono text-xs sm:text-sm">
                   {output || "Click Run to see output"}
                 </pre>
               )}
             </div>
 
           )}
+          </div> {/* end code editor section */}
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3 mt-6 sm:flex-row">
@@ -699,6 +725,7 @@ export default function GradePage() {
               <Button
                 type="button"
                 onClick={handleRun}
+                className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm h-11 px-5 rounded-xl"
                 disabled={
                   runLocked ||
                   isRunning ||
@@ -711,25 +738,23 @@ export default function GradePage() {
                   ]
                 }
               >
-                {isRunning ? "Running…" : "Run "}
+                {isRunning ? "Running…" : "▶ Run"}
               </Button>
             )}
-
 
             <Button
               type="button"
               onClick={download}
               variant="outline"
-              className="w-full sm:w-auto text-sm h-11 px-5">
+              className="w-full sm:w-auto text-sm h-11 px-5 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50">
               <Download className="w-4 h-4 mr-2" />
               Download
             </Button>
 
-            {/* ✅ Submit Grade button now same color as Run */}
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm h-11 px-5">
+              className="w-full sm:w-auto bg-[#EF7B55] hover:bg-[#F79771] text-white font-medium text-sm h-11 px-6 rounded-xl shadow-sm shadow-[#EF7B55]/20">
               <Send className="w-4 h-4 mr-2" />
               {submitting ? "Submitting..." : "Submit Grade"}
             </Button>
@@ -739,27 +764,35 @@ export default function GradePage() {
         </form>
 
         {/* Comments Section */}
-        <div className="mt-8 space-y-4">
-          <Label className="text-sm font-semibold">Comments</Label>
+        {/* Comments Section */}
+        <div className="mt-8 bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+          <Label className="text-sm font-semibold text-slate-700">💬 Comments</Label>
 
           {submission.comments.length > 0 ? (
             <div className="space-y-3">
               {submission.comments.map((comment) => (
-                <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm font-medium text-slate-700">
-                    {comment.author_name} ({comment.author_role})
-                  </p>
-                  <p className="text-sm text-slate-600 mt-1">
+                <div key={comment.id} className={`p-3 rounded-xl border ${
+                  comment.author_role === "teacher" ? "bg-[#EF7B55]/5 border-[#EF7B55]/10" : "bg-slate-50 border-slate-100"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-slate-700">
+                      {comment.author_name}
+                    </p>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      comment.author_role === "teacher" ? "bg-[#EF7B55]/10 text-[#EF7B55]" : "bg-slate-200 text-slate-500"
+                    }`}>{comment.author_role}</span>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-1.5">
                     {comment.message}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-[11px] text-slate-400 mt-2">
                     {new Date(comment.created_at).toLocaleString()}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">No comments yet.</p>
+            <p className="text-sm text-slate-400 italic">No comments yet.</p>
           )}
 
           <div className="flex gap-2">
@@ -767,14 +800,14 @@ export default function GradePage() {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Add a comment..."
-              className="flex-1 min-h-[80px] text-sm focus:ring-2 focus:ring-[#EF7B55]/50"
+              className="flex-1 min-h-[80px] text-sm border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#EF7B55]/40 rounded-lg"
             />
 
             <Button
               type="button"
               onClick={handleAddComment}
               disabled={commenting || !newComment.trim()}
-              className="bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white text-sm h-[80px] px-4">
+              className="bg-[#EF7B55] hover:bg-[#F79771] text-white text-sm h-[80px] px-4 rounded-xl">
               {commenting ? "Adding..." : "Add Comment"}
             </Button>
           </div>
