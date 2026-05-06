@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Check, ChevronLeft, ChevronRight, ChevronsUpDown,
-  Search, Filter, RotateCcw, Code2, Eye, Clock, CheckCircle2, AlertCircle,
+  Search, Filter, RotateCcw, Code2, Clock, CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -295,14 +295,9 @@ const SubmissionList: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <Button size="sm" variant="outline" className="flex-1 rounded-lg text-xs h-8 border-slate-200 text-slate-600 hover:bg-slate-50" asChild>
-                  <a href={`/teacher/submissions/${s.id}/code`}><Eye className="w-3 h-3 mr-1" />View</a>
-                </Button>
-                {s.status !== "graded" && (
                   <Button size="sm" className="flex-1 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-xs h-8" asChild>
                     <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
                   </Button>
-                )}
               </div>
             </div>
           );
@@ -353,14 +348,9 @@ const SubmissionList: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg" asChild>
-                          <a href={`/teacher/submissions/${s.id}/code`}><Eye className="w-3.5 h-3.5" /></a>
-                        </Button>
-                        {s.status !== "graded" && (
                           <Button size="sm" className="h-7 px-3 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-[11px]" asChild>
                             <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
                           </Button>
-                        )}
                       </div>
                     </td>
                   </tr>

@@ -24,14 +24,8 @@ const SubmissionItem: React.FC<SubmissionItemProps> = ({ submission }) => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mt-5">
-        <Link href={`/teacher/submissions/${submission.id}/code`} className="flex-1">
-          <Button className="w-full bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm py-2.5">
-            View Code
-          </Button>
-        </Link>
-
         <Link href={`/teacher/submissions/${submission.id}/grade`} className="flex-1">
-          <Button variant="outline" className="w-full border-[#EF7B55]/30 text-[#EF7B55] hover:bg-[#EF7B55]/10 font-medium text-sm py-2.5">
+          <Button className="w-full bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white font-medium text-sm py-2.5">
             Grade
           </Button>
         </Link>

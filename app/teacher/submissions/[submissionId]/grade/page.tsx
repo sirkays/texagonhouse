@@ -229,7 +229,8 @@ export default function GradePage() {
     const mainCode = pickCode(submission);
     if (mainCode) merged[mainLang] = mainCode;
 
-    // ✅ latest per language
+    // ✅ latest per language — populates other tabs (CSS, JS, etc.)
+    // for submissions grouped by the same title
     const latestMap = submission.latest_same_title_submission || null;
     if (latestMap) {
       (Object.entries(latestMap) as Array<[Lang, RelatedSubmissionMini]>).forEach(
@@ -250,7 +251,6 @@ export default function GradePage() {
         }
       );
     }
-
 
     return merged;
   }, [submission]);
@@ -347,6 +347,7 @@ export default function GradePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate() || !submission) return;
+    if (submission.status === "graded") return; // already graded — no re-submission
 
     setSubmitting(true);
     setError(null);
@@ -574,20 +575,21 @@ export default function GradePage() {
                 max={100}
                 step={1}
                 value={[score]}
-                onValueChange={(v) => setScore(v[0])}
+                onValueChange={(v) => { if (submission?.status !== "graded") setScore(v[0]); }}
+                disabled={submission?.status === "graded"}
                 className="flex-1"
               />
 
               <input
                 type="number"
                 value={score}
-                onChange={(e) =>
-                  setScore(
-                    Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
-                  )
-                }
+                onChange={(e) => {
+                  if (submission?.status !== "graded")
+                    setScore(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)));
+                }}
+                readOnly={submission?.status === "graded"}
                 className={`w-16 px-2 py-1.5 text-sm text-center border rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#EF7B55]/40 ${errors.score ? "border-red-400" : "border-slate-200"
-                  }`}
+                  } ${submission?.status === "graded" ? "opacity-60 cursor-not-allowed" : ""}`}
                 min="0"
                 max="100"
               />
@@ -606,9 +608,10 @@ export default function GradePage() {
             <Textarea
               id="feedback"
               value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
+              onChange={(e) => { if (submission?.status !== "graded") setFeedback(e.target.value); }}
+              readOnly={submission?.status === "graded"}
               placeholder="Great logic, but add error handling..."
-              className="min-h-32 resize-none text-sm border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#EF7B55]/40 rounded-lg"
+              className={`min-h-32 resize-none text-sm border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#EF7B55]/40 rounded-lg ${submission?.status === "graded" ? "opacity-60 cursor-not-allowed" : ""}`}
             />
           </div>
 
@@ -753,10 +756,14 @@ export default function GradePage() {
 
             <Button
               type="submit"
-              disabled={submitting}
-              className="w-full sm:w-auto bg-[#EF7B55] hover:bg-[#F79771] text-white font-medium text-sm h-11 px-6 rounded-xl shadow-sm shadow-[#EF7B55]/20">
+              disabled={submitting || submission?.status === "graded"}
+              className={`w-full sm:w-auto font-medium text-sm h-11 px-6 rounded-xl shadow-sm ${
+                submission?.status === "graded"
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                  : "bg-[#EF7B55] hover:bg-[#F79771] text-white shadow-[#EF7B55]/20"
+              }`}>
               <Send className="w-4 h-4 mr-2" />
-              {submitting ? "Submitting..." : "Submit Grade"}
+              {submitting ? "Submitting..." : submission?.status === "graded" ? "Already Graded" : "Submit Grade"}
             </Button>
           </div>
 
