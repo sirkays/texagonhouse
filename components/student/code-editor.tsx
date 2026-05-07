@@ -42,6 +42,8 @@ import {
   Keyboard,
   ChevronsLeft,
   ChevronsRight,
+  ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -151,6 +153,14 @@ export function CodeEditor() {
   const [syntaxError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const runIdRef = useRef(0);
+
+  // ─── Preview navigation state ──────────────────────────────────────────
+  // Stores the virtual filesystem from the last Run so that in-preview
+  // <a href="page.html"> navigation can fully resolve each linked page's
+  // CSS and JS — exactly like VS Code Live Server.
+  const previewFsRef = useRef<Record<string, { content: string; lang: LangKey }>>({});
+  const [previewHistory, setPreviewHistory] = useState<string[]>([]);
+  const [previewCurrentPage, setPreviewCurrentPage] = useState<string>("");
 
   const [fontSize, setFontSize] = useState(13);
   const minFontSize = 10;
@@ -362,12 +372,55 @@ export function CodeEditor() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isRunning, inlinePanel, activeTab, activeId, closeTab]);
 
+  // ─── Helper: navigate the preview to a different HTML page ────────────
+  // Used both by runCode (initial render) and by in-iframe <a> click
+  // navigation. Each call fully processes the target page through
+  // buildWebDoc so its CSS / JS / sub-links all resolve correctly.
+  const navigatePreview = (pageName: string, pushHistory = true) => {
+    const fs = previewFsRef.current;
+    const normalizePath = (p: string) =>
+      p.replace(/^\.?\//, "").split(/[?#]/)[0].toLowerCase();
+    const key = normalizePath(pageName);
+    const entry = fs[key];
+    if (!entry || entry.lang !== "html") return;
+
+    if (pushHistory && previewCurrentPage) {
+      setPreviewHistory((prev) => [...prev, previewCurrentPage]);
+    }
+    setPreviewCurrentPage(key);
+    const processed = buildWebDoc(entry.content, fs, runIdRef.current);
+    setHtmlPreview(processed);
+  };
+
+  const handlePreviewBack = () => {
+    setPreviewHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const target = next.pop()!;
+      navigatePreview(target, false);
+      return next;
+    });
+  };
+
+  const handlePreviewRefresh = () => {
+    if (previewCurrentPage) {
+      navigatePreview(previewCurrentPage, false);
+    }
+  };
+
   // ─── Iframe message bridge ─────────────────────────────────────────────
   useEffect(() => {
     const onMsg = (ev: MessageEvent) => {
       const data = ev.data;
       if (!data || data.source !== "web-iframe") return;
       if (data.runId !== runIdRef.current) return;
+
+      // ── In-preview navigation: student clicked <a href="page.html"> ──
+      if (data.type === "navigate") {
+        navigatePreview(data.message);
+        return;
+      }
+
       const line =
         data.type === "error"
           ? `❌ ${data.message}`
@@ -378,7 +431,7 @@ export function CodeEditor() {
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, []);
+  }, [previewCurrentPage]);
 
   // ─── Auth + initial data ────────────────────────────────────────────────
   useEffect(() => {
@@ -714,6 +767,7 @@ export function CodeEditor() {
                 lesson: parseInt(lessonId, 10),
                 language: tab.language,
                 code_text: tab.code,
+                file_name: `${tab.title || "untitled"}.${LANGUAGES[tab.language].ext}`,
               }),
             });
             if (!res.ok) throw new Error(await safeError(res));
@@ -859,9 +913,22 @@ export function CodeEditor() {
           tabs.find((t) => t.language === "html" && t.id === activeTab.id) ||
           tabs.find((t) => t.language === "html");
         const fs = buildPreviewFilesystem(folders);
+        // Persist the filesystem so in-preview navigation can re-resolve
+        // each linked page with its own CSS and JS.
+        previewFsRef.current = fs;
+        setPreviewHistory([]);
         const finalHtml =
           htmlTab?.code ??
           `<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>`;
+
+        // Figure out which "page" name we're rendering so we can track it
+        const entryPageName = htmlTab
+          ? Object.entries(fs).find(
+              ([, v]) => v.content === htmlTab.code && v.lang === "html"
+            )?.[0] ?? ""
+          : "";
+        setPreviewCurrentPage(entryPageName);
+
         setHtmlPreview(buildWebDoc(finalHtml, fs, runId));
         setOutput("Rendered preview.");
         pushToast("Rendered successfully", "success");
@@ -923,8 +990,10 @@ export function CodeEditor() {
   ) => {
     let html = htmlSrc ?? "";
 
-    // Build virtual filesystem of blob URLs for css/js/html files among the tabs.
-    const virtualFiles: Record<string, { url: string; ext: "css" | "js" | "html" }> = {};
+    // Build blob URLs only for CSS and JS — NOT for HTML.
+    // HTML cross-file navigation is handled via postMessage interception
+    // so each linked page gets fully processed with its own CSS/JS.
+    const virtualFiles: Record<string, { url: string; ext: "css" | "js" }> = {};
     for (const [name, entry] of Object.entries(fs)) {
       if (entry.lang === "css") {
         const url = URL.createObjectURL(
@@ -936,12 +1005,6 @@ export function CodeEditor() {
           new Blob([entry.content], { type: "text/javascript" })
         );
         virtualFiles[name] = { url, ext: "js" };
-      } else if (entry.lang === "html") {
-        // Build full HTML docs for linked pages so cross-file navigation works
-        const url = URL.createObjectURL(
-          new Blob([entry.content], { type: "text/html" })
-        );
-        virtualFiles[name] = { url, ext: "html" };
       }
     }
 
@@ -967,38 +1030,53 @@ export function CodeEditor() {
       }
     );
 
-    // Resolve <a href="..."> that point to other HTML files in the project
-    html = html.replace(
-      /(<a\b[^>]*\bhref\s*=\s*["'])([^"']+)(["'])/gi,
-      (full, pre, href, post) => {
-        const normalized = normalizePath(href);
-        if (!normalized.endsWith(".html") && !normalized.endsWith(".htm"))
-          return full;
-        const file = virtualFiles[normalized];
-        return file && file.ext === "html"
-          ? `${pre}${file.url}${post}`
-          : full;
-      }
-    );
-
+    // ── Bridge script: console forwarding + link-click navigation ─────
+    // Instead of replacing <a href> with blob URLs (which lose CSS/JS
+    // context), we intercept clicks at runtime. When the user clicks a
+    // link to another .html/.htm file, we send a postMessage to the
+    // parent (code-editor), which fully processes the target page
+    // (resolving its CSS/JS) and swaps the iframe content.
     const bridge = `
       <script>
         (function () {
-          const RUN_ID = ${runId};
+          var RUN_ID = ${runId};
           function send(type, msg) {
             try {
               window.parent.postMessage(
-                { source: "web-iframe", type, message: String(msg), runId: RUN_ID },
+                { source: "web-iframe", type: type, message: String(msg), runId: RUN_ID },
                 "*"
               );
             } catch (e) {}
           }
-          const _log = console.log; const _warn = console.warn; const _err = console.error;
+
+          /* ── Console forwarding ── */
+          var _log = console.log, _warn = console.warn, _err = console.error;
           console.log = function () { send("log", Array.prototype.slice.call(arguments).map(String).join(" ")); _log.apply(console, arguments); };
           console.warn = function () { send("warn", Array.prototype.slice.call(arguments).map(String).join(" ")); _warn.apply(console, arguments); };
           console.error = function () { send("error", Array.prototype.slice.call(arguments).map(String).join(" ")); _err.apply(console, arguments); };
-          window.onerror = function (message, source, line, col, err) { send("error", (err && err.stack) ? err.stack : message + " (" + line + ":" + col + ")"); };
-          window.addEventListener("unhandledrejection", function (event) { const r = event.reason; send("error", r && r.stack ? r.stack : r); });
+          window.onerror = function (message, source, line, col, err) {
+            send("error", (err && err.stack) ? err.stack : message + " (" + line + ":" + col + ")");
+          };
+          window.addEventListener("unhandledrejection", function (event) {
+            var r = event.reason;
+            send("error", r && r.stack ? r.stack : r);
+          });
+
+          /* ── Navigation interception ── */
+          /* Catches clicks on <a href="page.html"> and sends the href to  */
+          /* the parent so it can fully process the target page.           */
+          document.addEventListener("click", function (e) {
+            var el = e.target;
+            while (el && el.tagName !== "A") el = el.parentElement;
+            if (!el) return;
+            var href = el.getAttribute("href");
+            if (!href) return;
+            var clean = href.replace(/^\\.?\\//, "").split(/[?#]/)[0].toLowerCase();
+            if (clean.endsWith(".html") || clean.endsWith(".htm")) {
+              e.preventDefault();
+              send("navigate", href);
+            }
+          }, true);
         })();
       </script>
     `;
@@ -2130,6 +2208,40 @@ export function CodeEditor() {
                       >
                         {bottomPanel === "preview" && htmlPreview && (
                           <>
+                            <button
+                              className="ide-btn ghost icon-only"
+                              title="Back"
+                              onClick={handlePreviewBack}
+                              disabled={previewHistory.length === 0}
+                              style={{
+                                opacity: previewHistory.length === 0 ? 0.35 : 1,
+                              }}
+                            >
+                              <ArrowLeft className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              className="ide-btn ghost icon-only"
+                              title="Refresh page"
+                              onClick={handlePreviewRefresh}
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            </button>
+                            {previewCurrentPage && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: t.textMuted,
+                                  fontFamily: "JetBrains Mono, monospace",
+                                  maxWidth: 160,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={previewCurrentPage}
+                              >
+                                {previewCurrentPage}
+                              </span>
+                            )}
                             <button
                               className="ide-btn ghost icon-only"
                               title="Open in new tab"

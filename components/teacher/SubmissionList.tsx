@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Check, ChevronLeft, ChevronRight, ChevronsUpDown,
-  Search, Filter, RotateCcw, Code2, Clock, CheckCircle2, AlertCircle,
+  Search, Filter, RotateCcw, Code2, Clock, CheckCircle2, AlertCircle, Layers,
 } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -21,6 +21,8 @@ interface Submission {
   class_name: string | null;
   language: string;
   score?: number | null;
+  file_count?: number;
+  file_languages?: string[];
 }
 
 interface FilterOption { id: number; name: string; }
@@ -288,16 +290,22 @@ const SubmissionList: React.FC = () => {
                 <p><span className="text-slate-400">Title:</span> <span className="text-slate-700">{s.title || "-"}</span></p>
                 <p><span className="text-slate-400">Lesson:</span> <span className="text-slate-700">{s.lesson_title}</span></p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r", lColor)}>
-                    <Code2 className="w-3 h-3" />{s.language}
-                  </span>
+                  {(s.file_languages && s.file_languages.length > 1) ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r from-slate-50 to-slate-100/60 text-slate-600 border-slate-200">
+                      <Layers className="w-3 h-3" />{s.file_count || s.file_languages.length} files
+                    </span>
+                  ) : (
+                    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r", lColor)}>
+                      <Code2 className="w-3 h-3" />{s.language}
+                    </span>
+                  )}
                   {s.score != null && <span className="text-xs text-emerald-600 font-mono font-semibold">{s.score}/100</span>}
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                  <Button size="sm" className="flex-1 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-xs h-8" asChild>
-                    <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
-                  </Button>
+                <Button size="sm" className="flex-1 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-xs h-8" asChild>
+                  <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                </Button>
               </div>
             </div>
           );
@@ -330,9 +338,15 @@ const SubmissionList: React.FC = () => {
                     <td className="px-4 py-3 text-sm text-slate-800 font-medium">{s.student_name}</td>
                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[150px] truncate">{s.title || "-"}</td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r", lColor)}>
-                        <Code2 className="w-3 h-3" />{s.language}
-                      </span>
+                      {(s.file_languages && s.file_languages.length > 1) ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r from-slate-50 to-slate-100/60 text-slate-600 border-slate-200">
+                          <Layers className="w-3 h-3" />{s.file_count || s.file_languages.length} files
+                        </span>
+                      ) : (
+                        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border bg-gradient-to-r", lColor)}>
+                          <Code2 className="w-3 h-3" />{s.language}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[140px] truncate">{s.lesson_title}</td>
                     <td className="px-4 py-3 text-sm text-slate-400">{s.class_name ?? "-"}</td>
@@ -348,9 +362,9 @@ const SubmissionList: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                          <Button size="sm" className="h-7 px-3 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-[11px]" asChild>
-                            <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
-                          </Button>
+                        <Button size="sm" className="h-7 px-3 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-[11px]" asChild>
+                          <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                        </Button>
                       </div>
                     </td>
                   </tr>
