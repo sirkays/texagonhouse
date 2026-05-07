@@ -38,9 +38,9 @@ export async function djangoFetch(
   const cookieHeader =
     cookieStore.getAll().length > 0
       ? cookieStore
-          .getAll()
-          .map((c) => `${c.name}=${c.value}`)
-          .join("; ")
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ")
       : undefined;
 
   const baseHeaders: Record<string, string> = {
@@ -93,9 +93,9 @@ export async function djangoFetchRaw(
   const cookieHeader =
     cookieStore.getAll().length > 0
       ? cookieStore
-          .getAll()
-          .map((c) => `${c.name}=${c.value}`)
-          .join("; ")
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ")
       : undefined;
 
   const headers = buildAuthHeaders(init.headers);

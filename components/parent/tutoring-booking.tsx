@@ -205,39 +205,58 @@ export function TutoringBooking() {
     active_tutors: 0,
   });
 
+  // Per-tab loading states
+  const [loadingUpcoming, setLoadingUpcoming] = useState(false);
+  const [loadingPast, setLoadingPast] = useState(false);
+  const [loadingTutors, setLoadingTutors] = useState(false);
+
 
   // Fetch functions
   const fetchUpcoming = async (page: number) => {
-    const res = await fetch(
-      `/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      setUpcomingSessions(data.results);
-      setUpcomingTotalPages(data.total_pages);
+    setLoadingUpcoming(true);
+    try {
+      const res = await fetch(
+        `/api/tutor/tutoring/bookings?scope=upcoming&page=${page}&page_size=${itemsPerPage}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setUpcomingSessions(data.results);
+        setUpcomingTotalPages(data.total_pages);
+      }
+    } finally {
+      setLoadingUpcoming(false);
     }
   };
 
-
   const fetchPast = async (page: number) => {
-    const res = await fetch(
-      `/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      setPastSessions(data.results);
-      setPastTotalPages(data.total_pages);
+    setLoadingPast(true);
+    try {
+      const res = await fetch(
+        `/api/tutor/tutoring/bookings?scope=past&page=${page}&page_size=${itemsPerPage}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPastSessions(data.results);
+        setPastTotalPages(data.total_pages);
+      }
+    } finally {
+      setLoadingPast(false);
     }
   };
 
   const fetchTutors = async (page: number) => {
-    const res = await fetch(
-      `/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      setAvailableTutors(data.results);
-      setTutorsTotalPages(data.total_pages);
+    setLoadingTutors(true);
+    try {
+      const res = await fetch(
+        `/api/tutor/tutoring/tutors?page=${page}&page_size=${itemsPerPage}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableTutors(data.results);
+        setTutorsTotalPages(data.total_pages);
+      }
+    } finally {
+      setLoadingTutors(false);
     }
   };
 
@@ -265,7 +284,7 @@ export function TutoringBooking() {
       try {
         const data = await res.json();
         msg = data?.detail || data?.error || msg;
-      } catch {}
+      } catch { }
       throw new Error(msg);
     }
 
@@ -404,6 +423,49 @@ export function TutoringBooking() {
     // Logic removed as it's now on the standalone page
   };
 
+  // ---- Skeleton loader component ----
+  const TabLoadingSkeleton = ({ rows = 3 }: { rows?: number }) => (
+    <div className="space-y-4 animate-pulse">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-start gap-4 p-4 rounded-lg border border-muted">
+          <div className="h-12 w-12 rounded-full bg-muted shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-muted rounded w-2/5" />
+            <div className="h-3 bg-muted rounded w-3/5" />
+            <div className="h-3 bg-muted rounded w-1/3" />
+          </div>
+          <div className="space-y-2 shrink-0">
+            <div className="h-5 bg-muted rounded w-16" />
+            <div className="h-5 bg-muted rounded w-20" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const TutorCardSkeleton = () => (
+    <div className="animate-pulse flex flex-col p-4 rounded-lg border border-muted space-y-4 min-h-[400px]">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 rounded-full bg-muted shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-3 bg-muted rounded w-1/2" />
+        </div>
+      </div>
+      <div className="space-y-2 flex-1">
+        <div className="h-3 bg-muted rounded w-full" />
+        <div className="h-3 bg-muted rounded w-4/5" />
+        <div className="h-3 bg-muted rounded w-3/5" />
+        <div className="flex gap-1 mt-2">
+          <div className="h-5 bg-muted rounded w-12" />
+          <div className="h-5 bg-muted rounded w-16" />
+          <div className="h-5 bg-muted rounded w-10" />
+        </div>
+      </div>
+      <div className="h-9 bg-muted rounded w-full mt-auto" />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -453,88 +515,92 @@ export function TutoringBooking() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3">
-              <div className="space-y-4">
-                {upcomingSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex flex-col gap-3 sm:gap-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-                        <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
-                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                            <AvatarImage
-                              src={session.tutorAvatar || "/placeholder.svg"}
-                            />
-                            <AvatarFallback>
-                              {session.tutor
-                                .split(" ")
-                                .map((n: any) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="space-y-2 flex-1 min-w-0">
-                            <div>
-                              <h4 className="font-semibold text-base sm:text-lg truncate">
-                                {session.subject} Tutoring
-                              </h4>
-                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                                {session.tutor} • {session.child}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                                <span>{session.date}</span>
+              {loadingUpcoming ? (
+                <TabLoadingSkeleton rows={itemsPerPage} />
+              ) : (
+                <div className="space-y-4">
+                  {upcomingSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex flex-col gap-3 sm:gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
+                            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                              <AvatarImage
+                                src={session.tutorAvatar || "/placeholder.svg"}
+                              />
+                              <AvatarFallback>
+                                {session.tutor
+                                  .split(" ")
+                                  .map((n: any) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="space-y-2 flex-1 min-w-0">
+                              <div>
+                                <h4 className="font-semibold text-base sm:text-lg truncate">
+                                  {session.subject} Tutoring
+                                </h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                  {session.tutor} • {session.child}
+                                </p>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                                <span>
-                                  {session.time} ({session.duration}min)
-                                </span>
+                              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                                <div className="flex items-center gap-1">
+                                  <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                  <span>{session.date}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                  <span>
+                                    {session.time} ({session.duration}min)
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                            <div className="text-xs sm:text-sm text-muted-foreground break-words">
-                              {session.notes}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {getPaymentStatusBadge(session.paymentStatus)}
+                              <div className="text-xs sm:text-sm text-muted-foreground break-words">
+                                {session.notes}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {getPaymentStatusBadge(session.paymentStatus)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right space-y-2 flex-shrink-0">
-                          <div className="font-medium text-green-600 text-base sm:text-lg">
-                            {session.cost}
-                          </div>
-                          {getStatusBadge(session.status)}
+                          <div className="text-right space-y-2 flex-shrink-0">
+                            <div className="font-medium text-green-600 text-base sm:text-lg">
+                              {session.cost}
+                            </div>
+                            {getStatusBadge(session.status)}
 
-                          {session.status === "Pending" && (
+                            {session.status === "Pending" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push("/invoice/invoices")}
+                                className="mt-2 mx-3 w-full sm:w-auto"
+                              >
+                                Pay Now
+                              </Button>
+                            )}
                             <Button
-                              variant="outline"
                               size="sm"
-                              onClick={() => router.push("/invoice/invoices")}
-                              className="mt-2 mx-3 w-full sm:w-auto"
+                              className="mt-2 w-full sm:w-auto bg-red-600 hover:bg-red-700"
+                              onClick={() => openCancelDialog(session)}
+                              disabled={cancelSubmitting || session.status === "Cancelled" || session.status === "Completed"}
                             >
-                              Pay Now
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                              Cancel
                             </Button>
-                          )}
-                          <Button
-                          size="sm"
-                          className="mt-2 w-full sm:w-auto bg-red-600 hover:bg-red-700"
-                          onClick={() => openCancelDialog(session)}
-                          disabled={cancelSubmitting || session.status === "Cancelled" || session.status === "Completed"}
-                        >
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          Cancel
-                        </Button>
 
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              {upcomingTotalPages > 1 && (
+                  ))}
+                </div>
+              )}
+              {!loadingUpcoming && upcomingTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -610,6 +676,9 @@ export function TutoringBooking() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3">
+              {loadingPast ? (
+                <TabLoadingSkeleton rows={itemsPerPage} />
+              ) : (
               <div className="space-y-4">
                 {pastSessions.map((session) => (
                   <div
@@ -659,7 +728,8 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
-              {pastTotalPages > 1 && (
+              )}
+              {!loadingPast && pastTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>
@@ -734,6 +804,13 @@ export function TutoringBooking() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:border">
+              {loadingTutors ? (
+                <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: itemsPerPage }).map((_, i) => (
+                    <TutorCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : (
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {availableTutors.map((tutor) => (
                   <div
@@ -798,16 +875,20 @@ export function TutoringBooking() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {/* <div>
-                          <span className="font-medium">Experience:</span>
-                          <div className="truncate">{tutor.experience}</div>
-                        </div> */}
                         <div>
                           <span className="font-medium">Rate:</span>
                           <div className="text-green-600 font-medium">
                             {tutor.rate}
                           </div>
                         </div>
+                        {tutor.hours_per_day != null && (
+                          <div>
+                            <span className="font-medium">Hours/Day:</span>
+                            <div className="text-muted-foreground">
+                              {tutor.hours_per_day}h
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* <div>
@@ -842,8 +923,9 @@ export function TutoringBooking() {
                   </div>
                 ))}
               </div>
+              )}
 
-              {tutorsTotalPages > 1 && (
+              {!loadingTutors && tutorsTotalPages > 1 && (
                 <Pagination className="mt-4 sm:mt-6">
                   <PaginationContent>
                     <PaginationItem>

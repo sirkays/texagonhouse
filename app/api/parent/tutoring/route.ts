@@ -88,16 +88,16 @@ async function handler(req: any) {
 
     const result = useRaw
       ? await djangoFetchRaw(backendUrlPath, {
-          method,
-          signal: t.signal,
-          body,
-          headers: reqCt ? { "Content-Type": req.headers.get("content-type") as string } : {},
-        })
+        method,
+        signal: t.signal,
+        body,
+        headers: reqCt ? { "Content-Type": req.headers.get("content-type") as string } : {},
+      })
       : await djangoFetch(backendUrlPath, {
-          method,
-          signal: t.signal,
-          body,
-        });
+        method,
+        signal: t.signal,
+        body,
+      });
 
     const response = result.response;
     const rawResponse = await response.text();

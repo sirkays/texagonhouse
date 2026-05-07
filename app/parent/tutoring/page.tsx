@@ -1,5 +1,5 @@
 import React from "react";
-import {TutoringBooking} from "@/components/parent/tutoring-booking";
+import { TutoringBooking } from "@/components/parent/tutoring-booking";
 
 const ParentTutoringMain = () => {
   return (

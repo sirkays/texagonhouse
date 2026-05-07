@@ -55,6 +55,7 @@ export default function CreatePrivateTutoringPage() {
   const [privateTitle, setPrivateTitle] = useState<string>("");
   const [ratePerHour, setRatePerHour] = useState<string>("");
   const [tutoringDurationDays, setTutoringDurationDays] = useState<number>(24);
+  const [hoursPerDay, setHoursPerDay] = useState<number>(1);
   const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [privateNotes, setPrivateNotes] = useState("");
   const [open, setOpen] = useState(false);
@@ -102,10 +103,11 @@ export default function CreatePrivateTutoringPage() {
       availableDays.length === 0 ||
       !privateTitle.trim() ||
       tutoringDurationDays < 1 ||
+      hoursPerDay < 1 ||
       !privateNotes.trim()
     ) {
       setError(
-        "Please fill in all required fields: course, title, rate, duration, available days, and notes"
+        "Please fill in all required fields: course, title, rate, duration, hours per day, available days, and notes"
       );
       return;
     }
@@ -123,13 +125,14 @@ export default function CreatePrivateTutoringPage() {
           title: privateTitle,
           rate_per_hour: parseFloat(ratePerHour).toFixed(2),
           tutoring_duration_days: tutoringDurationDays,
+          hours_per_day: hoursPerDay,
           notes: privateNotes?.trim().slice(0, 225),
           available_days: availableDays.map((day) => ({ day })),
         }),
       });
 
       if (response.ok) {
-        router.push("/teacher/tutoring?tab=private");
+        router.push("/teacher/tutoring#private");
       } else {
         const data = await response.json();
         setError(data.error || "Failed to create private session");
@@ -300,6 +303,24 @@ export default function CreatePrivateTutoringPage() {
                 value={tutoringDurationDays}
                 onChange={(e) =>
                   setTutoringDurationDays(Number(e.target.value || 1))
+                }
+                className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hours-per-day">
+                Hours per day{" "}
+                <span className="text-[#EF7B55]">*</span>
+              </Label>
+              <input
+                id="hours-per-day"
+                type="number"
+                min={1}
+                max={24}
+                value={hoursPerDay}
+                onChange={(e) =>
+                  setHoursPerDay(Number(e.target.value || 1))
                 }
                 className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />

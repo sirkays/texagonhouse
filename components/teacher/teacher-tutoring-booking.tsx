@@ -49,6 +49,7 @@ import {
   MoreHorizontal,
   Trash2,
   Check,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonProps, buttonVariants } from "@/components/ui/button";
@@ -170,6 +171,7 @@ interface PrivateSession {
   title: string; // ← add
   ratePerHour: string;
   durationDays: number;
+  hoursPerDay?: number;
   availableDays: string[];
   notes?: string;
   status: "Active" | "Inactive";
@@ -305,6 +307,16 @@ export function TeacherTutoringBooking() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "private" | "past">(
     "upcoming",
   );
+
+  // On mount, respect #private hash (navigation from create page)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "private" || hash === "upcoming" || hash === "past") {
+        setActiveTab(hash as "upcoming" | "private" | "past");
+      }
+    }
+  }, []);
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
   const [privatePage, setPrivatePage] = useState(1);
@@ -320,6 +332,112 @@ export function TeacherTutoringBooking() {
   const [privateSessions, setPrivateSessions] = useState<PrivateSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Edit private session state ──────────────────────────────
+  const [editSession, setEditSession] = useState<PrivateSession | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    title: string;
+    ratePerHour: string;
+    tutoringDurationDays: number;
+    hoursPerDay: number;
+    availableDays: string[];
+    notes: string;
+  }>({
+    title: "",
+    ratePerHour: "",
+    tutoringDurationDays: 24,
+    hoursPerDay: 1,
+    availableDays: [],
+    notes: "",
+  });
+
+  const openEditDialog = (p: PrivateSession) => {
+    setEditSession(p);
+    setEditForm({
+      title: p.title,
+      ratePerHour: p.ratePerHour,
+      tutoringDurationDays: p.durationDays,
+      hoursPerDay: p.hoursPerDay ?? 1,
+      availableDays: [...p.availableDays],
+      notes: p.notes ?? "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const toggleEditDay = (day: string) => {
+    setEditForm((prev) => ({
+      ...prev,
+      availableDays: prev.availableDays.includes(day)
+        ? prev.availableDays.filter((d) => d !== day)
+        : [...prev.availableDays, day],
+    }));
+  };
+
+  const handleUpdatePrivateSession = async () => {
+    if (!session?.user?.sessionToken || !editSession) return;
+    setEditSubmitting(true);
+    try {
+      const response = await fetch(
+        `/api/teacher/tutoring-bookings/update?id=${editSession.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            "Content-Type": "application/json",
+            "X-Session-Token": session.user.sessionToken,
+          },
+          body: JSON.stringify({
+            title: editForm.title,
+            rate_per_hour: parseFloat(editForm.ratePerHour).toFixed(2),
+            tutoring_duration_days: editForm.tutoringDurationDays,
+            hours_per_day: editForm.hoursPerDay,
+            notes: editForm.notes,
+            available_days: editForm.availableDays.map((d) => ({ day: d })),
+          }),
+        },
+      );
+
+      const text = await response.text();
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        throw new Error(`Backend returned non-JSON (status: ${response.status})`);
+      }
+      const data = JSON.parse(text);
+      if (!response.ok) {
+        throw new Error(data.error || data.detail || "Failed to update session");
+      }
+
+      // Update local state
+      setPrivateSessions((prev) =>
+        prev.map((p) =>
+          p.id === editSession.id
+            ? {
+                ...p,
+                title: data.title ?? editForm.title,
+                ratePerHour: data.rate_per_hour ?? editForm.ratePerHour,
+                durationDays: data.tutoring_duration_days ?? editForm.tutoringDurationDays,
+                hoursPerDay: data.hours_per_day ?? editForm.hoursPerDay,
+                notes: data.notes ?? editForm.notes,
+                availableDays:
+                  data.available_days?.map((d: any) => d.day) ??
+                  editForm.availableDays,
+              }
+            : p,
+        ),
+      );
+
+      setIsEditDialogOpen(false);
+      setEditSession(null);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update session");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+  // ───────────────────────────────────────────────────────────
   const itemsPerPage = 3;
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -604,6 +722,7 @@ export function TeacherTutoringBooking() {
           title: item.title || "My Private Tutoring",
           ratePerHour: parseFloat(item.rate_per_hour || 0).toFixed(2),
           durationDays: item.tutoring_duration_days || 24,
+          hoursPerDay: item.hours_per_day,
           availableDays: item.available_days?.map((d: any) => d.day) || [],
           notes: item.notes || "",
           status: item.status
@@ -1147,6 +1266,161 @@ export function TeacherTutoringBooking() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Edit Private Session Dialog ──────────────────── */}
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          if (editSubmitting) return;
+          setIsEditDialogOpen(open);
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-[540px] p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Private Session</DialogTitle>
+            <DialogDescription>
+              Update your private tutoring offering details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            {/* Title */}
+            <div className="space-y-1">
+              <Label htmlFor="edit-title">
+                Title <span className="text-[#EF7B55]">*</span>
+              </Label>
+              <input
+                id="edit-title"
+                type="text"
+                value={editForm.title}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, title: e.target.value }))
+                }
+                className="w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Rate */}
+            <div className="space-y-1">
+              <Label htmlFor="edit-rate">
+                Rate per hour <span className="text-[#EF7B55]">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₦</span>
+                <input
+                  id="edit-rate"
+                  type="text"
+                  inputMode="numeric"
+                  value={editForm.ratePerHour}
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/[^0-9.]/g, "");
+                    const parts = val.split(".");
+                    if (parts.length > 2) val = parts[0] + "." + parts.slice(1).join("");
+                    if (parts[1] && parts[1].length > 2) val = parts[0] + "." + parts[1].substring(0, 2);
+                    setEditForm((p) => ({ ...p, ratePerHour: val }));
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value) setEditForm((p) => ({ ...p, ratePerHour: parseFloat(e.target.value).toFixed(2) }));
+                  }}
+                  className="w-full pl-8 pr-12 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">/hour</span>
+              </div>
+            </div>
+
+            {/* Duration days */}
+            <div className="space-y-1">
+              <Label htmlFor="edit-duration">
+                Tutoring Duration (days) <span className="text-[#EF7B55]">*</span>
+              </Label>
+              <input
+                id="edit-duration"
+                type="number"
+                min={1}
+                value={editForm.tutoringDurationDays}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, tutoringDurationDays: Number(e.target.value || 1) }))
+                }
+                className="w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Hours per day */}
+            <div className="space-y-1">
+              <Label htmlFor="edit-hours">
+                Hours per day <span className="text-[#EF7B55]">*</span>
+              </Label>
+              <input
+                id="edit-hours"
+                type="number"
+                min={1}
+                max={24}
+                value={editForm.hoursPerDay}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, hoursPerDay: Number(e.target.value || 1) }))
+                }
+                className="w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            {/* Available days */}
+            <div className="space-y-1">
+              <Label>Available Days <span className="text-[#EF7B55]">*</span></Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].map((d) => (
+                  <Button
+                    key={d}
+                    type="button"
+                    size="sm"
+                    variant={editForm.availableDays.includes(d) ? "default" : "outline"}
+                    className={cn(
+                      "justify-start text-xs capitalize transition-colors",
+                      editForm.availableDays.includes(d) && "bg-[#EF7B55] hover:bg-[#F79771]",
+                    )}
+                    onClick={() => toggleEditDay(d)}>
+                    {editForm.availableDays.includes(d) && <Check className="h-3 w-3 mr-1" />}
+                    {d.charAt(0).toUpperCase() + d.slice(1)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <textarea
+                id="edit-notes"
+                rows={3}
+                value={editForm.notes}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, notes: e.target.value }))
+                }
+                className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={editSubmitting}
+              className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdatePrivateSession}
+              disabled={editSubmitting}
+              className="w-full sm:w-auto h-10 bg-transparent border border-[#EF7B55]/70 text-[#EF7B55]/70 hover:bg-[#F79771]/20">
+              {editSubmitting ? (
+                <><Spinner size="sm" className="mr-2" />Saving...</>
+              ) : (
+                <><Pencil className="h-4 w-4 mr-2" />Save Changes</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
@@ -1389,7 +1663,14 @@ export function TeacherTutoringBooking() {
                               </span>
                               <span className="mx-1">•</span>
                               <span className="font-medium">Duration:</span>
-                              <span>{p.durationDays} hour(s)</span>
+                              <span>{p.durationDays} day(s)</span>
+                              {p.hoursPerDay && (
+                                <>
+                                  <span className="mx-1">•</span>
+                                  <span className="font-medium">Hours/Day:</span>
+                                  <span>{p.hoursPerDay}</span>
+                                </>
+                              )}
                               <span className="mx-1">•</span>
                               {getStatusBadge(p.status)}
                             </div>
@@ -1433,6 +1714,14 @@ export function TeacherTutoringBooking() {
                                   ? "Deactivate"
                                   : "Activate"}
                               </Button> */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => openEditDialog(p)}>
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
                               <Button
                                 size="sm"
                                 className="h-8 bg-red-600 hover:bg-red-700"
