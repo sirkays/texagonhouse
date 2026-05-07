@@ -116,10 +116,10 @@ export function CodeEditor() {
 
   // VS Code-style defaults: Python uses 4 spaces (PEP 8), others use 2.
   const INDENT_BY_LANG: Record<LangKey, { size: number; unit: string }> = {
-    python:     { size: 4, unit: "    " },
+    python: { size: 4, unit: "    " },
     javascript: { size: 2, unit: "  " },
-    html:       { size: 2, unit: "  " },
-    css:        { size: 2, unit: "  " },
+    html: { size: 2, unit: "  " },
+    css: { size: 2, unit: "  " },
   };
 
   // ─── Session ────────────────────────────────────────────────────────────
@@ -162,12 +162,12 @@ export function CodeEditor() {
         const n = parseInt(stored, 10);
         if (!isNaN(n) && n >= minFontSize && n <= maxFontSize) setFontSize(n);
       }
-    } catch {}
+    } catch { }
   }, []);
   useEffect(() => {
     try {
       localStorage.setItem("code-ide-font-size", String(fontSize));
-    } catch {}
+    } catch { }
   }, [fontSize]);
   const incFontSize = () => setFontSize((f) => Math.min(maxFontSize, f + 1));
   const decFontSize = () => setFontSize((f) => Math.max(minFontSize, f - 1));
@@ -229,8 +229,8 @@ export function CodeEditor() {
           m.includes("deleted") ||
           m.includes("updated") ||
           m.includes("created")
-        ? "success"
-        : "info";
+          ? "success"
+          : "info";
     pushToast(message, kind);
   };
 
@@ -372,8 +372,8 @@ export function CodeEditor() {
         data.type === "error"
           ? `❌ ${data.message}`
           : data.type === "warn"
-          ? `⚠ ${data.message}`
-          : data.message;
+            ? `⚠ ${data.message}`
+            : data.message;
       setWebConsole((prev) => (prev ? prev + "\n" + line : line));
     };
     window.addEventListener("message", onMsg);
@@ -405,7 +405,7 @@ export function CodeEditor() {
         .then((res) => (res.ok ? res.json() : []))
         .then(setUploadedFiles)
         .catch(() => setUploadedFiles([])),
-    ]).catch(() => {});
+    ]).catch(() => { });
   }, [status]);
 
   // ─── API helpers ────────────────────────────────────────────────────────
@@ -429,12 +429,12 @@ export function CodeEditor() {
       const list: any[] = Array.isArray(data)
         ? data
         : Array.isArray(data?.results)
-        ? data.results
-        : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.lessons)
-        ? data.lessons
-        : [];
+          ? data.results
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.lessons)
+              ? data.lessons
+              : [];
       // eslint-disable-next-line no-console
       console.debug("[IDE] lessons loaded:", list.length, list.slice(0, 3));
       const mapped = list
@@ -552,11 +552,11 @@ export function CodeEditor() {
                 // Refresh snippets + uploads since some may have been deleted
                 fetchSnippets()
                   .then(setMySnippets)
-                  .catch(() => {});
+                  .catch(() => { });
                 fetch("/api/code-ide/uploads")
                   .then((r) => (r.ok ? r.json() : []))
                   .then(setUploadedFiles)
-                  .catch(() => {});
+                  .catch(() => { });
                 showCustomAlert("Folder and contents deleted");
               } else {
                 showCustomAlert("Force delete failed");
@@ -858,7 +858,7 @@ export function CodeEditor() {
         const htmlTab =
           tabs.find((t) => t.language === "html" && t.id === activeTab.id) ||
           tabs.find((t) => t.language === "html");
-        const fs = buildPreviewFilesystem();
+        const fs = buildPreviewFilesystem(folders);
         const finalHtml =
           htmlTab?.code ??
           `<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>`;
@@ -923,8 +923,8 @@ export function CodeEditor() {
   ) => {
     let html = htmlSrc ?? "";
 
-    // Build virtual filesystem of blob URLs for css/js files among the tabs.
-    const virtualFiles: Record<string, { url: string; ext: "css" | "js" }> = {};
+    // Build virtual filesystem of blob URLs for css/js/html files among the tabs.
+    const virtualFiles: Record<string, { url: string; ext: "css" | "js" | "html" }> = {};
     for (const [name, entry] of Object.entries(fs)) {
       if (entry.lang === "css") {
         const url = URL.createObjectURL(
@@ -936,25 +936,48 @@ export function CodeEditor() {
           new Blob([entry.content], { type: "text/javascript" })
         );
         virtualFiles[name] = { url, ext: "js" };
+      } else if (entry.lang === "html") {
+        // Build full HTML docs for linked pages so cross-file navigation works
+        const url = URL.createObjectURL(
+          new Blob([entry.content], { type: "text/html" })
+        );
+        virtualFiles[name] = { url, ext: "html" };
       }
     }
 
-    const basename = (p: string) =>
+    // Normalize a path: strip leading ./, remove query/hash, lowercase
+    const normalizePath = (p: string) =>
       p.replace(/^\.?\//, "").split(/[?#]/)[0].toLowerCase();
 
+    // Resolve CSS <link href="...">
     html = html.replace(
       /(<link\b[^>]*\bhref\s*=\s*["'])([^"']+)(["'])/gi,
       (full, pre, href, post) => {
-        const file = virtualFiles[basename(href)];
+        const file = virtualFiles[normalizePath(href)];
         return file && file.ext === "css" ? `${pre}${file.url}${post}` : full;
       }
     );
 
+    // Resolve JS <script src="...">
     html = html.replace(
       /(<script\b[^>]*\bsrc\s*=\s*["'])([^"']+)(["'])/gi,
       (full, pre, src, post) => {
-        const file = virtualFiles[basename(src)];
+        const file = virtualFiles[normalizePath(src)];
         return file && file.ext === "js" ? `${pre}${file.url}${post}` : full;
+      }
+    );
+
+    // Resolve <a href="..."> that point to other HTML files in the project
+    html = html.replace(
+      /(<a\b[^>]*\bhref\s*=\s*["'])([^"']+)(["'])/gi,
+      (full, pre, href, post) => {
+        const normalized = normalizePath(href);
+        if (!normalized.endsWith(".html") && !normalized.endsWith(".htm"))
+          return full;
+        const file = virtualFiles[normalized];
+        return file && file.ext === "html"
+          ? `${pre}${file.url}${post}`
+          : full;
       }
     );
 
@@ -1169,6 +1192,39 @@ export function CodeEditor() {
       .catch(() => showCustomAlert("Failed to copy URL"));
   };
 
+  // ─── Copy file path (for cross-file linking) ──────────────────────────
+  // Builds a virtual path like "styles/main.css" that can be pasted into
+  // HTML <link href="...">, <script src="...">, CSS url(...), etc.
+  // The preview engine (buildWebDoc) resolves these paths at runtime.
+
+  const getFolderPath = (folderId: number | null): string => {
+    if (folderId == null) return "";
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder) return "";
+    return folder.path; // e.g. "project/styles"
+  };
+
+  const copySnippetPath = (s: Snippet) => {
+    const ext = LANGUAGES[s.language]?.ext || "txt";
+    const name = (s.title || "untitled").trim() || "untitled";
+    const folderPath = getFolderPath(s.folder);
+    const fullPath = folderPath ? `${folderPath}/${name}.${ext}` : `${name}.${ext}`;
+    navigator.clipboard
+      .writeText(fullPath)
+      .then(() => showCustomAlert(`Path copied: ${fullPath}`))
+      .catch(() => showCustomAlert("Failed to copy path"));
+  };
+
+  const copyFilePath = (file: UploadedFile) => {
+    const name = file.label || file.original_name || "file";
+    const folderPath = getFolderPath(file.folder);
+    const fullPath = folderPath ? `${folderPath}/${name}` : name;
+    navigator.clipboard
+      .writeText(fullPath)
+      .then(() => showCustomAlert(`Path copied: ${fullPath}`))
+      .catch(() => showCustomAlert("Failed to copy path"));
+  };
+
   // ─── Upload handler (now folder-aware) ─────────────────────────────────
   const handleUploadClick = (folderId: number | null) => {
     uploadTargetFolderRef.current = folderId;
@@ -1324,9 +1380,8 @@ export function CodeEditor() {
   if (loading && !fileLoading) {
     return (
       <div
-        className={`flex min-h-screen items-center justify-center ${
-          isDark ? "bg-[#0d1117]" : "bg-[#f6f8fa]"
-        }`}
+        className={`flex min-h-screen items-center justify-center ${isDark ? "bg-[#0d1117]" : "bg-[#f6f8fa]"
+          }`}
       >
         <Spinner size="md" className="text-[#EF7B55]" />
       </div>
@@ -1465,29 +1520,26 @@ export function CodeEditor() {
             }}
           >
             <button
-              className={`activity-icon ${
-                activePanel === "files" && !sidebarCollapsed ? "active" : ""
-              }`}
+              className={`activity-icon ${activePanel === "files" && !sidebarCollapsed ? "active" : ""
+                }`}
               onClick={() => handleActivityClick("files")}
               title="Files (⌘B to toggle)"
             >
               <FolderOpen className="h-5 w-5" />
             </button>
             <button
-              className={`activity-icon ${
-                activePanel === "submissions" && !sidebarCollapsed
+              className={`activity-icon ${activePanel === "submissions" && !sidebarCollapsed
                   ? "active"
                   : ""
-              }`}
+                }`}
               onClick={() => handleActivityClick("submissions")}
               title="Submissions"
             >
               <GraduationCap className="h-5 w-5" />
             </button>
             <button
-              className={`activity-icon ${
-                activePanel === "search" && !sidebarCollapsed ? "active" : ""
-              }`}
+              className={`activity-icon ${activePanel === "search" && !sidebarCollapsed ? "active" : ""
+                }`}
               onClick={() => handleActivityClick("search")}
               title="Search"
             >
@@ -1495,11 +1547,10 @@ export function CodeEditor() {
             </button>
             <div style={{ marginTop: "auto" }}>
               <button
-                className={`activity-icon ${
-                  activePanel === "settings" && !sidebarCollapsed
+                className={`activity-icon ${activePanel === "settings" && !sidebarCollapsed
                     ? "active"
                     : ""
-                }`}
+                  }`}
                 onClick={() => handleActivityClick("settings")}
                 title="Settings"
               >
@@ -1582,6 +1633,8 @@ export function CodeEditor() {
                       onDeleteFile={deleteUploadedFile}
                       onCopySnippetUrl={copySnippetUrl}
                       onCopyFileUrl={copyFileUrl}
+                      onCopySnippetPath={copySnippetPath}
+                      onCopyFilePath={copyFilePath}
                       onUploadClick={handleUploadClick}
                       onNewFile={handleNewFile}
                       onCreateFolder={handleCreateFolderClick}
@@ -2060,14 +2113,14 @@ export function CodeEditor() {
                       />
                       {(activeTab?.language === "html" ||
                         activeTab?.language === "css") && (
-                        <BottomTab
-                          active={bottomPanel === "preview"}
-                          onClick={() => setBottomPanel("preview")}
-                          icon={<Eye className="h-3 w-3" />}
-                          label="Preview"
-                          t={t}
-                        />
-                      )}
+                          <BottomTab
+                            active={bottomPanel === "preview"}
+                            onClick={() => setBottomPanel("preview")}
+                            icon={<Eye className="h-3 w-3" />}
+                            label="Preview"
+                            t={t}
+                          />
+                        )}
                       <div
                         style={{
                           marginLeft: "auto",
@@ -2146,15 +2199,15 @@ export function CodeEditor() {
                           style={{
                             color:
                               activeTab?.language === "html" ||
-                              activeTab?.language === "css"
+                                activeTab?.language === "css"
                                 ? t.text
                                 : t.success,
                           }}
                         >
                           {activeTab?.language === "html" ||
-                          activeTab?.language === "css"
+                            activeTab?.language === "css"
                             ? webConsole ||
-                              "Console output will appear here..."
+                            "Console output will appear here..."
                             : output || "Output will appear here..."}
                         </pre>
                       )}
@@ -2247,14 +2300,14 @@ export function CodeEditor() {
                 toast.kind === "error"
                   ? t.danger
                   : toast.kind === "success"
-                  ? t.success
-                  : t.text,
+                    ? t.success
+                    : t.text,
               color:
                 toast.kind === "info" && !isDark
                   ? "white"
                   : toast.kind === "info" && isDark
-                  ? t.bg
-                  : "white",
+                    ? t.bg
+                    : "white",
               padding: "10px 14px",
               borderRadius: 6,
               fontSize: 12,
@@ -2642,9 +2695,8 @@ function InlinePanelContent(props: any) {
                       gap: 8,
                       padding: "8px 10px",
                       borderRadius: 6,
-                      border: `1px solid ${
-                        isSelected ? t.accent : t.borderMuted
-                      }`,
+                      border: `1px solid ${isSelected ? t.accent : t.borderMuted
+                        }`,
                       background: isSelected ? t.accentMuted : t.bgAlt,
                       cursor: empty ? "not-allowed" : "pointer",
                       opacity: empty ? 0.5 : 1,
@@ -2659,9 +2711,8 @@ function InlinePanelContent(props: any) {
                         width: 14,
                         height: 14,
                         borderRadius: 3,
-                        border: `1.5px solid ${
-                          isSelected ? t.accent : t.textMuted
-                        }`,
+                        border: `1.5px solid ${isSelected ? t.accent : t.textMuted
+                          }`,
                         background: isSelected ? t.accent : "transparent",
                         display: "flex",
                         alignItems: "center",
@@ -2711,8 +2762,8 @@ function InlinePanelContent(props: any) {
                         {empty
                           ? "(empty)"
                           : tab.submissionId
-                          ? "will update existing"
-                          : "new submission"}
+                            ? "will update existing"
+                            : "new submission"}
                       </span>
                     </div>
                   </button>

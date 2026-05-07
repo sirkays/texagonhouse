@@ -25,6 +25,7 @@ import {
   FileCode,
   Image as ImageIcon,
   Pencil,
+  ClipboardCopy,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Folder, Snippet, UploadedFile } from "./types";
@@ -148,6 +149,8 @@ export type FilesSidebarProps = {
   onDeleteFile: (id: number) => void;
   onCopySnippetUrl: (id: number) => void;
   onCopyFileUrl: (f: UploadedFile) => void;
+  onCopySnippetPath: (s: Snippet) => void;
+  onCopyFilePath: (f: UploadedFile) => void;
   onUploadClick: (folderId: number | null) => void;
   onNewFile: (folderId: number | null) => void;
   onCreateFolder: (parentId: number | null) => void;
@@ -177,6 +180,8 @@ export function FilesSidebar(props: FilesSidebarProps) {
     onDeleteFile,
     onCopySnippetUrl,
     onCopyFileUrl,
+    onCopySnippetPath,
+    onCopyFilePath,
     onUploadClick,
     onNewFile,
     onCreateFolder,
@@ -428,6 +433,16 @@ export function FilesSidebar(props: FilesSidebarProps) {
           className="sidebar-item-action"
           onClick={(e) => {
             e.stopPropagation();
+            onCopySnippetPath(s);
+          }}
+          title="Copy file path"
+        >
+          <ClipboardCopy className="h-3 w-3" />
+        </button>
+        <button
+          className="sidebar-item-action"
+          onClick={(e) => {
+            e.stopPropagation();
             onCopySnippetUrl(s.id);
           }}
           title="Copy URL"
@@ -505,6 +520,16 @@ export function FilesSidebar(props: FilesSidebarProps) {
           </span>
         </button>
         <div className="actions">
+          <button
+            className="sidebar-item-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopyFilePath(file);
+            }}
+            title="Copy file path"
+          >
+            <ClipboardCopy className="h-3 w-3" />
+          </button>
           <button
             className="sidebar-item-action"
             onClick={(e) => {

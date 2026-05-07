@@ -303,13 +303,30 @@ export function useTabs() {
 
   // Build the virtual filesystem for HTML/CSS/JS preview. We look at every
   // open tab, take saved snippet titles where available, and build
-  // `{ "name.ext": content }`.
-  const buildPreviewFilesystem = useCallback(() => {
+  // `{ "name.ext": content }`. When folders are provided, we also register
+  // the full path (e.g. "styles/main.css") so cross-folder references work.
+  const buildPreviewFilesystem = useCallback((folders?: { id: number; path: string }[]) => {
     const fs: Record<string, { content: string; lang: LangKey }> = {};
+    const folderMap = new Map<number, string>();
+    if (folders) {
+      for (const f of folders) {
+        folderMap.set(f.id, f.path);
+      }
+    }
     for (const tab of tabs) {
       const ext = LANGUAGES[tab.language].ext;
-      const name = `${(tab.title || "untitled").trim() || "untitled"}.${ext}`;
-      fs[name.toLowerCase()] = { content: tab.code, lang: tab.language };
+      const baseName = `${(tab.title || "untitled").trim() || "untitled"}.${ext}`;
+      const entry = { content: tab.code, lang: tab.language };
+
+      // Always register the flat basename so existing references still work
+      fs[baseName.toLowerCase()] = entry;
+
+      // Also register the full folder path (e.g. "styles/main.css")
+      if (tab.folderId != null && folderMap.has(tab.folderId)) {
+        const folderPath = folderMap.get(tab.folderId)!;
+        const fullPath = `${folderPath}/${baseName}`.toLowerCase();
+        fs[fullPath] = entry;
+      }
     }
     return fs;
   }, [tabs]);
