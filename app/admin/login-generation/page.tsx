@@ -195,11 +195,20 @@ export default function LoginGenerationPage() {
       setStats(data.stats || null);
       setDuplicates(data.duplicates || []);
 
-      const dupCount = data.duplicates?.length || 0;
-      toast.success("Generation Successful!", {
-        description: `Created ${data.students?.length || 0} account(s).${dupCount > 0 ? ` ${dupCount} duplicate(s) skipped — see results panel.` : ""
-          }`,
-      });
+      // Handle fallback case where the proxy couldn't parse the backend's
+      // response (DRF browsable API HTML) but the operation likely succeeded.
+      if (data.error === "non_json_response") {
+        toast.warning("Accounts Likely Created", {
+          description:
+            "The server response could not be fully parsed. Please check the admin panel to verify accounts were created, then re-download credentials if needed.",
+        });
+      } else {
+        const dupCount = data.duplicates?.length || 0;
+        toast.success("Generation Successful!", {
+          description: `Created ${data.students?.length || 0} account(s).${dupCount > 0 ? ` ${dupCount} duplicate(s) skipped — see results panel.` : ""
+            }`,
+        });
+      }
 
     } catch (error: any) {
       toast.error("Generation Failed", {

@@ -3,24 +3,6 @@ export const runtime = "nodejs";
 
 import { djangoFetch } from "@/app/api/_lib/proxy";
 
-function copyAllowedHeaders(from: Headers, to: Headers) {
-  const skip = new Set([
-    "transfer-encoding",
-    "connection",
-    "keep-alive",
-    "proxy-authenticate",
-    "proxy-authorization",
-    "te",
-    "trailer",
-    "upgrade",
-  ]);
-  from.forEach((value, key) => {
-    if (!skip.has(key.toLowerCase())) {
-      to.set(key, value);
-    }
-  });
-}
-
 export async function POST(req: Request) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -43,43 +25,50 @@ export async function POST(req: Request) {
       });
     }
 
-    const backendRes = result.response;
+    const backendStatus = result.response.status;
+    const rawBody = result.text || "";
 
-    // Log non-2xx responses so we can diagnose production issues
-    if (!backendRes.ok) {
+    // Always try to parse the response as JSON.
+    // DRF can return HTML (browsable API) instead of JSON when the
+    // Accept header is missing — validate before forwarding.
+    try {
+      JSON.parse(rawBody);
+    } catch {
+      // Response is NOT valid JSON (likely DRF browsable HTML page).
       console.error(
-        `[login-generation] Backend returned ${backendRes.status}:`,
-        result.text?.slice(0, 500)
+        `[login-generation] Backend returned non-JSON (status ${backendStatus}):`,
+        rawBody.slice(0, 300)
+      );
+
+      // If the backend said 2xx, the operation likely succeeded but
+      // we can't parse the result. Return a helpful message.
+      if (backendStatus >= 200 && backendStatus < 300) {
+        return new Response(
+          JSON.stringify({
+            detail: "Login generation completed, but the server returned an unparseable response. Please check the admin panel to verify accounts were created.",
+            error: "non_json_response",
+            stats: null,
+            students: [],
+            duplicates: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      // Non-2xx non-JSON → wrap the error
+      return new Response(
+        JSON.stringify({
+          detail: `Backend error (HTTP ${backendStatus}). The server may be overloaded or the request timed out.`,
+          error: rawBody.slice(0, 200) || "Unknown error",
+        }),
+        { status: backendStatus, headers: { "content-type": "application/json" } }
       );
     }
 
-    const respHeaders = new Headers();
-    copyAllowedHeaders(backendRes.headers, respHeaders);
-
-    // Ensure the response always has a JSON content-type so the client
-    // doesn't choke on HTML error pages from upstream proxies (Render).
-    const backendCT = backendRes.headers.get("content-type") || "";
-    if (backendCT.includes("application/json")) {
-      respHeaders.set("content-type", "application/json");
-    } else {
-      // The backend returned something other than JSON (HTML error page, etc.).
-      // Wrap it in a JSON error envelope so the client can always JSON.parse.
-      respHeaders.set("content-type", "application/json");
-      if (!backendRes.ok) {
-        const errorPayload = JSON.stringify({
-          detail: `Backend error (HTTP ${backendRes.status}). The server may be overloaded or the request timed out.`,
-          error: result.text?.slice(0, 200) || "Unknown error",
-        });
-        return new Response(errorPayload, {
-          status: backendRes.status,
-          headers: respHeaders,
-        });
-      }
-    }
-
-    return new Response(result.text, {
-      status: backendRes.status,
-      headers: respHeaders,
+    // Valid JSON — forward it as-is
+    return new Response(rawBody, {
+      status: backendStatus,
+      headers: { "content-type": "application/json" },
     });
   } catch (err: any) {
     console.error("login-generation generate proxy error:", err);
