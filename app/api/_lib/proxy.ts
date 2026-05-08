@@ -20,6 +20,9 @@ function buildAuthHeaders(extra?: HeadersInit) {
   if (!headers.has("Authorization")) {
     headers.set("Authorization", `Api-Key ${API_KEY}`);
   }
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
   return headers;
 }
 
@@ -45,6 +48,7 @@ export async function djangoFetch(
 
   const baseHeaders: Record<string, string> = {
     Authorization: `Api-Key ${API_KEY}`,
+    Accept: "application/json",
   };
 
   const isFormData =
