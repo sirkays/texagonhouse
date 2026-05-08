@@ -195,8 +195,8 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   <span
                     className={`font-medium ${stat.change === "—"
-                        ? "text-muted-foreground"
-                        : "text-green-600"
+                      ? "text-muted-foreground"
+                      : "text-green-600"
                       }`}>
                     {stat.change}
                   </span>{" "}

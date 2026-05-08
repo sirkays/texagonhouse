@@ -108,6 +108,7 @@ export const authOptions: NextAuthOptions = {
             sessionToken,
             expiresAt: loginData.expiresAt,
             isGenerated: data.is_generated || false,
+            hasAdminAccess: data.has_admin_access || false,
           };
         } catch (err) {
           const errorMessage =
@@ -130,6 +131,7 @@ export const authOptions: NextAuthOptions = {
         token.sessionToken = (user as any).sessionToken;
         token.expiresAt = (user as any).expiresAt;
         token.isGenerated = (user as any).isGenerated;
+        token.hasAdminAccess = (user as any).hasAdminAccess;
       }
       if (token.expiresAt && new Date(token.expiresAt as string) < new Date()) {
         return {} as JWT; // Return empty JWT instead of null
@@ -147,6 +149,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).sessionToken = token.sessionToken;
         (session.user as any).expiresAt = token.expiresAt;
         (session.user as any).isGenerated = token.isGenerated;
+        (session.user as any).hasAdminAccess = token.hasAdminAccess;
       }
       return session;
     },

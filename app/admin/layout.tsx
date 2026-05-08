@@ -240,11 +240,15 @@ export default function DashboardLayout({
 
   // Handle auth redirect in useEffect (after all hooks)
   useEffect(() => {
-    if (
-      status === "unauthenticated" ||
-      (status === "authenticated" && session?.user?.role !== "admin")
-    ) {
+    if (status === "unauthenticated") {
       router.push("/login");
+    } else if (status === "authenticated") {
+      const role = session?.user?.role;
+      const hasAdminAccess = (session?.user as any)?.hasAdminAccess;
+      // Allow admin role OR teacher with admin access
+      if (role !== "admin" && !(role === "teacher" && hasAdminAccess)) {
+        router.push("/login");
+      }
     }
   }, [status, session, router]);
 

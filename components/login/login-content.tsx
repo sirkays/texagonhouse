@@ -239,6 +239,7 @@ export default function LoginContent() {
       const role = session.user.role;
       const callbackUrl = searchParams.get("callbackUrl");
       const isGenerated = (session.user as any).isGenerated;
+      const hasAdminAccess = (session.user as any).hasAdminAccess;
 
       console.log(isGenerated, "isGeneratedPassppp");
 
@@ -263,7 +264,13 @@ export default function LoginContent() {
         return;
       }
 
-      // 2. Fallback to default role-based dashboards if no callbackUrl
+      // 2. If a teacher also has admin access, let them choose their dashboard
+      if (role === "teacher" && hasAdminAccess) {
+        window.location.href = "/dashboard-chooser";
+        return;
+      }
+
+      // 3. Fallback to default role-based dashboards if no callbackUrl
       const rolePaths: Record<string, string> = {
         admin: "/admin",
         student: "/student",
