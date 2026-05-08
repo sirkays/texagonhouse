@@ -44,12 +44,38 @@ export async function POST(req: Request) {
     }
 
     const backendRes = result.response;
+
+    // Log non-2xx responses so we can diagnose production issues
+    if (!backendRes.ok) {
+      console.error(
+        `[login-generation] Backend returned ${backendRes.status}:`,
+        result.text?.slice(0, 500)
+      );
+    }
+
     const respHeaders = new Headers();
     copyAllowedHeaders(backendRes.headers, respHeaders);
 
-    const resContentType =
-      backendRes.headers.get("content-type") ?? "application/json";
-    respHeaders.set("content-type", resContentType);
+    // Ensure the response always has a JSON content-type so the client
+    // doesn't choke on HTML error pages from upstream proxies (Render).
+    const backendCT = backendRes.headers.get("content-type") || "";
+    if (backendCT.includes("application/json")) {
+      respHeaders.set("content-type", "application/json");
+    } else {
+      // The backend returned something other than JSON (HTML error page, etc.).
+      // Wrap it in a JSON error envelope so the client can always JSON.parse.
+      respHeaders.set("content-type", "application/json");
+      if (!backendRes.ok) {
+        const errorPayload = JSON.stringify({
+          detail: `Backend error (HTTP ${backendRes.status}). The server may be overloaded or the request timed out.`,
+          error: result.text?.slice(0, 200) || "Unknown error",
+        });
+        return new Response(errorPayload, {
+          status: backendRes.status,
+          headers: respHeaders,
+        });
+      }
+    }
 
     return new Response(result.text, {
       status: backendRes.status,

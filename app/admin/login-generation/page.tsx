@@ -56,7 +56,7 @@ export default function LoginGenerationPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<StudentResult[]>([]);
   const [stats, setStats] = useState<any>(null);
-  const [duplicates, setDuplicates] = useState<{name: string; classroom: string; reason: string}[]>([]);
+  const [duplicates, setDuplicates] = useState<{ name: string; classroom: string; reason: string }[]>([]);
 
   // Fetch Classrooms on mount
   useEffect(() => {
@@ -69,8 +69,8 @@ export default function LoginGenerationPage() {
           const list: Classroom[] = Array.isArray(data)
             ? data
             : Array.isArray(data.results)
-            ? data.results
-            : [];
+              ? data.results
+              : [];
           setClassrooms(list);
         } else {
           console.error("Failed to fetch classrooms", res.status);
@@ -172,7 +172,20 @@ export default function LoginGenerationPage() {
         });
       }
 
-      const data = await res.json();
+      // Safely parse the response — the backend may return non-JSON
+      // (e.g. HTML error page) on production, which would crash res.json().
+      const rawText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch (_parseErr) {
+        console.error("Non-JSON response from backend:", rawText.slice(0, 500));
+        throw new Error(
+          `Server returned an invalid response (status ${res.status}). ` +
+          `This may indicate a timeout or server error on production. ` +
+          `Please try again or contact support.`
+        );
+      }
 
       if (!res.ok) {
         throw new Error(data.detail || data.error || "Generation failed.");
@@ -184,9 +197,8 @@ export default function LoginGenerationPage() {
 
       const dupCount = data.duplicates?.length || 0;
       toast.success("Generation Successful!", {
-        description: `Created ${data.students?.length || 0} account(s).${
-          dupCount > 0 ? ` ${dupCount} duplicate(s) skipped — see results panel.` : ""
-        }`,
+        description: `Created ${data.students?.length || 0} account(s).${dupCount > 0 ? ` ${dupCount} duplicate(s) skipped — see results panel.` : ""
+          }`,
       });
 
     } catch (error: any) {
