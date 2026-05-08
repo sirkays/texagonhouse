@@ -121,3 +121,56 @@ export async function djangoFetchRaw(
     setCookie: response.headers.get("set-cookie") ?? undefined,
   };
 }
+
+/**
+ * Binary variant: returns the response body as an ArrayBuffer.
+ * Use it for downloading files (ZIP, images, etc.).
+ */
+export type DjangoBinaryResult = {
+  response: Response;
+  buffer: ArrayBuffer;
+  setCookie?: string;
+};
+
+export async function djangoFetchBinary(
+  path: string,
+  init: RequestInit = {}
+): Promise<DjangoBinaryResult> {
+  const session = await getServerSession(authOptions);
+  const sessionToken: string | undefined =
+    session?.user && "sessionToken" in session.user
+      ? (session.user as any).sessionToken ?? undefined
+      : undefined;
+
+  const cookieStore = await cookies();
+  const cookieHeader =
+    cookieStore.getAll().length > 0
+      ? cookieStore
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ")
+      : undefined;
+
+  const headers = buildAuthHeaders(init.headers);
+
+  if (sessionToken && !headers.has("X-Session-Token")) {
+    headers.set("X-Session-Token", sessionToken);
+  }
+  if (cookieHeader && !headers.has("Cookie")) {
+    headers.set("Cookie", cookieHeader);
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
+
+  const buffer = await response.arrayBuffer();
+
+  return {
+    response,
+    buffer,
+    setCookie: response.headers.get("set-cookie") ?? undefined,
+  };
+}

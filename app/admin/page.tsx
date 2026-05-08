@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Users, GraduationCap, BookOpen, DollarSign} from "lucide-react";
+import { Users, GraduationCap, BookOpen, DollarSign } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 interface Stat {
@@ -121,9 +121,8 @@ export default function DashboardPage() {
       },
       {
         title: "Revenue",
-        value: `${
-          data.stats.revenue.currency
-        } ${data.stats.revenue.value.toLocaleString()}`,
+        value: `${data.stats.revenue.currency
+          } ${data.stats.revenue.value.toLocaleString()}`,
         change: getChange(data.stats.revenue.changePct),
         icon: DollarSign,
         color: "text-yellow-600",
@@ -138,14 +137,14 @@ export default function DashboardPage() {
       action: activity.action,
       user: activity.user,
       time: formatRelativeTime(activity.time),
-      ...(activity.meta && {meta: activity.meta}),
+      ...(activity.meta && { meta: activity.meta }),
     }));
   }, [data]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-       <Spinner size="md" className="text-black" />
+        <Spinner size="md" className="text-black" />
       </div>
     );
   }
@@ -195,11 +194,10 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   <span
-                    className={`font-medium ${
-                      stat.change === "—"
+                    className={`font-medium ${stat.change === "—"
                         ? "text-muted-foreground"
                         : "text-green-600"
-                    }`}>
+                      }`}>
                     {stat.change}
                   </span>{" "}
                   from last month

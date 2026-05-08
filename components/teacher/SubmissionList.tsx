@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Check, ChevronLeft, ChevronRight, ChevronsUpDown,
   Search, Filter, RotateCcw, Code2, Clock, CheckCircle2, AlertCircle, Layers,
+  Download, GraduationCap,
 } from "lucide-react";
 import { Spinner } from "../ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -23,6 +24,7 @@ interface Submission {
   score?: number | null;
   file_count?: number;
   file_languages?: string[];
+  file_names?: string[];
 }
 
 interface FilterOption { id: number; name: string; }
@@ -52,7 +54,32 @@ const SubmissionList: React.FC = () => {
   const [actionInProgress, setActionInProgress] = useState<"search" | "apply" | null>(null);
   const lastActionRef = useRef<"search" | "apply" | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const pageSize = 10;
+
+  const handleDownload = async (sub: Submission) => {
+    setDownloadingId(sub.id);
+    try {
+      const res = await fetch(`/api/teacher/code/submissions/${sub.id}/download`);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Extract filename from Content-Disposition header, or build a fallback
+      const cd = res.headers.get("content-disposition");
+      const match = cd?.match(/filename="?([^"]+)"?/);
+      a.download = match?.[1] || `${sub.student_name}_${sub.title || "submission"}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download error:", err);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const fetchDetailForId = async (id: number): Promise<{ course?: { id: number; name: string }; classroom?: { id: number; name: string } } | null> => {
     try {
@@ -304,7 +331,20 @@ const SubmissionList: React.FC = () => {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button size="sm" className="flex-1 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-xs h-8" asChild>
-                  <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                  <a href={`/teacher/submissions/${s.id}/grade`}><GraduationCap className="w-3.5 h-3.5 mr-1" />Grade</a>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-xs h-8"
+                  onClick={() => handleDownload(s)}
+                  disabled={downloadingId === s.id}
+                >
+                  {downloadingId === s.id ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <><Download className="w-3.5 h-3.5 mr-1" />Download</>  
+                  )}
                 </Button>
               </div>
             </div>
@@ -364,6 +404,19 @@ const SubmissionList: React.FC = () => {
                       <div className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                         <Button size="sm" className="h-7 px-3 bg-[#EF7B55] hover:bg-[#F79771] text-white rounded-lg text-[11px]" asChild>
                           <a href={`/teacher/submissions/${s.id}/grade`}>Grade</a>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-3 border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg text-[11px]"
+                          onClick={() => handleDownload(s)}
+                          disabled={downloadingId === s.id}
+                        >
+                          {downloadingId === s.id ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            <><Download className="w-3 h-3 mr-1" />Download</>  
+                          )}
                         </Button>
                       </div>
                     </td>

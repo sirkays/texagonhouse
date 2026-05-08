@@ -32,12 +32,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const org_id = searchParams.get("org_id");
     const page_size = searchParams.get("page_size");
+    const class_type = searchParams.get("class_type");
 
     // proxy BASE_URL is process.env.BASE_URL
     // so include /orgs in the path (same as your old BASE_URL)
     const qs = new URLSearchParams();
     if (org_id) qs.set("org_id", org_id);
     if (page_size) qs.set("page_size", page_size);
+    if (class_type) qs.set("class_type", class_type);
 
     const path = `/orgs/api/classrooms/${qs.toString() ? `?${qs.toString()}` : ""}`;
 

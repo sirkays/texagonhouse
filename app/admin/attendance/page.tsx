@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import { useState } from "react";
 import DashboardLayout from "@/app/admin/layout";
 import {
   Card,
@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Calendar, Plus, Download, Filter, Eye} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Plus, Download, Filter, Eye } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {AttendanceDetailsModal} from "@/components/admin/modals/attendance-details-modal";
+import { AttendanceDetailsModal } from "@/components/admin/modals/attendance-details-modal";
 
 export default function AttendancePage() {
   const [viewingSession, setViewingSession] = useState<any>(null);
@@ -207,8 +207,8 @@ export default function AttendancePage() {
                             rate >= 90
                               ? "default"
                               : rate >= 75
-                              ? "secondary"
-                              : "destructive"
+                                ? "secondary"
+                                : "destructive"
                           }>
                           {rate}%
                         </Badge>

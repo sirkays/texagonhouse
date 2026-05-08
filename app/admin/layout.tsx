@@ -22,6 +22,7 @@ import {
   BookMarked,
   UserCheck,
   Trophy,
+  KeyRound,
 } from "lucide-react";
 import {
   Sidebar,
@@ -105,6 +106,18 @@ const navigation = [
     icon: UserCheck,
     id: "verify-user",
     path: "/admin/verify-user",
+  },
+  {
+    title: "Login Generation",
+    icon: Users,
+    id: "login-generation",
+    path: "/admin/login-generation",
+  },
+  {
+    title: "Change Password",
+    icon: KeyRound,
+    id: "change-password",
+    path: "/admin/change-password",
   },
   {title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing"},
   {

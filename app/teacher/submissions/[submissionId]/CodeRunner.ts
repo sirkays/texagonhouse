@@ -1,5 +1,16 @@
 // app/teacher/submissions/[submissionId]/CodeRunner.ts
-// Multi-file preview with virtual filesystem and inter-page navigation
+// Multi-file preview with virtual filesystem and inter-page navigation.
+//
+// Key behaviors:
+// 1. <link rel="stylesheet" href="..."> referencing a project CSS file becomes inline <style>.
+// 2. <script src="..."> referencing a project JS file becomes inline <script>.
+// 3. <a href="page.html"> referencing a project HTML file becomes a postMessage navigation.
+// 4. A global click interceptor inside the iframe catches ANY relative-link click
+//    (including dynamically-added links and links missed by the regex) so the iframe
+//    NEVER navigates to a 404 — it either jumps to the matching project page or
+//    surfaces a friendly "page not in project" message in the console.
+// 5. Path matching is case-insensitive, strips ./, leading /, query strings, and fragments.
+
 import { useState, useCallback } from "react";
 
 export type Lang = "javascript" | "python" | "java" | "cpp" | "html" | "css";
@@ -31,12 +42,36 @@ export interface ProjectFile {
   correction_code?: string | null;
 }
 
+/** Normalise a path/href so we can match it against fs keys.
+ *  Lowercases, strips leading "./" or "/", drops ?query and #fragment. */
+function normalizePath(p: string): string {
+  if (!p) return "";
+  let s = p.trim();
+  // strip query and fragment
+  s = s.split("?")[0].split("#")[0];
+  // strip leading ./ and /
+  s = s.replace(/^\.?\/+/, "");
+  return s.toLowerCase();
+}
+
+/** Decide whether an href should be intercepted. */
+function isExternalLink(href: string): boolean {
+  if (!href) return true;
+  const h = href.trim().toLowerCase();
+  return (
+    h.startsWith("http://") ||
+    h.startsWith("https://") ||
+    h.startsWith("//") ||
+    h.startsWith("mailto:") ||
+    h.startsWith("tel:") ||
+    h.startsWith("javascript:") ||
+    h.startsWith("#")
+  );
+}
+
 /**
- * Build a virtual filesystem from project files and produce an HTML preview
- * that properly handles:
- * - Multiple HTML pages
- * - <link> and <script> with src/href to other project files
- * - In-iframe navigation between HTML pages
+ * Build an HTML preview for the entry file, inlining all project assets
+ * and turning cross-page links into postMessage navigation events.
  */
 export function buildMultiFilePreview(
   projectFiles: ProjectFile[],
@@ -44,108 +79,173 @@ export function buildMultiFilePreview(
   entryFile: string,
   runId: number
 ): string {
-  // Build the virtual FS: filename -> content
-  const fs: Record<string, { content: string; lang: string }> = {};
+  // Build the virtual FS: lowercased filename -> { content, lang, originalName }
+  const fs: Record<string, { content: string; lang: string; originalName: string }> = {};
   for (const f of projectFiles) {
-    const fname = (f.file_name || "").toLowerCase();
+    if (!f.file_name) continue;
+    const key = normalizePath(f.file_name);
+    if (!key) continue;
     const code = editedCode[f.file_name] ?? ((f.correction_code ?? "").trim() || f.code_text);
-    fs[fname] = { content: code, lang: f.language };
+    fs[key] = { content: code, lang: f.language, originalName: f.file_name };
   }
 
-  const normalizePath = (p: string) =>
-    p.replace(/^\.?\//, "").split(/[?#]/)[0].toLowerCase();
-
-  // Get the entry HTML content
+  // Resolve entry: prefer the requested file, else first HTML, else error message.
   const entryKey = normalizePath(entryFile);
-  const entry = fs[entryKey];
-  if (!entry || entry.lang !== "html") {
-    // Fallback: find any HTML file
-    const htmlFiles = Object.entries(fs).filter(([, v]) => v.lang === "html");
-    if (htmlFiles.length === 0) return "<p>No HTML file to preview</p>";
-    const [fallbackKey, fallbackEntry] = htmlFiles[0];
-    return buildHtmlDoc(fallbackEntry.content, fs, fallbackKey, runId);
+  let chosenKey = entryKey;
+  if (!fs[chosenKey] || fs[chosenKey].lang !== "html") {
+    chosenKey = Object.keys(fs).find((k) => fs[k].lang === "html") || "";
+  }
+  if (!chosenKey) {
+    return "<!doctype html><html><body style=\"font-family:system-ui;padding:24px;color:#64748b\"><p>No HTML file to preview.</p></body></html>";
   }
 
-  return buildHtmlDoc(entry.content, fs, entryKey, runId);
+  return buildHtmlDoc(fs[chosenKey].content, fs, chosenKey, runId);
 }
 
 function buildHtmlDoc(
   htmlContent: string,
-  fs: Record<string, { content: string; lang: string }>,
+  fs: Record<string, { content: string; lang: string; originalName: string }>,
   currentPage: string,
   runId: number
 ): string {
-  const normalizePath = (p: string) =>
-    p.replace(/^\.?\//, "").split(/[?#]/)[0].toLowerCase();
-
   let processed = htmlContent;
 
-  // Resolve <link rel="stylesheet" href="..."> with inline CSS
+  // ---- 1. Inline <link rel="stylesheet" href="..."> for project CSS -------
   processed = processed.replace(
-    /<link\s+([^>]*?)href\s*=\s*["']([^"']+?)["']([^>]*?)\/?>/gi,
-    (match, before, href, after) => {
-      if (!/rel\s*=\s*["']stylesheet["']/i.test(before + after)) return match;
+    /<link\b([^>]*?)\bhref\s*=\s*(["'])([^"']+?)\2([^>]*?)\/?>/gi,
+    (full, before, _q, href, after) => {
+      const allAttrs = `${before} ${after}`;
+      // Must be a stylesheet link
+      if (!/\brel\s*=\s*["']?\s*stylesheet\s*["']?/i.test(allAttrs)) return full;
+      if (isExternalLink(href)) return full;
       const key = normalizePath(href);
       const file = fs[key];
       if (file && file.lang === "css") {
-        return `<style data-file="${href}">${file.content}</style>`;
+        return `<style data-file="${escapeAttr(href)}">\n${file.content}\n</style>`;
       }
-      return match;
+      return full;
     }
   );
 
-  // Resolve <script src="..."> with inline JS
+  // ---- 2. Inline <script src="..."> for project JS ------------------------
   processed = processed.replace(
-    /<script\s+([^>]*?)src\s*=\s*["']([^"']+?)["']([^>]*?)>\s*<\/script>/gi,
-    (_match, _before, src, _after) => {
+    /<script\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+?)\2([^>]*?)>\s*<\/script>/gi,
+    (full, _before, _q, src, _after) => {
+      if (isExternalLink(src)) return full;
       const key = normalizePath(src);
       const file = fs[key];
       if (file && file.lang === "javascript") {
-        return `<script data-file="${src}">${file.content}</script>`;
+        return `<script data-file="${escapeAttr(src)}">\n${file.content}\n</script>`;
       }
-      return _match;
+      return full;
     }
   );
 
-  // Rewrite <a href="page.html"> to use postMessage navigation
+  // ---- 3. Tag <a href="..."> with a data-project-link attribute when it
+  //         points at another project file. The global click handler
+  //         (injected below) does the actual navigation, so we don't need
+  //         brittle inline onclick handlers.
   processed = processed.replace(
-    /<a\s+([^>]*?)href\s*=\s*["']([^"']+?)["']([^>]*?)>/gi,
-    (match, before, href, after) => {
-      if (href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:")) return match;
+    /<a\b([^>]*?)\bhref\s*=\s*(["'])([^"']+?)\2([^>]*)>/gi,
+    (full, before, _q, href, after) => {
+      if (isExternalLink(href)) return full;
       const key = normalizePath(href);
-      if (fs[key] && fs[key].lang === "html") {
-        return `<a ${before}href="#" data-nav="${href}" onclick="event.preventDefault();window.parent.postMessage({source:'web-iframe',runId:${runId},type:'navigate',message:'${href}'},'*')"${after}>`;
-      }
-      return match;
+      // Mark every relative link, even unknown ones — the click handler will
+      // either navigate or report a friendly "not in project" message.
+      const known = fs[key] && fs[key].lang === "html" ? "1" : "0";
+      // Sanitize: don't double-tag if already tagged
+      if (/data-project-link\s*=/i.test(before + after)) return full;
+      return `<a${before} href="${escapeAttr(href)}" data-project-link="${known}" data-project-target="${escapeAttr(href)}"${after}>`;
     }
   );
 
-  // Console bridge
+  // ---- 4. Build the bridge: console forwarding + click interceptor --------
   const bridge = `<script>
 (function(){
   var RUN_ID=${runId};
   var send=function(t,m){try{window.parent.postMessage({source:"web-iframe",runId:RUN_ID,type:t,message:String(m)},"*")}catch(_){}};
+
+  // ---- console forwarding ----
   var oL=console.log,oW=console.warn,oE=console.error;
   console.log=function(){var a=Array.prototype.slice.call(arguments).map(String).join(" ");send("log",a);oL.apply(console,arguments)};
   console.warn=function(){var a=Array.prototype.slice.call(arguments).map(String).join(" ");send("warn",a);oW.apply(console,arguments)};
   console.error=function(){var a=Array.prototype.slice.call(arguments).map(String).join(" ");send("error",a);oE.apply(console,arguments)};
   window.addEventListener("error",function(e){send("error",e.message||"Script error")});
-  window.addEventListener("unhandledrejection",function(e){send("error",e.reason?.message||String(e.reason))});
+  window.addEventListener("unhandledrejection",function(e){send("error",(e.reason&&e.reason.message)||String(e.reason))});
+
+  // ---- known project files (lowercased keys) ----
+  var FS_KEYS = ${JSON.stringify(Object.keys(fs).filter((k) => fs[k].lang === "html"))};
+  var KNOWN = {}; for (var i=0;i<FS_KEYS.length;i++) KNOWN[FS_KEYS[i]]=1;
+
+  function norm(p){
+    if(!p) return "";
+    var s=String(p).trim();
+    s=s.split("?")[0].split("#")[0];
+    while(s.charAt(0)==="."||s.charAt(0)==="/") s=s.substring(1);
+    return s.toLowerCase();
+  }
+
+  // ---- click interceptor: catch ALL <a> clicks, even on dynamic links ----
+  document.addEventListener("click", function(ev){
+    // Find nearest <a>
+    var el = ev.target;
+    while (el && el.nodeName !== "A") el = el.parentNode;
+    if (!el) return;
+    var href = el.getAttribute("href") || "";
+    if (!href) return;
+    var lower = href.trim().toLowerCase();
+    // External links: let them through (or open in a new tab in the parent)
+    if (lower.indexOf("http://")===0 || lower.indexOf("https://")===0 || lower.indexOf("//")===0) return;
+    if (lower.indexOf("mailto:")===0 || lower.indexOf("tel:")===0 || lower.indexOf("javascript:")===0) return;
+    // Pure fragment: let browser handle
+    if (lower.charAt(0) === "#") return;
+    // Relative link → intercept
+    ev.preventDefault();
+    var target = norm(href);
+    if (KNOWN[target]) {
+      send("navigate", href);
+    } else {
+      send("warn", "Link points to '" + href + "' but that page is not in this project.");
+    }
+  }, true);
+
+  // ---- form interceptor: stop submissions from leaving the iframe ----
+  document.addEventListener("submit", function(ev){
+    var f = ev.target;
+    var action = (f && f.getAttribute && f.getAttribute("action")) || "";
+    if (!action || action.charAt(0) === "#") {
+      ev.preventDefault();
+      send("log", "Form submission intercepted (no real backend in preview).");
+    }
+  }, true);
 })();
 </script>`;
 
-  // Inject bridge before </head> or at the start of body
-  if (processed.includes("</head>")) {
-    processed = processed.replace("</head>", bridge + "</head>");
-  } else if (processed.includes("<body")) {
+  // Inject bridge as early as possible (before </head> if present, else before <body> close)
+  if (/<\/head>/i.test(processed)) {
+    processed = processed.replace(/<\/head>/i, bridge + "</head>");
+  } else if (/<body[^>]*>/i.test(processed)) {
     processed = processed.replace(/<body([^>]*)>/i, `<body$1>${bridge}`);
   } else {
     processed = bridge + processed;
   }
 
+  // Tag the preview with the current page so the parent can correlate logs
+  processed = processed.replace(
+    /<\/body>/i,
+    `<script>document.documentElement.setAttribute("data-current-page",${JSON.stringify(currentPage)});</script></body>`
+  );
+
   return processed;
 }
 
+function escapeAttr(s: string): string {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+// ---------------------------------------------------------------------------
+// useCodeRunner — runs JS in-process, sends Python/Java/C++ to Judge0.
+// ---------------------------------------------------------------------------
 export function useCodeRunner(
   onNeedInput?: (prompts: string[], resolve: (stdin: string) => void) => void
 ) {
@@ -205,7 +305,7 @@ export function useCodeRunner(
       if (lang === "python" && onNeedInput) {
         const prompts = parsePythonInputs(code);
         if (prompts.length > 0) {
-          const stdin = await new Promise<string>(r => onNeedInput(prompts, r));
+          const stdin = await new Promise<string>((r) => onNeedInput(prompts, r));
           await runWithJudge0(codeToRun, cfg.judgeId, stdin);
           setIsRunning(false);
           return;
@@ -216,7 +316,7 @@ export function useCodeRunner(
     finally { setIsRunning(false); }
   }, [onNeedInput]);
 
-  const download = useCallback((code: string, lang: Lang, fileName: string) => {
+  const download = useCallback((code: string, _lang: Lang, fileName: string) => {
     if (!code?.trim()) return;
     const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);

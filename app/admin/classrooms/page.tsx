@@ -42,6 +42,7 @@ interface Classroom {
   id: number;
   name: string;
   code: string;
+  class_type?: "public" | "private";
   description?: string;
   students: number;
   teachers: number;
@@ -96,11 +97,17 @@ export default function ClassroomsPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch("/api/admin/classrooms");
+      const response = await fetch("/api/admin/classrooms?class_type=public");
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      const result: Classroom[] = await response.json();
+      const data = await response.json();
+      // Handle both flat array and paginated { results: [] } shapes
+      const result: Classroom[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data.results)
+        ? data.results
+        : [];
       setClassrooms(result);
     } catch (err: any) {
       console.error("Failed to fetch classrooms:", err);
@@ -338,10 +345,15 @@ export default function ClassroomsPage() {
                     <CardTitle className="text-lg sm:text-xl truncate">
                       {classroom.name}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="flex items-center gap-1.5 mt-0.5">
                       <Badge variant="secondary" className="font-mono text-xs">
                         {classroom.code}
                       </Badge>
+                      {classroom.class_type === "public" && (
+                        <Badge className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100 border-0">
+                          🌐 Online
+                        </Badge>
+                      )}
                     </CardDescription>
                   </div>
                   <DropdownMenu>
