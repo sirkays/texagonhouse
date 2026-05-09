@@ -8,8 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +27,8 @@ import {
   CheckCheck,
   Loader2,
   X,
+  ClipboardList,
+  AlertTriangle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -164,10 +168,14 @@ export function ManageStudentsModal({
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("browse");
 
   // Multi-select sets
   const [selectedEnrolled, setSelectedEnrolled] = useState<Set<number>>(new Set());
   const [selectedAvailable, setSelectedAvailable] = useState<Set<number>>(new Set());
+
+  // Bulk import state
+  const [bulkInput, setBulkInput] = useState("");
 
   // ── Debounce search ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -292,20 +300,62 @@ export function ManageStudentsModal({
   const enrolledCount = data?.enrolled.length ?? 0;
   const availableCount = data?.available.length ?? 0;
 
+  // ── Bulk name matching ────────────────────────────────────────────────────
+  // Parse pasted text into [firstname, lastname] pairs (handles tab, comma, multi-space)
+  const parsedNames = useMemo(() => {
+    return bulkInput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        // Split on tab first (Excel paste), then comma, then multiple spaces
+        const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          return { first: parts[0].toLowerCase(), last: parts[1].toLowerCase(), raw: line };
+        }
+        // Single word — treat as first name only
+        return { first: parts[0]?.toLowerCase() ?? "", last: "", raw: line };
+      });
+  }, [bulkInput]);
+
+  const bulkResults = useMemo(() => {
+    if (!data || parsedNames.length === 0) return [];
+    const all = [...data.available, ...data.enrolled];
+    return parsedNames.map((entry) => {
+      const match = all.find((s) => {
+        const name = s.name.toLowerCase();
+        const nameParts = name.split(" ");
+        const firstMatch = nameParts.some((p) => p.startsWith(entry.first));
+        const lastMatch = entry.last ? nameParts.some((p) => p.startsWith(entry.last)) : true;
+        return firstMatch && lastMatch;
+      });
+      return { raw: entry.raw, student: match ?? null, inEnrolled: match ? data.enrolled.some((e) => e.id === match.id) : false };
+    });
+  }, [parsedNames, data]);
+
+  const bulkMatched = bulkResults.filter((r) => r.student && !r.inEnrolled);
+  const bulkAlreadyEnrolled = bulkResults.filter((r) => r.student && r.inEnrolled);
+  const bulkUnmatched = bulkResults.filter((r) => !r.student);
+
+  const selectAllBulkMatches = () => {
+    const ids = new Set<number>(bulkMatched.map((r) => r.student!.id));
+    setSelectedAvailable((prev) => new Set([...prev, ...ids]));
+  };
+
   if (!classroom) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 gap-0">
         {/* ── Header ── */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <DialogTitle className="text-xl font-bold truncate">
                 Manage Students — {classroom.name}
               </DialogTitle>
               <DialogDescription className="mt-1">
-                Select students to add or remove. Apply when ready.
+                Browse students or paste a name list to bulk-add.
               </DialogDescription>
             </div>
             <Button
@@ -320,24 +370,43 @@ export function ManageStudentsModal({
             </Button>
           </div>
 
-          {/* Search */}
-          <div className="relative mt-3">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email or admission no…"
-              className="pl-9 pr-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => setSearch("")}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+          {/* Tab switcher */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
+            <TabsList className="w-full">
+              <TabsTrigger value="browse" className="flex-1 gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Browse
+              </TabsTrigger>
+              <TabsTrigger value="bulk" className="flex-1 gap-1.5">
+                <ClipboardList className="h-3.5 w-3.5" />
+                Bulk Import
+                {parsedNames.length > 0 && (
+                  <Badge className="ml-1 text-[10px] px-1.5 h-4">{parsedNames.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Search (browse tab only) */}
+          {activeTab === "browse" && (
+            <div className="relative mt-2">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email or admission no…"
+                className="pl-9 pr-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearch("")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         {/* ── Body ── */}
@@ -346,7 +415,110 @@ export function ManageStudentsModal({
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+          <Tabs value={activeTab} className="flex-1 min-h-0 flex flex-col">
+
+          {/* ── BULK IMPORT TAB ── */}
+          <TabsContent value="bulk" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
+            <div className="flex-1 min-h-0 flex flex-col gap-0">
+              {/* Paste area */}
+              <div className="px-4 pt-4 pb-3 border-b">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Paste names from Excel (one per line, tab-separated <strong>firstname</strong> then <strong>lastname</strong>):
+                </p>
+                <Textarea
+                  placeholder={"Christopher\tMoneke\nDiva\tMichael\nJohn\tDoe"}
+                  className="font-mono text-sm resize-none h-28"
+                  value={bulkInput}
+                  onChange={(e) => setBulkInput(e.target.value)}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-muted-foreground">
+                    {parsedNames.length} name{parsedNames.length !== 1 ? "s" : ""} parsed ·{" "}
+                    <span className="text-green-600 font-medium">{bulkMatched.length} matched</span>
+                    {bulkUnmatched.length > 0 && (
+                      <> · <span className="text-destructive font-medium">{bulkUnmatched.length} not found</span></>
+                    )}
+                    {bulkAlreadyEnrolled.length > 0 && (
+                      <> · <span className="text-muted-foreground">{bulkAlreadyEnrolled.length} already enrolled</span></>
+                    )}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={bulkMatched.length === 0}
+                    onClick={selectAllBulkMatches}
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    Select all matched
+                  </Button>
+                </div>
+              </div>
+              {/* Results */}
+              <ScrollArea className="flex-1">
+                <div className="p-3 space-y-1.5">
+                  {parsedNames.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                      <ClipboardList className="h-10 w-10 mb-3 opacity-20" />
+                      <p className="text-sm">Paste names above to find students</p>
+                    </div>
+                  )}
+                  {bulkResults.map((r, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm ${
+                        r.inEnrolled
+                          ? "border-amber-200 bg-amber-50 dark:bg-amber-950/20"
+                          : r.student
+                          ? selectedAvailable.has(r.student.id)
+                            ? "border-primary/20 bg-primary/8 cursor-pointer"
+                            : "border-transparent hover:bg-muted/60 cursor-pointer"
+                          : "border-destructive/20 bg-destructive/5"
+                      }`}
+                      onClick={() => {
+                        if (r.student && !r.inEnrolled) toggleAvailable(r.student.id);
+                      }}
+                    >
+                      {r.student && !r.inEnrolled ? (
+                        <Checkbox
+                          checked={selectedAvailable.has(r.student.id)}
+                          onCheckedChange={() => toggleAvailable(r.student!.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="shrink-0"
+                        />
+                      ) : (
+                        <div className="w-4 h-4 shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-mono text-xs text-muted-foreground truncate">{r.raw}</p>
+                        {r.student ? (
+                          <p className="text-sm font-medium truncate">
+                            {r.student.name}
+                            <span className="ml-2 text-xs text-muted-foreground">{r.student.email}</span>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-destructive">No match found</p>
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        {r.inEnrolled && <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Enrolled</Badge>}
+                        {r.student && !r.inEnrolled && selectedAvailable.has(r.student.id) && (
+                          <Badge className="text-[10px] bg-green-600 text-white">Add</Badge>
+                        )}
+                        {!r.student && (
+                          <AlertTriangle className="h-4 w-4 text-destructive/60" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </TabsContent>
+
+          {/* ── BROWSE TAB ── */}
+          <TabsContent value="browse" className="flex-1 min-h-0 m-0 data-[state=inactive]:hidden">
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x h-full">
             {/* ── Enrolled students (left panel) ── */}
             <div className="flex flex-col min-h-0">
               <div className="flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-950/20 border-b shrink-0">
@@ -463,6 +635,8 @@ export function ManageStudentsModal({
               </ScrollArea>
             </div>
           </div>
+          </TabsContent>
+          </Tabs>
         )}
 
         {/* ── Footer ── */}
