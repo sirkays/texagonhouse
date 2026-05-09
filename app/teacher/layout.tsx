@@ -20,6 +20,9 @@ import {
   Laptop,
   Award,
   ClipboardCheck,
+  ArrowLeftRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,7 +56,14 @@ import {useMediaQuery} from "react-responsive";
 import {useSession, signOut} from "next-auth/react";
 import {Spinner} from "@/components/ui/spinner";
 import {useNotificationStore} from "../stores/notificationStore";
-import {createContext, useContext, useEffect, useState} from "react";
+import {createContext, useContext, useEffect, useState, useRef} from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const menuItems = [
   {title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher"},
@@ -210,6 +220,17 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // ── Dashboard-switch password gate ──
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+  const [switchPassword, setSwitchPassword] = useState("");
+  const [switchPasswordVisible, setSwitchPasswordVisible] = useState(false);
+  const [switchLoading, setSwitchLoading] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const switchPasswordRef = useRef<HTMLInputElement>(null);
+
+  // Show the switch option only when the teacher also has admin access
+  const hasAdminAccess = (session?.user as any)?.hasAdminAccess === true;
+
   useEffect(() => {
     setIsNavigating(false);
   }, [pathname]);
@@ -291,6 +312,21 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
                         <LogOut className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
                         Log out
                       </DropdownMenuItem>
+
+                      {hasAdminAccess && (
+                        <DropdownMenuItem
+                          className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#EF7B553a] focus:bg-[#EF7B553a] text-[#EF7B55]"
+                          onClick={() => {
+                            setSwitchPassword("");
+                            setSwitchError(null);
+                            setSwitchPasswordVisible(false);
+                            setIsSwitchModalOpen(true);
+                            setTimeout(() => switchPasswordRef.current?.focus(), 100);
+                          }}>
+                          <ArrowLeftRight className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                          Switch to Admin
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </SidebarMenuItem>
@@ -342,6 +378,105 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
           </div>
         </div>
       </LoadingContext.Provider>
+
+      {/* ── Switch to Admin Dashboard ── Password Modal */}
+      <Dialog open={isSwitchModalOpen} onOpenChange={setIsSwitchModalOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="h-5 w-5 text-[#EF7B55]" />
+              Switch to Admin Dashboard
+            </DialogTitle>
+            <DialogDescription>
+              For your security, please confirm your password before switching dashboards.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!switchPassword.trim()) {
+                setSwitchError("Please enter your password.");
+                return;
+              }
+              setSwitchLoading(true);
+              setSwitchError(null);
+              try {
+                const res = await fetch("/api/accounts/verify-password", {
+                  method: "POST",
+                  headers: {"Content-Type": "application/json"},
+                  body: JSON.stringify({password: switchPassword}),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.valid) {
+                  setSwitchError(data.detail || "Incorrect password. Please try again.");
+                  return;
+                }
+                setIsSwitchModalOpen(false);
+                window.location.href = "/admin";
+              } catch {
+                setSwitchError("Something went wrong. Please try again.");
+              } finally {
+                setSwitchLoading(false);
+              }
+            }}
+            className="space-y-4 py-2"
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="teacher-switch-password">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="teacher-switch-password"
+                  ref={switchPasswordRef}
+                  type={switchPasswordVisible ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={switchPassword}
+                  onChange={(e) => {
+                    setSwitchPassword(e.target.value);
+                    setSwitchError(null);
+                  }}
+                  autoComplete="current-password"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSwitchPasswordVisible((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {switchPasswordVisible ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {switchError && (
+                <p className="text-xs text-red-500">{switchError}</p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setIsSwitchModalOpen(false)}
+                className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
+                disabled={switchLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={switchLoading || !switchPassword.trim()}
+                className="px-4 py-2 text-sm rounded-md bg-[#EF7B55] text-white hover:bg-[#d96a44] transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {switchLoading && <Spinner size="sm" className="text-white" />}
+                Confirm & Switch
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

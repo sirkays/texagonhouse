@@ -1,7 +1,7 @@
 // texagon_academy\texagonui\app\admin\layout.tsx
 "use client";
 
-import {useState, useEffect} from "react";
+import {useState, useEffect, useRef} from "react";
 import {
   Home,
   Users,
@@ -23,6 +23,9 @@ import {
   UserCheck,
   Trophy,
   KeyRound,
+  ArrowLeftRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   Sidebar,
@@ -49,6 +52,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import {Spinner} from "@/components/ui/spinner";
+import {Input} from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -234,6 +238,19 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // ── Dashboard-switch password gate ──
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+  const [switchPassword, setSwitchPassword] = useState("");
+  const [switchPasswordVisible, setSwitchPasswordVisible] = useState(false);
+  const [switchLoading, setSwitchLoading] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const switchPasswordRef = useRef<HTMLInputElement>(null);
+
+  // Only teachers who also have admin access can switch back to teacher
+  const isTeacherWithAdminAccess =
+    (session?.user as any)?.role === "teacher" &&
+    (session?.user as any)?.hasAdminAccess === true;
+
   useEffect(() => {
     setIsNavigating(false);
   }, [pathname]);
@@ -282,25 +299,57 @@ export default function DashboardLayout({
 
   const handleLogout = async () => {
     try {
-      // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
       });
-
       if (!response.ok) {
         console.error("[AdminLayout] Backend logout failed");
       }
-
       await signOut({redirect: false});
-
       window.location.href = "/login";
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
-
-      // Fallback: Ensure the user is still visually logged out if an error occurs
       await signOut({redirect: false});
       window.location.href = "/login";
+    }
+  };
+
+  const openSwitchModal = () => {
+    setSwitchPassword("");
+    setSwitchError(null);
+    setSwitchPasswordVisible(false);
+    setIsSwitchModalOpen(true);
+    // auto-focus the input after modal opens
+    setTimeout(() => switchPasswordRef.current?.focus(), 100);
+  };
+
+  const handleSwitchToDashboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!switchPassword.trim()) {
+      setSwitchError("Please enter your password.");
+      return;
+    }
+    setSwitchLoading(true);
+    setSwitchError(null);
+    try {
+      const res = await fetch("/api/accounts/verify-password", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({password: switchPassword}),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setSwitchError(data.detail || "Incorrect password. Please try again.");
+        return;
+      }
+      // Password verified — switch to teacher dashboard
+      setIsSwitchModalOpen(false);
+      window.location.href = "/teacher";
+    } catch {
+      setSwitchError("Something went wrong. Please try again.");
+    } finally {
+      setSwitchLoading(false);
     }
   };
 
@@ -404,6 +453,15 @@ export default function DashboardLayout({
                         <Settings className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Change Organisation
                       </DropdownMenuItem>
+
+                      {isTeacherWithAdminAccess && (
+                        <DropdownMenuItem
+                          className="text-[0.85rem] sm:text-sm hover:bg-blue-50 focus:bg-blue-50 text-blue-600"
+                          onClick={openSwitchModal}>
+                          <ArrowLeftRight className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                          Switch to Instructor
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </SidebarMenuItem>
@@ -460,6 +518,76 @@ export default function DashboardLayout({
           </div>
         </div>
       </LoadingContext.Provider>
+
+      {/* ── Switch Dashboard Password Modal ── */}
+      <Dialog open={isSwitchModalOpen} onOpenChange={setIsSwitchModalOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="h-5 w-5 text-blue-500" />
+              Switch to Instructor Dashboard
+            </DialogTitle>
+            <DialogDescription>
+              For your security, please confirm your password before switching dashboards.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSwitchToDashboard} className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="switch-password">
+                Password
+              </label>
+              <div className="relative">
+                <Input
+                  id="switch-password"
+                  ref={switchPasswordRef}
+                  type={switchPasswordVisible ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={switchPassword}
+                  onChange={(e) => {
+                    setSwitchPassword(e.target.value);
+                    setSwitchError(null);
+                  }}
+                  className="pr-10"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSwitchPasswordVisible((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {switchPasswordVisible ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {switchError && (
+                <p className="text-xs text-red-500">{switchError}</p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setIsSwitchModalOpen(false)}
+                className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
+                disabled={switchLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={switchLoading || !switchPassword.trim()}
+                className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {switchLoading && <Spinner size="sm" className="text-white" />}
+                Confirm & Switch
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
