@@ -273,8 +273,8 @@ function OtpVerificationStep({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          code: otp,
+          email: email.trim().toLowerCase(),
+          code: otp.trim(),
         }),
       });
 
@@ -306,7 +306,7 @@ function OtpVerificationStep({
       const res = await fetch("/api/auth/resend-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
 
       const data = await res.json().catch(() => ({}));

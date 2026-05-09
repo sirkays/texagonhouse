@@ -51,9 +51,9 @@ export default function ParentSignupPage() {
 
           <p className="mt-6 text-center text-sm sm:text-base">
             Already have an account?{" "}
-        <Link href="/login" className="font-medium hover:text-red-600 transition-colors">
-          Log in
-        </Link>
+            <Link href="/login" className="font-medium hover:text-red-600 transition-colors">
+              Log in
+            </Link>
           </p>
         </div>
       </div>
