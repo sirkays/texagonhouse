@@ -1,125 +1,524 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus, X } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Search,
+  UserPlus,
+  UserMinus,
+  RefreshCw,
+  Users,
+  ArrowRight,
+  CheckCheck,
+  Loader2,
+  X,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-interface ManageStudentsModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  classroom: any
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Student {
+  id: number;
+  name: string;
+  email: string;
+  admission_no: string;
+  current_classroom: { id: number; name: string } | null;
 }
 
-export function ManageStudentsModal({ open, onOpenChange, classroom }: ManageStudentsModalProps) {
-  const { toast } = useToast()
-  const [searchQuery, setSearchQuery] = useState("")
+interface ClassroomInfo {
+  id: number;
+  name: string;
+  code: string;
+}
 
-  const [enrolledStudents, setEnrolledStudents] = useState([
-    { id: 1, name: "John Doe", email: "john@email.com" },
-    { id: 2, name: "Jane Smith", email: "jane@email.com" },
-  ])
+interface StudentsData {
+  classroom: ClassroomInfo;
+  enrolled: Student[];
+  available: Student[];
+}
 
-  const availableStudents = [
-    { id: 3, name: "Mike Johnson", email: "mike@email.com" },
-    { id: 4, name: "Sarah Williams", email: "sarah@email.com" },
-  ]
+interface ManageStudentsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  classroom?: { id: number; name: string; code?: string } | null;
+  onStudentsChanged?: () => void;
+}
 
-  const handleRemoveStudent = (studentId: number) => {
-    setEnrolledStudents(enrolledStudents.filter((s) => s.id !== studentId))
-    toast({ title: "Success", description: "Student removed from classroom" })
-  }
+// ─── Helper ───────────────────────────────────────────────────────────────────
 
-  const handleAddStudent = (student: any) => {
-    setEnrolledStudents([...enrolledStudents, student])
-    toast({ title: "Success", description: "Student added to classroom" })
-  }
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0].toUpperCase())
+    .join("");
+}
 
-  if (!classroom) return null
+function avatarColor(name: string) {
+  const colors = [
+    "bg-blue-500",
+    "bg-purple-500",
+    "bg-green-500",
+    "bg-amber-500",
+    "bg-rose-500",
+    "bg-indigo-500",
+    "bg-teal-500",
+    "bg-pink-500",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+// ─── Student row ─────────────────────────────────────────────────────────────
+
+function StudentRow({
+  student,
+  checked,
+  onToggle,
+  badge,
+}: {
+  student: Student;
+  checked: boolean;
+  onToggle: (id: number) => void;
+  badge?: string;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+        checked
+          ? "bg-primary/8 border border-primary/20"
+          : "hover:bg-muted/60 border border-transparent"
+      }`}
+      onClick={() => onToggle(student.id)}
+    >
+      <Checkbox
+        checked={checked}
+        onCheckedChange={() => onToggle(student.id)}
+        onClick={(e) => e.stopPropagation()}
+        className="shrink-0"
+        id={`student-${student.id}`}
+      />
+      <Avatar className="h-8 w-8 shrink-0">
+        <AvatarFallback className={`text-xs font-semibold text-white ${avatarColor(student.name || student.email)}`}>
+          {initials(student.name || student.email)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground truncate leading-tight">
+          {student.name || <span className="text-muted-foreground italic">No name</span>}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {student.admission_no && (
+          <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            {student.admission_no}
+          </span>
+        )}
+        {badge && (
+          <Badge variant="secondary" className="text-[10px] px-1.5">
+            {badge}
+          </Badge>
+        )}
+        {student.current_classroom && !badge && (
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 max-w-[80px] truncate"
+            title={student.current_classroom.name}
+          >
+            {student.current_classroom.name}
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Modal ───────────────────────────────────────────────────────────────
+
+export function ManageStudentsModal({
+  open,
+  onOpenChange,
+  classroom,
+  onStudentsChanged,
+}: ManageStudentsModalProps) {
+  const { toast } = useToast();
+
+  const [data, setData] = useState<StudentsData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Multi-select sets
+  const [selectedEnrolled, setSelectedEnrolled] = useState<Set<number>>(new Set());
+  const [selectedAvailable, setSelectedAvailable] = useState<Set<number>>(new Set());
+
+  // ── Debounce search ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // ── Fetch data ───────────────────────────────────────────────────────────
+  const fetchStudents = useCallback(
+    async (searchTerm = "") => {
+      if (!classroom?.id) return;
+      setLoading(true);
+      try {
+        const qs = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : "";
+        const res = await fetch(`/api/admin/classrooms/${classroom.id}/students${qs}`);
+        if (!res.ok) throw new Error(await res.text());
+        const json: StudentsData = await res.json();
+        setData(json);
+        // Reset selections on reload
+        setSelectedEnrolled(new Set());
+        setSelectedAvailable(new Set());
+      } catch (err: any) {
+        toast({
+          title: "Error",
+          description: err.message || "Failed to load students.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [classroom?.id, toast]
+  );
+
+  // Load when modal opens
+  useEffect(() => {
+    if (open && classroom?.id) {
+      setSearch("");
+      setDebouncedSearch("");
+      fetchStudents();
+    }
+  }, [open, classroom?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch when search changes (debounced)
+  useEffect(() => {
+    if (open && classroom?.id) {
+      fetchStudents(debouncedSearch);
+    }
+  }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Selection helpers ────────────────────────────────────────────────────
+
+  const toggleEnrolled = (id: number) => {
+    setSelectedEnrolled((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAvailable = (id: number) => {
+    setSelectedAvailable((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllEnrolled = () => {
+    if (!data) return;
+    const allIds = new Set(data.enrolled.map((s) => s.id));
+    setSelectedEnrolled(
+      selectedEnrolled.size === allIds.size ? new Set() : allIds
+    );
+  };
+
+  const selectAllAvailable = () => {
+    if (!data) return;
+    const allIds = new Set(data.available.map((s) => s.id));
+    setSelectedAvailable(
+      selectedAvailable.size === allIds.size ? new Set() : allIds
+    );
+  };
+
+  // ── Bulk save ────────────────────────────────────────────────────────────
+
+  const hasChanges = selectedEnrolled.size > 0 || selectedAvailable.size > 0;
+
+  const handleApply = async () => {
+    if (!classroom?.id || !hasChanges) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/classrooms/${classroom.id}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          add: Array.from(selectedAvailable),
+          remove: Array.from(selectedEnrolled),
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      toast({
+        title: "Classroom updated",
+        description: `${result.added ?? 0} student(s) added, ${result.removed ?? 0} removed.`,
+      });
+      onStudentsChanged?.();
+      fetchStudents(debouncedSearch);
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update students.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Counts ───────────────────────────────────────────────────────────────
+
+  const enrolledCount = data?.enrolled.length ?? 0;
+  const availableCount = data?.available.length ?? 0;
+
+  if (!classroom) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Manage Students - {classroom.name}</DialogTitle>
-          <DialogDescription>Add or remove students from this classroom</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 gap-0">
+        {/* ── Header ── */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="text-xl font-bold truncate">
+                Manage Students — {classroom.name}
+              </DialogTitle>
+              <DialogDescription className="mt-1">
+                Select students to add or remove. Apply when ready.
+              </DialogDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 -mt-1"
+              onClick={() => fetchStudents(debouncedSearch)}
+              disabled={loading}
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
 
-        <div className="space-y-6 mt-4">
           {/* Search */}
-          <div className="relative">
+          <div className="relative mt-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search students..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, email or admission no…"
+              className="pl-9 pr-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch("")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
+        </DialogHeader>
 
-          {/* Enrolled Students */}
-          <div>
-            <h3 className="font-semibold mb-3">Enrolled Students ({enrolledStudents.length})</h3>
-            <div className="space-y-2">
-              {enrolledStudents.map((student) => (
-                <div key={student.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={`/.jpg?height=40&width=40&query=${student.name}`} />
-                      <AvatarFallback>
-                        {student.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{student.name}</p>
-                      <p className="text-sm text-muted-foreground">{student.email}</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => handleRemoveStudent(student.id)}>
-                    <X className="h-4 w-4" />
+        {/* ── Body ── */}
+        {loading && !data ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+            {/* ── Enrolled students (left panel) ── */}
+            <div className="flex flex-col min-h-0">
+              <div className="flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-950/20 border-b shrink-0">
+                <div className="flex items-center gap-2">
+                  <UserMinus className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <span className="text-sm font-semibold text-red-700 dark:text-red-300">
+                    Enrolled
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {enrolledCount}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedEnrolled.size > 0 && (
+                    <Badge className="text-xs bg-red-600 text-white">
+                      {selectedEnrolled.size} to remove
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={selectAllEnrolled}
+                    disabled={enrolledCount === 0}
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    {selectedEnrolled.size === enrolledCount && enrolledCount > 0
+                      ? "Deselect all"
+                      : "Select all"}
                   </Button>
                 </div>
-              ))}
+              </div>
+
+              <ScrollArea className="flex-1">
+                <div className="p-2 space-y-1">
+                  {enrolledCount === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                      <Users className="h-8 w-8 mb-2 opacity-30" />
+                      <p className="text-sm">No enrolled students</p>
+                      {search && (
+                        <p className="text-xs mt-1">Try clearing the search</p>
+                      )}
+                    </div>
+                  ) : (
+                    data?.enrolled.map((student) => (
+                      <StudentRow
+                        key={student.id}
+                        student={student}
+                        checked={selectedEnrolled.has(student.id)}
+                        onToggle={toggleEnrolled}
+                        badge={selectedEnrolled.has(student.id) ? "Remove" : undefined}
+                      />
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* ── Available students (right panel) ── */}
+            <div className="flex flex-col min-h-0">
+              <div className="flex items-center justify-between px-4 py-3 bg-green-50 dark:bg-green-950/20 border-b shrink-0">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                    Available
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {availableCount}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedAvailable.size > 0 && (
+                    <Badge className="text-xs bg-green-600 text-white">
+                      {selectedAvailable.size} to add
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={selectAllAvailable}
+                    disabled={availableCount === 0}
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    {selectedAvailable.size === availableCount && availableCount > 0
+                      ? "Deselect all"
+                      : "Select all"}
+                  </Button>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1">
+                <div className="p-2 space-y-1">
+                  {availableCount === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                      <Users className="h-8 w-8 mb-2 opacity-30" />
+                      <p className="text-sm">No available students</p>
+                      {search && (
+                        <p className="text-xs mt-1">Try clearing the search</p>
+                      )}
+                    </div>
+                  ) : (
+                    data?.available.map((student) => (
+                      <StudentRow
+                        key={student.id}
+                        student={student}
+                        checked={selectedAvailable.has(student.id)}
+                        onToggle={toggleAvailable}
+                        badge={selectedAvailable.has(student.id) ? "Add" : undefined}
+                      />
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
             </div>
           </div>
+        )}
 
-          {/* Available Students */}
-          <div>
-            <h3 className="font-semibold mb-3">Available Students</h3>
-            <div className="space-y-2">
-              {availableStudents.map((student) => (
-                <div key={student.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={`/.jpg?height=40&width=40&query=${student.name}`} />
-                      <AvatarFallback>
-                        {student.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{student.name}</p>
-                      <p className="text-sm text-muted-foreground">{student.email}</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => handleAddStudent(student)}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
-              ))}
+        {/* ── Footer ── */}
+        <div className="px-6 py-4 border-t bg-muted/30 shrink-0">
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground">
+              {hasChanges ? (
+                <span className="flex items-center gap-1.5 text-foreground font-medium">
+                  <ArrowRight className="h-4 w-4 text-primary" />
+                  {selectedAvailable.size > 0 && (
+                    <span className="text-green-600">+{selectedAvailable.size} add</span>
+                  )}
+                  {selectedAvailable.size > 0 && selectedEnrolled.size > 0 && (
+                    <span className="text-muted-foreground mx-1">·</span>
+                  )}
+                  {selectedEnrolled.size > 0 && (
+                    <span className="text-red-600">−{selectedEnrolled.size} remove</span>
+                  )}
+                </span>
+              ) : (
+                <span>Select students above to add or remove them.</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedEnrolled(new Set());
+                  setSelectedAvailable(new Set());
+                }}
+                disabled={!hasChanges || saving}
+                className="bg-transparent"
+              >
+                Clear
+              </Button>
+              <Button
+                onClick={handleApply}
+                disabled={!hasChanges || saving}
+                className="min-w-[110px]"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <CheckCheck className="mr-2 h-4 w-4" />
+                    Apply Changes
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

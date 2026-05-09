@@ -488,7 +488,9 @@ export default function ClassroomsPage() {
         open={!!managingClassroom}
         onOpenChange={(open) => !open && setManagingClassroom(null)}
         classroom={managingClassroom ?? undefined}
+        onStudentsChanged={fetchClassrooms}
       />
+
     </>
   );
 }
