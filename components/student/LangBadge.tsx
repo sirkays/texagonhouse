@@ -13,7 +13,7 @@ export function LangBadge({ lang, size = 14 }: { lang: string; size?: number }) 
         fontSize: size === 14 ? 8 : Math.floor(size * 0.55),
       }}
     >
-      {LANG_INITIALS[lang] || lang.slice(0, 2).toUpperCase()}
+      {LANG_INITIALS[lang] || (lang ? lang.slice(0, 2).toUpperCase() : "?")}
     </span>
   );
 }

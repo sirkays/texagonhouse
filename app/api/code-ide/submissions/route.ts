@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   const qs = new URLSearchParams();
   if (lesson) qs.set("lesson", lesson);
 
-  const path = `/code-ide/api/ide/student/submissions/${
+  const path = `/code-ide/api/ide/student/projects/${
     qs.toString() ? `?${qs.toString()}` : ""
   }`;
 

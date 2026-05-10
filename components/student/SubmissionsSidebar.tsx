@@ -71,7 +71,7 @@ export function SubmissionsSidebar({
   const filtered = useMemo(() => {
     return submissions
       .filter((s) =>
-        `${s.title ?? ""} ${s.language} ${s.status}`
+    `${s.title ?? ""} ${(s.files?.[0]?.language ?? "")} ${s.status}`
           .toLowerCase()
           .includes(filter.toLowerCase())
       )
@@ -174,7 +174,7 @@ export function SubmissionsSidebar({
                 marginBottom: 4,
               }}
             >
-              <LangBadge lang={detail.language} />
+              <LangBadge lang={detail.files?.[0]?.language ?? ""} />
               <span
                 style={{
                   flex: 1,
@@ -224,62 +224,58 @@ export function SubmissionsSidebar({
               )}
             </div>
 
-            <Section label="Code" t={t}>
-              <pre
-                className="ide-mono scroll-thin"
-                style={{
-                  fontSize: 11,
-                  background: t.bgAlt,
-                  border: `1px solid ${t.borderMuted}`,
-                  borderRadius: 4,
-                  padding: 8,
-                  margin: 0,
-                  maxHeight: 280,
-                  overflow: "auto",
-                  whiteSpace: "pre",
-                }}
-              >
-                {detail.code_text}
-              </pre>
-            </Section>
-
-            {detail.feedback && (
-              <Section label="Feedback" t={t}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    background: t.bgAlt,
-                    border: `1px solid ${t.borderMuted}`,
-                    borderRadius: 4,
-                    padding: 8,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {detail.feedback}
+            <Section label="Files" t={t}>
+              {(detail.files ?? []).map((f) => (
+                <div key={f.id} style={{ marginBottom: 8 }}>
+                  <div style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: t.textMuted,
+                    marginBottom: 2,
+                    fontFamily: "monospace",
+                  }}>
+                    {f.path}
+                  </div>
+                  <pre
+                    className="ide-mono scroll-thin"
+                    style={{
+                      fontSize: 11,
+                      background: t.bgAlt,
+                      border: `1px solid ${t.borderMuted}`,
+                      borderRadius: 4,
+                      padding: 8,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflow: "auto",
+                      whiteSpace: "pre",
+                    }}
+                  >
+                    {f.code_text}
+                  </pre>
+                  {f.correction_code && (
+                    <>
+                      <div style={{ fontSize: 10, color: t.textMuted, marginTop: 4, marginBottom: 2 }}>Teacher correction:</div>
+                      <pre
+                        className="ide-mono scroll-thin"
+                        style={{
+                          fontSize: 11,
+                          background: t.bgAlt,
+                          border: `1px solid ${t.borderMuted}`,
+                          borderRadius: 4,
+                          padding: 8,
+                          margin: 0,
+                          maxHeight: 160,
+                          overflow: "auto",
+                          whiteSpace: "pre",
+                        }}
+                      >
+                        {f.correction_code}
+                      </pre>
+                    </>
+                  )}
                 </div>
-              </Section>
-            )}
-
-            {detail.correction_code && (
-              <Section label="Correction" t={t}>
-                <pre
-                  className="ide-mono scroll-thin"
-                  style={{
-                    fontSize: 11,
-                    background: t.bgAlt,
-                    border: `1px solid ${t.borderMuted}`,
-                    borderRadius: 4,
-                    padding: 8,
-                    margin: 0,
-                    maxHeight: 280,
-                    overflow: "auto",
-                    whiteSpace: "pre",
-                  }}
-                >
-                  {detail.correction_code}
-                </pre>
-              </Section>
-            )}
+              ))}
+            </Section>
 
             <div style={{ marginBottom: 8 }}>
               <div
@@ -296,7 +292,7 @@ export function SubmissionsSidebar({
                 }}
               >
                 <MessageSquare className="h-3 w-3" />
-                Comments ({detail.comments.length})
+                Comments ({detail.comments?.length ?? 0})
               </div>
               <div
                 style={{
@@ -309,7 +305,7 @@ export function SubmissionsSidebar({
                 }}
                 className="scroll-thin"
               >
-                {detail.comments.length === 0 ? (
+                {(detail.comments ?? []).length === 0 ? (
                   <div
                     style={{
                       fontSize: 11,
@@ -321,7 +317,7 @@ export function SubmissionsSidebar({
                     No comments yet
                   </div>
                 ) : (
-                  detail.comments.map((c) => (
+                  (detail.comments ?? []).map((c) => (
                     <div
                       key={c.id}
                       style={{
@@ -461,7 +457,7 @@ export function SubmissionsSidebar({
                   marginBottom: 4,
                 }}
               >
-                <LangBadge lang={s.language} />
+                <LangBadge lang={s.files?.[0]?.language ?? ""} />
                 <span
                   style={{
                     flex: 1,

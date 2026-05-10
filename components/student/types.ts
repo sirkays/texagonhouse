@@ -58,22 +58,30 @@ export type Comment = {
   created_at: string;
 };
 
+export type ProjectFile = {
+  id: number;
+  path: string;
+  language: string;
+  code_text: string;
+  correction_code?: string;
+};
+
 export type Submission = {
   id: number;
   title?: string | null;
   lesson: number;
   student: number;
-  language: LangKey;
-  code_text: string;
   status: "submitted" | "graded" | "revised";
   score: string | null;
   feedback: string;
-  correction_code: string;
-  graded_by_name: number | null;
+  graded_by_id?: number | null;
   graded_at: string | null;
   created_at: string;
   updated_at: string;
+  files: ProjectFile[];
   comments: Comment[];
+  // Derived convenience — first file's language (for display/badge)
+  language?: string;
 };
 
 // ─── Tab model ───────────────────────────────────────────────────────────
