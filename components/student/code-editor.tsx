@@ -725,81 +725,70 @@ export function CodeEditor() {
       return showCustomAlert("Pick at least one file to submit");
 
     setIsSubmittingEditor(true);
-    let okCount = 0;
-    const failures: string[] = [];
     try {
+      // Build files array with relative paths
+      const filesToSubmit: { path: string; language: string; code_text: string }[] = [];
       for (const tabId of Array.from(submitSelectedTabIds)) {
         const tab = tabs.find((t) => t.id === tabId);
         if (!tab) continue;
-        try {
-          if (tab.submissionId) {
-            // Update existing submission
-            const res = await fetch(
-              `/api/code-ide/submissions/${tab.submissionId}`,
-              {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  title,
-                  language: tab.language,
-                  code_text: tab.code,
-                }),
-              }
-            );
-            if (!res.ok) throw new Error(await safeError(res));
-            const updated: Submission = await res.json();
-            setMySubmissions((prev) =>
-              prev.map((s) => (s.id === updated.id ? updated : s))
-            );
-            // Sync tab — keep it linked to its (now-updated) submission
-            updateTab(tab.id, {
-              submissionTitle: title,
-              lessonId,
-              savedCode: tab.code,
-            });
-            okCount++;
-          } else {
-            const res = await fetch("/api/code-ide/submissions/create", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                title,
-                lesson: parseInt(lessonId, 10),
-                language: tab.language,
-                code_text: tab.code,
-                file_name: `${tab.title || "untitled"}.${LANGUAGES[tab.language].ext}`,
-              }),
-            });
-            if (!res.ok) throw new Error(await safeError(res));
-            const created: Submission = await res.json();
-            setMySubmissions((prev) => [created, ...prev]);
-            // Convert tab to a "submission" tab so future edits update in place
-            updateTab(tab.id, {
-              kind: "submission",
-              submissionId: created.id,
-              submissionTitle: title,
-              lessonId,
-              savedCode: tab.code,
-            });
-            okCount++;
+        const ext = LANGUAGES[tab.language].ext;
+        const baseName = `${(tab.title || "untitled").trim() || "untitled"}.${ext}`;
+        // If tab has a folder, build full relative path
+        let filePath = baseName;
+        if (tab.folderId != null) {
+          const folder = folders?.find((f: { id: number; path: string }) => f.id === tab.folderId);
+          if (folder) {
+            filePath = `${folder.path}/${baseName}`;
           }
-        } catch (e) {
-          failures.push(`${tab.title}: ${(e as Error).message}`);
         }
+        filesToSubmit.push({
+          path: filePath,
+          language: tab.language,
+          code_text: tab.code,
+        });
       }
 
-      if (okCount && !failures.length) {
-        showCustomAlert(
-          okCount === 1 ? "Submitted" : `Submitted ${okCount} files`
-        );
-        setInlinePanel(null);
-      } else if (okCount && failures.length) {
-        showCustomAlert(
-          `Submitted ${okCount}, failed ${failures.length}: ${failures.join("; ")}`
-        );
-      } else {
-        showCustomAlert(`Submission failed: ${failures.join("; ")}`);
+      if (filesToSubmit.length === 0) {
+        showCustomAlert("No files to submit");
+        return;
       }
+
+      const res = await fetch("/api/code-ide/submissions/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          lesson: parseInt(lessonId, 10),
+          files: filesToSubmit,
+        }),
+      });
+      if (!res.ok) throw new Error(await safeError(res));
+      const created = await res.json();
+
+      showCustomAlert(
+        filesToSubmit.length === 1
+          ? "Submitted"
+          : `Submitted ${filesToSubmit.length} files as project`
+      );
+
+      // Mark all submitted tabs as saved
+      for (const tabId of Array.from(submitSelectedTabIds)) {
+        updateTab(tabId, {
+          submissionTitle: title,
+          lessonId,
+          savedCode:
+            tabs.find((t) => t.id === tabId)?.code ?? "",
+        });
+      }
+
+      // Refresh submissions list
+      if (created?.id) {
+        setMySubmissions((prev: Submission[]) => [created, ...prev]);
+      }
+
+      setInlinePanel(null);
+    } catch (e) {
+      showCustomAlert(`Submission failed: ${(e as Error).message}`);
     } finally {
       setIsSubmittingEditor(false);
     }

@@ -343,7 +343,7 @@ const SubmissionList: React.FC = () => {
                   {downloadingId === s.id ? (
                     <Spinner size="sm" />
                   ) : (
-                    <><Download className="w-3.5 h-3.5 mr-1" />Download</>  
+                    <><Download className="w-3.5 h-3.5 mr-1" />Download</>
                   )}
                 </Button>
               </div>
@@ -415,7 +415,7 @@ const SubmissionList: React.FC = () => {
                           {downloadingId === s.id ? (
                             <Spinner size="sm" />
                           ) : (
-                            <><Download className="w-3 h-3 mr-1" />Download</>  
+                            <><Download className="w-3 h-3 mr-1" />Download</>
                           )}
                         </Button>
                       </div>

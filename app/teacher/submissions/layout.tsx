@@ -7,17 +7,19 @@ export type SubmissionStatus = "submitted" | "graded" | "revised";
 
 export interface Submission {
   id: number;
-  student: {id: number; user: {username: string}};
-  lesson: {id: number; title: string; class_name?: string};
-  language: string;
-  code_text: string;
-  correction_code?: string;
-  score?: number;
+  title?: string | null;
+  student_name?: string;
+  lesson_title?: string;
+  course_name?: string;
+  class_name?: string | null;
+  score?: number | null;
   feedback?: string;
   status: SubmissionStatus;
-  graded_by?: {id: number};
   graded_at?: string;
-  comments: Comment[];
+  file_count?: number;
+  file_languages?: string[];
+  file_names?: string[];
+  comments?: Comment[];
 }
 interface Comment {
   id: number;
@@ -38,70 +40,52 @@ export const SubmissionContext = createContext<{
 const mockSubmissions: Submission[] = [
   {
     id: 1,
-    student: {id: 101, user: {username: "student1"}},
-    lesson: {id: 201, title: "Introduction to Python"},
-    language: "python",
-    code_text: 'print("Hello, World!")',
+    title: "Hello World Project",
+    student_name: "Student One",
+    lesson_title: "Introduction to Python",
+    course_name: "Python Basics",
     status: "submitted",
-    comments: [
-      {
-        id: 1,
-        author: {username: "teacher1"},
-        author_role: "teacher",
-        message: "Looks good!",
-        created_at: "2023-10-01",
-      },
-    ],
+    file_count: 1,
+    file_languages: ["python"],
+    file_names: ["main.py"],
   },
   {
     id: 2,
-    student: {id: 102, user: {username: "student2"}},
-    lesson: {id: 202, title: "JavaScript Basics", class_name: "Web Development"},
-    language: "javascript",
-    code_text: 'console.log("Hello, World!");',
+    title: "JS Basics Exercise",
+    student_name: "Student Two",
+    lesson_title: "JavaScript Basics",
+    course_name: "Web Dev",
+    class_name: "Web Development",
     status: "graded",
     score: 95,
     feedback: "Excellent work!",
-    correction_code: 'console.log("Corrected Hello, World!");',
-    comments: [],
+    file_count: 1,
+    file_languages: ["javascript"],
+    file_names: ["index.js"],
   },
   {
     id: 3,
-    student: {id: 103, user: {username: "student3"}},
-    lesson: {id: 203, title: "Java Fundamentals", class_name: "Programming 101"},
-    language: "java",
-    code_text: 'System.out.println("Hello, World!");',
+    title: "Java Fundamentals",
+    student_name: "Student Three",
+    lesson_title: "Java Fundamentals",
+    course_name: "Programming 101",
+    class_name: "Programming 101",
     status: "submitted",
-    comments: [],
+    file_count: 1,
+    file_languages: ["java"],
+    file_names: ["Main.java"],
   },
   {
     id: 4,
-    student: {id: 104, user: {username: "student4"}},
-    lesson: {id: 204, title: "HTML/CSS"},
-    language: "html",
-    code_text: "<h1>Hello, World!</h1>",
+    title: "Login Page",
+    student_name: "Student Four",
+    lesson_title: "HTML/CSS",
+    course_name: "Frontend",
     status: "revised",
-    comments: [],
+    file_count: 3,
+    file_languages: ["html", "css", "javascript"],
+    file_names: ["login.html", "login.css", "login.js"],
   },
-  {
-    id: 5,
-    student: {id: 105, user: {username: "student5"}},
-    lesson: {id: 205, title: "SQL Queries", class_name: "Database Basics"},
-    language: "sql",
-    code_text: "SELECT * FROM users;",
-    status: "submitted",
-    comments: [],
-  },
-  {
-    id: 5,
-    student: {id: 105, user: {username: "student5"}},
-    lesson: {id: 205, title: "SQL Queries", class_name: "Database Basics"},
-    language: "sql",
-    code_text: "SELECT * FROM users;",
-    status: "submitted",
-    comments: [],
-  },
-  // Add more mock submissions to demonstrate pagination
 ];
 
 export default function TeacherLayout({children}: {children: React.ReactNode}) {

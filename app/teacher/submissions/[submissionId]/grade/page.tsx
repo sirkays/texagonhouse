@@ -33,9 +33,6 @@ const API_BASE = "/api/teacher/code/submissions";
 interface SubmissionDetail {
   id: number;
   title?: string | null;
-  language: string;
-  code_text: string;
-  file_name?: string;
   status: string;
   student_name: string;
   student_id: number;
@@ -44,9 +41,8 @@ interface SubmissionDetail {
   classroom: { id: number; name: string };
   score?: string | null;
   feedback?: string;
-  correction_code?: string | null;
   comments: Array<{ id: number; created_at: string; author: number; author_role: string; author_name: string; message: string }>;
-  all_project_files?: ProjectFile[];
+  files?: ProjectFile[];
 }
 
 export default function GradePage() {
@@ -86,16 +82,8 @@ export default function GradePage() {
   // Build the project file list. Always prefer the backend's all_project_files;
   // fall back to a single-file project if only the legacy fields are present.
   const projectFiles = useMemo((): ProjectFile[] => {
-    if (submission?.all_project_files?.length) return submission.all_project_files;
-    if (!submission) return [];
-    const ext = ({ javascript: "js", python: "py" } as Record<string, string>)[submission.language] || submission.language;
-    return [{
-      id: submission.id,
-      language: submission.language,
-      code_text: submission.code_text,
-      correction_code: submission.correction_code ?? "",
-      file_name: submission.file_name || `untitled.${ext}`,
-    }];
+    if (submission?.files?.length) return submission.files;
+    return [];
   }, [submission]);
 
   // Initialize editedCode from project files whenever the project changes.
@@ -105,13 +93,13 @@ export default function GradePage() {
     const map: Record<string, string> = {};
     for (const f of projectFiles) {
       const draft = (f.correction_code ?? "").trim();
-      map[f.file_name] = draft || f.code_text;
+      map[f.path] = draft || f.code_text;
     }
     setEditedCode(map);
 
     // Pick first HTML file as the default preview entry; else first file.
     const htmlFile = projectFiles.find((f) => f.language === "html");
-    setPreviewPage(htmlFile ? htmlFile.file_name : (projectFiles[0]?.file_name ?? ""));
+    setPreviewPage(htmlFile ? htmlFile.path : (projectFiles[0]?.path ?? ""));
     setPreviewHistory([]);
     // Keep the active tab valid
     setActiveFileIdx((idx) => Math.min(idx, projectFiles.length - 1));
@@ -214,7 +202,7 @@ export default function GradePage() {
     setActiveView("output");
     setRunKey((k) => k + 1);
     if (activeFile && !["html", "css"].includes(activeFile.language)) {
-      runCode(editedCode[activeFile.file_name] || activeFile.code_text, activeFile.language as Lang);
+      runCode(editedCode[activeFile.path] || activeFile.code_text, activeFile.language as Lang);
     }
   };
 
@@ -236,18 +224,15 @@ export default function GradePage() {
     setSubmitting(true);
     setError(null);
     try {
-      // Send corrections for all sibling files, keyed by submission id.
-      // The "main" file gets `correction_code`; the rest go in `all_corrections`.
-      const allCorr: Record<string, string> = {};
+      // Send corrections keyed by ProjectFile id
+      const corrections: Record<string, string> = {};
       for (const pf of projectFiles) {
-        if (pf.id !== id) allCorr[String(pf.id)] = editedCode[pf.file_name] ?? "";
+        corrections[String(pf.id)] = editedCode[pf.path] ?? "";
       }
-      const mainFile = projectFiles.find((f) => f.id === id) || projectFiles[0];
       const body = {
         score,
         feedback,
-        correction_code: editedCode[mainFile?.file_name ?? ""] ?? "",
-        all_corrections: allCorr,
+        corrections,
       };
       const r = await fetch(`${API_BASE}/${id}/grade/`, {
         method: "POST",
@@ -302,8 +287,8 @@ export default function GradePage() {
   const htmlPages = projectFiles.filter((f) => f.language === "html");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/20">
-      <div className="mx-auto max-w-7xl px-4 py-5">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/20 overflow-x-hidden">
+      <div className="mx-auto max-w-7xl px-4 py-5 overflow-hidden">
         {/* Python Input Modal */}
         <Dialog open={showInputModal} onOpenChange={(v) => {
           if (!v) {
@@ -388,7 +373,7 @@ export default function GradePage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
           {/* IDE */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               {/* File tabs */}
               <div className="flex items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50/80 overflow-x-auto">
@@ -404,7 +389,7 @@ export default function GradePage() {
                   >
                     <FileCode2 className={`w-3.5 h-3.5 ${activeFileIdx === i && activeView === "code" ? "text-white" : LANG_ICON[f.language] || "text-slate-400"
                       }`} />
-                    {f.file_name || `${f.language} file`}
+                    {f.path || `${f.language} file`}
                   </button>
                 ))}
                 <button
@@ -420,9 +405,9 @@ export default function GradePage() {
               {activeView === "code" && activeFile ? (
                 <Editor
                   height="55vh"
-                  language={monacoLang(activeFile.file_name)}
-                  value={editedCode[activeFile.file_name] ?? ""}
-                  onChange={(v) => setEditedCode((prev) => ({ ...prev, [activeFile.file_name]: v ?? "" }))}
+                  language={monacoLang(activeFile.path)}
+                  value={editedCode[activeFile.path] ?? ""}
+                  onChange={(v) => setEditedCode((prev) => ({ ...prev, [activeFile.path]: v ?? "" }))}
                   options={{
                     readOnly: false, theme: "vs", minimap: { enabled: false },
                     wordWrap: "on", fontSize: 13, padding: { top: 12, bottom: 12 },
@@ -463,7 +448,7 @@ export default function GradePage() {
                             }}
                             className="text-xs bg-slate-700 text-slate-300 border-none rounded px-2 py-1 focus:outline-none"
                           >
-                            {htmlPages.map((f) => (<option key={f.id} value={f.file_name}>{f.file_name}</option>))}
+                            {htmlPages.map((f) => (<option key={f.id} value={f.path}>{f.path}</option>))}
                           </select>
                         )}
                       </div>
@@ -495,7 +480,7 @@ export default function GradePage() {
               {activeFile && (
                 <Button
                   variant="outline"
-                  onClick={() => download(editedCode[activeFile.file_name] || "", activeFile.language as Lang, activeFile.file_name)}
+                  onClick={() => download(editedCode[activeFile.path] || "", activeFile.language as Lang, activeFile.path)}
                   className="h-10 px-4 rounded-xl border-slate-200 text-slate-600 text-sm"
                 >
                   <Download className="w-4 h-4 mr-1.5" />Download
@@ -523,9 +508,9 @@ export default function GradePage() {
                   >
                     <FileCode2 className={`w-4 h-4 shrink-0 ${LANG_ICON[f.language] || "text-slate-400"}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-700 truncate">{f.file_name}</p>
+                      <p className="text-sm font-medium text-slate-700 truncate">{f.path}</p>
                       <p className="text-[10px] text-slate-400 font-mono">
-                        {(editedCode[f.file_name] || f.code_text).split("\n").length} lines • {f.language}
+                        {(editedCode[f.path] || f.code_text).split("\n").length} lines • {f.language}
                       </p>
                     </div>
                   </button>

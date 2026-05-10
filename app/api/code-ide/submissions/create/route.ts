@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const path = `/code-ide/api/ide/submissions/create/`;
+    const path = `/code-ide/api/ide/projects/submit/`;
 
     const { response, text, setCookie } = await djangoFetchWithTimeout(
       path,

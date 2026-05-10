@@ -27,9 +27,6 @@ const API_BASE = "/api/teacher/submissions";
 interface SubmissionDetail {
   id: number;
   title?: string | null;
-  language: string;
-  code_text: string;
-  file_name?: string;
   status: string;
   student_name: string;
   lesson: { id: number; title: string };
@@ -37,8 +34,7 @@ interface SubmissionDetail {
   classroom: { id: number; name: string };
   score?: string | null;
   feedback?: string;
-  correction_code?: string | null;
-  all_project_files?: ProjectFile[];
+  files?: ProjectFile[];
 }
 
 export default function CodePage() {
@@ -89,23 +85,15 @@ export default function CodePage() {
 
   // Build the project file list (same logic as grade page).
   const projectFiles = useMemo((): ProjectFile[] => {
-    if (submission?.all_project_files?.length) return submission.all_project_files;
-    if (!submission) return [];
-    const ext = ({ javascript: "js", python: "py" } as Record<string, string>)[submission.language] || submission.language;
-    return [{
-      id: submission.id,
-      language: submission.language,
-      code_text: submission.code_text,
-      correction_code: submission.correction_code ?? "",
-      file_name: submission.file_name || `untitled.${ext}`,
-    }];
+    if (submission?.files?.length) return submission.files;
+    return [];
   }, [submission]);
 
   // Read-only "edited" code is just the original code_text (no correction overlay
   // in the view-code page — that's what the grade page is for).
   const fileContent = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const f of projectFiles) m[f.file_name] = f.code_text;
+    for (const f of projectFiles) m[f.path] = f.code_text;
     return m;
   }, [projectFiles]);
 
@@ -113,7 +101,7 @@ export default function CodePage() {
   useEffect(() => {
     if (!projectFiles.length) return;
     const html = projectFiles.find((f) => f.language === "html");
-    setPreviewPage(html ? html.file_name : projectFiles[0].file_name);
+    setPreviewPage(html ? html.path : projectFiles[0].path);
     setPreviewHistory([]);
     setActiveFileIdx((idx) => Math.min(idx, projectFiles.length - 1));
   }, [projectFiles]);
@@ -180,7 +168,7 @@ export default function CodePage() {
     setActiveView("output");
     setRunKey((k) => k + 1);
     if (activeFile && !["html", "css"].includes(activeFile.language)) {
-      runCode(fileContent[activeFile.file_name] || "", activeFile.language as Lang);
+      runCode(fileContent[activeFile.path] || "", activeFile.language as Lang);
     }
   };
 
@@ -297,7 +285,7 @@ export default function CodePage() {
             >
               <FileCode2 className={`w-3.5 h-3.5 ${activeFileIdx === i && activeView === "code" ? "text-white" : LANG_ICON[f.language] || "text-slate-400"
                 }`} />
-              {f.file_name || `${f.language} file`}
+              {f.path || `${f.language} file`}
             </button>
           ))}
           <button
@@ -319,7 +307,7 @@ export default function CodePage() {
             else { setActiveFileIdx(parseInt(v, 10)); setActiveView("code"); }
           }}
         >
-          {projectFiles.map((f, i) => (<option key={f.id} value={i}>{f.file_name}</option>))}
+          {projectFiles.map((f, i) => (<option key={f.id} value={i}>{f.path}</option>))}
           <option value="__output__">Output / Preview</option>
         </select>
 
@@ -328,8 +316,8 @@ export default function CodePage() {
           <div className="border border-slate-200 rounded-b-lg overflow-hidden shadow-sm">
             <Editor
               height="55vh"
-              language={monacoLang(activeFile.file_name)}
-              value={fileContent[activeFile.file_name] ?? ""}
+              language={monacoLang(activeFile.path)}
+              value={fileContent[activeFile.path] ?? ""}
               options={{
                 readOnly: true, theme: "vs-dark", minimap: { enabled: false },
                 wordWrap: "on", fontSize: 12, padding: { top: 8, bottom: 8 },
@@ -360,7 +348,7 @@ export default function CodePage() {
                       }}
                       className="text-xs bg-slate-700 text-slate-300 border-none rounded px-2 py-1 focus:outline-none"
                     >
-                      {htmlPages.map((f) => (<option key={f.id} value={f.file_name}>{f.file_name}</option>))}
+                      {htmlPages.map((f) => (<option key={f.id} value={f.path}>{f.path}</option>))}
                     </select>
                   )}
                 </div>
@@ -391,12 +379,12 @@ export default function CodePage() {
           </Button>
           {activeFile && (
             <Button
-              onClick={() => download(fileContent[activeFile.file_name] || "", activeFile.language as Lang, activeFile.file_name)}
+              onClick={() => download(fileContent[activeFile.path] || "", activeFile.language as Lang, activeFile.path)}
               variant="outline"
               className="text-xs h-9 px-4"
             >
               <Download className="w-3.5 h-3.5 mr-1" />
-              Download {activeFile.file_name}
+              Download {activeFile.path}
             </Button>
           )}
         </div>

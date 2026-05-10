@@ -36,7 +36,7 @@ export function parsePythonInputs(code: string): string[] {
 
 export interface ProjectFile {
   id: number;
-  file_name: string;
+  path: string;
   language: string;
   code_text: string;
   correction_code?: string | null;
@@ -52,6 +52,28 @@ function normalizePath(p: string): string {
   // strip leading ./ and /
   s = s.replace(/^\.?\/+/, "");
   return s.toLowerCase();
+}
+
+/** Resolve a relative href against the directory of the current page.
+ *  e.g. resolveRelative("start.css", "start/start.html") → "start/start.css"
+ *  Handles ../ segments. */
+function resolveRelative(href: string, currentPage: string): string {
+  const clean = href.trim().split("?")[0].split("#")[0].replace(/^\.?\/+/, "");
+  if (!clean) return "";
+  // If href already contains a directory (e.g. "logins/login.css"), use it as-is after normalize
+  // We always resolve relative to the current page's directory
+  const dirParts = currentPage.split("/");
+  dirParts.pop(); // remove the filename, leaving just the directory parts
+  const hrefParts = clean.split("/");
+  // Process ../ segments
+  for (const part of hrefParts) {
+    if (part === "..") {
+      dirParts.pop();
+    } else if (part !== "." && part !== "") {
+      dirParts.push(part);
+    }
+  }
+  return dirParts.join("/").toLowerCase();
 }
 
 /** Decide whether an href should be intercepted. */
@@ -82,11 +104,11 @@ export function buildMultiFilePreview(
   // Build the virtual FS: lowercased filename -> { content, lang, originalName }
   const fs: Record<string, { content: string; lang: string; originalName: string }> = {};
   for (const f of projectFiles) {
-    if (!f.file_name) continue;
-    const key = normalizePath(f.file_name);
+    if (!f.path) continue;
+    const key = normalizePath(f.path);
     if (!key) continue;
-    const code = editedCode[f.file_name] ?? ((f.correction_code ?? "").trim() || f.code_text);
-    fs[key] = { content: code, lang: f.language, originalName: f.file_name };
+    const code = editedCode[f.path] ?? ((f.correction_code ?? "").trim() || f.code_text);
+    fs[key] = { content: code, lang: f.language, originalName: f.path };
   }
 
   // Resolve entry: prefer the requested file, else first HTML, else error message.
@@ -118,8 +140,9 @@ function buildHtmlDoc(
       // Must be a stylesheet link
       if (!/\brel\s*=\s*["']?\s*stylesheet\s*["']?/i.test(allAttrs)) return full;
       if (isExternalLink(href)) return full;
-      const key = normalizePath(href);
-      const file = fs[key];
+      // Resolve relative to the current page's directory
+      const key = resolveRelative(href, currentPage);
+      const file = fs[key] || fs[normalizePath(href)]; // fallback to root-relative
       if (file && file.lang === "css") {
         return `<style data-file="${escapeAttr(href)}">\n${file.content}\n</style>`;
       }
@@ -132,8 +155,8 @@ function buildHtmlDoc(
     /<script\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+?)\2([^>]*?)>\s*<\/script>/gi,
     (full, _before, _q, src, _after) => {
       if (isExternalLink(src)) return full;
-      const key = normalizePath(src);
-      const file = fs[key];
+      const key = resolveRelative(src, currentPage);
+      const file = fs[key] || fs[normalizePath(src)];
       if (file && file.lang === "javascript") {
         return `<script data-file="${escapeAttr(src)}">\n${file.content}\n</script>`;
       }
@@ -149,13 +172,17 @@ function buildHtmlDoc(
     /<a\b([^>]*?)\bhref\s*=\s*(["'])([^"']+?)\2([^>]*)>/gi,
     (full, before, _q, href, after) => {
       if (isExternalLink(href)) return full;
-      const key = normalizePath(href);
+      const key = resolveRelative(href, currentPage);
+      const keyFallback = normalizePath(href);
       // Mark every relative link, even unknown ones — the click handler will
       // either navigate or report a friendly "not in project" message.
-      const known = fs[key] && fs[key].lang === "html" ? "1" : "0";
+      const match = fs[key] || fs[keyFallback];
+      const known = match && match.lang === "html" ? "1" : "0";
+      // The data-project-target should be the resolved path so navigation works
+      const resolvedTarget = match ? (fs[key] ? key : keyFallback) : href;
       // Sanitize: don't double-tag if already tagged
       if (/data-project-link\s*=/i.test(before + after)) return full;
-      return `<a${before} href="${escapeAttr(href)}" data-project-link="${known}" data-project-target="${escapeAttr(href)}"${after}>`;
+      return `<a${before} href="${escapeAttr(href)}" data-project-link="${known}" data-project-target="${escapeAttr(resolvedTarget)}"${after}>`;
     }
   );
 
@@ -176,6 +203,7 @@ function buildHtmlDoc(
   // ---- known project files (lowercased keys) ----
   var FS_KEYS = ${JSON.stringify(Object.keys(fs).filter((k) => fs[k].lang === "html"))};
   var KNOWN = {}; for (var i=0;i<FS_KEYS.length;i++) KNOWN[FS_KEYS[i]]=1;
+  var CURRENT_PAGE = ${JSON.stringify(currentPage)};
 
   function norm(p){
     if(!p) return "";
@@ -183,6 +211,22 @@ function buildHtmlDoc(
     s=s.split("?")[0].split("#")[0];
     while(s.charAt(0)==="."||s.charAt(0)==="/") s=s.substring(1);
     return s.toLowerCase();
+  }
+
+  // Resolve href relative to current page's directory
+  function resolveRel(href){
+    var clean = String(href).trim();
+    clean = clean.split("?")[0].split("#")[0];
+    while(clean.charAt(0)==="."||clean.charAt(0)==="/") clean=clean.substring(1);
+    if(!clean) return "";
+    var dir = CURRENT_PAGE.split("/");
+    dir.pop();
+    var parts = clean.split("/");
+    for(var j=0;j<parts.length;j++){
+      if(parts[j]==="..") dir.pop();
+      else if(parts[j]!=="."&&parts[j]!=="") dir.push(parts[j]);
+    }
+    return dir.join("/").toLowerCase();
   }
 
   // ---- click interceptor: catch ALL <a> clicks, even on dynamic links ----
@@ -201,9 +245,12 @@ function buildHtmlDoc(
     if (lower.charAt(0) === "#") return;
     // Relative link → intercept
     ev.preventDefault();
-    var target = norm(href);
+    // Prefer pre-resolved target from data attribute, else resolve relative
+    var resolved = el.getAttribute("data-project-target") || "";
+    var target = resolved ? norm(resolved) : resolveRel(href);
     if (KNOWN[target]) {
-      send("navigate", href);
+      // Send the resolved path so the parent can find the correct FS key
+      send("navigate", target);
     } else {
       send("warn", "Link points to '" + href + "' but that page is not in this project.");
     }
