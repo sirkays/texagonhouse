@@ -9,8 +9,8 @@ function ParentSignupForm({
   formData,
   setFormData,
 }: {
-  // Updated signature to pass back the parentProfileId
-  onOtpSent: (email: string, parentProfileId: number) => void;
+  // Updated signature to pass back the parentProfileId and whether we are resuming
+  onOtpSent: (email: string, parentProfileId: number, resuming?: boolean) => void;
   formData: any;
   setFormData: any;
 }) {
@@ -91,11 +91,12 @@ function ParentSignupForm({
       console.log("create account response:", data);
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create account");
+        throw new Error(data.detail || data.error || "Failed to create account");
       }
 
-      // Success! Pass email AND the new parentProfileId to the next step
-      onOtpSent(formData.email, data.parentProfileId);
+      // ✅ If account already existed but was not verified, backend returns existing_inactive=true
+      // with HTTP 200 — skip straight to OTP step so the user can complete verification.
+      onOtpSent(formData.email, data.parentProfileId, data.existing_inactive === true);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "An unexpected error occurred");
@@ -525,6 +526,7 @@ export default function ParentSignupFlow({
   const [step, setStep] = useState<"form" | "otp">("form");
   const [emailForOtp, setEmailForOtp] = useState("");
   const [parentProfileId, setParentProfileId] = useState<number | null>(null);
+  const [isResuming, setIsResuming] = useState(false); // true when re-activating an existing unverified account
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -558,9 +560,10 @@ export default function ParentSignupFlow({
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [step, emailForOtp, parentProfileId, formData]);
 
-  const handleOtpSent = (email: string, id: number) => {
+  const handleOtpSent = (email: string, id: number, resuming = false) => {
     setEmailForOtp(email);
     setParentProfileId(id);
+    setIsResuming(resuming);
     setStep("otp");
   };
 
@@ -614,11 +617,19 @@ export default function ParentSignupFlow({
             <ParentResumeCard onResume={handleResume} />
           </div>
         ) : (
-          <OtpVerificationStep
-            email={emailForOtp}
-            onVerified={handleVerified}
-            onBack={() => setStep("form")}
-          />
+          <div>
+            {isResuming && (
+              <div className="mb-6 rounded-md bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
+                <strong>Welcome back!</strong> We found your existing account and sent a new verification
+                code to your email. Please check your inbox and enter the code below.
+              </div>
+            )}
+            <OtpVerificationStep
+              email={emailForOtp}
+              onVerified={handleVerified}
+              onBack={() => setStep("form")}
+            />
+          </div>
         )}
       </div>
     </div>

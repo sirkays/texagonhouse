@@ -10,7 +10,8 @@ function TeacherSignupForm({
   formData,
   setFormData,
 }: {
-  onOtpRequested: (email: string) => void;
+  /** Called when the OTP has been sent. resuming=true means a pre-existing unverified account was found. */
+  onOtpRequested: (email: string, resuming?: boolean) => void;
   formData: any;
   setFormData: React.Dispatch<React.SetStateAction<any>>;
 }) {
@@ -80,8 +81,9 @@ function TeacherSignupForm({
         throw new Error(data?.message || data?.detail || "Failed to create account");
       }
 
-      // Move to OTP step
-      onOtpRequested(formData.email);
+      // ✅ If account already existed but was not verified, backend returns existing_inactive=true
+      // with HTTP 200 — skip straight to OTP step so the user can complete verification.
+      onOtpRequested(formData.email, data.existing_inactive === true);
     } catch (err: any) {
       setError(err?.message || "Something went wrong. Please try again.");
     } finally {
@@ -401,6 +403,7 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
     if (typeof window === "undefined") return "form";
     return (localStorage.getItem("teacher_signup_step") as any) || "form";
   });
+  const [isResuming, setIsResuming] = useState(false); // true when re-activating an existing unverified account
   const router = useRouter();
 
 
@@ -424,9 +427,9 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
       localStorage.setItem("teacher_signup_step", step);
     }
   }, [step]);
-  const handleOtpRequested = () => {
+  const handleOtpRequested = (email?: string, resuming = false) => {
     setStep("otp");
-
+    setIsResuming(resuming);
     localStorage.setItem("teacher_signup_step", "otp");
     localStorage.setItem("teacher_signup_email", registrationData.email);
     if (!localStorage.getItem("teacher_signup_name")) {
@@ -472,7 +475,7 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
             <p className="text-center text-gray-600 mb-8">Join thousands of educators</p>
 
             <TeacherSignupForm
-              onOtpRequested={() => handleOtpRequested()}
+              onOtpRequested={(email, resuming) => handleOtpRequested(email, resuming)}
               formData={registrationData}
               setFormData={setRegistrationData}
             />
@@ -480,17 +483,24 @@ export default function TeacherSignupFlow({ onComplete }: { onComplete?: () => v
         )}
 
         {step === "otp" && (
-          <OtpVerificationStep
-            email={
-              registrationData.email ||
-              (typeof window !== "undefined"
-                ? localStorage.getItem("teacher_signup_email") || ""
-                : "")
-            }
-            onVerified={handleVerified}
-            onBack={handleBack}
-          />
-
+          <div>
+            {isResuming && (
+              <div className="mb-6 rounded-md bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
+                <strong>Welcome back!</strong> We found your existing account and sent a new verification
+                code to your email. Please check your inbox and enter the code below.
+              </div>
+            )}
+            <OtpVerificationStep
+              email={
+                registrationData.email ||
+                (typeof window !== "undefined"
+                  ? localStorage.getItem("teacher_signup_email") || ""
+                  : "")
+              }
+              onVerified={handleVerified}
+              onBack={handleBack}
+            />
+          </div>
         )}
         {step === "done" && (
           <div className="text-center py-10">
