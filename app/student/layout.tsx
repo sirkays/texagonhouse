@@ -16,6 +16,7 @@ import {
   LogOut,
   Video,
   Award,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -59,6 +60,7 @@ const menuItems = [
   { title: "Leaderboard", icon: Medal, id: "leaderboard", path: "/student/leaderboard" },
   { title: "Live Sessions", icon: Video, id: "live-sessions", path: "/main/home" },
   { title: "Certificates", icon: Award, id: "certificates", path: "/student/certificate" },
+  { title: "Reports", icon: FileText, id: "reports", path: "/student/reports" },
   { title: "Profile Settings", path: "/profile", icon: Settings, description: "Manage your profile settings", id: "profile" },
 ];
 

@@ -23,6 +23,7 @@ import {
   ArrowLeftRight,
   Eye,
   EyeOff,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -133,6 +134,12 @@ const menuItems = [
     icon: Award,
     id: "certs",
     path: "/teacher/student-certs",
+  },
+  {
+    title: "Reports",
+    icon: FileText,
+    id: "reports",
+    path: "/teacher/reports",
   },
   {
     title: "Profile Settings",

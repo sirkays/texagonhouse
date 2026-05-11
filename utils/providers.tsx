@@ -2,6 +2,7 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import { SessionGuardProvider } from "@/components/providers/session-guard";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +17,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       // so client-side polling can be less aggressive.
       refetchInterval={5 * 60}
     >
-      {children}
+      <SessionGuardProvider>
+        {children}
+      </SessionGuardProvider>
     </SessionProvider>
   );
-}
+}
