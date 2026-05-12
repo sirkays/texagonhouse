@@ -1,6 +1,7 @@
 // texagon_academy\texagonui\app\admin\layout.tsx
 "use client";
 
+import Image from "next/image";
 import {useState, useEffect, useRef} from "react";
 import {
   Home,
@@ -209,9 +210,15 @@ function SidebarMenuContent() {
 function PageLoader() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 text-[#EF7B55]">
-      <GraduationCap className="h-16 w-16 animate-pulse" strokeWidth={1.8} />
+      <Image
+        src="/texagon-logo.png"
+        alt="Techxagon Logo"
+        width={64}
+        height={64}
+        className="animate-pulse object-contain"
+      />
       <div className="flex items-center gap-3">
-        <span className="text-xl font-semibold tracking-wide">EduManage</span>
+        <span className="text-xl font-semibold tracking-wide">Techxagon</span>
         <Spinner size="md" className="text-[#EF7B55]" />
       </div>
       <p className="text-sm text-slate-500">Loading content...</p>
@@ -412,9 +419,15 @@ export default function DashboardLayout({
           <Sidebar className="">
             <SidebarHeader className="bg-[#EF7B55] py-5">
               <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
-                <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <Image
+                  src="/texagon-logo.png"
+                  alt="Techxagon Logo"
+                  width={28}
+                  height={28}
+                  className="shrink-0 object-contain brightness-0 invert"
+                />
                 <span className="font-semibold text-white text-base sm:text-lg">
-                  EduManage
+                  Techxagon
                 </span>
               </div>
             </SidebarHeader>
