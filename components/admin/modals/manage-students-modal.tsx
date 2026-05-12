@@ -308,10 +308,10 @@ export function ManageStudentsModal({
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => {
-        // Split on tab first (Excel paste), then comma, then multiple spaces
-        const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
+        // Split on tab first (Excel paste), then comma, then any spaces
+        const parts = line.split(/\t|,|\s+/).map((p) => p.trim()).filter(Boolean);
         if (parts.length >= 2) {
-          return { first: parts[0].toLowerCase(), last: parts[1].toLowerCase(), raw: line };
+          return { first: parts[0].toLowerCase(), last: parts[parts.length - 1].toLowerCase(), raw: line };
         }
         // Single word — treat as first name only
         return { first: parts[0]?.toLowerCase() ?? "", last: "", raw: line };
@@ -346,7 +346,7 @@ export function ManageStudentsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-none sm:max-w-3xl w-full h-[100dvh] sm:h-[90vh] flex flex-col p-0 gap-0">
         {/* ── Header ── */}
         <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
           <div className="flex items-start justify-between gap-4">

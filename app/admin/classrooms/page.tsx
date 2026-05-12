@@ -106,8 +106,8 @@ export default function ClassroomsPage() {
       const result: Classroom[] = Array.isArray(data)
         ? data
         : Array.isArray(data.results)
-        ? data.results
-        : [];
+          ? data.results
+          : [];
       setClassrooms(result);
     } catch (err: any) {
       console.error("Failed to fetch classrooms:", err);
