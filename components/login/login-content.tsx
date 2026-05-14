@@ -1,15 +1,15 @@
 // texagon_academy\texagonui\components\login\login-content.tsx
 "use client";
 
-import {useState, useEffect, useCallback, useRef} from "react";
-import {Mail, Lock, Eye, EyeOff} from "lucide-react";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Spinner} from "@/components/ui/spinner";
-import {signIn, useSession} from "next-auth/react";
-import {useRouter, useSearchParams} from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import {ro} from "date-fns/locale";
+import { ro } from "date-fns/locale";
 
 interface AnimatedWordsProps {
   text: string;
@@ -41,7 +41,7 @@ function AnimatedWords({
           style={{
             ...wordStyle,
             ...(animate
-              ? {animationDelay: `${startDelay + index * delayIncrement}s`}
+              ? { animationDelay: `${startDelay + index * delayIncrement}s` }
               : {}),
           }}>
           {splitType === "letter" ? (item === " " ? "\u00A0" : item) : item}
@@ -53,7 +53,7 @@ function AnimatedWords({
 }
 
 export default function LoginContent() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [forgotError, setForgotError] = useState("");
@@ -67,7 +67,7 @@ export default function LoginContent() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [forgotSuggestions, setForgotSuggestions] = useState<string[]>([]);
   const [showForgotSuggestions, setShowForgotSuggestions] = useState(false);
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
@@ -119,7 +119,7 @@ export default function LoginContent() {
     top: number;
     left: number;
     width: number;
-  }>({top: 0, left: 0, width: 0});
+  }>({ top: 0, left: 0, width: 0 });
 
   const updateSuggestionPosition = useCallback(() => {
     if (forgotInputRef.current) {
@@ -176,7 +176,7 @@ export default function LoginContent() {
   // Handle email suggestions for login
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setEmail(value);
+    setIdentifier(value);
     if (value) {
       const filtered = pastEmails.filter((em) =>
         em.toLowerCase().includes(value.toLowerCase()),
@@ -190,7 +190,14 @@ export default function LoginContent() {
   };
 
   const handleEmailFocus = () => {
-    setSuggestions(pastEmails);
+    if (identifier) {
+      const filtered = pastEmails.filter((em) =>
+        em.toLowerCase().includes(identifier.toLowerCase()),
+      );
+      setSuggestions(filtered);
+    } else {
+      setSuggestions(pastEmails);
+    }
     setShowSuggestions(true);
   };
 
@@ -199,7 +206,7 @@ export default function LoginContent() {
   };
 
   const selectSuggestion = (sug: string) => {
-    setEmail(sug);
+    setIdentifier(sug);
     setShowSuggestions(false);
   };
 
@@ -220,7 +227,14 @@ export default function LoginContent() {
   };
 
   const handleForgotEmailFocus = () => {
-    setForgotSuggestions(pastEmails);
+    if (forgotEmail) {
+      const filtered = pastEmails.filter((em) =>
+        em.toLowerCase().includes(forgotEmail.toLowerCase()),
+      );
+      setForgotSuggestions(filtered);
+    } else {
+      setForgotSuggestions(pastEmails);
+    }
     setShowForgotSuggestions(true);
   };
 
@@ -335,7 +349,7 @@ export default function LoginContent() {
     // redirection logic manually in the useEffect above
     const result = await signIn("credentials", {
       redirect: false,
-      email,
+      email: identifier,
       password,
     });
 
@@ -354,7 +368,7 @@ export default function LoginContent() {
     };
 
     if (!result?.error) {
-      saveEmail(email);
+      saveEmail(identifier);
       // Success: The useEffect hook above will now detect 'status === authenticated'
       // and perform the redirect to callbackUrl or default role path.
     } else {
@@ -413,13 +427,14 @@ export default function LoginContent() {
             <div className="space-y-1 relative">
               <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
+                  id="identifier"
+                  type="text"
+                  value={identifier}
                   onChange={handleEmailChange}
                   onFocus={handleEmailFocus}
+                  onClick={handleEmailFocus}
                   onBlur={handleEmailBlur}
-                  placeholder="Email Address*"
+                  placeholder="Email or Admission Number*"
                   className="pl-12 pr-4 border border-gray-300 placeholder:text-gray-400 rounded-lg h-14 text-gray-900 text-lg focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
                   autoComplete="off"
                   required
@@ -492,7 +507,7 @@ export default function LoginContent() {
           </form>
           <div
             className="flex items-center justify-center"
-            style={{marginTop: "19px"}}>
+            style={{ marginTop: "19px" }}>
             <button
               onClick={() => setShowDialog(true)}
               className="text-sm text-blue-600 hover:underline focus:outline-none">
@@ -504,14 +519,14 @@ export default function LoginContent() {
 
       <div
         className="w-full md:w-[60%] flex flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center"
-        style={{backgroundImage: "url('/texagon_sva.svg')"}}>
+        style={{ backgroundImage: "url('/texagon_sva.svg')" }}>
         <div className="text-center z-10 px-4">
           <h2 className="text-5xl font-bold text-white mb-4">
             <AnimatedWords
               text="Africa's Foremost"
               startDelay={0}
               splitType="letter"
-              wordStyle={{fontSize: "5rem", fontWeight: "bold"}}
+              wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
               animate={shouldAnimate}
             />
           </h2>
@@ -520,7 +535,7 @@ export default function LoginContent() {
               text="4IR"
               startDelay={3.4}
               splitType="letter"
-              wordStyle={{fontSize: "8rem", fontWeight: "thin"}}
+              wordStyle={{ fontSize: "8rem", fontWeight: "thin" }}
               animate={shouldAnimate}
             />
           </h2>
@@ -529,7 +544,7 @@ export default function LoginContent() {
               text=" Curriculum"
               startDelay={4}
               splitType="letter"
-              wordStyle={{fontSize: "5rem", fontWeight: "bold"}}
+              wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
               animate={shouldAnimate}
             />
           </h2>
@@ -553,6 +568,10 @@ export default function LoginContent() {
                   value={forgotEmail}
                   onChange={handleForgotEmailChange}
                   onFocus={() => {
+                    handleForgotEmailFocus();
+                    updateSuggestionPosition();
+                  }}
+                  onClick={() => {
                     handleForgotEmailFocus();
                     updateSuggestionPosition();
                   }}
