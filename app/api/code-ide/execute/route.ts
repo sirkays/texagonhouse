@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 
 const PISTON_URL = "https://emkc.org/api/v2/piston/execute";
+const JUDGE0_URL = "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true";
 // Give Piston 20 s to respond (generous for cold-start containers).
 // The client-side timeout in the editor is 25 s, so the server always
 // resolves first.
@@ -20,7 +21,7 @@ const PISTON_TIMEOUT_MS = 20_000;
 
 export async function POST(request: Request) {
   // Parse the incoming body
-  let body: unknown;
+  let body: any;
   try {
     body = await request.json();
   } catch {
@@ -34,17 +35,37 @@ export async function POST(request: Request) {
   const timer = setTimeout(() => controller.abort(), PISTON_TIMEOUT_MS);
 
   try {
-    const upstream = await fetch(PISTON_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    const isJudge0 = body.provider === "judge0";
+    let upstream: Response;
+
+    if (isJudge0) {
+      upstream = await fetch(JUDGE0_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        },
+        body: JSON.stringify({
+          source_code: body.source_code,
+          language_id: body.language_id,
+          stdin: body.stdin,
+        }),
+        signal: controller.signal,
+      });
+    } else {
+      upstream = await fetch(PISTON_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    }
 
     if (!upstream.ok) {
       const text = await upstream.text().catch(() => "");
       return NextResponse.json(
-        { error: `Piston returned ${upstream.status}`, detail: text },
+        { error: `Execution provider returned ${upstream.status}`, detail: text },
         { status: upstream.status }
       );
     }

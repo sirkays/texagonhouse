@@ -646,17 +646,27 @@ export function CodeEditor() {
         code_text: activeTab.code,
         folder: folderIdNum,
       };
-      // Backend will dedupe on (student, title, language, folder) when no id is sent.
-      // BUT: if this tab is already linked to a snippet AND the title/folder match,
-      // pass the id so backend updates that exact row.
+      let reqBody = { ...body };
       if (activeTab.snippetId) {
-        body.id = activeTab.snippetId;
+        reqBody.id = activeTab.snippetId;
       }
-      const res = await fetch("/api/code-ide/snippets", {
+
+      let res = await fetch("/api/code-ide/snippets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(reqBody),
       });
+
+      // If the snippet was not found (stale snippetId), retry saving as a new snippet
+      if (res.status === 404 && reqBody.id) {
+        delete reqBody.id;
+        res = await fetch("/api/code-ide/snippets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(reqBody),
+        });
+      }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || err.detail || "Save failed");
@@ -1164,23 +1174,17 @@ export function CodeEditor() {
     const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const res = await fetch(
-        "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
-            "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            source_code: codeToRun,
-            language_id: langId,
-            stdin,
-          }),
-        }
-      );
+      const res = await fetch("/api/code-ide/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          provider: "judge0",
+          source_code: codeToRun,
+          language_id: langId,
+          stdin,
+        }),
+      });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
         throw new Error(`Judge0 API ${res.status}: ${errBody || res.statusText}`);
