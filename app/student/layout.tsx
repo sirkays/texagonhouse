@@ -39,6 +39,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -221,15 +223,29 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                             {session?.user?.name?.[0] || "JD"}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="xs:text-xs sm:text-sm">
-                          {session?.user?.name || "John Doe"}
-                        </span>
+                        <div className="flex flex-col items-start overflow-hidden">
+                          <span className="truncate xs:text-xs sm:text-sm">
+                            {session?.user?.name || "John Doe"}
+                          </span>
+                          <span className="truncate text-[10px] text-slate-400 font-normal italic">
+                            @{(session?.user as any)?.username || (session?.user as any)?.nickname || session?.user?.name}
+                          </span>
+                        </div>
                         <ChevronDown className="ml-auto h-3 w-3 xs:h-4 xs:w-4" />
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       side="top"
                       className="w-[--radix-popper-anchor-width]">
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
+                          <p className="text-xs leading-none text-muted-foreground italic">
+                            @{(session?.user as any)?.username || (session?.user as any)?.nickname || session?.user?.name}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-[0.85rem] xs:text-xs sm:text-sm hover:bg-[#F797713a] focus:bg-[#F797713a]"
                         onClick={handleLogout}>

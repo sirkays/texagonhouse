@@ -103,12 +103,15 @@ export const authOptions: NextAuthOptions = {
           return {
             id: data.org_membership_pk || credentials.email,
             email: credentials.email,
-            name: credentials.email.split("@")[0],
+            name: data.username || credentials.email.split("@")[0],
             role: data.role,
             sessionToken,
             expiresAt: loginData.expiresAt,
             isGenerated: data.is_generated || false,
             hasAdminAccess: data.has_admin_access || false,
+            hasNickname: data.has_nickname || false,
+            nickname: data.nickname || null,
+            username: data.username || null,
           };
         } catch (err) {
           const errorMessage =
@@ -124,7 +127,12 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({token, user}: {token: JWT; user?: User}) {
+    async jwt({token, user, trigger, session}: {token: JWT; user?: User; trigger?: "signIn" | "signUp" | "update"; session?: any}) {
+      if (trigger === "update" && session) {
+        if (session.nickname !== undefined) token.nickname = session.nickname;
+        if (session.hasNickname !== undefined) token.hasNickname = session.hasNickname;
+        if (session.name !== undefined) token.name = session.name;
+      }
       if (user) {
         token.id = (user as any).id;
         token.role = (user as any).role;
@@ -132,6 +140,9 @@ export const authOptions: NextAuthOptions = {
         token.expiresAt = (user as any).expiresAt;
         token.isGenerated = (user as any).isGenerated;
         token.hasAdminAccess = (user as any).hasAdminAccess;
+        token.hasNickname = (user as any).hasNickname;
+        token.nickname = (user as any).nickname;
+        token.username = (user as any).username;
       }
       if (token.expiresAt && new Date(token.expiresAt as string) < new Date()) {
         return {} as JWT; // Return empty JWT instead of null
@@ -150,6 +161,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).expiresAt = token.expiresAt;
         (session.user as any).isGenerated = token.isGenerated;
         (session.user as any).hasAdminAccess = token.hasAdminAccess;
+        (session.user as any).hasNickname = token.hasNickname;
+        (session.user as any).nickname = token.nickname;
+        (session.user as any).username = token.username;
       }
       return session;
     },

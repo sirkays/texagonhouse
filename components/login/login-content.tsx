@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -67,12 +67,16 @@ export default function LoginContent() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [forgotSuggestions, setForgotSuggestions] = useState<string[]>([]);
   const [showForgotSuggestions, setShowForgotSuggestions] = useState(false);
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
   const sessionReason = searchParams.get("reason");
   const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [newNickname, setNewNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [nicknameLoading, setNicknameLoading] = useState(false);
 
   // Add custom keyframe animation
   useEffect(() => {
@@ -255,12 +259,17 @@ export default function LoginContent() {
       const callbackUrl = searchParams.get("callbackUrl");
       const isGenerated = (session.user as any).isGenerated;
       const hasAdminAccess = (session.user as any).hasAdminAccess;
-
-      console.log(isGenerated, "isGeneratedPassppp");
+      const hasNickname = (session.user as any).hasNickname;
 
       if (isGenerated) {
         // Redirect to change password if using generated password
         window.location.href = "/change-password";
+        return;
+      }
+
+      // 0. Prompt for nickname if not set (Student Only)
+      if (!hasNickname && role === "student" && !showNicknameModal) {
+        setShowNicknameModal(true);
         return;
       }
 
@@ -338,6 +347,63 @@ export default function LoginContent() {
     setForgotEmail("");
     setForgotError("");
     setShowForgotSuggestions(false);
+  };
+
+  const handleNicknameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNickname.trim()) return;
+
+    setNicknameLoading(true);
+    setNicknameError("");
+
+    try {
+      const response = await fetch("/api/set-nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: newNickname }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to set nickname");
+      }
+
+      // Success! Close modal and trigger redirect
+      setShowNicknameModal(false);
+      
+      // Update session locally before redirecting
+      await update({ nickname: newNickname, hasNickname: true });
+
+      const role = session?.user?.role;
+      if (role) {
+        const rolePaths: Record<string, string> = {
+          admin: "/admin",
+          student: "/student",
+          teacher: "/teacher",
+          parent: "/parent",
+        };
+        window.location.href = rolePaths[role] || "/student";
+      }
+    } catch (err: any) {
+      setNicknameError(err.message || "An error occurred");
+    } finally {
+      setNicknameLoading(false);
+    }
+  };
+
+  const handleSkipNickname = () => {
+    setShowNicknameModal(false);
+    const role = session?.user?.role;
+    if (role) {
+      const rolePaths: Record<string, string> = {
+        admin: "/admin",
+        student: "/student",
+        teacher: "/teacher",
+        parent: "/parent",
+      };
+      window.location.href = rolePaths[role] || "/student";
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -637,6 +703,70 @@ export default function LoginContent() {
                     "Send Reset Link"
                   )}
                 </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showNicknameModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white p-8 rounded-2xl max-w-md w-full shadow-2xl border border-orange-100 animate-in fade-in zoom-in duration-300">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                <User className="text-orange-600 w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Choose a Nickname</h2>
+              <p className="text-gray-500 mt-2">
+                You haven't set up a unique nickname yet. Setting one up allows you to log in easily without typing your full email!
+              </p>
+            </div>
+
+            <form onSubmit={handleNicknameSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Unique Nickname
+                </label>
+                <Input
+                  type="text"
+                  value={newNickname}
+                  onChange={(e) => setNewNickname(e.target.value.replace(/\s/g, ""))}
+                  placeholder="e.g. techwiz_24"
+                  className="h-12 border-gray-300 focus:ring-orange-500 focus:border-orange-500 rounded-xl"
+                  required
+                  disabled={nicknameLoading}
+                  autoFocus
+                />
+                <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">
+                  No spaces allowed • Min 3 characters
+                </p>
+              </div>
+
+              {nicknameError && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg">
+                  {nicknameError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3 pt-2">
+                <Button
+                  type="submit"
+                  variant="gradient"
+                  className="h-12 text-lg font-bold shadow-lg shadow-orange-200"
+                  disabled={nicknameLoading || newNickname.length < 3}>
+                  {nicknameLoading ? (
+                    <Spinner size="sm" className="text-white" />
+                  ) : (
+                    "Save & Continue"
+                  )}
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleSkipNickname}
+                  className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors py-2"
+                  disabled={nicknameLoading}>
+                  I'll do it later
+                </button>
               </div>
             </form>
           </div>
