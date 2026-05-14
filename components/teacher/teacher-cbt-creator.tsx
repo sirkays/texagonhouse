@@ -47,6 +47,7 @@ import {
   CalendarDays,
   Maximize,
   Search,
+  Info,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -405,6 +406,22 @@ export function TeacherCBTCreator() {
   >("score");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isSaving, setIsSaving] = useState(false);
+  // Delete-confirmation dialog state
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    testId: string;
+    testTitle: string;
+    hasAttempts: boolean;
+    attemptCount: number;
+    checking: boolean;
+  }>({
+    open: false,
+    testId: "",
+    testTitle: "",
+    hasAttempts: false,
+    attemptCount: 0,
+    checking: false,
+  });
   const [studentPerformances, setStudentPerformances] = useState<
     StudentPerformance[]
   >([]);
@@ -1247,6 +1264,35 @@ export function TeacherCBTCreator() {
   }
 
   const saveTest = async () => {
+    // ── Validation ──────────────────────────────────────────────────────────
+    if (!currentTest.questions || currentTest.questions.length === 0) {
+      showAlert({
+        title: "No questions added",
+        message:
+          "Please add at least one question before saving the test.",
+        type: "error",
+      });
+      return;
+    }
+
+    for (let i = 0; i < currentTest.questions.length; i++) {
+      const q = currentTest.questions[i];
+      if (q.type === "single-choice" || q.type === "true-false") {
+        const filledOptions = (q.options || []).filter(
+          (opt) => opt && opt.trim() !== ""
+        );
+        if (filledOptions.length < 2) {
+          showAlert({
+            title: "Incomplete options",
+            message: `Question ${i + 1} must have at least 2 answer options filled in before saving.`,
+            type: "error",
+          });
+          return;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     setIsSaving(true);
     try {
       const isEditing = !!currentTest.id;
@@ -1666,17 +1712,44 @@ export function TeacherCBTCreator() {
       }
       setTests((prev) => prev.filter((test) => test.id !== testId));
       showAlert({
-        title: data.message,
+        title: data.message || "Test deleted successfully",
         message: "",
         type: "success",
       });
-      router.push("/teacher/create-cbt");
     } catch (error: any) {
       showAlert({
-        title: `Failed to `,
+        title: "Failed to delete test",
         message: error.message || "An unexpected error occurred.",
         type: "error",
       });
+    }
+  };
+
+  /** Opens the delete-confirmation dialog after checking for student attempts. */
+  const handleRequestDeleteTest = async (test: CBTTest) => {
+    setDeleteConfirm({
+      open: true,
+      testId: test.id,
+      testTitle: test.title,
+      hasAttempts: false,
+      attemptCount: 0,
+      checking: true,
+    });
+    try {
+      const res = await fetch(
+        `/api/teacher/performance-summary?test_id=${encodeURIComponent(test.id)}`,
+      );
+      const data = await res.json();
+      const attempts: number = data?.totalAttempts ?? 0;
+      setDeleteConfirm((prev) => ({
+        ...prev,
+        hasAttempts: attempts > 0,
+        attemptCount: attempts,
+        checking: false,
+      }));
+    } catch {
+      // If the check fails, still show dialog but assume no attempts
+      setDeleteConfirm((prev) => ({ ...prev, checking: false }));
     }
   };
   const handleViewAnalyticsDetails = (test: CBTTest) => {
@@ -1860,13 +1933,14 @@ export function TeacherCBTCreator() {
                     <Input
                       id="duration"
                       type="number"
-                      value={currentTest.duration}
-                      onChange={(e) =>
+                      value={Number.isNaN(currentTest.duration) ? "" : currentTest.duration}
+                      onChange={(e) => {
+                        const parsed = Number.parseInt(e.target.value);
                         setCurrentTest((prev) => ({
                           ...prev,
-                          duration: Number.parseInt(e.target.value),
-                        }))
-                      }
+                          duration: Number.isNaN(parsed) ? 0 : parsed,
+                        }));
+                      }}
                     />
                   </div>
                   <div className="flex-1 space-y-2">
@@ -1914,22 +1988,40 @@ export function TeacherCBTCreator() {
                   )}
                 </div>
                 {/* Better Date UI */}
-                <DateTimePicker
-                  label="Start Date & Time"
-                  valueLocal={currentTest._startLocal}
-                  onChangeLocal={(v) =>
-                    setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
-                  }
-                  disabled={isSaving}
-                />
-                <DateTimePicker
-                  label="End Date & Time"
-                  valueLocal={currentTest._endLocal}
-                  onChangeLocal={(v) =>
-                    setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
-                  }
-                  disabled={isSaving}
-                />
+                <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
+                  <div className="flex items-start gap-2">
+                    <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
+                      <p className="text-xs text-blue-800">
+                        Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
+                      </p>
+                      <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
+                        <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
+                        <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4 pt-2 border-t border-blue-100/50">
+                    <DateTimePicker
+                      label="Start Date & Time"
+                      valueLocal={currentTest._startLocal}
+                      onChangeLocal={(v) =>
+                        setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
+                      }
+                      disabled={isSaving}
+                    />
+                    <DateTimePicker
+                      label="End Date & Time"
+                      valueLocal={currentTest._endLocal}
+                      onChangeLocal={(v) =>
+                        setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
+                      }
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
                 {/* <div className="space-y-2">
                   <Label htmlFor="total_marks">Total Marks</Label>
                   <Input
@@ -2365,12 +2457,13 @@ export function TeacherCBTCreator() {
                       <Label>Points</Label>
                       <Input
                         type="number"
-                        value={editingQuestion.points}
-                        onChange={(e) =>
+                        value={Number.isNaN(editingQuestion.points) ? "" : editingQuestion.points}
+                        onChange={(e) => {
+                          const parsed = Number.parseInt(e.target.value);
                           updateQuestion(editingQuestion.id, {
-                            points: Number.parseInt(e.target.value),
-                          })
-                        }
+                            points: Number.isNaN(parsed) ? 0 : parsed,
+                          });
+                        }}
                         min={1}
                         max={50}
                         disabled={isSaving}
@@ -2517,7 +2610,7 @@ export function TeacherCBTCreator() {
 
                           <DropdownMenuItem
                             className="text-red-600"
-                            onClick={() => deleteTest(test.id)}>
+                            onClick={() => handleRequestDeleteTest(test)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -3192,22 +3285,40 @@ export function TeacherCBTCreator() {
                       disabled={isSaving}
                     />
                   </div>
-                  <DateTimePicker
-                    label="Start Date & Time"
-                    valueLocal={currentTest._startLocal}
-                    onChangeLocal={(v) =>
-                      setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
-                    }
-                    disabled={isSaving}
-                  />
-                  <DateTimePicker
-                    label="End Date & Time"
-                    valueLocal={currentTest._endLocal}
-                    onChangeLocal={(v) =>
-                      setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
-                    }
-                    disabled={isSaving}
-                  />
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
+                        <p className="text-xs text-blue-800">
+                          Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
+                        </p>
+                        <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
+                          <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
+                          <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4 pt-2 border-t border-blue-100/50">
+                      <DateTimePicker
+                        label="Start Date & Time"
+                        valueLocal={currentTest._startLocal}
+                        onChangeLocal={(v) =>
+                          setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
+                        }
+                        disabled={isSaving}
+                      />
+                      <DateTimePicker
+                        label="End Date & Time"
+                        valueLocal={currentTest._endLocal}
+                        onChangeLocal={(v) =>
+                          setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
+                        }
+                        disabled={isSaving}
+                      />
+                    </div>
+                  </div>
                   {/* <div className="space-y-2">
                     <Label htmlFor="total_marks">Total Marks</Label>
                     <Input
@@ -3413,10 +3524,10 @@ export function TeacherCBTCreator() {
                                 <Label>Points</Label>
                                 <Input
                                   type="number"
-                                  value={question.points}
+                                  value={Number.isNaN(question.points) ? "" : question.points}
                                   onChange={(e) => {
-                                    const newPoints =
-                                      Number.parseInt(e.target.value) || 0;
+                                    const parsed = Number.parseInt(e.target.value);
+                                    const newPoints = Number.isNaN(parsed) ? 0 : parsed;
                                     const oldPoints = question.points;
                                     updateQuestion(question.id, {
                                       points: newPoints,
@@ -3736,6 +3847,71 @@ export function TeacherCBTCreator() {
           )}
         </DialogContent>
       </Dialog>
+      {/* ------------------- Delete Confirmation Dialog ------------------- */}
+      <AlertDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) =>
+          setDeleteConfirm((prev) => ({ ...prev, open }))
+        }>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Delete Test
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {deleteConfirm.checking ? (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Spinner size="sm" />
+                    Checking for student attempts…
+                  </div>
+                ) : deleteConfirm.hasAttempts ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-red-600">
+                      This test cannot be deleted.
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-semibold">
+                        &quot;{deleteConfirm.testTitle}&quot;
+                      </span>{" "}
+                      has{" "}
+                      <span className="font-semibold text-red-600">
+                        {deleteConfirm.attemptCount} student
+                        {deleteConfirm.attemptCount === 1 ? " attempt" : " attempts"}
+                      </span>.
+                      Deleting it would erase student performance records. Please
+                      unpublish it instead.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm">
+                    Are you sure you want to permanently delete{" "}
+                    <span className="font-semibold">
+                      &quot;{deleteConfirm.testTitle}&quot;
+                    </span>?
+                    This action cannot be undone.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            {!deleteConfirm.checking && !deleteConfirm.hasAttempts && (
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={async () => {
+                  setDeleteConfirm((prev) => ({ ...prev, open: false }));
+                  await deleteTest(deleteConfirm.testId);
+                }}>
+                Yes, Delete
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog
         open={alertState.open}
         onOpenChange={(open) => setAlertState((prev) => ({ ...prev, open }))}>

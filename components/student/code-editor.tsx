@@ -924,7 +924,7 @@ export function CodeEditor() {
         setBottomPanel("preview");
       } else {
         const cfg = LANGUAGES[lang];
-        if (cfg.judgeId) {
+        if (cfg.judgeId || lang === "python") {
           try {
             const prompts =
               lang === "python" ? parsePythonInputs(activeTab.code) : [];
@@ -933,10 +933,12 @@ export function CodeEditor() {
               setPythonInputValues(Array(prompts.length).fill(""));
               pendingStdinRef.current = async (stdin: string) => {
                 try {
-                  await executeWithJudge0(activeTab.code, cfg.judgeId!, stdin);
-                } catch {
-                  setExecutionError("Online execution unavailable.");
-                  setOutput("Simulated output for " + lang);
+                  await executeRemote(activeTab.code, lang, stdin);
+                } catch (err: any) {
+                  setExecutionError(
+                    `Execution service error: ${err?.message || "All providers unavailable. Please try again later."}`
+                  );
+                  setOutput("");
                 } finally {
                   setIsRunning(false);
                   setBottomPanel("console");
@@ -945,10 +947,12 @@ export function CodeEditor() {
               setInlinePanel("stdin");
               return;
             }
-            await executeWithJudge0(activeTab.code, cfg.judgeId, "");
-          } catch {
-            setExecutionError("Online execution unavailable.");
-            setOutput("Simulated output for " + lang);
+            await executeRemote(activeTab.code, lang, "");
+          } catch (err: any) {
+            setExecutionError(
+              `Execution service error: ${err?.message || "All providers unavailable. Please try again later."}`
+            );
+            setOutput("");
           }
         } else {
           setOutput("Language not supported for execution");
@@ -1082,54 +1086,193 @@ export function CodeEditor() {
     return html;
   };
 
+  // ─── Piston API via server-side proxy (primary — free, no API key) ──────
+  // We call our own Next.js route (/api/code-ide/execute) instead of hitting
+  // Piston directly from the browser.  Direct browser-to-Piston calls were
+  // triggering CORS failures and, on some school/corporate networks, the
+  // browser would follow a proxy-login redirect back to this app's /login page.
+  const PISTON_LANG_MAP: Record<string, { language: string; version: string }> = {
+    python: { language: "python", version: "3.10.0" },
+    javascript: { language: "javascript", version: "18.15.0" },
+  };
+
+  const executeWithPiston = async (
+    codeToRun: string,
+    lang: LangKey,
+    stdin: string
+  ) => {
+    const pistonLang = PISTON_LANG_MAP[lang];
+    if (!pistonLang) throw new Error(`Piston does not support ${lang}`);
+
+    // Client timeout is 25 s — the server proxy allows Piston 20 s, so the
+    // server will always resolve (with an error if needed) before this fires.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const res = await fetch("/api/code-ide/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          language: pistonLang.language,
+          version: pistonLang.version,
+          files: [{ name: `main.${LANGUAGES[lang].ext}`, content: codeToRun }],
+          stdin: stdin || "",
+          run_timeout: 10000,
+        }),
+      });
+
+      const result = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        // The proxy returns { error, detail } on failure
+        const msg =
+          result?.error ||
+          result?.detail ||
+          `Execution service error (${res.status})`;
+        throw new Error(msg);
+      }
+
+      // Piston returns { run: { stdout, stderr, code, signal, output }, compile?: ... }
+      const run = result?.run;
+      if (!run) throw new Error("No run result from execution service");
+
+      if (run.signal === "SIGKILL" || run.code === 137) {
+        setOutput(
+          "Time Limit Exceeded — your code took too long or used too much memory."
+        );
+      } else if (run.stderr && run.code !== 0) {
+        setOutput(`Error:\n${run.stderr}`);
+      } else {
+        setOutput(run.stdout || "Code executed successfully (no output)");
+        if (run.code === 0) pushToast("Code executed successfully", "success");
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+
+  // ─── Judge0 API (fallback — RapidAPI key) ──────────────────────────────
   const executeWithJudge0 = async (
     codeToRun: string,
     langId: number,
     stdin: string
   ) => {
-    const res = await fetch(
-      "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
-          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-        },
-        body: JSON.stringify({
-          source_code: codeToRun,
-          language_id: langId,
-          stdin,
-        }),
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    try {
+      const res = await fetch(
+        "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-RapidAPI-Key": "aa76b3efa6msh96695e665e5f57fp105d9cjsn87230da97198",
+            "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            source_code: codeToRun,
+            language_id: langId,
+            stdin,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`Judge0 API ${res.status}: ${errBody || res.statusText}`);
       }
-    );
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    const result = await res.json();
-    if (result.status?.id === 3) {
-      setOutput(result.stdout || "Success (no output)");
-      pushToast("Code executed successfully", "success");
-    } else if (result.status?.id === 6) {
-      setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
-    } else if (result.status?.id === 5) {
-      setOutput("Time Limit Exceeded");
-    } else if (result.status?.id === 4) {
-      setOutput(`Runtime Error:\n${result.stderr}`);
-    } else {
-      setOutput(result.stderr || result.stdout || "Unknown error");
+      const result = await res.json();
+      if (result.status?.id === 3) {
+        setOutput(result.stdout || "Success (no output)");
+        pushToast("Code executed successfully", "success");
+      } else if (result.status?.id === 6) {
+        setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
+      } else if (result.status?.id === 5) {
+        setOutput("Time Limit Exceeded");
+      } else if (result.status?.id === 4) {
+        setOutput(`Runtime Error:\n${result.stderr}`);
+      } else {
+        setOutput(result.stderr || result.stdout || "Unknown error");
+      }
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
+  // ─── Combined execution: Piston first, Judge0 fallback ─────────────────
+  const executeRemote = async (
+    codeToRun: string,
+    lang: LangKey,
+    stdin: string
+  ) => {
+    const cfg = LANGUAGES[lang];
+    let lastError: Error | null = null;
+
+    // Attempt 1: Piston API (free, reliable)
+    if (PISTON_LANG_MAP[lang]) {
+      try {
+        await executeWithPiston(codeToRun, lang, stdin);
+        return; // success
+      } catch (err: any) {
+        // eslint-disable-next-line no-console
+        console.warn("[IDE] Piston execution failed, trying Judge0:", err?.message);
+        lastError = err;
+      }
+    }
+
+    // Attempt 2: Judge0 API (RapidAPI key)
+    if (cfg.judgeId) {
+      try {
+        await executeWithJudge0(codeToRun, cfg.judgeId, stdin);
+        return; // success
+      } catch (err: any) {
+        // eslint-disable-next-line no-console
+        console.warn("[IDE] Judge0 execution also failed:", err?.message);
+        lastError = err;
+      }
+    }
+
+    // Both failed
+    throw lastError || new Error("No execution provider available for this language.");
+  };
+
   // ─── Tab actions: copy / download / reset ──────────────────────────────
+  /**
+   * Normalise a code string before it leaves the editor:
+   *  - Strip Windows \r characters (\r\n → \n, lone \r → \n)
+   *  - Remove trailing whitespace from each line
+   *  - Ensure the file ends with exactly one newline
+   *
+   * This avoids ^M / blank-line artifacts when pasting into VS Code,
+   * Notepad++, PyCharm, or any other editor that is strict about
+   * line endings.
+   */
+  const normalizeCodeForExport = (code: string): string => {
+    return code
+      .replace(/\r\n/g, "\n")   // CRLF → LF
+      .replace(/\r/g, "\n")     // lone CR → LF
+      .replace(/[ \t]+$/gm, "") // strip trailing whitespace per line
+      .replace(/\n+$/, "\n");   // exactly one trailing newline
+  };
+
   const copyCode = () => {
     if (!activeTab) return;
-    navigator.clipboard.writeText(activeTab.code);
-    showCustomAlert("Code copied to clipboard");
+    const clean = normalizeCodeForExport(activeTab.code);
+    navigator.clipboard
+      .writeText(clean)
+      .then(() => showCustomAlert("Code copied to clipboard"))
+      .catch(() => showCustomAlert("Failed to copy — try selecting and copying manually"));
   };
 
   const downloadCode = () => {
     if (!activeTab) return;
     const ext = LANGUAGES[activeTab.language].ext;
-    const blob = new Blob([activeTab.code], { type: "text/plain" });
+    const clean = normalizeCodeForExport(activeTab.code);
+    const blob = new Blob([clean], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const filename = `${activeTab.title || "code"}.${ext}`;
     const a = Object.assign(document.createElement("a"), {
@@ -2138,7 +2281,11 @@ export function CodeEditor() {
                           searchKeymap: true,
                         }}
                         editable={!loading}
-                        onChange={(value) => updateActiveTab({ code: value })}
+                        onChange={(value) =>
+                          // Normalise CRLF → LF so that Windows-clipboard
+                          // pastes don't pollute the code buffer with \r\n.
+                          updateActiveTab({ code: value.replace(/\r\n/g, "\n").replace(/\r/g, "\n") })
+                        }
                       />
                     </div>
                   )

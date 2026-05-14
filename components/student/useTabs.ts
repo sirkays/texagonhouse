@@ -26,6 +26,14 @@ import {
 
 const DRAFT_KEY = "code-ide-tabs-v2";
 
+// Ensure code strings are always LF-only (‘\n’) inside the editor.
+// Backend/localStorage may deliver CRLF on Windows; keeping raw \r
+// inside the CodeMirror buffer means Ctrl+C copies \r\n, which pastes
+// as double-spaced code in VS Code / PyCharm / Notepad++.
+function normalizeLF(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 type DraftShape = {
   tabs: Tab[];
   activeId: string | null;
@@ -37,7 +45,13 @@ function loadDraft(): DraftShape | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.tabs)) return null;
-    return parsed as DraftShape;
+    // Normalize line endings on all tab buffers coming from storage
+    const tabs: Tab[] = (parsed as DraftShape).tabs.map((t) => ({
+      ...t,
+      code: normalizeLF(t.code ?? ""),
+      savedCode: normalizeLF(t.savedCode ?? ""),
+    }));
+    return { tabs, activeId: parsed.activeId };
   } catch {
     return null;
   }
@@ -181,11 +195,12 @@ export function useTabs() {
       const existing = findTabBy(
         (t) => t.kind === "snippet" && t.snippetId === snippet.id
       );
+      const codeText = normalizeLF(snippet.code_text ?? "");
       if (existing) {
         // Refresh content in case the snippet changed remotely
         updateTab(existing.id, {
-          code: snippet.code_text,
-          savedCode: snippet.code_text,
+          code: codeText,
+          savedCode: codeText,
           title: snippet.title || "untitled",
           language: snippet.language,
           folderId: snippet.folder ?? null,
@@ -199,8 +214,8 @@ export function useTabs() {
         kind: "snippet",
         language: snippet.language,
         title: snippet.title || "untitled",
-        code: snippet.code_text,
-        savedCode: snippet.code_text,
+        code: codeText,
+        savedCode: codeText,
         snippetId: snippet.id,
         submissionId: null,
         uploadId: null,
@@ -220,10 +235,11 @@ export function useTabs() {
       const existing = findTabBy(
         (t) => t.kind === "submission" && t.submissionId === sub.id
       );
+      const codeText = normalizeLF(sub.code_text ?? "");
       if (existing) {
         updateTab(existing.id, {
-          code: sub.code_text || "",
-          savedCode: sub.code_text || "",
+          code: codeText,
+          savedCode: codeText,
           title: sub.title || "submission",
           language: sub.language,
           submissionTitle: sub.title || "",
@@ -237,8 +253,8 @@ export function useTabs() {
         kind: "submission",
         language: sub.language,
         title: sub.title || "submission",
-        code: sub.code_text || "",
-        savedCode: sub.code_text || "",
+        code: codeText,
+        savedCode: codeText,
         snippetId: null,
         submissionId: sub.id,
         uploadId: null,
@@ -267,13 +283,14 @@ export function useTabs() {
         return existing.id;
       }
       const lang = detectLangFromName(file.original_name);
+      const codeText = normalizeLF(content ?? "");
       const tab: Tab = {
         id: makeTabId(),
         kind: "upload",
         language: lang,
         title: file.label || file.original_name.replace(/\.[^.]+$/, ""),
-        code: content ?? "",
-        savedCode: content ?? "",
+        code: codeText,
+        savedCode: codeText,
         snippetId: null,
         submissionId: null,
         uploadId: file.id,

@@ -132,6 +132,9 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 40000)
     return response;
   } catch (err) {
     clearTimeout(timer);
+    if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+      throw new Error("Request timed out or was aborted. Please try again.");
+    }
     throw err;
   }
 }
@@ -1614,480 +1617,480 @@ export function CBTTest() {
       clearInterval(id);
     };
   }, [currentTest, currentMode, sessionToken, deviceId, refreshCompleted]);
-const getTerminalSubmissionNotice = (code?: string, detail?: string) => {
-  switch (code) {
-    case "TIME_ELAPSED":
-      return {
-        type: "warning" as const,
-        title: "Time elapsed",
-        message:
-          detail ||
-          "The time for this test has expired. The attempt has been closed.",
-      };
+  const getTerminalSubmissionNotice = (code?: string, detail?: string) => {
+    switch (code) {
+      case "TIME_ELAPSED":
+        return {
+          type: "warning" as const,
+          title: "Time elapsed",
+          message:
+            detail ||
+            "The time for this test has expired. The attempt has been closed.",
+        };
 
-    case "ATTEMPT_ALREADY_SUBMITTED":
-    case "DUPLICATE_REPLAY":
-      return {
-        type: "success" as const,
-        title: "Test already submitted",
-        message:
-          detail ||
-          "This test has already been submitted. You can continue with another available test.",
-      };
+      case "ATTEMPT_ALREADY_SUBMITTED":
+      case "DUPLICATE_REPLAY":
+        return {
+          type: "success" as const,
+          title: "Test already submitted",
+          message:
+            detail ||
+            "This test has already been submitted. You can continue with another available test.",
+        };
 
-    case "NO_ACTIVE_ATTEMPT":
-    case "ATTEMPT_NOT_FOUND":
-    case "ATTEMPT_NOT_STARTED":
-      return {
-        type: "warning" as const,
-        title: "Attempt no longer active",
-        message:
-          detail ||
-          "This test attempt no longer exists or is no longer active. You can start another available test.",
-      };
+      case "NO_ACTIVE_ATTEMPT":
+      case "ATTEMPT_NOT_FOUND":
+      case "ATTEMPT_NOT_STARTED":
+        return {
+          type: "warning" as const,
+          title: "Attempt no longer active",
+          message:
+            detail ||
+            "This test attempt no longer exists or is no longer active. You can start another available test.",
+        };
 
-    case "TEST_NOT_FOUND":
-      return {
-        type: "error" as const,
-        title: "Test not found",
-        message:
-          detail ||
-          "This test could not be found. Please select another available test.",
-      };
+      case "TEST_NOT_FOUND":
+        return {
+          type: "error" as const,
+          title: "Test not found",
+          message:
+            detail ||
+            "This test could not be found. Please select another available test.",
+        };
 
-    default:
-      return {
-        type: "warning" as const,
-        title: "Attempt closed",
-        message:
-          detail ||
-          "This attempt has been closed. You can continue with another available test.",
-      };
-  }
-};
-
-/**
- * Important:
- * This closes the active exam screen and returns the user to the CBT list.
- * It must be used for terminal Django CBT errors so the user does not get
- * stuck inside the test page with an HTTP 400 modal.
- */
-const closeAttemptAndReturnToList = async ({
-  code,
-  detail,
-  data,
-  testId,
-  clientSubmissionId,
-  testTitle,
-  markCompleted,
-}: {
-  code?: string;
-  detail?: string;
-  data?: any;
-  testId: string;
-  clientSubmissionId?: string | null;
-  testTitle?: string;
-  markCompleted: boolean;
-}) => {
-  if (markCompleted && clientSubmissionId) {
-    await markTestCompleted({
-      testId,
-      clientSubmissionId,
-      completedAt: Date.now(),
-      syncStatus: "confirmed",
-      serverAttemptId: data?.attempt_id ?? data?.existing_attempt_id ?? null,
-      serverResponse: data || {},
-      testTitle,
-      localScore: typeof data?.score === "number" ? data.score : null,
-      localTotalPoints:
-        typeof data?.total_points === "number" ? data.total_points : null,
-    });
-  }
-
-  await clearInProgress(testId);
-  await refreshCompleted();
-
-  setListNotice(getTerminalSubmissionNotice(code, detail));
-
-  setTestResults((p) => ({
-    ...p,
-    [testId]: {
-      ...(data || {}),
-      title: testTitle,
-    },
-  }));
-
-  setAttemptsPage(1);
-
-  /**
-   * This is the key action.
-   * It removes the active test screen and sends the user back to the test list.
-   */
-  handleResetToList();
-
-  /**
-   * Refresh the list after resetting.
-   * Do not await this because the user should leave the exam screen immediately.
-   */
-  fetchData(true);
-};
-  /* ---------- submit ---------- */
-
-/* ---------- submit ---------- */
-
-const submitTest = useCallback(async () => {
-  if (!currentTest || isSubmitting) return;
-
-  setIsSubmitting(true);
-
-  try {
-    let csid = clientSubmissionId;
-
-    if (!csid) {
-      const snap = await loadInProgress(currentTest);
-      csid = snap?.clientSubmissionId ?? crypto.randomUUID();
-      setClientSubmissionId(csid);
+      default:
+        return {
+          type: "warning" as const,
+          title: "Attempt closed",
+          message:
+            detail ||
+            "This attempt has been closed. You can continue with another available test.",
+        };
     }
+  };
 
-    const test = availableTests.find(
-      (t) => t.pk?.toString() === currentTest
-    );
-
-    const mode: "online" | "offline" = (test?.mode || currentMode) as any;
-
-    const submitAnswers = buildAnswersPayload(questions, answers);
-
-    const payload = {
-      client_submission_id: csid,
-      currentTest,
-      answers: submitAnswers,
-      started_at: startTime,
-      duration_seconds: initialTime - timeLeft,
-      suspicious_activity: suspiciousActivity || 0,
-      attempt_id: onlineAttemptId,
-      expires_at_ms: onlineExpiresAtMs,
-      mode,
-      auto_submitted: autoSubmitTriggeredRef.current || pendingForcedSubmit,
-      forced_submit_reason: forcedSubmitReason,
-    };
-
-    if (mode === "online") {
-      if (!navigator.onLine) {
-        setPendingForcedSubmit(true);
-        setForcedSubmitReason(
-          forcedSubmitReason ||
-            (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
-        );
-        return;
-      }
-
-      const res = await fetchWithTimeout(
-        `/api/student/cbt`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessionToken!,
-            "X-Device-Id": deviceId,
-            "X-Idempotency-Key": csid,
-          },
-          body: JSON.stringify(payload),
-        },
-        40000
-      );
-
-      let data: any = {};
-      let rawText = "";
-
-      try {
-        rawText = await res.text();
-        data = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        data = {};
-      }
-
-      /**
-       * Defensive fallback:
-       * If the proxy still wraps Django's error inside `error`,
-       * try to extract the original Django JSON from the string.
-       *
-       * Example bad proxy body:
-       * {
-       *   error: "Failed to submit test: {\"code\":\"TIME_ELAPSED\",...}"
-       * }
-       */
-      if (!data?.code && typeof data?.error === "string") {
-        const match = data.error.match(/\{.*\}/);
-
-        if (match?.[0]) {
-          try {
-            const inner = JSON.parse(match[0]);
-            data = {
-              ...inner,
-              _proxyWrappedError: data.error,
-            };
-          } catch {
-            // keep original data
-          }
-        }
-      }
-
-      const code = data?.code;
-      const detail =
-        data?.detail ||
-        data?.details ||
-        data?.message ||
-        data?.error ||
-        rawText ||
-        `HTTP ${res.status}`;
-
-      console.log("[CBT submit response]", {
-        status: res.status,
-        ok: res.ok,
-        code,
-        detail,
-        raw: rawText?.slice(0, 300),
-      });
-
-      if (!res.ok) {
-        /**
-         * These are terminal CBT states.
-         * They should NOT leave the student inside the test screen.
-         */
-        if (TERMINAL_SUBMISSION_CODES.has(code)) {
-          const shouldMarkCompleted =
-            code === "TIME_ELAPSED" ||
-            code === "ATTEMPT_ALREADY_SUBMITTED" ||
-            code === "DUPLICATE_REPLAY";
-
-          await closeAttemptAndReturnToList({
-            code,
-            detail,
-            data,
-            testId: currentTest,
-            clientSubmissionId: csid,
-            testTitle: test?.title,
-            markCompleted: shouldMarkCompleted,
-          });
-
-          return;
-        }
-
-        /**
-         * Extra fallback:
-         * If Django/proxy did not expose `code`, but the text clearly says
-         * the attempt expired or does not exist, still close the test page.
-         */
-        const lowered = String(detail || "").toLowerCase();
-
-        const looksTerminal =
-          lowered.includes("time elapsed") ||
-          lowered.includes("time has elapsed") ||
-          lowered.includes("time is up") ||
-          lowered.includes("already expired") ||
-          lowered.includes("attempt already expired") ||
-          lowered.includes("already submitted") ||
-          lowered.includes("already performed") ||
-          lowered.includes("no active online attempt") ||
-          lowered.includes("no active attempt") ||
-          lowered.includes("attempt not found") ||
-          lowered.includes("attempt does not exist") ||
-          lowered.includes("not started");
-
-        if (looksTerminal && res.status >= 400 && res.status < 500) {
-          const inferredCode = lowered.includes("time")
-            ? "TIME_ELAPSED"
-            : lowered.includes("already")
-            ? "ATTEMPT_ALREADY_SUBMITTED"
-            : lowered.includes("not found") ||
-              lowered.includes("does not exist")
-            ? "ATTEMPT_NOT_FOUND"
-            : "NO_ACTIVE_ATTEMPT";
-
-          const shouldMarkCompleted =
-            inferredCode === "TIME_ELAPSED" ||
-            inferredCode === "ATTEMPT_ALREADY_SUBMITTED";
-
-          await closeAttemptAndReturnToList({
-            code: inferredCode,
-            detail,
-            data: {
-              ...data,
-              code: inferredCode,
-              detail,
-              _inferredFromText: true,
-            },
-            testId: currentTest,
-            clientSubmissionId: csid,
-            testTitle: test?.title,
-            markCompleted: shouldMarkCompleted,
-          });
-
-          return;
-        }
-
-        /**
-         * Non-terminal server validation errors remain on the test page.
-         * Example: invalid payload, auth issue, server error.
-         */
-        showErrorModal("Submission failed", detail);
-        return;
-      }
-
-      /**
-       * Normal successful submission.
-       */
+  /**
+   * Important:
+   * This closes the active exam screen and returns the user to the CBT list.
+   * It must be used for terminal Django CBT errors so the user does not get
+   * stuck inside the test page with an HTTP 400 modal.
+   */
+  const closeAttemptAndReturnToList = async ({
+    code,
+    detail,
+    data,
+    testId,
+    clientSubmissionId,
+    testTitle,
+    markCompleted,
+  }: {
+    code?: string;
+    detail?: string;
+    data?: any;
+    testId: string;
+    clientSubmissionId?: string | null;
+    testTitle?: string;
+    markCompleted: boolean;
+  }) => {
+    if (markCompleted && clientSubmissionId) {
       await markTestCompleted({
-        testId: currentTest,
-        clientSubmissionId: csid,
+        testId,
+        clientSubmissionId,
         completedAt: Date.now(),
         syncStatus: "confirmed",
-        serverAttemptId: data?.attempt_id ?? null,
-        serverResponse: data,
-        testTitle: test?.title,
+        serverAttemptId: data?.attempt_id ?? data?.existing_attempt_id ?? null,
+        serverResponse: data || {},
+        testTitle,
         localScore: typeof data?.score === "number" ? data.score : null,
         localTotalPoints:
           typeof data?.total_points === "number" ? data.total_points : null,
       });
+    }
+
+    await clearInProgress(testId);
+    await refreshCompleted();
+
+    setListNotice(getTerminalSubmissionNotice(code, detail));
+
+    setTestResults((p) => ({
+      ...p,
+      [testId]: {
+        ...(data || {}),
+        title: testTitle,
+      },
+    }));
+
+    setAttemptsPage(1);
+
+    /**
+     * This is the key action.
+     * It removes the active test screen and sends the user back to the test list.
+     */
+    handleResetToList();
+
+    /**
+     * Refresh the list after resetting.
+     * Do not await this because the user should leave the exam screen immediately.
+     */
+    fetchData(true);
+  };
+  /* ---------- submit ---------- */
+
+  /* ---------- submit ---------- */
+
+  const submitTest = useCallback(async () => {
+    if (!currentTest || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      let csid = clientSubmissionId;
+
+      if (!csid) {
+        const snap = await loadInProgress(currentTest);
+        csid = snap?.clientSubmissionId ?? crypto.randomUUID();
+        setClientSubmissionId(csid);
+      }
+
+      const test = availableTests.find(
+        (t) => t.pk?.toString() === currentTest
+      );
+
+      const mode: "online" | "offline" = (test?.mode || currentMode) as any;
+
+      const submitAnswers = buildAnswersPayload(questions, answers);
+
+      const payload = {
+        client_submission_id: csid,
+        currentTest,
+        answers: submitAnswers,
+        started_at: startTime,
+        duration_seconds: initialTime - timeLeft,
+        suspicious_activity: suspiciousActivity || 0,
+        attempt_id: onlineAttemptId,
+        expires_at_ms: onlineExpiresAtMs,
+        mode,
+        auto_submitted: autoSubmitTriggeredRef.current || pendingForcedSubmit,
+        forced_submit_reason: forcedSubmitReason,
+      };
+
+      if (mode === "online") {
+        if (!navigator.onLine) {
+          setPendingForcedSubmit(true);
+          setForcedSubmitReason(
+            forcedSubmitReason ||
+            (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
+          );
+          return;
+        }
+
+        const res = await fetchWithTimeout(
+          `/api/student/cbt`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Token": sessionToken!,
+              "X-Device-Id": deviceId,
+              "X-Idempotency-Key": csid,
+            },
+            body: JSON.stringify(payload),
+          },
+          40000
+        );
+
+        let data: any = {};
+        let rawText = "";
+
+        try {
+          rawText = await res.text();
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          data = {};
+        }
+
+        /**
+         * Defensive fallback:
+         * If the proxy still wraps Django's error inside `error`,
+         * try to extract the original Django JSON from the string.
+         *
+         * Example bad proxy body:
+         * {
+         *   error: "Failed to submit test: {\"code\":\"TIME_ELAPSED\",...}"
+         * }
+         */
+        if (!data?.code && typeof data?.error === "string") {
+          const match = data.error.match(/\{.*\}/);
+
+          if (match?.[0]) {
+            try {
+              const inner = JSON.parse(match[0]);
+              data = {
+                ...inner,
+                _proxyWrappedError: data.error,
+              };
+            } catch {
+              // keep original data
+            }
+          }
+        }
+
+        const code = data?.code;
+        const detail =
+          data?.detail ||
+          data?.details ||
+          data?.message ||
+          data?.error ||
+          rawText ||
+          `HTTP ${res.status}`;
+
+        console.log("[CBT submit response]", {
+          status: res.status,
+          ok: res.ok,
+          code,
+          detail,
+          raw: rawText?.slice(0, 300),
+        });
+
+        if (!res.ok) {
+          /**
+           * These are terminal CBT states.
+           * They should NOT leave the student inside the test screen.
+           */
+          if (TERMINAL_SUBMISSION_CODES.has(code)) {
+            const shouldMarkCompleted =
+              code === "TIME_ELAPSED" ||
+              code === "ATTEMPT_ALREADY_SUBMITTED" ||
+              code === "DUPLICATE_REPLAY";
+
+            await closeAttemptAndReturnToList({
+              code,
+              detail,
+              data,
+              testId: currentTest,
+              clientSubmissionId: csid,
+              testTitle: test?.title,
+              markCompleted: shouldMarkCompleted,
+            });
+
+            return;
+          }
+
+          /**
+           * Extra fallback:
+           * If Django/proxy did not expose `code`, but the text clearly says
+           * the attempt expired or does not exist, still close the test page.
+           */
+          const lowered = String(detail || "").toLowerCase();
+
+          const looksTerminal =
+            lowered.includes("time elapsed") ||
+            lowered.includes("time has elapsed") ||
+            lowered.includes("time is up") ||
+            lowered.includes("already expired") ||
+            lowered.includes("attempt already expired") ||
+            lowered.includes("already submitted") ||
+            lowered.includes("already performed") ||
+            lowered.includes("no active online attempt") ||
+            lowered.includes("no active attempt") ||
+            lowered.includes("attempt not found") ||
+            lowered.includes("attempt does not exist") ||
+            lowered.includes("not started");
+
+          if (looksTerminal && res.status >= 400 && res.status < 500) {
+            const inferredCode = lowered.includes("time")
+              ? "TIME_ELAPSED"
+              : lowered.includes("already")
+                ? "ATTEMPT_ALREADY_SUBMITTED"
+                : lowered.includes("not found") ||
+                  lowered.includes("does not exist")
+                  ? "ATTEMPT_NOT_FOUND"
+                  : "NO_ACTIVE_ATTEMPT";
+
+            const shouldMarkCompleted =
+              inferredCode === "TIME_ELAPSED" ||
+              inferredCode === "ATTEMPT_ALREADY_SUBMITTED";
+
+            await closeAttemptAndReturnToList({
+              code: inferredCode,
+              detail,
+              data: {
+                ...data,
+                code: inferredCode,
+                detail,
+                _inferredFromText: true,
+              },
+              testId: currentTest,
+              clientSubmissionId: csid,
+              testTitle: test?.title,
+              markCompleted: shouldMarkCompleted,
+            });
+
+            return;
+          }
+
+          /**
+           * Non-terminal server validation errors remain on the test page.
+           * Example: invalid payload, auth issue, server error.
+           */
+          showErrorModal("Submission failed", detail);
+          return;
+        }
+
+        /**
+         * Normal successful submission.
+         */
+        await markTestCompleted({
+          testId: currentTest,
+          clientSubmissionId: csid,
+          completedAt: Date.now(),
+          syncStatus: "confirmed",
+          serverAttemptId: data?.attempt_id ?? null,
+          serverResponse: data,
+          testTitle: test?.title,
+          localScore: typeof data?.score === "number" ? data.score : null,
+          localTotalPoints:
+            typeof data?.total_points === "number" ? data.total_points : null,
+        });
+
+        await clearInProgress(currentTest);
+        await refreshCompleted();
+
+        setTestResults((p) => ({
+          ...p,
+          [currentTest]: {
+            ...data,
+            title: test?.title,
+          },
+        }));
+
+        setListNotice({
+          type: "success",
+          title: "Test submitted",
+          message: "Your test has been submitted successfully.",
+        });
+
+        setAttemptsPage(1);
+
+        /**
+         * Return to the CBT test list immediately.
+         * This avoids the completed screen countdown and lets the user continue.
+         */
+        handleResetToList();
+
+        fetchData(true);
+
+        return;
+      }
+
+      /**
+       * Offline tests are queued locally.
+       */
+      await enqueueSubmission({
+        clientSubmissionId: csid,
+        testId: currentTest,
+        userId,
+        payload,
+        testTitle: test?.title,
+      });
+
+      await markTestCompleted({
+        testId: currentTest,
+        clientSubmissionId: csid,
+        completedAt: Date.now(),
+        syncStatus: "pending",
+        testTitle: test?.title,
+        localScore: null,
+        localTotalPoints: null,
+      });
+
+      if (typeof BroadcastChannel !== "undefined") {
+        const channel = new BroadcastChannel("cbt-queue");
+
+        channel.postMessage({
+          type: "completed-changed",
+        });
+
+        channel.close();
+      }
 
       await clearInProgress(currentTest);
       await refreshCompleted();
 
-      setTestResults((p) => ({
-        ...p,
-        [currentTest]: {
-          ...data,
-          title: test?.title,
-        },
-      }));
-
-      setListNotice({
-        type: "success",
-        title: "Test submitted",
-        message: "Your test has been submitted successfully.",
-      });
-
-      setAttemptsPage(1);
-
-      /**
-       * Return to the CBT test list immediately.
-       * This avoids the completed screen countdown and lets the user continue.
-       */
-      handleResetToList();
-
-      fetchData(true);
-
-      return;
-    }
-
-    /**
-     * Offline tests are queued locally.
-     */
-    await enqueueSubmission({
-      clientSubmissionId: csid,
-      testId: currentTest,
-      userId,
-      payload,
-      testTitle: test?.title,
-    });
-
-    await markTestCompleted({
-      testId: currentTest,
-      clientSubmissionId: csid,
-      completedAt: Date.now(),
-      syncStatus: "pending",
-      testTitle: test?.title,
-      localScore: null,
-      localTotalPoints: null,
-    });
-
-    if (typeof BroadcastChannel !== "undefined") {
-      const channel = new BroadcastChannel("cbt-queue");
-
-      channel.postMessage({
-        type: "completed-changed",
-      });
-
-      channel.close();
-    }
-
-    await clearInProgress(currentTest);
-    await refreshCompleted();
-
-    setListNotice({
-      type: "success",
-      title: "Test saved",
-      message:
-        "Your offline test has been saved and will sync automatically when internet is available.",
-    });
-
-    handleResetToList();
-
-    if (navigator.onLine) {
-      triggerSync();
-    }
-  } catch (err: any) {
-    const test = availableTests.find(
-      (t) => t.pk?.toString() === currentTest
-    );
-
-    const mode: "online" | "offline" = (test?.mode || currentMode) as any;
-
-    console.error("[CBT submit exception]", err);
-
-    if (mode === "offline") {
       setListNotice({
         type: "success",
         title: "Test saved",
         message:
-          "Your offline test has been saved locally and will sync automatically.",
+          "Your offline test has been saved and will sync automatically when internet is available.",
       });
 
       handleResetToList();
-      await refreshCompleted();
-    } else if (!navigator.onLine) {
-      setPendingForcedSubmit(true);
-      setForcedSubmitReason(
-        forcedSubmitReason ||
-          (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
-      );
-    } else {
-      showErrorModal(
-        "Network error",
-        err?.message ||
-          "Unable to submit this online test right now. Please reconnect and try again."
-      );
-    }
-  } finally {
-    setIsSubmitting(false);
-  }
-}, [
-  currentTest,
-  currentMode,
-  clientSubmissionId,
-  isSubmitting,
-  availableTests,
-  questions,
-  answers,
-  startTime,
-  initialTime,
-  timeLeft,
-  suspiciousActivity,
-  onlineAttemptId,
-  onlineExpiresAtMs,
-  sessionToken,
-  deviceId,
-  userId,
-  triggerSync,
-  refreshCompleted,
-  pendingForcedSubmit,
-  forcedSubmitReason,
-  closeAttemptAndReturnToList,
-]);
 
-useEffect(() => {
-  submitTestRef.current = submitTest;
-}, [submitTest]);
+      if (navigator.onLine) {
+        triggerSync();
+      }
+    } catch (err: any) {
+      const test = availableTests.find(
+        (t) => t.pk?.toString() === currentTest
+      );
+
+      const mode: "online" | "offline" = (test?.mode || currentMode) as any;
+
+      console.error("[CBT submit exception]", err);
+
+      if (mode === "offline") {
+        setListNotice({
+          type: "success",
+          title: "Test saved",
+          message:
+            "Your offline test has been saved locally and will sync automatically.",
+        });
+
+        handleResetToList();
+        await refreshCompleted();
+      } else if (!navigator.onLine) {
+        setPendingForcedSubmit(true);
+        setForcedSubmitReason(
+          forcedSubmitReason ||
+          (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
+        );
+      } else {
+        showErrorModal(
+          "Network error",
+          err?.message ||
+          "Unable to submit this online test right now. Please reconnect and try again."
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    currentTest,
+    currentMode,
+    clientSubmissionId,
+    isSubmitting,
+    availableTests,
+    questions,
+    answers,
+    startTime,
+    initialTime,
+    timeLeft,
+    suspiciousActivity,
+    onlineAttemptId,
+    onlineExpiresAtMs,
+    sessionToken,
+    deviceId,
+    userId,
+    triggerSync,
+    refreshCompleted,
+    pendingForcedSubmit,
+    forcedSubmitReason,
+    closeAttemptAndReturnToList,
+  ]);
+
+  useEffect(() => {
+    submitTestRef.current = submitTest;
+  }, [submitTest]);
 
   useEffect(() => {
     submitTestRef.current = submitTest;
@@ -2249,17 +2252,17 @@ useEffect(() => {
     </Dialog>
   );
 
-// Only show the full-page spinner on the very first render, before we've
-// ever loaded data. After that, keep rendering the existing UI even while
-// NextAuth re-validates the session in the background — otherwise every
-// /api/auth/session poll causes a logo flash.
-if (!hasLoadedOnce && (status === "loading" || loading)) {
-  return (
-    <div className="flex min-h-[300px] items-center justify-center">
-      <Spinner />
-    </div>
-  );
-}
+  // Only show the full-page spinner on the very first render, before we've
+  // ever loaded data. After that, keep rendering the existing UI even while
+  // NextAuth re-validates the session in the background — otherwise every
+  // /api/auth/session poll causes a logo flash.
+  if (!hasLoadedOnce && (status === "loading" || loading)) {
+    return (
+      <div className="flex min-h-[300px] items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
 
   if (status !== "authenticated") {
     return (
@@ -2857,10 +2860,10 @@ if (!hasLoadedOnce && (status === "loading" || loading)) {
       {listNotice && (
         <div
           className={`rounded-lg border p-3 text-sm ${listNotice.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : listNotice.type === "error"
-                ? "border-red-200 bg-red-50 text-red-900"
-                : "border-amber-200 bg-amber-50 text-amber-900"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+            : listNotice.type === "error"
+              ? "border-red-200 bg-red-50 text-red-900"
+              : "border-amber-200 bg-amber-50 text-amber-900"
             }`}
         >
           <div className="font-semibold">{listNotice.title}</div>
