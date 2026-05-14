@@ -64,9 +64,15 @@ export async function POST(request: Request) {
 
     if (!upstream.ok) {
       const text = await upstream.text().catch(() => "");
+      // Never forward 401/403 from upstream providers — the global fetch
+      // interceptor treats 401 on /api/* as session expiry and logs out.
+      // Remap to 502 (bad gateway) so the editor shows an error toast instead.
+      const safeStatus = (upstream.status === 401 || upstream.status === 403)
+        ? 502
+        : upstream.status;
       return NextResponse.json(
         { error: `Execution provider returned ${upstream.status}`, detail: text },
-        { status: upstream.status }
+        { status: safeStatus }
       );
     }
 

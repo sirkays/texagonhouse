@@ -46,8 +46,11 @@ export function useFetchInterceptor() {
       const isApiCall = url.startsWith("/api/") || url.includes("/api/");
       // Don't intercept auth endpoints themselves
       const isAuthCall = url.includes("/api/auth/");
+      // Don't intercept code execution proxy — upstream 401s are provider
+      // errors (expired API key, rate-limit), NOT session expiry.
+      const isExecuteCall = url.includes("/api/code-ide/execute");
 
-      if (response.status === 401 && isApiCall && !isAuthCall && !isIntercepting) {
+      if (response.status === 401 && isApiCall && !isAuthCall && !isExecuteCall && !isIntercepting) {
         isIntercepting = true;
         console.warn("[SessionGuard] 401 detected on", url, "— triggering logout");
 
