@@ -225,7 +225,7 @@ export default function StudentAssignmentsPage() {
     // Validate file sizes (10MB max)
     for (const f of attachments) {
       if (f.size > 10 * 1024 * 1024) {
-        alert(`File ${f.name} exceeds the 10MB limit.`);
+        alert(`File "${f.name}" exceeds the 10MB limit.`);
         return;
       }
     }
@@ -252,18 +252,23 @@ export default function StudentAssignmentsPage() {
       
       const res = await fetch("/api/submissions/", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
-        alert("Submission successful!");
+        alert("Submission successful! Your work has been submitted.");
         setSelectedAssignment(null);
         setSubmissionText("");
         setAttachments([]);
+        fetchAssignments();
       } else {
-        alert("Failed to submit.");
+        // Show actual error from backend
+        const errMsg = data?.detail || data?.error || JSON.stringify(data) || "Failed to submit.";
+        alert(`Submission failed: ${errMsg}`);
+        console.error("Submission error:", data);
       }
     } catch (err) {
       console.error(err);
