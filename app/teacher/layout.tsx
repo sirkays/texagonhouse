@@ -129,6 +129,12 @@ const menuItems = [
     id: "code-submission",
     path: "/teacher/submissions",
   },
+  {
+    title: "Assignments Workspace",
+    icon: FileText,
+    id: "assignments",
+    path: "/teacher/assignments",
+  },
 
   {
     title: "Student Cert",

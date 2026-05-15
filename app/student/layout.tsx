@@ -1,4 +1,4 @@
-//texagon_academy\texagonui\app\student\layout.tsx
+// texagonui/app/student/layout.tsx
 "use client";
 
 import Image from "next/image";
@@ -18,6 +18,7 @@ import {
   Video,
   Award,
   FileText,
+  Puzzle, // ⬅️ NEW: icon for Scratch Studio (block-puzzle feel)
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,6 +56,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 const menuItems = [
   { title: "Dashboard", icon: Home, id: "dashboard", path: "/student" },
   { title: "Code IDE", icon: Code, id: "ide", path: "/student/code" },
+  // ⬇️ NEW: Scratch Studio entry, placed right after Code IDE so coding tools sit together.
+  { title: "Scratch Studio", icon: Puzzle, id: "scratch", path: "/student/scratch" },
+  { title: "Assignments", icon: FileText, id: "assignments", path: "/student/assignments" },
   { title: "CBT Tests", icon: TestTube, id: "cbt", path: "/student/cbt" },
   { title: "My Materials", icon: BookOpen, id: "materials", path: "/student/materials" },
   { title: "Resources", icon: Book, id: "resources", path: "/student/resources" },
@@ -68,7 +72,8 @@ const menuItems = [
 ];
 
 // Routes that should fill the entire content area without header/padding
-const FULL_BLEED_ROUTES = ["/student/code"];
+// ⬇️ Added "/student/scratch" so the Scratch iframe fills the viewport (same treatment as Code IDE)
+const FULL_BLEED_ROUTES = ["/student/code", "/student/scratch"];
 
 const LoadingContext = createContext<{
   setIsNavigating: React.Dispatch<React.SetStateAction<boolean>>;
@@ -267,6 +272,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             {/* Orange top header — rendered on every page so the SidebarTrigger is always available.
                 On full-bleed routes (the IDE), it shrinks to a slim bar containing just the trigger. */}
             <header
+              id="student-layout-header"
               className={
                 isFullBleed
                   ? "sticky top-0 z-50 flex-shrink-0"
