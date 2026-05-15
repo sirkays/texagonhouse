@@ -5974,27 +5974,36 @@ function ProgressBar({
   return (
     <div
       ref={progressRef}
-      className="relative h-1 w-full cursor-pointer group"
+      className="relative h-1.5 w-full cursor-pointer group hover:h-2.5 transition-all duration-200 px-4"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}>
-      <div className="absolute inset-0 h-full bg-gray-600 rounded-full" />
-      <div
-        className="absolute inset-y-0 left-0 bg-gray-400 rounded-full"
-        style={{width: `${bufferedPercent}%`}}
-      />
-      <div
-        className="absolute inset-y-0 left-0 bg-red-600 rounded-full"
-        style={{width: `${playedPercent}%`}}
-      />
-      {progressHover && (
+      <div className="absolute inset-x-4 inset-y-0 bg-white/20 rounded-full overflow-hidden">
         <div
-          className="absolute inset-y-0 left-0 bg-red-800 rounded-full transition-all duration-100"
-          style={{width: `${hoverPercent}%`}}
+          className="absolute inset-y-0 left-0 bg-white/30 rounded-full transition-all duration-75"
+          style={{width: `${bufferedPercent}%`}}
         />
-      )}
+        <div
+          className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#EF7B55] to-[#f5956e] rounded-full transition-all duration-75"
+          style={{width: `${playedPercent}%`}}
+        />
+        {progressHover && (
+          <div
+            className="absolute inset-y-0 left-0 bg-white/15 rounded-full"
+            style={{width: `${hoverPercent}%`}}
+          />
+        )}
+      </div>
+      {/* Thumb indicator */}
+      <div 
+        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-[#EF7B55] rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 ring-2 ring-white/30"
+        style={{left: `calc(${playedPercent}% + 16px - 7px)`}}
+      />
       {progressHover && (
-        <div className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity md:block hidden">
+        <div 
+          className="absolute bottom-full mb-3 px-2.5 py-1.5 bg-black/80 backdrop-blur-md text-white text-xs font-medium rounded-lg whitespace-nowrap transform -translate-x-1/2 border border-white/10 shadow-xl"
+          style={{left: `calc(${hoverPercent}% + 16px)`}}
+        >
           {formatTime(hoverTime)}
         </div>
       )}
@@ -6029,31 +6038,32 @@ function SettingsMenu({
   onClose,
 }: SettingsMenuProps) {
   return (
-    <div className="absolute bottom-16 left-4 right-4 md:left-auto md:right-0 w-full md:w-56 bg-black/90 text-white rounded-lg shadow-lg overflow-hidden border border-gray-700 animate-slide-in">
+    <div className="absolute bottom-16 left-4 right-4 md:left-auto md:right-0 w-full md:w-60 bg-black/90 backdrop-blur-xl text-white rounded-2xl shadow-2xl overflow-hidden border border-white/10 animate-slide-in">
       {/* Playback Speed */}
       <button
         onClick={onToggleSpeedSubmenu}
-        className="flex items-center justify-between w-full px-4 py-3 text-sm hover:bg-white/10 transition-colors">
-        Playback speed
-        <span className="flex items-center gap-1">
-          {playbackSpeed}x{" "}
+        className="flex items-center justify-between w-full px-4 py-3.5 text-sm hover:bg-white/10 transition-colors">
+        <span className="font-medium">Playback speed</span>
+        <span className="flex items-center gap-1.5 text-[#EF7B55]">
+          {playbackSpeed}x
           <ChevronDown
-            className={`h-4 w-4 transition-transform ${showPlaybackSpeedSubmenu ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${showPlaybackSpeedSubmenu ? "rotate-180" : ""}`}
           />
         </span>
       </button>
       {showPlaybackSpeedSubmenu && (
-        <div className="animate-slide-down bg-black/95">
+        <div className="bg-black/70 border-t border-white/5 max-h-48 overflow-y-auto">
           {playbackSpeeds.map((speed) => (
             <button
               key={speed}
               onClick={() => {
                 onSetSpeed(speed);
                 onToggleSpeedSubmenu();
-                onClose();
               }}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-white/10 transition-colors ${
-                playbackSpeed === speed ? "bg-red-600" : ""
+              className={`w-full text-left px-6 py-2.5 text-sm transition-colors ${
+                speed === playbackSpeed
+                  ? "bg-[#EF7B55]/20 text-[#EF7B55] font-semibold"
+                  : "hover:bg-white/10 text-white/80"
               }`}>
               {speed}x
             </button>
@@ -6061,30 +6071,33 @@ function SettingsMenu({
         </div>
       )}
 
+      <div className="h-px bg-white/10" />
+
       {/* Quality */}
       <button
         onClick={onToggleQualitySubmenu}
-        className="flex items-center justify-between w-full px-4 py-3 text-sm hover:bg-white/10 transition-colors border-t border-gray-700">
-        Quality
-        <span className="flex items-center gap-1">
-          {quality}{" "}
+        className="flex items-center justify-between w-full px-4 py-3.5 text-sm hover:bg-white/10 transition-colors">
+        <span className="font-medium">Quality</span>
+        <span className="flex items-center gap-1.5 text-[#EF7B55]">
+          {quality}
           <ChevronDown
-            className={`h-4 w-4 transition-transform ${showQualitySubmenu ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${showQualitySubmenu ? "rotate-180" : ""}`}
           />
         </span>
       </button>
       {showQualitySubmenu && (
-        <div className="animate-slide-down bg-black/95">
+        <div className="bg-black/70 border-t border-white/5 max-h-48 overflow-y-auto">
           {videoQualities.map((q) => (
             <button
               key={q}
               onClick={() => {
                 onSetQuality(q);
                 onToggleQualitySubmenu();
-                onClose();
               }}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-white/10 transition-colors ${
-                quality === q ? "bg-red-600" : ""
+              className={`w-full text-left px-6 py-2.5 text-sm transition-colors ${
+                q === quality
+                  ? "bg-[#EF7B55]/20 text-[#EF7B55] font-semibold"
+                  : "hover:bg-white/10 text-white/80"
               }`}>
               {q}
             </button>
@@ -6094,6 +6107,7 @@ function SettingsMenu({
     </div>
   );
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTROLS
@@ -6122,64 +6136,63 @@ function Controls({
   const handleTheaterToggle = () => dispatch({type: "TOGGLE_THEATER"});
 
   return (
-    <div className="flex items-center justify-between w-full px-4 py-2 text-white">
+    <div className="flex items-center justify-between w-full px-4 py-2.5 text-white">
       {/* Left */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Button
           variant="ghost"
           size="sm"
           onClick={handlePlayToggle}
-          className="p-2 hover:bg-white/20 rounded-full">
+          className="p-2 hover:bg-white/10 rounded-full transition-colors">
           {state.isPlaying ? (
-            <Pause className="h-6 w-6" />
+            <Pause className="h-5 w-5" />
           ) : (
-            <Play className="h-6 w-6" />
+            <Play className="h-5 w-5 ml-0.5" />
           )}
         </Button>
 
-        <div className="relative">
+        <div className="relative group/vol">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleMuteToggle}
-            onMouseEnter={handleVolumeHover}
-            className="p-2 hover:bg-white/20 rounded-full">
-            {state.volume === 0 ? (
-              <VolumeX className="h-6 w-6" />
+            className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            {state.volume === 0 || state.isMuted ? (
+              <VolumeX className="h-5 w-5" />
             ) : state.volume < 0.5 ? (
-              <Volume1 className="h-6 w-6" />
+              <Volume1 className="h-5 w-5" />
             ) : (
-              <Volume2 className="h-6 w-6" />
+              <Volume2 className="h-5 w-5" />
             )}
           </Button>
-          {state.showVolumeSlider && (
-            <div className="absolute left-0 bottom-8 w-24 animate-slide-in">
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={state.volume}
-                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                className="w-full h-1 bg-white/50 rounded-full appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-transparent [&::-moz-range-track]:bg-white/50 [&::-moz-range-track]:border-transparent"
-              />
-            </div>
-          )}
+          <div className="absolute left-10 top-1/2 -translate-y-1/2 w-0 group-hover/vol:w-24 overflow-hidden transition-all duration-300 ease-out">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={state.isMuted ? 0 : state.volume}
+              onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+              className="w-full h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-transparent [&::-moz-range-thumb]:rounded-full"
+            />
+          </div>
         </div>
 
-        <span className="text-sm">
-          {formatTime(state.currentTime)} / {formatTime(state.duration)}
+        <span className="text-xs font-mono text-white/80 ml-1 tabular-nums">
+          {formatTime(state.currentTime)} <span className="text-white/40">/</span> {formatTime(state.duration)}
         </span>
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSettingsToggle}
-          className="p-2 hover:bg-white/20 rounded-full relative">
-          <Settings className="h-6 w-6" />
+      <div className="flex items-center gap-1">
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSettingsToggle}
+            className={`p-2 rounded-full transition-all duration-300 ${state.showSettings ? 'bg-white/15 rotate-45' : 'hover:bg-white/10'}`}>
+            <Settings className="h-5 w-5" />
+          </Button>
           {state.showSettings && (
             <SettingsMenu
               playbackSpeed={state.playbackSpeed}
@@ -6199,13 +6212,13 @@ function Controls({
               onClose={() => dispatch({type: "TOGGLE_SETTINGS"})}
             />
           )}
-        </Button>
+        </div>
 
         <Button
           variant="ghost"
           size="sm"
           onClick={handleTheaterToggle}
-          className="p-2 hover:bg-white/20 rounded-full text-xs">
+          className="p-2 hover:bg-white/10 rounded-full transition-colors text-xs font-medium">
           {state.theaterMode ? "Exit" : "Theater"}
         </Button>
 
@@ -6213,11 +6226,11 @@ function Controls({
           variant="ghost"
           size="sm"
           onClick={toggleFullscreen}
-          className="p-2 hover:bg-white/20 rounded-full">
+          className="p-2 hover:bg-white/10 rounded-full transition-colors">
           {state.isFullscreen ? (
-            <Minimize2 className="h-6 w-6" />
+            <Minimize2 className="h-5 w-5" />
           ) : (
-            <Maximize2 className="h-6 w-6" />
+            <Maximize2 className="h-5 w-5" />
           )}
         </Button>
       </div>
@@ -6591,17 +6604,17 @@ export function VideoModal({
 
   const aspectClasses = state.theaterMode
     ? "aspect-video max-h-screen w-full"
-    : "aspect-[16/9] max-h-[70vh]";
+    : "aspect-[16/9] max-h-[85vh]";
   const dialogClasses = state.theaterMode
-    ? "w-full h-[90vh] max-w-none"
-    : "w-[95vw] max-w-4xl h-auto max-h-[95vh]";
+    ? "w-full h-[95vh] sm:max-w-none max-w-none"
+    : "w-[98vw] sm:max-w-6xl max-w-6xl h-auto max-h-[95vh]";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className={`${dialogClasses} flex flex-col p-0 rounded-lg overflow-hidden shadow-2xl`}>
-        <DialogHeader className="bg-white px-4 py-2 border-b">
-          <DialogTitle className="text-gray-800 font-semibold text-base">
+        className={`${dialogClasses} flex flex-col p-0 gap-0 rounded-2xl overflow-hidden shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)] border-0 bg-black text-white`}>
+        <DialogHeader className="bg-gradient-to-b from-black/90 to-transparent absolute top-0 left-0 right-0 z-30 px-5 py-3">
+          <DialogTitle className="text-white/90 font-medium text-sm truncate">
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -6623,7 +6636,7 @@ export function VideoModal({
             preload="metadata"
             playsInline
             disablePictureInPicture
-            controlsList="nodownload noremoteplayback"
+            controlsList="nodownload noremoteplayback nofullscreen"
             onContextMenu={handleContextMenu}>
             <source src={videoUrl} type="video/mp4" />
           </video>
@@ -6633,20 +6646,19 @@ export function VideoModal({
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
               style={centerIconStyle}>
-              <div className="relative">
+              <div className="w-20 h-20 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10 shadow-2xl">
                 {state.showCenterIcon === "play" ? (
-                  <Play className="h-16 w-16 text-white drop-shadow-2xl animate-pulse" />
+                  <Play className="h-10 w-10 text-white ml-1" />
                 ) : (
-                  <Pause className="h-16 w-16 text-white drop-shadow-2xl animate-pulse" />
+                  <Pause className="h-10 w-10 text-white" />
                 )}
-                <div className="absolute inset-0 rounded-full bg-white/20 animate-ping" />
               </div>
             </div>
           )}
 
           {/* Controls */}
           <div
-            className={`absolute space-y-2 bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-all duration-300 ${
+            className={`absolute space-y-1 bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-16 pb-1 transition-all duration-300 ${
               state.showControls
                 ? "opacity-100"
                 : "opacity-0 pointer-events-none"
@@ -6687,37 +6699,14 @@ export function VideoModal({
 
       <style jsx>{`
         @keyframes slide-in {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes slide-down {
-          from {
-            opacity: 0;
-            height: 0;
-          }
-          to {
-            opacity: 1;
-            height: auto;
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.2s ease-out;
-        }
-        .animate-slide-down {
-          animation: slide-down 0.2s ease-out;
-        }
-        video::-webkit-media-controls-overlay-enclosure {
-          display: none !important;
-        }
-        video::-webkit-media-controls-enclosure {
-          display: none !important;
-        }
+        .animate-slide-in { animation: slide-in 0.2s ease-out; }
+        video::-webkit-media-controls-overlay-enclosure { display: none !important; }
+        video::-webkit-media-controls-enclosure { display: none !important; overflow: hidden !important; }
+        video::-internal-media-controls-download-button { display: none !important; }
+        video::-webkit-media-controls-panel { width: calc(100% + 30px); }
       `}</style>
     </Dialog>
   );
