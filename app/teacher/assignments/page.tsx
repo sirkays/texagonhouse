@@ -22,6 +22,11 @@ export default function TeacherAssignmentsPage() {
   const [gradingFeedback, setGradingFeedback] = useState("");
   const [isGrading, setIsGrading] = useState(false);
 
+  // Resolved presigned download URLs for selected submission attachments
+  type ResolvedFile = { key: string; url: string; filename: string };
+  const [resolvedSubFiles, setResolvedSubFiles] = useState<ResolvedFile[]>([]);
+  const [isResolvingSubFiles, setIsResolvingSubFiles] = useState(false);
+
   // View state: 'list' | 'create' | 'view' | 'edit'
   const [view, setView] = useState<'list' | 'create' | 'view' | 'edit'>('list');
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
@@ -93,6 +98,8 @@ export default function TeacherAssignmentsPage() {
   const fetchSubmissions = async (assignmentId: string) => {
     setSubLoading(true);
     setSubmissions([]);
+    setSelectedSubmission(null);
+    setResolvedSubFiles([]);
     try {
       const res = await fetch(`/api/submissions/by-assignment/${assignmentId}`);
       if (res.ok) {
@@ -101,6 +108,23 @@ export default function TeacherAssignmentsPage() {
       }
     } catch (err) { console.error(err); }
     finally { setSubLoading(false); }
+  };
+
+  const resolveSubmissionFiles = async (keys: string[]) => {
+    if (!keys || keys.length === 0) { setResolvedSubFiles([]); return; }
+    setIsResolvingSubFiles(true);
+    try {
+      const res = await fetch("/api/presign-attachment-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResolvedSubFiles(data.files || []);
+      }
+    } catch (err) { console.error(err); }
+    finally { setIsResolvingSubFiles(false); }
   };
 
   const handleGrade = async (submissionId: string) => {
@@ -612,7 +636,7 @@ export default function TeacherAssignmentsPage() {
               ) : (
                 <div className="divide-y divide-slate-50">
                   {submissions.map(sub => (
-                    <button key={sub.id} onClick={() => { setSelectedSubmission(sub); setGradingScore(sub.score ?? ""); setGradingFeedback(sub.feedback ?? ""); }}
+                    <button key={sub.id} onClick={() => { setSelectedSubmission(sub); setGradingScore(sub.score ?? ""); setGradingFeedback(sub.feedback ?? ""); resolveSubmissionFiles(Array.isArray(sub.attachments) ? sub.attachments : []); }}
                       className={`w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors ${ selectedSubmission?.id === sub.id ? 'bg-orange-50 border-r-2 border-[#EF7B55]' : '' }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -670,22 +694,25 @@ export default function TeacherAssignmentsPage() {
                       </div>
                     )}
 
-                    {Array.isArray(selectedSubmission.attachments) && selectedSubmission.attachments.length > 0 && (
+                    {(isResolvingSubFiles || resolvedSubFiles.length > 0) && (
                       <div className="mt-4">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Files</p>
-                        <div className="space-y-2">
-                          {selectedSubmission.attachments.map((url: string, i: number) => {
-                            const filename = url.split('/').pop()?.split('?')[0] || `file-${i+1}`;
-                            const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
-                            return (
-                              <a key={i} href={proxyUrl} download={filename}
+                        {isResolvingSubFiles ? (
+                          <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                            <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                            Preparing download links…
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {resolvedSubFiles.map((file, i) => (
+                              <a key={i} href={file.url} download={file.filename} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-2 text-sm text-[#EF7B55] hover:underline bg-orange-50 px-3 py-2 rounded-lg cursor-pointer">
                                 <Download className="w-4 h-4 shrink-0" />
-                                <span className="truncate">{filename}</span>
+                                <span className="truncate">{file.filename || `File ${i + 1}`}</span>
                               </a>
-                            );
-                          })}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 

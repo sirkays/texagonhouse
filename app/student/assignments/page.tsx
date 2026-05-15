@@ -10,6 +10,53 @@ import { Textarea } from "@/components/ui/textarea";
 
 type ResolvedFile = { key: string; url: string; filename: string };
 
+
+/** Resolves raw S3 keys from a student's own submission into presigned download URLs. */
+function MySubmissionFiles({ keys }: { keys: string[] }) {
+  const [files, setFiles] = useState<ResolvedFile[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!keys || keys.length === 0) return;
+    setLoading(true);
+    fetch("/api/presign-attachment-download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keys }),
+    })
+      .then(r => r.ok ? r.json() : {})
+      .then(d => setFiles(d.files || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [keys.join(",")]);
+
+  if (loading) return (
+    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+      <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      Loading files…
+    </div>
+  );
+  if (files.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-slate-500 mb-2">Your Files</p>
+      <div className="space-y-1.5">
+        {files.map((file, i) => (
+          <a key={i} href={file.url} download={file.filename} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs text-[#EF7B55] bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-lg">
+            <Download className="w-3 h-3" />
+            <span className="truncate">{file.filename || `File ${i + 1}`}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function StudentAssignmentsPage() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,7 +237,7 @@ export default function StudentAssignmentsPage() {
       fetch(`/api/submissions/my/${selectedAssignment.id}`)
         .then(r => r.ok ? r.json() : {})
         .then(d => setMySubmission(d?.submission || null))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingMySub(false));
     }
   }, [selectedAssignment]);
@@ -204,7 +251,7 @@ export default function StudentAssignmentsPage() {
   const togglePlay = () => {
     if (!videoRef.current) return;
     if (isPlaying) videoRef.current.pause();
-    else videoRef.current.play().catch(() => {});
+    else videoRef.current.play().catch(() => { });
     setIsPlaying(!isPlaying);
     setShowControls(true);
   };
@@ -348,8 +395,8 @@ export default function StudentAssignmentsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {assignments.map(a => (
-                  <div 
-                    key={a.id} 
+                  <div
+                    key={a.id}
                     onClick={() => setSelectedAssignment(a)}
                     className="group relative p-6 border border-slate-100 rounded-3xl hover:border-[#EF7B55] hover:shadow-md hover:shadow-orange-100 transition-all duration-300 bg-white cursor-pointer flex flex-col justify-between h-[220px]"
                   >
@@ -366,7 +413,7 @@ export default function StudentAssignmentsPage() {
                       </div>
                       <h3 className="font-bold text-slate-800 text-lg leading-snug line-clamp-2">{a.title}</h3>
                     </div>
-                    
+
                     <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-4">
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Not Submitted</span>
                       <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#EF7B55] group-hover:text-white transition-colors">
@@ -392,7 +439,7 @@ export default function StudentAssignmentsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              
+
               {/* Instructions Card */}
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
                 <div className="mb-8 pb-6 border-b border-slate-100">
@@ -418,24 +465,24 @@ export default function StudentAssignmentsPage() {
                   <Send className="w-5 h-5 text-[#EF7B55]" />
                   Your Submission
                 </h3>
-                
+
                 <div className="space-y-6">
                   <div>
                     <label className="text-sm font-semibold text-slate-700 mb-2 block">Your Answer</label>
-                    <Textarea 
+                    <Textarea
                       value={submissionText}
                       onChange={e => setSubmissionText(e.target.value)}
-                      placeholder="Type your answer, observations, or paste project links here..." 
+                      placeholder="Type your answer, observations, or paste project links here..."
                       className="min-h-[150px] bg-slate-50/50 border-slate-200 focus:bg-white rounded-2xl resize-none p-4 text-sm"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="text-sm font-semibold text-slate-700 mb-2 block">Attach Files (Optional)</label>
                     <label className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer group relative">
-                      <input 
-                        type="file" 
-                        multiple 
+                      <input
+                        type="file"
+                        multiple
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         onChange={e => {
                           if (e.target.files) {
@@ -458,8 +505,8 @@ export default function StudentAssignmentsPage() {
                               <FileText className="w-4 h-4 text-[#EF7B55] shrink-0" />
                               <span className="truncate max-w-[200px]">{file.name}</span>
                             </div>
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
                               className="text-slate-400 hover:text-red-500"
                             >
@@ -473,8 +520,8 @@ export default function StudentAssignmentsPage() {
                   </div>
 
                   <div className="pt-4 border-t border-slate-100">
-                    <Button 
-                      onClick={handleSubmit} 
+                    <Button
+                      onClick={handleSubmit}
                       disabled={isSubmitting || !submissionText.trim()}
                       className="w-full sm:w-auto px-8 h-12 bg-[#EF7B55] hover:bg-[#d96a44] text-white rounded-xl shadow-md text-base font-medium transition-all"
                     >
@@ -506,18 +553,7 @@ export default function StudentAssignmentsPage() {
                         <p className="text-sm text-slate-700 bg-white rounded-xl p-3 border border-slate-100 leading-relaxed whitespace-pre-wrap">{mySubmission.text}</p>
                       )}
                       {Array.isArray(mySubmission.attachments) && mySubmission.attachments.length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 mb-2">Your Files</p>
-                          <div className="space-y-1.5">
-                            {mySubmission.attachments.map((url: string, i: number) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-2 text-xs text-[#EF7B55] bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-lg">
-                                <Download className="w-3 h-3" />
-                                <span className="truncate">{url.split('/').pop()?.split('?')[0] || `File ${i+1}`}</span>
-                              </a>
-                            ))}
-                          </div>
-                        </div>
+                        <MySubmissionFiles keys={mySubmission.attachments} />
                       )}
                       {mySubmission.feedback && (
                         <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
@@ -601,7 +637,7 @@ export default function StudentAssignmentsPage() {
               <div className="bg-slate-800 rounded-3xl shadow-sm p-8 text-white">
                 <h3 className="font-semibold text-lg mb-2">Learning Resources</h3>
                 <p className="text-sm text-slate-300 mb-6">Review the material before attempting the assignment.</p>
-                
+
                 {selectedAssignment.lesson ? (
                   <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
                     <div className="flex gap-3 mb-4">
@@ -613,8 +649,8 @@ export default function StudentAssignmentsPage() {
                         <p className="text-xs text-slate-400 mt-1">Watch the module video</p>
                       </div>
                     </div>
-                    <Button 
-                      onClick={handlePlayVideo} 
+                    <Button
+                      onClick={handlePlayVideo}
                       disabled={isVideoLoading || showVideoPlayer}
                       className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl"
                     >
@@ -627,7 +663,7 @@ export default function StudentAssignmentsPage() {
                     <p className="text-sm text-slate-400">No specific lesson linked.</p>
                   </div>
                 )}
-                
+
                 {/* Resolved downloadable files */}
                 {(resolvedFiles.length > 0 || isResolvingFiles) && (
                   <div className="mt-6 pt-6 border-t border-slate-700">
@@ -639,11 +675,11 @@ export default function StudentAssignmentsPage() {
                     ) : (
                       <div className="space-y-2">
                         {resolvedFiles.map((file, i) => (
-                          <a 
-                            key={i} 
-                            href={file.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                          <a
+                            key={i}
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-3 p-3 bg-slate-700/50 hover:bg-slate-600/60 rounded-xl transition-colors group cursor-pointer"
                           >
                             <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
