@@ -18,7 +18,14 @@ export default function StudentAssignmentsPage() {
   const [submissionText, setSubmissionText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
-  
+
+  // Modal feedback
+  const [modal, setModal] = useState<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
+
+  // Student's existing submission
+  const [mySubmission, setMySubmission] = useState<any>(null);
+  const [loadingMySub, setLoadingMySub] = useState(false);
+
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined);
@@ -168,7 +175,7 @@ export default function StudentAssignmentsPage() {
     finally { setIsResolvingFiles(false); }
   };
 
-  // Resolve files when an assignment is selected
+  // Resolve files + fetch own submission when assignment is selected
   useEffect(() => {
     if (selectedAssignment?.attachments?.length > 0) {
       resolveAttachmentFiles(selectedAssignment.attachments);
@@ -177,6 +184,15 @@ export default function StudentAssignmentsPage() {
     }
     setShowVideoPlayer(false);
     setVideoUrl(undefined);
+    setMySubmission(null);
+    if (selectedAssignment?.id) {
+      setLoadingMySub(true);
+      fetch(`/api/submissions/my/${selectedAssignment.id}`)
+        .then(r => r.ok ? r.json() : {})
+        .then(d => setMySubmission(d?.submission || null))
+        .catch(() => {})
+        .finally(() => setLoadingMySub(false));
+    }
   }, [selectedAssignment]);
 
   // Video player helpers
@@ -221,58 +237,40 @@ export default function StudentAssignmentsPage() {
 
   const handleSubmit = async () => {
     if (!selectedAssignment) return;
-    
-    // Validate file sizes (10MB max)
     for (const f of attachments) {
       if (f.size > 10 * 1024 * 1024) {
-        alert(`File "${f.name}" exceeds the 10MB limit.`);
+        setModal({ type: 'error', title: 'File Too Large', message: `"${f.name}" exceeds the 10MB limit.` });
         return;
       }
     }
-    
     setIsSubmitting(true);
     try {
-      // Upload files first
       const uploadedUrls: string[] = [];
       for (const file of attachments) {
         let url = "";
-        if (UPLOAD_BUCKET === "cloudinary") {
-          url = await uploadToCloudinary(file);
-        } else {
-          url = await uploadToS3(file);
-        }
+        if (UPLOAD_BUCKET === "cloudinary") url = await uploadToCloudinary(file);
+        else url = await uploadToS3(file);
         uploadedUrls.push(url);
       }
-
-      const payload = {
-        assignment: selectedAssignment.id,
-        text: submissionText,
-        attachments: uploadedUrls,
-      };
-      
+      const payload = { assignment: selectedAssignment.id, text: submissionText, attachments: uploadedUrls };
       const res = await fetch("/api/submissions/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       const data = await res.json().catch(() => ({}));
-
       if (res.ok) {
-        alert("Submission successful! Your work has been submitted.");
-        setSelectedAssignment(null);
+        setMySubmission(data);
         setSubmissionText("");
         setAttachments([]);
         fetchAssignments();
+        setModal({ type: 'success', title: 'Submitted!', message: 'Your assignment has been submitted successfully. Your teacher will review it soon.' });
       } else {
-        // Show actual error from backend
-        const errMsg = data?.detail || data?.error || JSON.stringify(data) || "Failed to submit.";
-        alert(`Submission failed: ${errMsg}`);
-        console.error("Submission error:", data);
+        const errMsg = data?.detail || data?.error || "Failed to submit.";
+        setModal({ type: 'error', title: 'Submission Failed', message: errMsg });
       }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred during submission. Check console for details.");
+    } catch (err: any) {
+      setModal({ type: 'error', title: 'Error', message: err?.message || 'An unexpected error occurred.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -310,7 +308,27 @@ export default function StudentAssignmentsPage() {
 
   return (
     <div className="max-w-6xl mx-auto min-h-screen pb-20">
-      
+
+      {/* ── Feedback Modal ── */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
+            <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-5 ${modal.type === 'success' ? 'bg-emerald-100' : 'bg-red-100'}`}>
+              {modal.type === 'success' ? (
+                <CheckCircle className="w-8 h-8 text-emerald-500" />
+              ) : (
+                <X className="w-8 h-8 text-red-500" />
+              )}
+            </div>
+            <h2 className={`text-xl font-bold text-center mb-2 ${modal.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>{modal.title}</h2>
+            <p className="text-slate-500 text-sm text-center leading-relaxed mb-6">{modal.message}</p>
+            <Button onClick={() => setModal(null)} className={`w-full h-11 rounded-xl text-white ${modal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
+              {modal.type === 'success' ? 'Great!' : 'OK, Got It'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {!selectedAssignment ? (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div>
@@ -461,10 +479,55 @@ export default function StudentAssignmentsPage() {
                       className="w-full sm:w-auto px-8 h-12 bg-[#EF7B55] hover:bg-[#d96a44] text-white rounded-xl shadow-md text-base font-medium transition-all"
                     >
                       {isSubmitting ? <Spinner size="sm" className="text-white mr-2" /> : <CheckCircle className="w-5 h-5 mr-2" />}
-                      Submit Work
+                      {mySubmission ? 'Resubmit Work' : 'Submit Work'}
                     </Button>
                   </div>
                 </div>
+
+                {/* ── My Previous Submission ── */}
+                {loadingMySub && (
+                  <div className="flex justify-center py-4"><Spinner size="sm" className="text-[#EF7B55]" /></div>
+                )}
+                {mySubmission && !loadingMySub && (
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" /> Your Submission
+                    </h3>
+                    <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400">Submitted {new Date(mySubmission.submitted_at).toLocaleString()}</span>
+                        {mySubmission.score != null ? (
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{mySubmission.score} pts</span>
+                        ) : (
+                          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Awaiting grade</span>
+                        )}
+                      </div>
+                      {mySubmission.text && (
+                        <p className="text-sm text-slate-700 bg-white rounded-xl p-3 border border-slate-100 leading-relaxed whitespace-pre-wrap">{mySubmission.text}</p>
+                      )}
+                      {Array.isArray(mySubmission.attachments) && mySubmission.attachments.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-slate-500 mb-2">Your Files</p>
+                          <div className="space-y-1.5">
+                            {mySubmission.attachments.map((url: string, i: number) => (
+                              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-xs text-[#EF7B55] bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-lg">
+                                <Download className="w-3 h-3" />
+                                <span className="truncate">{url.split('/').pop()?.split('?')[0] || `File ${i+1}`}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {mySubmission.feedback && (
+                        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                          <p className="text-xs font-semibold text-emerald-700 mb-1">Teacher Feedback</p>
+                          <p className="text-sm text-emerald-800">{mySubmission.feedback}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

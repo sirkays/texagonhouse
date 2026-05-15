@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Plus, FileText, Link as LinkIcon, Trash, Edit, ChevronDown, CheckCircle, Clock, Upload, ArrowLeft } from "lucide-react";
+import { Plus, FileText, Trash, Edit, CheckCircle, Clock, Upload, ArrowLeft, Users, Download, Star, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -13,7 +13,15 @@ export default function TeacherAssignmentsPage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
+  // Submissions
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [subLoading, setSubLoading] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [gradingScore, setGradingScore] = useState("");
+  const [gradingFeedback, setGradingFeedback] = useState("");
+  const [isGrading, setIsGrading] = useState(false);
+
   // View state: 'list' | 'create' | 'view' | 'edit'
   const [view, setView] = useState<'list' | 'create' | 'view' | 'edit'>('list');
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
@@ -79,10 +87,41 @@ export default function TeacherAssignmentsPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedCourseId) {
-      fetchLessons(selectedCourseId);
-    }
+    if (selectedCourseId) fetchLessons(selectedCourseId);
   }, [selectedCourseId]);
+
+  const fetchSubmissions = async (assignmentId: string) => {
+    setSubLoading(true);
+    setSubmissions([]);
+    try {
+      const res = await fetch(`/api/submissions/by-assignment/${assignmentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data.results || data || []);
+      }
+    } catch (err) { console.error(err); }
+    finally { setSubLoading(false); }
+  };
+
+  const handleGrade = async (submissionId: string) => {
+    if (!gradingScore) return;
+    setIsGrading(true);
+    try {
+      const res = await fetch(`/api/submissions/${submissionId}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ score: parseFloat(gradingScore), feedback: gradingFeedback }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, ...updated } : s));
+        setSelectedSubmission((prev: any) => prev ? { ...prev, ...updated } : prev);
+        setGradingScore("");
+        setGradingFeedback("");
+      }
+    } catch (err) { console.error(err); }
+    finally { setIsGrading(false); }
+  };
 
   const addStep = () => setSteps([...steps, ""]);
   const updateStep = (index: number, val: string) => {
@@ -326,26 +365,13 @@ export default function TeacherAssignmentsPage() {
                     </div>
                     
                     <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                      <span className="text-xs font-medium text-slate-400">0 Submissions</span>
+                      <span className="text-xs font-medium text-slate-400 flex items-center gap-1"><Users className="w-3 h-3" /> Submissions</span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => openEdit(a)}
-                          className="text-slate-500 hover:text-[#EF7B55] hover:bg-orange-50 rounded-lg px-2"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(a)} className="text-slate-500 hover:text-[#EF7B55] hover:bg-orange-50 rounded-lg px-2">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => {
-                            setSelectedAssignment(a);
-                            setView('view');
-                          }}
-                          className="text-[#EF7B55] hover:bg-orange-50 rounded-lg px-3"
-                        >
-                          View
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedAssignment(a); setSelectedSubmission(null); fetchSubmissions(a.id); setView('view'); }} className="text-[#EF7B55] hover:bg-orange-50 rounded-lg px-3">
+                          View Submissions
                         </Button>
                       </div>
                     </div>
@@ -552,22 +578,134 @@ export default function TeacherAssignmentsPage() {
       {view === 'view' && selectedAssignment && (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 pb-20">
           <div className="flex items-center gap-4 mb-4">
-            <Button onClick={() => setView('list')} variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white border shadow-sm text-slate-600 hover:text-[#EF7B55] hover:bg-orange-50">
+            <Button onClick={() => { setView('list'); setSelectedSubmission(null); }} variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white border shadow-sm text-slate-600 hover:text-[#EF7B55] hover:bg-orange-50">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">Assignment Submissions</h1>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-slate-800">Student Submissions</h1>
               <p className="text-sm text-slate-500">{selectedAssignment.title}</p>
             </div>
+            <span className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-[#EF7B55] rounded-full">{submissions.length} submitted</span>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 min-h-[400px]">
-            <div className="text-center py-20 text-slate-500">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-slate-400" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Submissions List */}
+            <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="p-4 border-b border-slate-100">
+                <h3 className="font-semibold text-slate-700 text-sm">All Submissions</h3>
               </div>
-              <h3 className="text-lg font-medium text-slate-700">No Submissions Yet</h3>
-              <p className="text-sm mt-1">Students haven't submitted anything for this assignment.</p>
+              {subLoading ? (
+                <div className="flex justify-center py-12"><Spinner size="sm" className="text-[#EF7B55]" /></div>
+              ) : submissions.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No submissions yet</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {submissions.map(sub => (
+                    <button key={sub.id} onClick={() => { setSelectedSubmission(sub); setGradingScore(sub.score ?? ""); setGradingFeedback(sub.feedback ?? ""); }}
+                      className={`w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors ${ selectedSubmission?.id === sub.id ? 'bg-orange-50 border-r-2 border-[#EF7B55]' : '' }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#EF7B55] to-orange-300 flex items-center justify-center text-white text-xs font-bold">
+                            {(sub.student_name || 'S').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-800 truncate max-w-[120px]">{sub.student_name || `Student #${sub.student}`}</p>
+                            <p className="text-[10px] text-slate-400">{new Date(sub.submitted_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        {sub.score != null ? (
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{sub.score}pts</span>
+                        ) : (
+                          <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Pending</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Submission Detail + Grading */}
+            <div className="lg:col-span-2">
+              {!selectedSubmission ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center min-h-[400px] text-slate-400">
+                  <div className="text-center">
+                    <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">Select a submission to review</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Student answer */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#EF7B55] to-orange-300 flex items-center justify-center text-white font-bold">
+                          {(selectedSubmission.student_name || 'S').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-800">{selectedSubmission.student_name || `Student #${selectedSubmission.student}`}</p>
+                          <p className="text-xs text-slate-400">Submitted {new Date(selectedSubmission.submitted_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      {selectedSubmission.score != null && (
+                        <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full flex items-center gap-1"><Star className="w-3.5 h-3.5" />{selectedSubmission.score} pts</span>
+                      )}
+                    </div>
+
+                    {selectedSubmission.text && (
+                      <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">
+                        {selectedSubmission.text}
+                      </div>
+                    )}
+
+                    {Array.isArray(selectedSubmission.attachments) && selectedSubmission.attachments.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Files</p>
+                        <div className="space-y-2">
+                          {selectedSubmission.attachments.map((url: string, i: number) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-[#EF7B55] hover:underline bg-orange-50 px-3 py-2 rounded-lg">
+                              <Download className="w-4 h-4 shrink-0" />
+                              <span className="truncate">{url.split('/').pop()?.split('?')[0] || `File ${i+1}`}</span>
+                              <ExternalLink className="w-3 h-3 shrink-0 ml-auto" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSubmission.feedback && (
+                      <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <p className="text-xs font-semibold text-emerald-700 mb-1">Your Feedback</p>
+                        <p className="text-sm text-emerald-800">{selectedSubmission.feedback}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Grading panel */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><Star className="w-4 h-4 text-[#EF7B55]" />Grade Submission</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Score (e.g. 85)</label>
+                        <Input value={gradingScore} onChange={e => setGradingScore(e.target.value)} type="number" placeholder="Enter score..." className="h-10 rounded-xl border-slate-200" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Feedback (optional)</label>
+                        <Textarea value={gradingFeedback} onChange={e => setGradingFeedback(e.target.value)} placeholder="Write feedback for the student..." className="rounded-xl border-slate-200 resize-none min-h-[80px]" />
+                      </div>
+                      <Button onClick={() => handleGrade(selectedSubmission.id)} disabled={isGrading || !gradingScore} className="w-full h-10 bg-[#EF7B55] hover:bg-[#d96a44] text-white rounded-xl">
+                        {isGrading ? <Spinner size="sm" className="text-white mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                        {selectedSubmission.score != null ? 'Update Grade' : 'Submit Grade'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
