@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { VideoModal } from "@/components/student/video-modal";
-import { FileText, Link as LinkIcon, CheckCircle, Clock, Upload, ChevronRight, ArrowLeft, Send, Play } from "lucide-react";
+import { FileText, Link as LinkIcon, CheckCircle, Clock, Upload, ChevronRight, ArrowLeft, Send, Play, Pause, Volume2, VolumeX, Maximize, Minimize, X, Download } from "lucide-react";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
+
+type ResolvedFile = { key: string; url: string; filename: string };
 
 export default function StudentAssignmentsPage() {
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -19,8 +20,21 @@ export default function StudentAssignmentsPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   
   const [isVideoLoading, setIsVideoLoading] = useState(false);
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined);
+  const [resolvedFiles, setResolvedFiles] = useState<ResolvedFile[]>([]);
+  const [isResolvingFiles, setIsResolvingFiles] = useState(false);
+
+  // Video player state
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchAssignments = async () => {
     try {
@@ -118,29 +132,92 @@ export default function StudentAssignmentsPage() {
     try {
       const res = await fetch(`/api/student/lesson-media-url/${selectedAssignment.lesson}`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
         cache: "no-store",
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to load video");
-      }
-      
+      if (!res.ok) throw new Error("Failed to load video");
       const data = await res.json();
       if (!data?.url) throw new Error("Media URL missing");
-      
       setVideoUrl(data.url);
-      setVideoModalOpen(true);
+      setShowVideoPlayer(true);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
     } catch (err) {
       console.error(err);
-      alert("Unable to load the video. Please check your connection or try again later.");
+      alert("Unable to load the video. Please try again later.");
     } finally {
       setIsVideoLoading(false);
     }
   };
+
+  const resolveAttachmentFiles = async (keys: string[]) => {
+    if (!keys || keys.length === 0) { setResolvedFiles([]); return; }
+    setIsResolvingFiles(true);
+    try {
+      const res = await fetch("/api/presign-attachment-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResolvedFiles(data.files || []);
+      }
+    } catch (err) { console.error(err); }
+    finally { setIsResolvingFiles(false); }
+  };
+
+  // Resolve files when an assignment is selected
+  useEffect(() => {
+    if (selectedAssignment?.attachments?.length > 0) {
+      resolveAttachmentFiles(selectedAssignment.attachments);
+    } else {
+      setResolvedFiles([]);
+    }
+    setShowVideoPlayer(false);
+    setVideoUrl(undefined);
+  }, [selectedAssignment]);
+
+  // Video player helpers
+  const formatTime = (t: number) => {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (isPlaying) videoRef.current.pause();
+    else videoRef.current.play().catch(() => {});
+    setIsPlaying(!isPlaying);
+    setShowControls(true);
+  };
+  const toggleMute = () => {
+    if (videoRef.current) videoRef.current.muted = !isMuted;
+    setIsMuted(!isMuted);
+  };
+  const toggleFullscreen = () => {
+    const container = videoRef.current?.parentElement;
+    if (!container) return;
+    if (!isFullscreen) {
+      (container.requestFullscreen || (container as any).webkitRequestFullscreen)?.call(container);
+      setIsFullscreen(true);
+    } else {
+      (document.exitFullscreen || (document as any).webkitExitFullscreen)?.call(document);
+      setIsFullscreen(false);
+    }
+  };
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+  useEffect(() => {
+    if (isPlaying && showControls) {
+      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+    }
+    return () => { if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current); };
+  }, [isPlaying, showControls]);
 
   const handleSubmit = async () => {
     if (!selectedAssignment) return;
@@ -388,6 +465,70 @@ export default function StudentAssignmentsPage() {
             </div>
 
             <div className="space-y-6">
+              {/* Inline Video Player */}
+              {showVideoPlayer && videoUrl && (
+                <div className="bg-black rounded-3xl overflow-hidden shadow-lg relative group" onMouseMove={() => setShowControls(true)}>
+                  <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent absolute top-0 left-0 right-0 z-10">
+                    <h3 className="text-white font-semibold text-sm truncate">{selectedAssignment?.title}</h3>
+                    <button onClick={() => { setShowVideoPlayer(false); setIsPlaying(false); }} className="text-white/70 hover:text-white transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <video
+                    ref={videoRef}
+                    className="w-full aspect-video object-contain bg-black cursor-pointer"
+                    src={videoUrl}
+                    onClick={togglePlay}
+                    onTimeUpdate={() => { if (videoRef.current) setCurrentTime(videoRef.current.currentTime); }}
+                    onLoadedMetadata={() => { if (videoRef.current) setDuration(videoRef.current.duration); }}
+                    onEnded={() => setIsPlaying(false)}
+                    onContextMenu={e => e.preventDefault()}
+                    controlsList="nodownload nofullscreen noremoteplayback"
+                    disablePictureInPicture
+                    preload="metadata"
+                  />
+
+                  {/* Center play icon */}
+                  {!isPlaying && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <Play className="w-8 h-8 text-white ml-1" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Controls bar */}
+                  <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                    {/* Progress bar */}
+                    <input
+                      type="range" min="0" max={duration || 0} value={currentTime} step="0.1"
+                      onChange={e => { const t = parseFloat(e.target.value); setCurrentTime(t); if (videoRef.current) videoRef.current.currentTime = t; }}
+                      className="w-full h-1 mb-3 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#EF7B55] [&::-webkit-slider-thumb]:rounded-full"
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button onClick={togglePlay} className="text-white hover:text-[#EF7B55] transition-colors">
+                          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                        </button>
+                        <button onClick={toggleMute} className="text-white hover:text-[#EF7B55] transition-colors">
+                          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                        </button>
+                        <input
+                          type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume}
+                          onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (videoRef.current) videoRef.current.volume = v; setIsMuted(v === 0); }}
+                          className="w-16 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+                        />
+                        <span className="text-white text-xs ml-2">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                      </div>
+                      <button onClick={toggleFullscreen} className="text-white hover:text-[#EF7B55] transition-colors">
+                        {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Resources Sidebar */}
               <div className="bg-slate-800 rounded-3xl shadow-sm p-8 text-white">
                 <h3 className="font-semibold text-lg mb-2">Learning Resources</h3>
@@ -397,7 +538,7 @@ export default function StudentAssignmentsPage() {
                   <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
                     <div className="flex gap-3 mb-4">
                       <div className="bg-blue-500/20 p-2 rounded-xl text-blue-400 h-fit">
-                        <LinkIcon className="w-5 h-5" />
+                        <Play className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="font-medium text-white text-sm">Lesson Guide</h4>
@@ -406,11 +547,11 @@ export default function StudentAssignmentsPage() {
                     </div>
                     <Button 
                       onClick={handlePlayVideo} 
-                      disabled={isVideoLoading}
+                      disabled={isVideoLoading || showVideoPlayer}
                       className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl"
                     >
                       {isVideoLoading ? <Spinner size="sm" className="mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                      Watch Video
+                      {showVideoPlayer ? "Now Playing" : "Watch Video"}
                     </Button>
                   </div>
                 ) : (
@@ -419,30 +560,34 @@ export default function StudentAssignmentsPage() {
                   </div>
                 )}
                 
-                {selectedAssignment.attachments?.length > 0 && (
+                {/* Resolved downloadable files */}
+                {(resolvedFiles.length > 0 || isResolvingFiles) && (
                   <div className="mt-6 pt-6 border-t border-slate-700">
-                    <h4 className="font-medium text-white text-sm mb-3">Attached Files</h4>
-                    <div className="space-y-2">
-                      {selectedAssignment.attachments.map((file: string, i: number) => {
-                        // Attempt to extract filename from URL, fallback to 'Attachment {i}'
-                        const filename = file.split('/').pop()?.split('?')[0] || `Attachment ${i + 1}`;
-                        return (
+                    <h4 className="font-medium text-white text-sm mb-3 flex items-center gap-2">
+                      <Download className="w-4 h-4" /> Attached Files
+                    </h4>
+                    {isResolvingFiles ? (
+                      <div className="flex justify-center py-4"><Spinner size="sm" className="text-slate-400" /></div>
+                    ) : (
+                      <div className="space-y-2">
+                        {resolvedFiles.map((file, i) => (
                           <a 
                             key={i} 
-                            href={file} 
+                            href={file.url} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            download
-                            className="flex items-center gap-2 p-3 bg-slate-700/50 hover:bg-slate-700 rounded-xl transition-colors group cursor-pointer"
+                            className="flex items-center gap-3 p-3 bg-slate-700/50 hover:bg-slate-600/60 rounded-xl transition-colors group cursor-pointer"
                           >
-                            <FileText className="w-4 h-4 text-slate-400 group-hover:text-blue-400" />
-                            <span className="text-sm text-slate-200 group-hover:text-white truncate underline-offset-2 group-hover:underline">
-                              {filename}
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                              <Download className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <span className="text-sm text-slate-200 group-hover:text-white truncate">
+                              {file.filename || `Attachment ${i + 1}`}
                             </span>
                           </a>
-                        );
-                      })}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -451,14 +596,12 @@ export default function StudentAssignmentsPage() {
         </div>
       )}
 
-      {videoModalOpen && (
-        <VideoModal
-          isOpen={videoModalOpen}
-          onClose={() => setVideoModalOpen(false)}
-          title={selectedAssignment?.title || "Lesson Video"}
-          videoUrl={videoUrl}
-        />
-      )}
+      {/* CSS to hide browser download button on video */}
+      <style jsx global>{`
+        video::-internal-media-controls-download-button { display: none !important; }
+        video::-webkit-media-controls-enclosure { overflow: hidden !important; }
+        video::-webkit-media-controls-panel { width: calc(100% + 30px); }
+      `}</style>
     </div>
   );
 }
