@@ -105,12 +105,20 @@ export default function TeacherAssignmentsPage() {
 
   const handleGrade = async (submissionId: string) => {
     if (!gradingScore) return;
+    
+    // Validate score is between 0 and 100
+    const parsedScore = parseFloat(gradingScore);
+    if (isNaN(parsedScore) || parsedScore < 0 || parsedScore > 100) {
+      alert("Please enter a valid score between 0 and 100.");
+      return;
+    }
+
     setIsGrading(true);
     try {
       const res = await fetch(`/api/submissions/${submissionId}/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score: parseFloat(gradingScore), feedback: gradingFeedback }),
+        body: JSON.stringify({ score: parsedScore, feedback: gradingFeedback }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -691,8 +699,8 @@ export default function TeacherAssignmentsPage() {
                     <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><Star className="w-4 h-4 text-[#EF7B55]" />Grade Submission</h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-medium text-slate-600 mb-1 block">Score (e.g. 85)</label>
-                        <Input value={gradingScore} onChange={e => setGradingScore(e.target.value)} type="number" placeholder="Enter score..." className="h-10 rounded-xl border-slate-200" />
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Score (0 - 100)</label>
+                        <Input value={gradingScore} onChange={e => setGradingScore(e.target.value)} type="number" min={0} max={100} placeholder="Enter score..." className="h-10 rounded-xl border-slate-200" />
                       </div>
                       <div>
                         <label className="text-xs font-medium text-slate-600 mb-1 block">Feedback (optional)</label>

@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { assignmentId: st
   try {
     const { assignmentId } = params;
     const { response, text, setCookie } = await djangoFetch(
-      "/api/submissions/?assignment=${assignmentId}",
+      `/api/submissions/?assignment=${assignmentId}`,
       { method: "GET" }
     );
     if (!response.ok) {
