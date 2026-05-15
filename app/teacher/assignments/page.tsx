@@ -674,14 +674,17 @@ export default function TeacherAssignmentsPage() {
                       <div className="mt-4">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Attached Files</p>
                         <div className="space-y-2">
-                          {selectedSubmission.attachments.map((url: string, i: number) => (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-[#EF7B55] hover:underline bg-orange-50 px-3 py-2 rounded-lg">
-                              <Download className="w-4 h-4 shrink-0" />
-                              <span className="truncate">{url.split('/').pop()?.split('?')[0] || `File ${i+1}`}</span>
-                              <ExternalLink className="w-3 h-3 shrink-0 ml-auto" />
-                            </a>
-                          ))}
+                          {selectedSubmission.attachments.map((url: string, i: number) => {
+                            const filename = url.split('/').pop()?.split('?')[0] || `file-${i+1}`;
+                            const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+                            return (
+                              <a key={i} href={proxyUrl} download={filename}
+                                className="flex items-center gap-2 text-sm text-[#EF7B55] hover:underline bg-orange-50 px-3 py-2 rounded-lg cursor-pointer">
+                                <Download className="w-4 h-4 shrink-0" />
+                                <span className="truncate">{filename}</span>
+                              </a>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
