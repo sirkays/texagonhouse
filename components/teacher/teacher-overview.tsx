@@ -19,11 +19,13 @@ import {
   Download,
   Play,
   Clock,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
+import { useOnboarding } from "@/components/teacher/teacher-onboarding";
 
 interface Stat {
   title: string;
@@ -72,6 +74,7 @@ export function TeacherOverview() {
   const [data, setData] = useState<TeacherOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { startTour, setReady } = useOnboarding();
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -122,6 +125,12 @@ export function TeacherOverview() {
 
     fetchData();
   }, [sessionToken, status]);
+
+  useEffect(() => {
+    if (!loading) {
+      setReady(true);
+    }
+  }, [loading, setReady]);
 
   const getIconByType = (type: string) => {
     switch (type) {
@@ -214,15 +223,51 @@ export function TeacherOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back! Here's what's happening with your courses.
-        </p>
-        {error && <p className="text-yellow-600 text-sm">{error}</p>}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back! Here&apos;s what&apos;s happening with your courses.
+            </p>
+          </div>
+          {/* Replay onboarding tour */}
+          <button
+            onClick={startTour}
+            title="Replay the dashboard tour"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 16px",
+              borderRadius: 10,
+              border: "1.5px solid #f9731633",
+              background: "#f9731610",
+              color: "#f97316",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              fontFamily: "'Inter', system-ui, sans-serif",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#f9731622";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f97316";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#f9731610";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f9731633";
+            }}
+          >
+            <Sparkles size={14} />
+            Take the Tour
+          </button>
+        </div>
+        {error && <p className="text-yellow-600 text-sm mt-1">{error}</p>}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div id="tour-stats" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {data.stats.map((stat, index) => {
           const Icon = getStatIcon(stat.title);
           return (
@@ -247,7 +292,7 @@ export function TeacherOverview() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Quick Actions */}
-        <Card>
+        <Card id="tour-quick-actions">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common tasks to get you started</CardDescription>

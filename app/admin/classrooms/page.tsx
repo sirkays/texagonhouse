@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import DashboardLayout from "@/app/admin/layout";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -34,7 +35,6 @@ import {
 import { ClassroomModal } from "@/components/admin/modals/classroom-modal";
 import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
 import { ClassroomDetailsModal } from "@/components/admin/modals/classroom-details-modal";
-import { ManageStudentsModal } from "@/components/admin/modals/manage-students-modal";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -69,9 +69,6 @@ export default function ClassroomsPage() {
     null
   );
   const [viewingClassroom, setViewingClassroom] = useState<Classroom | null>(
-    null
-  );
-  const [managingClassroom, setManagingClassroom] = useState<Classroom | null>(
     null
   );
 
@@ -379,11 +376,11 @@ export default function ClassroomsPage() {
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Classroom
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setManagingClassroom(classroom)}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        Manage Students
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/classrooms/${classroom.id}/students`} className="cursor-pointer">
+                          <Users className="mr-2 h-4 w-4" />
+                          Manage Students
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
@@ -483,14 +480,6 @@ export default function ClassroomsPage() {
         onOpenChange={(open) => !open && setViewingClassroom(null)}
         classroom={viewingClassroom ?? undefined}
       />
-
-      <ManageStudentsModal
-        open={!!managingClassroom}
-        onOpenChange={(open) => !open && setManagingClassroom(null)}
-        classroom={managingClassroom ?? undefined}
-        onStudentsChanged={fetchClassrooms}
-      />
-
     </>
   );
 }

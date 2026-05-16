@@ -83,6 +83,7 @@
     "react-dom": "^19",
     "react-hook-form": "latest",
     "react-hot-toast": "^2.6.0",
+    "react-joyride": "^3.1.0",
     "react-loading-indicators": "^1.0.0",
     "react-pdf": "^10.1.0",
     "react-resizable-panels": "latest",

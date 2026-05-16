@@ -50,6 +50,7 @@ import {TeacherLearningModules} from "./teacher-learning-modules";
 import {MaterialUploader} from "../student/material-uploader";
 import {VideoLessonCreator} from "./video-lesson-creator";
 import {LiveSessionManager} from "./live-session-manager";
+import {TeacherOnboardingGate} from "./teacher-onboarding";
 
 const menuItems = [
   {
@@ -95,5 +96,9 @@ const menuItems = [
 ];
 
 export function TeacherDashboard() {
-  return <TeacherOverview />;
+  return (
+    <TeacherOnboardingGate>
+      <TeacherOverview />
+    </TeacherOnboardingGate>
+  );
 }

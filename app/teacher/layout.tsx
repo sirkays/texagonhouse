@@ -179,7 +179,7 @@ function SidebarMenuContent() {
         <SidebarGroupContent>
           <SidebarMenu>
             {menuItems.map((item) => (
-              <SidebarMenuItem key={item.id}>
+              <SidebarMenuItem key={item.id} id={`tour-nav-${item.id}`}>
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.path}
@@ -392,11 +392,12 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
                 }
               `}</style>
               <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
-                <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
+                <SidebarTrigger id="tour-sidebar-trigger" className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
                 <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
 
                 <Link href="/notifications">
                   <Button
+                    id="tour-notifications"
                     variant="ghost"
                     size="icon"
                     className="relative p-1 xs:p-2 hover:bg-[#F797713a] focus:bg-transparent active:bg-transparent transition-colors"
