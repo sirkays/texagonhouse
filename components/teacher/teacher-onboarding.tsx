@@ -36,8 +36,8 @@ const Joyride = dynamic(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const getStorageKey = (userId: string) =>
-  `teacher_onboarding_complete_${userId}`;
+const getStorageKey = (userId: string, page: string) =>
+  `teacher_onboarding_complete_${page}_${userId}`;
 
 // ── Step metadata for custom styling ─────────────────────────────────────────
 
@@ -163,6 +163,22 @@ const TOUR_STEPS: Step[] = [
       "Organize your curriculum into structured, self-paced modules. Add readings, quizzes, and resources students work through independently.",
   },
   {
+    target: "#tour-nav-tutoring-booking",
+    placement: "right",
+    disableBeacon: true,
+    title: "Tutoring Booking",
+    content:
+      "Manage and schedule 1-on-1 or group tutoring sessions with your students to provide personalized guidance.",
+  },
+  {
+    target: "#tour-nav-attendance",
+    placement: "right",
+    disableBeacon: true,
+    title: "Attendance",
+    content:
+      "Keep track of student attendance for both your physical classrooms and virtual live sessions.",
+  },
+  {
     target: "#tour-nav-analytics",
     placement: "right",
     disableBeacon: true,
@@ -171,12 +187,36 @@ const TOUR_STEPS: Step[] = [
       "Get deep insights into student performance. Identify who needs help, celebrate top achievers, and adapt your teaching strategy.",
   },
   {
+    target: "#tour-nav-code-submission",
+    placement: "right",
+    disableBeacon: true,
+    title: "Code Submission",
+    content:
+      "Review, run, and grade students' programming assignments and coding challenges in a dedicated workspace.",
+  },
+  {
     target: "#tour-nav-assignments",
     placement: "right",
     disableBeacon: true,
     title: "Assignments Workspace",
     content:
-      "Create, distribute, and grade assignments. Students submit their work and you can review, annotate, and provide feedback — all in one place.",
+      "Create, distribute, and grade assignments. Students submit their work and you can review, annotate, and provide feedback.",
+  },
+  {
+    target: "#tour-nav-certs",
+    placement: "right",
+    disableBeacon: true,
+    title: "Student Certifications",
+    content:
+      "Issue and manage certificates to reward students who successfully complete your modules and courses.",
+  },
+  {
+    target: "#tour-nav-reports",
+    placement: "right",
+    disableBeacon: true,
+    title: "Reports",
+    content:
+      "Generate and export comprehensive reports covering attendance, grades, and overall classroom performance.",
   },
   {
     target: "#tour-notifications",
@@ -210,12 +250,13 @@ function CustomTooltip({
   size,
   isLastStep,
 }: TooltipRenderProps) {
-  const meta = STEP_META[index] || STEP_META[0];
+  const meta = STEP_META[index % STEP_META.length];
   const Icon = meta.icon;
   const progress = ((index + 1) / size) * 100;
   const isFirst = index === 0;
   const isLast = isLastStep;
   const isCentered = step.target === "body";
+  const { onComplete } = useOnboarding();
 
   return (
     <div
@@ -299,6 +340,11 @@ function CustomTooltip({
             </div>
             <button
               {...closeProps}
+              onClick={(e) => {
+                console.log("[Onboarding] Close (X) clicked — calling onComplete");
+                onComplete();
+                if (closeProps.onClick) closeProps.onClick(e);
+              }}
               style={{
                 background: "rgba(255,255,255,0.2)",
                 border: "none",
@@ -465,6 +511,11 @@ function CustomTooltip({
             {isFirst && (
               <button
                 {...skipProps}
+                onClick={(e) => {
+                  console.log("[Onboarding] Skip tour clicked — calling onComplete");
+                  onComplete();
+                  if (skipProps.onClick) skipProps.onClick(e);
+                }}
                 style={{
                   padding: "9px 14px",
                   borderRadius: 12,
@@ -492,6 +543,13 @@ function CustomTooltip({
 
             <button
               {...primaryProps}
+              onClick={(e) => {
+                if (isLast) {
+                  console.log("[Onboarding] Last step 'Let's Go!' clicked — calling onComplete");
+                  onComplete();
+                }
+                if (primaryProps.onClick) primaryProps.onClick(e);
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -552,11 +610,13 @@ const joyrideStyles = {
 interface OnboardingContextValue {
   startTour: () => void;
   setReady: (ready: boolean) => void;
+  onComplete: () => void;
 }
 
 const OnboardingContext = createContext<OnboardingContextValue>({
   startTour: () => {},
   setReady: () => {},
+  onComplete: () => {},
 });
 
 /** Call inside any child of TeacherOnboardingGate to replay the tour. */
@@ -566,61 +626,142 @@ export function useOnboarding() {
 
 // ── Gate Component ────────────────────────────────────────────────────────────
 
+/**
+ * Fetches the teacher's onboarding status from the backend.
+ * Uses the session token for authentication.
+ */
+async function fetchOnboardingStatus(page: string): Promise<boolean> {
+  console.log("[Onboarding] GET /api/teacher/onboarding?page=" + page);
+  const res = await fetch(`/api/teacher/onboarding?page=${page}`);
+  console.log("[Onboarding] GET response status:", res.status);
+  if (!res.ok) {
+    console.log("[Onboarding] GET not ok, returning false");
+    return false;
+  }
+  const data = await res.json();
+  console.log("[Onboarding] GET response data:", JSON.stringify(data));
+  return Boolean(data.has_seen_onboarding);
+}
+
+/**
+ * Persists onboarding completion to the backend.
+ */
+async function markOnboardingComplete(page: string): Promise<void> {
+  console.log("[Onboarding] POST /api/teacher/onboarding, page=" + page);
+  const res = await fetch("/api/teacher/onboarding", { 
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ page })
+  });
+  console.log("[Onboarding] POST response status:", res.status);
+  try {
+    const data = await res.json();
+    console.log("[Onboarding] POST response data:", JSON.stringify(data));
+  } catch (e) {
+    console.log("[Onboarding] POST response not JSON");
+  }
+}
+
 export function TeacherOnboardingGate({
   children,
+  page = "dashboard",
 }: {
   children: React.ReactNode;
+  page?: string;
 }) {
   const { data: session, status } = useSession();
   const [run, setRun] = useState(false);
   const [tourKey, setTourKey] = useState(0);
-  const [checked, setChecked] = useState(false);
+  // `checkedUserId` is set once the backend check has resolved for the current user.
+  const [checkedUserId, setCheckedUserId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [needsTour, setNeedsTour] = useState(false);
 
-  // Determine if user has seen the tour
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    const userId =
-      (session?.user as { id?: string })?.id ||
-      session?.user?.email ||
-      "unknown";
-    const key = getStorageKey(userId);
+  // Resolve stable identity values from the session.
+  const resolvedUserId =
+    status === "authenticated"
+      ? ((session?.user as { id?: string })?.id ||
+          session?.user?.email ||
+          null)
+      : null;
+  const sessionToken = (session?.user as { sessionToken?: string })?.sessionToken;
 
-    if (!localStorage.getItem(key)) {
-      setNeedsTour(true);
+  console.log("[Onboarding] Render — status:", status, "resolvedUserId:", resolvedUserId, "sessionToken:", sessionToken ? "YES" : "NO", "checkedUserId:", checkedUserId, "needsTour:", needsTour, "run:", run, "isReady:", isReady);
+
+  // Check onboarding status — backend is the source of truth.
+  // localStorage is used as a fast-path optimistic cache to avoid flicker.
+  useEffect(() => {
+    console.log("[Onboarding] Effect — resolvedUserId:", resolvedUserId, "sessionToken:", sessionToken ? "YES" : "NO", "checkedUserId:", checkedUserId);
+    if (!resolvedUserId || !sessionToken) {
+      console.log("[Onboarding] Effect — skipping, missing resolvedUserId or sessionToken");
+      return;
     }
-    setChecked(true);
-  }, [status, session]);
+    if (resolvedUserId === checkedUserId) {
+      console.log("[Onboarding] Effect — skipping, already checked for this user");
+      return;
+    }
+
+    const localKey = getStorageKey(resolvedUserId, page);
+    const cachedDone = localStorage.getItem(localKey) === "true";
+    console.log("[Onboarding] Effect — localKey:", localKey, "cachedDone:", cachedDone);
+
+    if (cachedDone) {
+      // Fast path: local cache says done — mark checked immediately, skip API call.
+      console.log("[Onboarding] Effect — FAST PATH: localStorage says done, skipping tour");
+      setCheckedUserId(resolvedUserId);
+      return;
+    }
+
+    // Slow path: ask the backend.
+    console.log("[Onboarding] Effect — SLOW PATH: asking backend...");
+    fetchOnboardingStatus(page).then((hasSeenOnboarding) => {
+      console.log("[Onboarding] Effect — Backend returned hasSeenOnboarding:", hasSeenOnboarding);
+      if (hasSeenOnboarding) {
+        // Sync the local cache so future loads are instant.
+        localStorage.setItem(localKey, "true");
+      } else {
+        console.log("[Onboarding] Effect — Setting needsTour=true");
+        setNeedsTour(true);
+      }
+      setCheckedUserId(resolvedUserId);
+    });
+  }, [resolvedUserId, sessionToken, checkedUserId, page]);
 
   // Start tour automatically once data is loaded and DOM is ready
   useEffect(() => {
     if (needsTour && isReady) {
+      console.log("[Onboarding] Auto-start tour (needsTour && isReady)");
       setTimeout(() => setRun(true), 600);
       setNeedsTour(false);
     }
   }, [needsTour, isReady]);
 
-  /** Mark complete and persist to localStorage */
+  /** Mark complete on both backend and localStorage */
   const handleComplete = useCallback(() => {
-    const userId =
-      (session?.user as { id?: string })?.id ||
-      session?.user?.email ||
-      "unknown";
-    localStorage.setItem(getStorageKey(userId), "true");
+    if (!resolvedUserId) return;
+    const key = getStorageKey(resolvedUserId, page);
+    console.log("[Onboarding] handleComplete — saving to localStorage key:", key);
+    // Update localStorage immediately for instant future loads.
+    localStorage.setItem(key, "true");
+    // Persist to backend so the flag survives device/browser changes.
+    if (sessionToken) markOnboardingComplete(page);
     setRun(false);
-  }, [session]);
+  }, [resolvedUserId, sessionToken, page]);
 
   /** Joyride callback handler */
   const handleCallback = useCallback(
     (data: CallBackProps) => {
-      const { status, action } = data;
+      const { status, action, type } = data;
+      console.log("[Onboarding] Joyride callback — status:", status, "action:", action, "type:", type);
 
       if (
         status === STATUS.FINISHED ||
         status === STATUS.SKIPPED ||
-        action === ACTIONS.CLOSE
+        action === ACTIONS.CLOSE ||
+        action === "skip" ||
+        type === "tour:end"
       ) {
+        console.log("[Onboarding] Joyride — tour ended, calling handleComplete");
         handleComplete();
       }
     },
@@ -633,10 +774,11 @@ export function TeacherOnboardingGate({
     setRun(true);
   }, []);
 
-  if (!checked) return <>{children}</>;
+  // While we're waiting for the backend check, render children unblocked.
+  if (!checkedUserId && resolvedUserId) return <>{children}</>;
 
   return (
-    <OnboardingContext.Provider value={{ startTour, setReady: setIsReady }}>
+    <OnboardingContext.Provider value={{ startTour, setReady: setIsReady, onComplete: handleComplete }}>
       <style>{`
         @keyframes tourTooltipIn {
           from {
