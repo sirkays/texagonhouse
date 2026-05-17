@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -429,6 +430,8 @@ export function TeacherCBTCreator() {
     new Set(),
   );
 
+  const [isExcelHelpOpen, setIsExcelHelpOpen] = useState(false);
+
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("create");
   // Read tab from URL query parameter (for navigation from student performance detail page)
@@ -658,7 +661,7 @@ export function TeacherCBTCreator() {
       "option_b",
       "option_c",
       "option_d",
-      "correct_index", // 0=A, 1=B, 2=C, 3=D
+      "correct_index", // 1=A, 2=B, 3=C, 4=D
       "points",
       "difficulty", // Easy | Medium | Hard
       "explanation",
@@ -671,7 +674,7 @@ export function TeacherCBTCreator() {
       "4",
       "5",
       "6",
-      1,
+      2,
       1,
       "Easy",
       "2 + 2 equals 4.",
@@ -684,7 +687,7 @@ export function TeacherCBTCreator() {
       "Blue",
       "Pink",
       "",
-      1,
+      2,
       1,
       "Medium",
       "",
@@ -701,7 +704,7 @@ export function TeacherCBTCreator() {
       ],
       ["type", "Must be exactly: single-choice"],
       ["difficulty", "Easy | Medium | Hard (defaults to Medium if blank)"],
-      ["correct_index", "0=A, 1=B, 2=C, 3=D"],
+      ["correct_index", "1=A, 2=B, 3=C, 4=D"],
       [],
       ["NOTES"],
       ["- option_a and option_b are required."],
@@ -855,11 +858,12 @@ export function TeacherCBTCreator() {
           continue;
         }
         const options = [optionA, optionB, optionC, optionD];
-        // correct_index must be 0..3 and point to non-empty
-        const ci = Number(r.correct_index);
+        // correct_index must be 1..4 and point to non-empty
+        const ciRaw = Number(r.correct_index);
+        const ci = ciRaw - 1;
         if (![0, 1, 2, 3].includes(ci)) {
           errors.push(
-            `Row ${rowNumber}: correct_index must be 0, 1, 2, or 3 (0=A,1=B,2=C,3=D).`,
+            `Row ${rowNumber}: correct_index must be 1, 2, 3, or 4 (1=A, 2=B, 3=C, 4=D).`,
           );
           continue;
         }
@@ -1036,7 +1040,7 @@ export function TeacherCBTCreator() {
         opts[1] || "",
         opts[2] || "",
         opts[3] || "",
-        correctIndex,
+        correctIndex + 1,
         q.points ?? 1,
         q.difficulty ?? "Medium",
         q.explanation ?? "",
@@ -1345,6 +1349,7 @@ export function TeacherCBTCreator() {
       duration: currentTest.duration,
       difficulty: currentTest.difficulty,
       mode: currentTest.mode,
+      require_browser_code: currentTest.require_browser_code,
       ...(startISO ? { start_at: startISO } : {}),
       ...(endISO ? { end_at: endISO } : {}),
       total_marks: currentTest.total_marks,
@@ -2093,6 +2098,21 @@ export function TeacherCBTCreator() {
                       </p>
                     )}
                   </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      Require Browser Code
+                      <Switch
+                        checked={currentTest.require_browser_code}
+                        onCheckedChange={(checked) =>
+                          setCurrentTest((prev) => ({ ...prev, require_browser_code: checked }))
+                        }
+                        disabled={isSaving}
+                      />
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      If enabled, the test will be locked to the first browser the student uses to view it. If the student logs in on another browser or device, this test will not be visible.
+                    </p>
+                  </div>
                   {/* Better Date UI */}
                   <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
                     <div className="flex items-start gap-2">
@@ -2254,6 +2274,10 @@ export function TeacherCBTCreator() {
                               (currentTest.questions?.length ?? 0) === 0
                             }>
                             Download Filled Excel
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => setIsExcelHelpOpen(true)}>
+                            <Info className="mr-2 h-4 w-4 text-blue-500" />
+                            How to use Excel Upload
                           </DropdownMenuItem>
                           {/* Divider */}
                           <div className="my-1 h-px bg-muted" />
@@ -4106,6 +4130,46 @@ export function TeacherCBTCreator() {
                 className="w-full sm:w-auto">
                 Save
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Excel Upload Help Dialog */}
+        <Dialog open={isExcelHelpOpen} onOpenChange={setIsExcelHelpOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-blue-500" />
+                How to Use Excel Upload
+              </DialogTitle>
+              <DialogDescription>
+                Follow these instructions to successfully upload questions using the Excel template.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <p>
+                <strong>1. Download Template:</strong> First, download the blank template using the "Download Excel Template" action. Do not change the column headers.
+              </p>
+              <p>
+                <strong>2. Question Format:</strong> The <code>ref</code> column must follow the format Q1, Q2, Q3, etc. The <code>type</code> must be exactly "single-choice".
+              </p>
+              <div>
+                <strong>3. Correct Option Index:</strong> The <code>correct_index</code> column uses numbers to indicate the correct option:
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  <li><strong>1</strong> for Option A</li>
+                  <li><strong>2</strong> for Option B</li>
+                  <li><strong>3</strong> for Option C</li>
+                  <li><strong>4</strong> for Option D</li>
+                </ul>
+              </div>
+              <p>
+                <strong>4. Upload Options:</strong> 
+                <br/>• <strong>Replace:</strong> Overwrites questions with the same <code>ref</code> and adds new ones.
+                <br/>• <strong>Append:</strong> Adds new questions to the end of your test.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsExcelHelpOpen(false)}>Got it</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
