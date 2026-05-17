@@ -395,6 +395,7 @@ export function CBTTest() {
   useEffect(() => {
     if (status !== "authenticated") return;
 
+    console.log("[CBT] Authenticated user", { userId, sessionUserId: session?.user?.id, email: session?.user?.email });
     migrateLegacyCBTState(userId).catch(() => { });
   }, [status, userId]);
 
@@ -1238,6 +1239,7 @@ export function CBTTest() {
 
     const alreadyDone = await getCompletedTest(testId, userId);
 
+    console.log("[CBT startTest] completed check", { testId, userId, alreadyDone: alreadyDone ? { testId: alreadyDone.testId, userId: alreadyDone.userId, syncStatus: alreadyDone.syncStatus } : null });
     if (alreadyDone) {
       showErrorModal(
         "Already submitted",

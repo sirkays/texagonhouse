@@ -159,8 +159,11 @@ export async function loadInProgress(
   const db = await getDb();
   const record = await db.get("in_progress", testId);
 
-  // Ownership check: prevent cross-user data bleed
-  if (record && record.userId && record.userId !== userId) {
+  // Ownership check: prevent cross-user data bleed.
+  // Only return the record if its userId matches the caller.
+  // Legacy records without userId are NOT returned — they must not
+  // block a different user from starting the same test.
+  if (!record || record.userId !== userId) {
     return undefined;
   }
 
@@ -339,8 +342,11 @@ export async function getCompletedTest(
   const db = await getDb();
   const record = await db.get("completed_tests", testId);
 
-  // Ownership check: prevent cross-user data bleed
-  if (record && record.userId && record.userId !== userId) {
+  // Ownership check: prevent cross-user data bleed.
+  // Only return the record if its userId matches the caller.
+  // Legacy records without userId are NOT returned — they must not
+  // block a different user from starting the same test.
+  if (!record || record.userId !== userId) {
     return undefined;
   }
 
