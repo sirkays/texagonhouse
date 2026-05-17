@@ -435,7 +435,7 @@ export default function CoursesPage() {
                       {course.teacher}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {course.classroom}
+                      {course.classroom || "No classroom"}
                     </p>
                   </div>
                 </div>

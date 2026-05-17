@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import { useState } from "react";
 import {
   Book,
   Upload,
@@ -31,8 +31,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,16 +41,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-import {TeacherOverview} from "./teacher-overview";
-import {TeacherCBTCreator} from "./teacher-cbt-creator";
-import {TeacherResourceManager} from "./teacher-resource-manager";
-import {TeacherLearningModules} from "./teacher-learning-modules";
-import {MaterialUploader} from "../student/material-uploader";
-import {VideoLessonCreator} from "./video-lesson-creator";
-import {LiveSessionManager} from "./live-session-manager";
-import {TeacherOnboardingGate} from "./teacher-onboarding";
+import { TeacherOverview } from "./teacher-overview";
+import { TeacherCBTCreator } from "./teacher-cbt-creator";
+import { TeacherResourceManager } from "./teacher-resource-manager";
+import { TeacherLearningModules } from "./teacher-learning-modules";
+import { MaterialUploader } from "../student/material-uploader";
+import { VideoLessonCreator } from "./video-lesson-creator";
+import { LiveSessionManager } from "./live-session-manager";
+import { TeacherOnboardingGate } from "./teacher-onboarding";
 
 const menuItems = [
   {

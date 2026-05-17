@@ -665,9 +665,11 @@ async function markOnboardingComplete(page: string): Promise<void> {
 export function TeacherOnboardingGate({
   children,
   page = "dashboard",
+  steps = TOUR_STEPS,
 }: {
   children: React.ReactNode;
   page?: string;
+  steps?: Step[];
 }) {
   const { data: session, status } = useSession();
   const [run, setRun] = useState(false);
@@ -796,7 +798,7 @@ export function TeacherOnboardingGate({
       `}</style>
       <Joyride
         key={tourKey}
-        steps={TOUR_STEPS}
+        steps={steps}
         run={run}
         callback={handleCallback}
         continuous

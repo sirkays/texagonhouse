@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { TeacherOnboardingGate, useOnboarding } from "./teacher-onboarding";
 import {
   Card,
   CardContent,
@@ -48,6 +49,7 @@ import {
   Maximize,
   Search,
   Info,
+  Sparkles,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -291,7 +293,101 @@ function DateTimePicker({
     </div>
   );
 }
+
+function ReplayTourButton() {
+  const { startTour, setReady } = useOnboarding();
+
+  useEffect(() => {
+    setReady(true);
+  }, [setReady]);
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={startTour}
+      className="gap-2 text-[#EF7B55] hover:text-[#EF7B55] hover:bg-[#EF7B551a] border-[#EF7B55]/20"
+    >
+      <Sparkles className="h-4 w-4" />
+      Take the Tour
+    </Button>
+  );
+}
+
 /* ------------------------------ Main Page ------------------------------ */
+const CBT_TOUR_STEPS = [
+  {
+    target: "body",
+    placement: "center",
+    disableBeacon: true,
+    title: "Manage CBT Tests",
+    content: "Welcome to the CBT Creator! Here you can create, manage, and publish computer-based tests for your students.",
+  },
+  {
+    target: "#tour-cbt-create-tab",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Create a New Test",
+    content: "Use this tab to set up a new test. Fill in the basic details like title, duration, and instructions.",
+  },
+  {
+    target: "#tour-cbt-questions",
+    placement: "right",
+    disableBeacon: true,
+    title: "Manage Questions",
+    content: "Once you start creating a test, use the question panel to manage your test questions.",
+  },
+  {
+    target: "#tour-cbt-actions-btn",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Bulk Upload Questions",
+    content: "Click here to download an Excel template and bulk-upload your questions to save time.",
+  },
+  {
+    target: "#tour-cbt-add-question",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Add Single Question",
+    content: "Or click the plus button to manually add single-choice, true/false, or essay questions.",
+  },
+  {
+    target: "#tour-cbt-publish",
+    placement: "top",
+    disableBeacon: true,
+    title: "Publish Test",
+    content: "When you're ready, publish the test to make it available to your students.",
+  },
+  {
+    target: "#tour-cbt-manage-tab",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Manage Existing Tests",
+    content: "View all your existing tests. You can edit, duplicate, preview, or view analytics for any test here.",
+  },
+  {
+    target: "#tour-cbt-analytics-tab",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Test Analytics",
+    content: "Analyze the overall performance across all tests, identifying challenging questions and success rates.",
+  },
+  {
+    target: "#tour-cbt-performance-tab",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Student Performance",
+    content: "Drill down into individual student results and see exactly how each student performed.",
+  },
+  {
+    target: "#tour-cbt-manage-student-tab",
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Manage Students",
+    content: "Manage the students enrolled in your CBT courses and review their access permissions.",
+  }
+];
+
 export function TeacherCBTCreator() {
   const router = useRouter();
   type AlertKind = "success" | "error" | "info";
@@ -326,6 +422,7 @@ export function TeacherCBTCreator() {
     pages: 1,
   });
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
   // store excluded student IDs for payload
   const [excludedStudentIds, setExcludedStudentIds] = useState<Set<number>>(
@@ -1847,182 +1944,191 @@ export function TeacherCBTCreator() {
 
   /* --------------------------------- UI --------------------------------- */
   return (
-    <div className="space-y-6 container mx-auto sm:px-6 lg:px-8">
-      <div>
-        <h1 className="text-3xl font-bold">CBT Test Creator</h1>
-        <p className="text-muted-foreground">
-          Create and manage computer-based tests for your students
-        </p>
-      </div>
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col md:flex-row w-full gap-2 mb-14">
-          <TabsTrigger
-            value="create"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
-            Create New Test
-          </TabsTrigger>
-          <TabsTrigger
-            value="manage"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
-            Manage Tests
-          </TabsTrigger>
-          <TabsTrigger
-            value="analytics"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
-            Test Analytics
-          </TabsTrigger>
-          <TabsTrigger
-            value="student-performance"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
-            Student Performance
-          </TabsTrigger>
-          <TabsTrigger
-            value="manage-student"
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
-            disabled={isSaving}>
-            Manage Student
-          </TabsTrigger>
-        </TabsList>
-        {/* ------------------------------ Create ------------------------------ */}
-        <TabsContent value="create" className="space-y-6">
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="order-last lg:order-first">
-              <CardHeader>
-                <CardTitle>Test Configuration</CardTitle>
-                <CardDescription>Set up your test parameters</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Test Title</Label>
-                  <Input
-                    id="title"
-                    value={currentTest.title}
-                    onChange={(e) =>
-                      setCurrentTest((prev) => ({
-                        ...prev,
-                        title: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter test title"
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="instructions">Instructions</Label>
-                  <Textarea
-                    id="instructions"
-                    value={currentTest.instructions}
-                    onChange={(e) =>
-                      setCurrentTest((prev) => ({
-                        ...prev,
-                        instructions: e.target.value,
-                      }))
-                    }
-                    placeholder="Provide instructions for this test"
-                    rows={3}
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="duration">Duration (minutes)</Label>
+    <TeacherOnboardingGate page="cbt-creator" steps={CBT_TOUR_STEPS}>
+      <div className="space-y-6 container mx-auto sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">CBT Test Creator</h1>
+            <p className="text-muted-foreground">
+              Create and manage computer-based tests for your students
+            </p>
+          </div>
+          <ReplayTourButton />
+        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col md:flex-row w-full gap-2 mb-14">
+            <TabsTrigger
+              value="create"
+              id="tour-cbt-create-tab"
+              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              disabled={isSaving}>
+              Create New Test
+            </TabsTrigger>
+            <TabsTrigger
+              value="manage"
+              id="tour-cbt-manage-tab"
+              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              disabled={isSaving}>
+              Manage Tests
+            </TabsTrigger>
+            <TabsTrigger
+              value="analytics"
+              id="tour-cbt-analytics-tab"
+              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              disabled={isSaving}>
+              Test Analytics
+            </TabsTrigger>
+            <TabsTrigger
+              value="student-performance"
+              id="tour-cbt-performance-tab"
+              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              disabled={isSaving}>
+              Student Performance
+            </TabsTrigger>
+            <TabsTrigger
+              value="manage-student"
+              id="tour-cbt-manage-student-tab"
+              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+              disabled={isSaving}>
+              Manage Student
+            </TabsTrigger>
+          </TabsList>
+          {/* ------------------------------ Create ------------------------------ */}
+          <TabsContent value="create" className="space-y-6">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="order-last lg:order-first">
+                <CardHeader>
+                  <CardTitle>Test Configuration</CardTitle>
+                  <CardDescription>Set up your test parameters</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Test Title</Label>
                     <Input
-                      id="duration"
-                      type="number"
-                      value={Number.isNaN(currentTest.duration) ? "" : currentTest.duration}
-                      onChange={(e) => {
-                        const parsed = Number.parseInt(e.target.value);
+                      id="title"
+                      value={currentTest.title}
+                      onChange={(e) =>
                         setCurrentTest((prev) => ({
                           ...prev,
-                          duration: Number.isNaN(parsed) ? 0 : parsed,
-                        }));
-                      }}
+                          title: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter test title"
+                      disabled={isSaving}
                     />
                   </div>
-                  <div className="flex-1 space-y-2">
-                    <Label>Difficulty</Label>
-                    <Select
-                      value={currentTest.difficulty}
-                      onValueChange={(value: "Easy" | "Medium" | "Hard") =>
+                  <div className="space-y-2">
+                    <Label htmlFor="instructions">Instructions</Label>
+                    <Textarea
+                      id="instructions"
+                      value={currentTest.instructions}
+                      onChange={(e) =>
                         setCurrentTest((prev) => ({
                           ...prev,
-                          difficulty: value,
+                          instructions: e.target.value,
                         }))
-                      }>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Easy">Easy</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="Hard">Hard</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      }
+                      placeholder="Provide instructions for this test"
+                      rows={3}
+                      disabled={isSaving}
+                    />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Test Type</Label>
-                  <Select
-                    value={currentTest.mode}
-                    onValueChange={(value: "online" | "offline") =>
-                      setCurrentTest((prev) => ({ ...prev, mode: value }))
-                    }
-                    disabled={isSaving}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select test type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="online">Online</SelectItem>
-                      <SelectItem value="offline">Offline</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {currentTest.mode === "offline" && (
-                    <p className="text-xs text-amber-600">
-                      Offline tests can be accessed once downloaded. Use only
-                      when you can monitor the session or accept lower security.
-                    </p>
-                  )}
-                </div>
-                {/* Better Date UI */}
-                <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
-                      <p className="text-xs text-blue-800">
-                        Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
-                      </p>
-                      <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
-                        <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
-                        <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
-                      </ul>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="duration">Duration (minutes)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        value={Number.isNaN(currentTest.duration) ? "" : currentTest.duration}
+                        onChange={(e) => {
+                          const parsed = Number.parseInt(e.target.value);
+                          setCurrentTest((prev) => ({
+                            ...prev,
+                            duration: Number.isNaN(parsed) ? 0 : parsed,
+                          }));
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Label>Difficulty</Label>
+                      <Select
+                        value={currentTest.difficulty}
+                        onValueChange={(value: "Easy" | "Medium" | "Hard") =>
+                          setCurrentTest((prev) => ({
+                            ...prev,
+                            difficulty: value,
+                          }))
+                        }>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Easy">Easy</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="Hard">Hard</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                  
-                  <div className="space-y-4 pt-2 border-t border-blue-100/50">
-                    <DateTimePicker
-                      label="Start Date & Time"
-                      valueLocal={currentTest._startLocal}
-                      onChangeLocal={(v) =>
-                        setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
+                  <div className="space-y-2">
+                    <Label>Test Type</Label>
+                    <Select
+                      value={currentTest.mode}
+                      onValueChange={(value: "online" | "offline") =>
+                        setCurrentTest((prev) => ({ ...prev, mode: value }))
                       }
-                      disabled={isSaving}
-                    />
-                    <DateTimePicker
-                      label="End Date & Time"
-                      valueLocal={currentTest._endLocal}
-                      onChangeLocal={(v) =>
-                        setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
-                      }
-                      disabled={isSaving}
-                    />
+                      disabled={isSaving}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select test type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="online">Online</SelectItem>
+                        <SelectItem value="offline">Offline</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {currentTest.mode === "offline" && (
+                      <p className="text-xs text-amber-600">
+                        Offline tests can be accessed once downloaded. Use only
+                        when you can monitor the session or accept lower security.
+                      </p>
+                    )}
                   </div>
-                </div>
-                {/* <div className="space-y-2">
+                  {/* Better Date UI */}
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
+                        <p className="text-xs text-blue-800">
+                          Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
+                        </p>
+                        <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
+                          <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
+                          <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-2 border-t border-blue-100/50">
+                      <DateTimePicker
+                        label="Start Date & Time"
+                        valueLocal={currentTest._startLocal}
+                        onChangeLocal={(v) =>
+                          setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
+                        }
+                        disabled={isSaving}
+                      />
+                      <DateTimePicker
+                        label="End Date & Time"
+                        valueLocal={currentTest._endLocal}
+                        onChangeLocal={(v) =>
+                          setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
+                        }
+                        disabled={isSaving}
+                      />
+                    </div>
+                  </div>
+                  {/* <div className="space-y-2">
                   <Label htmlFor="total_marks">Total Marks</Label>
                   <Input
                     id="total_marks"
@@ -2039,169 +2145,172 @@ export function TeacherCBTCreator() {
                     disabled={isSaving}
                   />
                 </div> */}
-                <div className="space-y-2">
-                  <Label>Course</Label>
-                  <Select
-                    value={currentTest.courseId || ""}
-                    onValueChange={(value) =>
-                      setCurrentTest((prev) => ({ ...prev, courseId: value }))
-                    }
-                    disabled={isSaving}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select course" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {courses.map((course) => (
-                        <SelectItem
-                          key={course.id}
-                          value={course.id.toString()}>
-                          {course.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Total Questions:</span>
-                    <span>{currentTest.questions.length}</span>
+                  <div className="space-y-2">
+                    <Label>Course</Label>
+                    <Select
+                      value={currentTest.courseId || ""}
+                      onValueChange={(value) =>
+                        setCurrentTest((prev) => ({ ...prev, courseId: value }))
+                      }
+                      disabled={isSaving}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((course) => (
+                          <SelectItem
+                            key={course.id}
+                            value={course.id.toString()}>
+                            {course.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Total Points:</span>
-                    <span>{currentTest.totalPoints}</span>
+                  <div className="pt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Total Questions:</span>
+                      <span>{currentTest.questions.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Total Points:</span>
+                      <span>{currentTest.totalPoints}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                  <Button
-                    onClick={saveTest}
-                    className="w-full bg-[#f79771]/70 hover:bg-gray-300 shadow-md"
-                    disabled={isSaving}>
-                    {isSaving ? (
-                      <Spinner size="sm" className="mr-2 text-white" />
-                    ) : (
-                      <Save className="mr-2 h-4 w-4" />
-                    )}
-                    {isSaving ? "Saving..." : "Save Test"}
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      publishTest(currentTest.id, !currentTest.isPublished)
-                    }
-                    variant="outline"
-                    className="w-full bg-transparent shadow-md"
-                    disabled={isSaving || !currentTest.id}
-                  >
-                    {isSaving ? (
-                      <Spinner size="sm" className="mr-2" />
-                    ) : (
-                      <TestTube className="mr-2 h-4 w-4" />
-                    )}
-
-                    {isSaving
-                      ? currentTest.isPublished
-                        ? "Unpublishing..."
-                        : "Publishing..."
-                      : currentTest.isPublished
-                        ? "Unpublish Test"
-                        : "Publish Test"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <CardTitle>Questions</CardTitle>
-                    <CardDescription>
-                      Manage your test questions
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isSaving}
-                          className="flex-1 sm:flex-none">
-                          {isSaving ? (
-                            <Spinner size="sm" className="mr-2" />
-                          ) : null}
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {/* 1) Blank template */}
-                        <DropdownMenuItem
-                          onClick={downloadQuestionsExcelTemplate}
-                          disabled={isSaving}>
-                          Download Excel Template
-                        </DropdownMenuItem>
-                        {/* 2) Filled export (only when there are questions) */}
-                        <DropdownMenuItem
-                          onClick={exportCurrentTestQuestionsToExcel}
-                          disabled={
-                            isSaving ||
-                            (currentTest.questions?.length ?? 0) === 0
-                          }>
-                          Download Filled Excel
-                        </DropdownMenuItem>
-                        {/* Divider */}
-                        <div className="my-1 h-px bg-muted" />
-                        {/* 3) Upload replace */}
-                        <DropdownMenuItem
-                          onSelect={(e) => e.preventDefault()}
-                          disabled={isSaving}>
-                          <label className="cursor-pointer w-full">
-                            Upload Excel (Replace)
-                            <input
-                              type="file"
-                              accept=".xlsx,.xls"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
-                                handleQuestionsExcelUpload(f, "replace");
-                                e.currentTarget.value = "";
-                              }}
-                            />
-                          </label>
-                        </DropdownMenuItem>
-                        {/* 4) Upload append */}
-                        <DropdownMenuItem
-                          onSelect={(e) => e.preventDefault()}
-                          disabled={isSaving}>
-                          <label className="cursor-pointer w-full">
-                            Upload Excel (Append)
-                            <input
-                              type="file"
-                              accept=".xlsx,.xls"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
-                                handleQuestionsExcelUpload(f, "append");
-                                e.currentTarget.value = "";
-                              }}
-                            />
-                          </label>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    {/* Plus button always visible */}
+                  <div className="pt-4 flex flex-col sm:flex-row gap-4">
                     <Button
-                      className="bg-[#f79771]/70 text-white hover:bg-gray-300 flex-1 sm:flex-none"
-                      onClick={addQuestion}
-                      size="sm"
-                      disabled={isSaving}
-                      title="Add Question">
-                      <Plus className="h-4 w-4" />
+                      onClick={saveTest}
+                      className="w-full bg-[#f79771]/70 hover:bg-gray-300 shadow-md"
+                      disabled={isSaving}>
+                      {isSaving ? (
+                        <Spinner size="sm" className="mr-2 text-white" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      {isSaving ? "Saving..." : "Save Test"}
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        publishTest(currentTest.id, !currentTest.isPublished)
+                      }
+                      variant="outline"
+                      id="tour-cbt-publish"
+                      className="w-full bg-transparent shadow-md"
+                      disabled={isSaving || !currentTest.id}
+                    >
+                      {isSaving ? (
+                        <Spinner size="sm" className="mr-2" />
+                      ) : (
+                        <TestTube className="mr-2 h-4 w-4" />
+                      )}
+
+                      {isSaving
+                        ? currentTest.isPublished
+                          ? "Unpublishing..."
+                          : "Publishing..."
+                        : currentTest.isPublished
+                          ? "Unpublish Test"
+                          : "Publish Test"}
                     </Button>
                   </div>
-                </div>
-              </CardHeader>
-              {/* <CardContent className="space-y-3">
+                </CardContent>
+              </Card>
+              <Card id="tour-cbt-questions">
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle>Questions</CardTitle>
+                      <CardDescription>
+                        Manage your test questions
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            id="tour-cbt-actions-btn"
+                            disabled={isSaving}
+                            className="flex-1 sm:flex-none">
+                            {isSaving ? (
+                              <Spinner size="sm" className="mr-2" />
+                            ) : null}
+                            Actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          {/* 1) Blank template */}
+                          <DropdownMenuItem
+                            onClick={downloadQuestionsExcelTemplate}
+                            disabled={isSaving}>
+                            Download Excel Template
+                          </DropdownMenuItem>
+                          {/* 2) Filled export (only when there are questions) */}
+                          <DropdownMenuItem
+                            onClick={exportCurrentTestQuestionsToExcel}
+                            disabled={
+                              isSaving ||
+                              (currentTest.questions?.length ?? 0) === 0
+                            }>
+                            Download Filled Excel
+                          </DropdownMenuItem>
+                          {/* Divider */}
+                          <div className="my-1 h-px bg-muted" />
+                          {/* 3) Upload replace */}
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                            disabled={isSaving}>
+                            <label className="cursor-pointer w-full">
+                              Upload Excel (Replace)
+                              <input
+                                type="file"
+                                accept=".xlsx,.xls"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  handleQuestionsExcelUpload(f, "replace");
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
+                          </DropdownMenuItem>
+                          {/* 4) Upload append */}
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                            disabled={isSaving}>
+                            <label className="cursor-pointer w-full">
+                              Upload Excel (Append)
+                              <input
+                                type="file"
+                                accept=".xlsx,.xls"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  handleQuestionsExcelUpload(f, "append");
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {/* Plus button always visible */}
+                      <Button
+                        className="bg-[#f79771]/70 text-white hover:bg-gray-300 flex-1 sm:flex-none"
+                        onClick={addQuestion}
+                        size="sm"
+                        disabled={isSaving}
+                        id="tour-cbt-add-question"
+                        title="Add Question">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                {/* <CardContent className="space-y-3">
                 {currentTest.questions.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
@@ -2252,412 +2361,412 @@ export function TeacherCBTCreator() {
                   </ScrollArea>
                 )}
               </CardContent> */}
-              <CardContent className="space-y-3">
-                {/* Search Filter - Added */}
-                {currentTest.questions.length > 0 && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Search questions... (or type Q1, Q2, Q3...)"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                )}
-
-                {currentTest.questions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>No questions added yet</p>
-                    <p className="text-sm">
-                      Click the + button to add your first question
-                    </p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[calc(100vh)] max-h-[calc(100vh)] pr-4 overflow-y-auto">
-                    {currentTest.questions
-                      .map((question, idx) => ({
-                        question,
-                        displayNumber: idx + 1, // Preserve original question number
-                      }))
-                      .filter(({ question, displayNumber }) => {
-                        const term = searchTerm.trim().toLowerCase();
-
-                        // If search is empty → show all
-                        if (!term) return true;
-
-                        // Q1, Q2, Q3... support (e.g. "Q5", "q 10", "Q 3")
-                        const qMatch = term.match(/^q\s*(\d+)\s*$/i);
-                        if (qMatch) {
-                          const targetNumber = parseInt(qMatch[1], 10);
-                          return displayNumber === targetNumber;
-                        }
-
-                        // Normal text search in question content
-                        return question.question?.toLowerCase().includes(term);
-                      })
-                      .map(({ question, displayNumber }) => (
-                        <div
-                          key={question.id}
-                          className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md mb-2 ${editingQuestion?.id === question.id
-                            ? "border-primary bg-primary/5"
-                            : "hover:bg-muted/50"
-                            }`}
-                          onClick={() => setEditingQuestion(question)}>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium">
-                                Q{displayNumber}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {question.type.replace("-", " ")}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {question.points} pts
-                              </span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteQuestion(currentTest.id, question.id);
-                              }}
-                              disabled={isSaving}>
-                              <Trash2 className="h-3 w-3 text-[#DD2701]" />
-                            </Button>
-                          </div>
-
-                          <p className="text-sm break-all hyphens-auto line-clamp-2">
-                            {question.question || "Untitled question"}
-                          </p>
-                        </div>
-                      ))}
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Question Editor</CardTitle>
-                <CardDescription>
-                  {editingQuestion
-                    ? "Edit the selected question"
-                    : "Select a question to edit"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {editingQuestion ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Question Type</Label>
-                      <Select
-                        value={editingQuestion.type}
-                        onValueChange={(value: Question["type"]) =>
-                          updateQuestion(editingQuestion.id, { type: value })
-                        }
-                        disabled={isSaving}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="single-choice">
-                            Single Choice
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 relative">
-                      <Label>Question</Label>
-                      <Textarea
-                        value={editingQuestion.question}
-                        onChange={(e) =>
-                          updateQuestion(editingQuestion.id, {
-                            question: e.target.value,
-                          })
-                        }
-                        placeholder="Enter your question here"
-                        rows={3}
-                        disabled={isSaving}
-                        className="pr-10"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute bottom-2 right-2 p-1"
-                        onClick={handleOpenExpandModal}
-                        disabled={isSaving}
-                        title="Expand question editor">
-                        <Maximize className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {editingQuestion.type === "single-choice" && (
-                      <div className="space-y-3">
-                        <Label>Answer Options</Label>
-                        <RadioGroup
-                          value={editingQuestion.correctAnswer.toString()}
-                          onValueChange={(value) =>
-                            updateQuestion(editingQuestion.id, {
-                              correctAnswer: Number.parseInt(value),
-                            })
-                          }
-                          disabled={isSaving}>
-                          {editingQuestion.options?.map((option, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center space-x-2">
-                              <RadioGroupItem
-                                value={index.toString()}
-                                id={`option-${index}`}
-                              />
-                              <Input
-                                value={option}
-                                onChange={(e) => {
-                                  const newOptions = [
-                                    ...(editingQuestion.options || []),
-                                  ];
-                                  newOptions[index] = e.target.value;
-                                  updateQuestion(editingQuestion.id, {
-                                    options: newOptions,
-                                  });
-                                }}
-                                placeholder={`Option ${index + 1}`}
-                                className="flex-1"
-                                disabled={isSaving}
-                              />
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </div>
-                    )}
-                    {editingQuestion.type === "true-false" && (
-                      <div className="space-y-2">
-                        <Label>Correct Answer</Label>
-                        <RadioGroup
-                          value={editingQuestion.correctAnswer.toString()}
-                          onValueChange={(value) =>
-                            updateQuestion(editingQuestion.id, {
-                              correctAnswer: value === "true",
-                            })
-                          }
-                          disabled={isSaving}>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="true" id="true" />
-                            <Label htmlFor="true">True</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="false" id="false" />
-                            <Label htmlFor="false">False</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label>Points</Label>
+                <CardContent className="space-y-3">
+                  {/* Search Filter - Added */}
+                  {currentTest.questions.length > 0 && (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                       <Input
-                        type="number"
-                        value={Number.isNaN(editingQuestion.points) ? "" : editingQuestion.points}
-                        onChange={(e) => {
-                          const parsed = Number.parseInt(e.target.value);
-                          updateQuestion(editingQuestion.id, {
-                            points: Number.isNaN(parsed) ? 0 : parsed,
-                          });
-                        }}
-                        min={1}
-                        max={50}
-                        disabled={isSaving}
+                        placeholder="Search questions... (or type Q1, Q2, Q3...)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Explanation (Optional)</Label>
-                      <Textarea
-                        value={editingQuestion.explanation || ""}
-                        onChange={(e) =>
-                          updateQuestion(editingQuestion.id, {
-                            explanation: e.target.value,
-                          })
-                        }
-                        placeholder="Explain the correct answer"
-                        rows={2}
-                        disabled={isSaving}
-                      />
+                  )}
+
+                  {currentTest.questions.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                      <p>No questions added yet</p>
+                      <p className="text-sm">
+                        Click the + button to add your first question
+                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Edit className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>Select a question to edit</p>
-                    <p className="text-sm">
-                      Choose a question from the list to start editing
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        {/* ------------------------------ Manage ------------------------------ */}
-        <TabsContent value="manage" className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold">Manage Tests</h2>
-              <p className="text-muted-foreground">
-                View and manage all your created tests
-              </p>
+                  ) : (
+                    <ScrollArea className="h-[calc(100vh)] max-h-[calc(100vh)] pr-4 overflow-y-auto">
+                      {currentTest.questions
+                        .map((question, idx) => ({
+                          question,
+                          displayNumber: idx + 1, // Preserve original question number
+                        }))
+                        .filter(({ question, displayNumber }) => {
+                          const term = searchTerm.trim().toLowerCase();
+
+                          // If search is empty → show all
+                          if (!term) return true;
+
+                          // Q1, Q2, Q3... support (e.g. "Q5", "q 10", "Q 3")
+                          const qMatch = term.match(/^q\s*(\d+)\s*$/i);
+                          if (qMatch) {
+                            const targetNumber = parseInt(qMatch[1], 10);
+                            return displayNumber === targetNumber;
+                          }
+
+                          // Normal text search in question content
+                          return question.question?.toLowerCase().includes(term);
+                        })
+                        .map(({ question, displayNumber }) => (
+                          <div
+                            key={question.id}
+                            className={`p-3 border-none rounded-lg cursor-pointer transition-colors shadow-md mb-2 ${editingQuestion?.id === question.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:bg-muted/50"
+                              }`}
+                            onClick={() => setEditingQuestion(question)}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium">
+                                  Q{displayNumber}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {question.type.replace("-", " ")}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {question.points} pts
+                                </span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteQuestion(currentTest.id, question.id);
+                                }}
+                                disabled={isSaving}>
+                                <Trash2 className="h-3 w-3 text-[#DD2701]" />
+                              </Button>
+                            </div>
+
+                            <p className="text-sm break-all hyphens-auto line-clamp-2">
+                              {question.question || "Untitled question"}
+                            </p>
+                          </div>
+                        ))}
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Question Editor</CardTitle>
+                  <CardDescription>
+                    {editingQuestion
+                      ? "Edit the selected question"
+                      : "Select a question to edit"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {editingQuestion ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Question Type</Label>
+                        <Select
+                          value={editingQuestion.type}
+                          onValueChange={(value: Question["type"]) =>
+                            updateQuestion(editingQuestion.id, { type: value })
+                          }
+                          disabled={isSaving}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="single-choice">
+                              Single Choice
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2 relative">
+                        <Label>Question</Label>
+                        <Textarea
+                          value={editingQuestion.question}
+                          onChange={(e) =>
+                            updateQuestion(editingQuestion.id, {
+                              question: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your question here"
+                          rows={3}
+                          disabled={isSaving}
+                          className="pr-10"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute bottom-2 right-2 p-1"
+                          onClick={handleOpenExpandModal}
+                          disabled={isSaving}
+                          title="Expand question editor">
+                          <Maximize className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {editingQuestion.type === "single-choice" && (
+                        <div className="space-y-3">
+                          <Label>Answer Options</Label>
+                          <RadioGroup
+                            value={editingQuestion.correctAnswer.toString()}
+                            onValueChange={(value) =>
+                              updateQuestion(editingQuestion.id, {
+                                correctAnswer: Number.parseInt(value),
+                              })
+                            }
+                            disabled={isSaving}>
+                            {editingQuestion.options?.map((option, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center space-x-2">
+                                <RadioGroupItem
+                                  value={index.toString()}
+                                  id={`option-${index}`}
+                                />
+                                <Input
+                                  value={option}
+                                  onChange={(e) => {
+                                    const newOptions = [
+                                      ...(editingQuestion.options || []),
+                                    ];
+                                    newOptions[index] = e.target.value;
+                                    updateQuestion(editingQuestion.id, {
+                                      options: newOptions,
+                                    });
+                                  }}
+                                  placeholder={`Option ${index + 1}`}
+                                  className="flex-1"
+                                  disabled={isSaving}
+                                />
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        </div>
+                      )}
+                      {editingQuestion.type === "true-false" && (
+                        <div className="space-y-2">
+                          <Label>Correct Answer</Label>
+                          <RadioGroup
+                            value={editingQuestion.correctAnswer.toString()}
+                            onValueChange={(value) =>
+                              updateQuestion(editingQuestion.id, {
+                                correctAnswer: value === "true",
+                              })
+                            }
+                            disabled={isSaving}>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="true" id="true" />
+                              <Label htmlFor="true">True</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="false" id="false" />
+                              <Label htmlFor="false">False</Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label>Points</Label>
+                        <Input
+                          type="number"
+                          value={Number.isNaN(editingQuestion.points) ? "" : editingQuestion.points}
+                          onChange={(e) => {
+                            const parsed = Number.parseInt(e.target.value);
+                            updateQuestion(editingQuestion.id, {
+                              points: Number.isNaN(parsed) ? 0 : parsed,
+                            });
+                          }}
+                          min={1}
+                          max={50}
+                          disabled={isSaving}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Explanation (Optional)</Label>
+                        <Textarea
+                          value={editingQuestion.explanation || ""}
+                          onChange={(e) =>
+                            updateQuestion(editingQuestion.id, {
+                              explanation: e.target.value,
+                            })
+                          }
+                          placeholder="Explain the correct answer"
+                          rows={2}
+                          disabled={isSaving}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Edit className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                      <p>Select a question to edit</p>
+                      <p className="text-sm">
+                        Choose a question from the list to start editing
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-            <Button
-              className="w-full sm:w-auto bg-[#f79771]/70 hover:bg-gray-300 shadow-md"
-              onClick={() => {
-                setActiveTab("create");
-                resetForm();
-              }}
-              disabled={isSaving}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Test
-            </Button>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex-1 w-full sm:w-auto">
-              <Input
-                placeholder="Search tests..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={isSaving}
-              />
+          </TabsContent>
+          {/* ------------------------------ Manage ------------------------------ */}
+          <TabsContent value="manage" className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">Manage Tests</h2>
+                <p className="text-muted-foreground">
+                  View and manage all your created tests
+                </p>
+              </div>
+              <Button
+                className="w-full sm:w-auto bg-[#f79771]/70 hover:bg-gray-300 shadow-md"
+                onClick={() => {
+                  setActiveTab("create");
+                  resetForm();
+                }}
+                disabled={isSaving}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Test
+              </Button>
             </div>
-            <Select
-              value={filterPublished}
-              onValueChange={(value: "all" | "published" | "draft") =>
-                setFilterPublished(value)
-              }
-              disabled={isSaving}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {loadingTests ? (
-            <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
-              <Spinner size="md" className="text-[#f79771]" />
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 w-full sm:w-auto">
+                <Input
+                  placeholder="Search tests..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={isSaving}
+                />
+              </div>
+              <Select
+                value={filterPublished}
+                onValueChange={(value: "all" | "published" | "draft") =>
+                  setFilterPublished(value)
+                }
+                disabled={isSaving}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {tests.map((test) => (
-                <Card
-                  key={test.id}
-                  className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle
-                          className="text-lg"
-                          title={test.title} // show full on hover
-                        >
-                          {truncateText(test.title, 35)} {/* shorten for UI */}
-                        </CardTitle>
-                        <CardDescription
-                          className="line-clamp-2"
-                          title={
-                            test.instructions || "No description provided."
+            {loadingTests ? (
+              <div className="relative min-h-[200px] flex items-center justify-center bg-gray-100/50 rounded-lg">
+                <Spinner size="md" className="text-[#f79771]" />
+              </div>
+            ) : (
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {tests.map((test) => (
+                  <Card
+                    key={test.id}
+                    className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle
+                            className="text-lg"
+                            title={test.title} // show full on hover
+                          >
+                            {truncateText(test.title, 35)} {/* shorten for UI */}
+                          </CardTitle>
+                          <CardDescription
+                            className="line-clamp-2"
+                            title={
+                              test.instructions || "No description provided."
+                            }>
+                            {truncateText(
+                              test.instructions || "No description provided.",
+                              100,
+                            )}
+                          </CardDescription>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" disabled={isSaving}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onClick={() => handleEditTest(test)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => duplicateTest(test.id)}>
+                              <Copy className="mr-2 h-4 w-4" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePreviewTest(test)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Preview
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleViewAnalyticsDetails(test)}>
+                              <Clock className="mr-2 h-4 w-4" />
+                              View Analytics
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={isSaving}
+                              onClick={() => toggleCbtRequireCode(test.id)}>
+                              <TestTube className="mr-2 h-4 w-4" />
+                              {test.require_browser_code
+                                ? "Disable Require Code"
+                                : "Enable Require Code"}
+
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleRequestDeleteTest(test)}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={test.isPublished ? "default" : "secondary"}
+                          className={
+                            test.isPublished
+                              ? "bg-[#EF7B55]/70 text-white hover:bg-[#ef7c55b7]"
+                              : "bg-gray-800 text-white hover:bg-gray-600"
                           }>
-                          {truncateText(
-                            test.instructions || "No description provided.",
-                            100,
-                          )}
-                        </CardDescription>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" disabled={isSaving}>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() => handleEditTest(test)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => duplicateTest(test.id)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handlePreviewTest(test)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Preview
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleViewAnalyticsDetails(test)}>
-                            <Clock className="mr-2 h-4 w-4" />
-                            View Analytics
-                          </DropdownMenuItem>
-                          <DropdownMenuItem disabled={isSaving}
-                            onClick={() => toggleCbtRequireCode(test.id)}>
-                            <TestTube className="mr-2 h-4 w-4" />
-                            {test.require_browser_code
-                              ? "Disable Require Code"
-                              : "Enable Require Code"}
+                          {test.isPublished ? "Published" : "Draft"}
+                        </Badge>
+                        <Badge variant="outline">{test.difficulty}</Badge>
+                        <Badge variant="outline">{test.category}</Badge>
+                        <Badge variant="outline">
+                          {test.mode === "offline" ? "Offline" : "Online"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={
+                            test.require_browser_code
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-600"
+                          }
+                        >
+                          {test.require_browser_code ? "Browser Code Required" : "No Browser Code"}
+                        </Badge>
 
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => handleRequestDeleteTest(test)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant={test.isPublished ? "default" : "secondary"}
-                        className={
-                          test.isPublished
-                            ? "bg-[#EF7B55]/70 text-white hover:bg-[#ef7c55b7]"
-                            : "bg-gray-800 text-white hover:bg-gray-600"
-                        }>
-                        {test.isPublished ? "Published" : "Draft"}
-                      </Badge>
-                      <Badge variant="outline">{test.difficulty}</Badge>
-                      <Badge variant="outline">{test.category}</Badge>
-                      <Badge variant="outline">
-                        {test.mode === "offline" ? "Offline" : "Online"}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={
-                          test.require_browser_code
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }
-                      >
-                        {test.require_browser_code ? "Browser Code Required" : "No Browser Code"}
-                      </Badge>
-
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {test.duration} mins
                       </div>
-                      <div className="flex items-center gap-1">
-                        <TestTube className="h-3 w-3" />
-                        {test.totalPoints} pts
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {test.duration} mins
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <TestTube className="h-3 w-3" />
+                          {test.totalPoints} pts
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {/* <Button
+                      <div className="flex gap-2">
+                        {/* <Button
                         size="sm"
                         value="outline"
                         className="flex-1 bg-transparent hover:bg-[#f79771]/20"
@@ -2666,162 +2775,162 @@ export function TeacherCBTCreator() {
                         <Edit className="mr-2 h-3 w-3" />
                         Edit
                       </Button> */}
-                      <Button
-                        variant="outline"
-                        className="flex-1 bg-transparent hover:bg-[#f79771]/20"
-                        onClick={() => handleEditTest(test)}
-                        disabled={isSaving}>
-                        <Edit className="mr-2 h-3 w-3" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePreviewTest(test)}
-                        disabled={isSaving}
-                        className="flex-1 bg-transparent">
-                        <Eye className="mr-2 h-3 w-3" />
-                        Preview
-                      </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 bg-transparent hover:bg-[#f79771]/20"
+                          onClick={() => handleEditTest(test)}
+                          disabled={isSaving}>
+                          <Edit className="mr-2 h-3 w-3" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePreviewTest(test)}
+                          disabled={isSaving}
+                          className="flex-1 bg-transparent">
+                          <Eye className="mr-2 h-3 w-3" />
+                          Preview
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            <Pagination className="mt-4 justify-center">
+              <PaginationContent className="flex-wrap justify-center">
+                <PaginationPrevious
+                  onClick={() =>
+                    handlePageChange(Math.max(pagination.page - 1, 1))
+                  }
+                  className={
+                    pagination.page === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+                {Array.from(
+                  { length: pagination.pages },
+                  (_, index) => index + 1,
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={pagination.page === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handlePageChange(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {pagination.pages > 5 && <PaginationEllipsis />}
+                <PaginationNext
+                  onClick={() =>
+                    handlePageChange(
+                      Math.min(pagination.page + 1, pagination.pages),
+                    )
+                  }
+                  className={
+                    pagination.page === pagination.pages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          </TabsContent>
+          {/* ----------------------------- Analytics ---------------------------- */}
+          <TabsContent value="analytics" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold">Test Analytics</h2>
+              <p className="text-muted-foreground">
+                Breif Overview of Performance
+              </p>
+            </div>
+            {loadingSummary ? (
+              <div className="flex justify-center">
+                <Spinner />
+              </div>
+            ) : summary ? (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Attempts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {summary.totalAttempts}
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Average Score
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {summary.averageScore}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Pass Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{summary.passRate}%</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Average Completion Time
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {summary.averageCompletionTime} mins
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <p>No analytics data available.</p>
+            )}
+          </TabsContent>
+          {/* ----------------------- Student Performance ------------------------ */}
+          <TabsContent value="student-performance" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold">Student Performance</h2>
+              <p className="text-muted-foreground">
+                View individual student performance across tests
+              </p>
             </div>
-          )}
-          <Pagination className="mt-4 justify-center">
-            <PaginationContent className="flex-wrap justify-center">
-              <PaginationPrevious
-                onClick={() =>
-                  handlePageChange(Math.max(pagination.page - 1, 1))
-                }
-                className={
-                  pagination.page === 1 ? "pointer-events-none opacity-50" : ""
-                }
-              />
-              {Array.from(
-                { length: pagination.pages },
-                (_, index) => index + 1,
-              ).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    href="#"
-                    isActive={pagination.page === page}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handlePageChange(page);
-                    }}>
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              {pagination.pages > 5 && <PaginationEllipsis />}
-              <PaginationNext
-                onClick={() =>
-                  handlePageChange(
-                    Math.min(pagination.page + 1, pagination.pages),
-                  )
-                }
-                className={
-                  pagination.page === pagination.pages
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }
-              />
-            </PaginationContent>
-          </Pagination>
-        </TabsContent>
-        {/* ----------------------------- Analytics ---------------------------- */}
-        <TabsContent value="analytics" className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold">Test Analytics</h2>
-            <p className="text-muted-foreground">
-              Breif Overview of Performance
-            </p>
-          </div>
-          {loadingSummary ? (
-            <div className="flex justify-center">
-              <Spinner />
-            </div>
-          ) : summary ? (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Attempts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {summary.totalAttempts}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Average Score
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {summary.averageScore}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Pass Rate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{summary.passRate}%</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Average Completion Time
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {summary.averageCompletionTime} mins
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <p>No analytics data available.</p>
-          )}
-        </TabsContent>
-        {/* ----------------------- Student Performance ------------------------ */}
-        <TabsContent value="student-performance" className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold">Student Performance</h2>
-            <p className="text-muted-foreground">
-              View individual student performance across tests
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex-1 w-full sm:w-auto">
-              <Input
-                placeholder="Search students..."
-                value={studentFilter}
-                onChange={(e) => setStudentFilter(e.target.value)}
-                disabled={isSaving}
-              />
-            </div>
-            {/* 🔽 New Test filter */}
-            <Select
-              value={selectedTestFilter}
-              onValueChange={(value) => setSelectedTestFilter(value)}
-              disabled={isSaving}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <SelectValue placeholder="Filter by test" />
-              </SelectTrigger>
-              {/* <SelectContent>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 w-full sm:w-auto">
+                <Input
+                  placeholder="Search students..."
+                  value={studentFilter}
+                  onChange={(e) => setStudentFilter(e.target.value)}
+                  disabled={isSaving}
+                />
+              </div>
+              {/* 🔽 New Test filter */}
+              <Select
+                value={selectedTestFilter}
+                onValueChange={(value) => setSelectedTestFilter(value)}
+                disabled={isSaving}>
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Filter by test" />
+                </SelectTrigger>
+                {/* <SelectContent>
                 <SelectItem value="all">All Tests</SelectItem>
                 {myTests.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
@@ -2830,239 +2939,139 @@ export function TeacherCBTCreator() {
                 ))}
               </SelectContent> */}
 
-              <SelectContent>
-                <Input
-                  placeholder="Search tests..."
-                  className="mb-2"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <div className="max-h-[120px] overflow-y-auto">
-                  <SelectItem value="all">All Tests</SelectItem>
-                  {filteredMyTests.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {truncateText(t.title, 40)}
-                    </SelectItem>
-                  ))}
-                </div>
-              </SelectContent>
-            </Select>
-            <Select
-              value={sortField}
-              onValueChange={(
-                value: "score" | "completionTime" | "submittedAt",
-              ) => setSortField(value)}
-              disabled={isSaving}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="score">Score</SelectItem>
-                <SelectItem value="completionTime">Completion Time</SelectItem>
-                <SelectItem value="submittedAt">Submission Date</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={sortOrder}
-              onValueChange={(value: "asc" | "desc") => setSortOrder(value)}
-              disabled={isSaving}>
-              <SelectTrigger className="w-full sm:w-[120px]">
-                <SelectValue placeholder="Order" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="asc">Ascending</SelectItem>
-                <SelectItem value="desc">Descending</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Results..</CardTitle>
-              <CardDescription>
-                Detailed performance for each student
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingPerformances ? (
-                <div className="flex justify-center">
-                  <Spinner />
-                </div>
-              ) : filteredPerformances.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No student results found</p>
-                  <p className="text-sm">
-                    Try adjusting your search or filters
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile cards */}
-                  <div className="space-y-4 md:hidden">
-                    {filteredPerformances.map((performance) => (
-                      <Card
-                        key={performance.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow border border-gray-200 rounded-lg"
-                        onClick={() =>
-                          router.push(
-                            `/teacher/student-performance/${performance.id}`,
-                          )
-                        }>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-xl font-bold">
-                            {performance.studentName}
-                          </CardTitle>
-                          <CardDescription className="text-base">
-                            {performance.testTitle || "Unknown Test"}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3 text-base">
-                          <div className="grid grid-cols-1 sm:grid-cols-2">
-                            <span className="text-muted-foreground font-medium">
-                              Score:
-                            </span>
-                            <span className="justify-self-start sm:justify-self-end font-semibold">
-                              {performance.score}/{performance.totalMarks}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2">
-                            <span className="text-muted-foreground font-medium">
-                              Completion Time:
-                            </span>
-                            <span className="justify-self-start sm:justify-self-end font-semibold">
-                              {performance.completionTime} mins
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 items-center">
-                            <span className="text-muted-foreground font-medium">
-                              Status:
-                            </span>
-                            <Badge
-                              variant={
-                                performance.status === "Passed"
-                                  ? "default"
-                                  : "destructive"
-                              }
-                              className={`justify-self-start sm:justify-self-end ${performance.status === "Passed"
-                                ? "bg-green-600"
-                                : "bg-red-600"
-                                }`}>
-                              {performance.status}
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2">
-                            <span className="text-muted-foreground font-medium">
-                              Submitted At:
-                            </span>
-                            <span className="justify-self-start sm:justify-self-end font-semibold">
-                              {new Date(
-                                performance.submittedAt,
-                              ).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-end pt-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(
-                                  `/teacher/student-performance/${performance.id}`,
-                                );
-                              }}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                <SelectContent>
+                  <Input
+                    placeholder="Search tests..."
+                    className="mb-2"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <div className="max-h-[120px] overflow-y-auto">
+                    <SelectItem value="all">All Tests</SelectItem>
+                    {filteredMyTests.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {truncateText(t.title, 40)}
+                      </SelectItem>
                     ))}
                   </div>
-                  {/* Desktop table */}
-                  <div className="overflow-x-auto hidden md:block">
-                    <Table className="min-w-full">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="whitespace-nowrap">
-                            Student Name
-                          </TableHead>
-                          <TableHead className="whitespace-nowrap max-w-[220px]">
-                            Test
-                          </TableHead>
-                          <TableHead className="whitespace-nowrap">
-                            Score
-                          </TableHead>
-                          <TableHead className="hidden lg:table-cell whitespace-nowrap">
-                            Completion Time
-                          </TableHead>
-                          <TableHead className="whitespace-nowrap">
-                            Status
-                          </TableHead>
-                          <TableHead className="hidden xl:table-cell whitespace-nowrap max-w-[160px]">
-                            Submitted At
-                          </TableHead>
-                          <TableHead className="whitespace-nowrap">
-                            Actions
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredPerformances.map((performance) => (
-                          <TableRow
-                            key={performance.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() =>
-                              router.push(
-                                `/teacher/student-performance/${performance.id}`,
-                              )
-                            }>
-                            <TableCell className="whitespace-nowrap">
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortField}
+                onValueChange={(
+                  value: "score" | "completionTime" | "submittedAt",
+                ) => setSortField(value)}
+                disabled={isSaving}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="score">Score</SelectItem>
+                  <SelectItem value="completionTime">Completion Time</SelectItem>
+                  <SelectItem value="submittedAt">Submission Date</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortOrder}
+                onValueChange={(value: "asc" | "desc") => setSortOrder(value)}
+                disabled={isSaving}>
+                <SelectTrigger className="w-full sm:w-[120px]">
+                  <SelectValue placeholder="Order" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">Ascending</SelectItem>
+                  <SelectItem value="desc">Descending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Student Results..</CardTitle>
+                <CardDescription>
+                  Detailed performance for each student
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingPerformances ? (
+                  <div className="flex justify-center">
+                    <Spinner />
+                  </div>
+                ) : filteredPerformances.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No student results found</p>
+                    <p className="text-sm">
+                      Try adjusting your search or filters
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile cards */}
+                    <div className="space-y-4 md:hidden">
+                      {filteredPerformances.map((performance) => (
+                        <Card
+                          key={performance.id}
+                          className="cursor-pointer hover:shadow-md transition-shadow border border-gray-200 rounded-lg"
+                          onClick={() =>
+                            router.push(
+                              `/teacher/student-performance/${performance.id}`,
+                            )
+                          }>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-xl font-bold">
                               {performance.studentName}
-                            </TableCell>
-                            <TableCell
-                              className="max-w-[220px] truncate"
-                              title={performance.testTitle || "Unknown Test"}>
+                            </CardTitle>
+                            <CardDescription className="text-base">
                               {performance.testTitle || "Unknown Test"}
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              {performance.score}/{performance.totalMarks}
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell whitespace-nowrap">
-                              {performance.completionTime} mins
-                            </TableCell>
-                            <TableCell>
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3 text-base">
+                            <div className="grid grid-cols-1 sm:grid-cols-2">
+                              <span className="text-muted-foreground font-medium">
+                                Score:
+                              </span>
+                              <span className="justify-self-start sm:justify-self-end font-semibold">
+                                {performance.score}/{performance.totalMarks}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2">
+                              <span className="text-muted-foreground font-medium">
+                                Completion Time:
+                              </span>
+                              <span className="justify-self-start sm:justify-self-end font-semibold">
+                                {performance.completionTime} mins
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 items-center">
+                              <span className="text-muted-foreground font-medium">
+                                Status:
+                              </span>
                               <Badge
                                 variant={
                                   performance.status === "Passed"
                                     ? "default"
                                     : "destructive"
                                 }
-                                className={
-                                  performance.status === "Passed"
-                                    ? "bg-[#EF7B55]"
-                                    : "bg-red-500"
-                                }>
+                                className={`justify-self-start sm:justify-self-end ${performance.status === "Passed"
+                                  ? "bg-green-600"
+                                  : "bg-red-600"
+                                  }`}>
                                 {performance.status}
                               </Badge>
-                            </TableCell>
-                            <TableCell
-                              className="hidden xl:table-cell max-w-[160px] truncate"
-                              title={new Date(
-                                performance.submittedAt,
-                              ).toLocaleString()}>
-                              {new Date(
-                                performance.submittedAt,
-                              ).toLocaleDateString()}{" "}
-                              {new Date(
-                                performance.submittedAt,
-                              ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </TableCell>
-                            <TableCell>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2">
+                              <span className="text-muted-foreground font-medium">
+                                Submitted At:
+                              </span>
+                              <span className="justify-self-start sm:justify-self-end font-semibold">
+                                {new Date(
+                                  performance.submittedAt,
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-end pt-3">
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3070,256 +3079,394 @@ export function TeacherCBTCreator() {
                                     `/teacher/student-performance/${performance.id}`,
                                   );
                                 }}>
-                                <Eye className="h-4 w-4" />
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
                               </Button>
-                            </TableCell>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    {/* Desktop table */}
+                    <div className="overflow-x-auto hidden md:block">
+                      <Table className="min-w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="whitespace-nowrap">
+                              Student Name
+                            </TableHead>
+                            <TableHead className="whitespace-nowrap max-w-[220px]">
+                              Test
+                            </TableHead>
+                            <TableHead className="whitespace-nowrap">
+                              Score
+                            </TableHead>
+                            <TableHead className="hidden lg:table-cell whitespace-nowrap">
+                              Completion Time
+                            </TableHead>
+                            <TableHead className="whitespace-nowrap">
+                              Status
+                            </TableHead>
+                            <TableHead className="hidden xl:table-cell whitespace-nowrap max-w-[160px]">
+                              Submitted At
+                            </TableHead>
+                            <TableHead className="whitespace-nowrap">
+                              Actions
+                            </TableHead>
                           </TableRow>
-                        ))}
+                        </TableHeader>
+                        <TableBody>
+                          {filteredPerformances.map((performance) => (
+                            <TableRow
+                              key={performance.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() =>
+                                router.push(
+                                  `/teacher/student-performance/${performance.id}`,
+                                )
+                              }>
+                              <TableCell className="whitespace-nowrap">
+                                {performance.studentName}
+                              </TableCell>
+                              <TableCell
+                                className="max-w-[220px] truncate"
+                                title={performance.testTitle || "Unknown Test"}>
+                                {performance.testTitle || "Unknown Test"}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {performance.score}/{performance.totalMarks}
+                              </TableCell>
+                              <TableCell className="hidden lg:table-cell whitespace-nowrap">
+                                {performance.completionTime} mins
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    performance.status === "Passed"
+                                      ? "default"
+                                      : "destructive"
+                                  }
+                                  className={
+                                    performance.status === "Passed"
+                                      ? "bg-[#EF7B55]"
+                                      : "bg-red-500"
+                                  }>
+                                  {performance.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell
+                                className="hidden xl:table-cell max-w-[160px] truncate"
+                                title={new Date(
+                                  performance.submittedAt,
+                                ).toLocaleString()}>
+                                {new Date(
+                                  performance.submittedAt,
+                                ).toLocaleDateString()}{" "}
+                                {new Date(
+                                  performance.submittedAt,
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(
+                                      `/teacher/student-performance/${performance.id}`,
+                                    );
+                                  }}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Pagination className="mt-4 justify-center">
+              <PaginationContent>
+                <PaginationPrevious
+                  onClick={() =>
+                    handlePerformancePageChange(
+                      Math.max(performancePagination.page - 1, 1),
+                    )
+                  }
+                  className={
+                    performancePagination.page === 1
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+                {Array.from(
+                  { length: performancePagination.pages },
+                  (_, index) => index + 1,
+                ).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={performancePagination.page === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handlePerformancePageChange(page);
+                      }}>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {performancePagination.pages > 5 && <PaginationEllipsis />}
+                <PaginationNext
+                  onClick={() =>
+                    handlePerformancePageChange(
+                      Math.min(
+                        performancePagination.page + 1,
+                        performancePagination.pages,
+                      ),
+                    )
+                  }
+                  className={
+                    performancePagination.page === performancePagination.pages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationContent>
+            </Pagination>
+          </TabsContent>
+
+          <TabsContent value="manage-student" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Manage Students</h2>
+                <p className="text-muted-foreground">
+                  Select who should be excluded from this CBT.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!currentTest.courseId}
+                onClick={() => fetchCourseStudents()}>
+                Refresh
+              </Button>
+            </div>
+
+            {!currentTest.courseId ? (
+              <p className="text-muted-foreground">
+                Select a course first to load students.
+              </p>
+            ) : loadingStudents ? (
+              <div className="flex justify-center">
+                <Spinner />
+              </div>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle>Enrolled Students</CardTitle>
+                      <CardDescription>
+                        Page {studentPagination.page} of {studentPagination.pages} —
+                        Total {studentPagination.total}
+                      </CardDescription>
+                    </div>
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        id="enrolled-students-search"
+                        type="search"
+                        placeholder="Search by name or admission no…"
+                        value={studentSearchQuery}
+                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Exclude</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Admission No</TableHead>
+                          <TableHead>DOB</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const q = studentSearchQuery.trim().toLowerCase();
+                          const filtered = q
+                            ? studentRows.filter(
+                              (s) =>
+                                s.full_name.toLowerCase().includes(q) ||
+                                (s.admission_no || "").toLowerCase().includes(q),
+                            )
+                            : studentRows;
+                          if (filtered.length === 0) {
+                            return (
+                              <TableRow>
+                                <TableCell
+                                  colSpan={4}
+                                  className="text-center text-muted-foreground py-6">
+                                  {q
+                                    ? `No students match "${studentSearchQuery}"`
+                                    : "No students found."}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+                          return filtered.map((s) => {
+                            const checked = excludedStudentIds.has(s.id);
+                            return (
+                              <TableRow key={s.id}>
+                                <TableCell>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      setExcludedStudentIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (e.target.checked) next.add(s.id);
+                                        else next.delete(s.id);
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>{s.full_name}</TableCell>
+                                <TableCell>{s.admission_no || "-"}</TableCell>
+                                <TableCell>
+                                  {s.dob
+                                    ? new Date(s.dob).toLocaleDateString()
+                                    : "-"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          });
+                        })()}
                       </TableBody>
                     </Table>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Pagination className="mt-4 justify-center">
-            <PaginationContent>
-              <PaginationPrevious
-                onClick={() =>
-                  handlePerformancePageChange(
-                    Math.max(performancePagination.page - 1, 1),
-                  )
-                }
-                className={
-                  performancePagination.page === 1
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }
-              />
-              {Array.from(
-                { length: performancePagination.pages },
-                (_, index) => index + 1,
-              ).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    href="#"
-                    isActive={performancePagination.page === page}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handlePerformancePageChange(page);
-                    }}>
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              {performancePagination.pages > 5 && <PaginationEllipsis />}
-              <PaginationNext
-                onClick={() =>
-                  handlePerformancePageChange(
-                    Math.min(
-                      performancePagination.page + 1,
-                      performancePagination.pages,
-                    ),
-                  )
-                }
-                className={
-                  performancePagination.page === performancePagination.pages
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }
-              />
-            </PaginationContent>
-          </Pagination>
-        </TabsContent>
 
-        <TabsContent value="manage-student" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Manage Students</h2>
-              <p className="text-muted-foreground">
-                Select who should be excluded from this CBT.
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!currentTest.courseId}
-              onClick={() => fetchCourseStudents()}>
-              Refresh
-            </Button>
-          </div>
-
-          {!currentTest.courseId ? (
-            <p className="text-muted-foreground">
-              Select a course first to load students.
-            </p>
-          ) : loadingStudents ? (
-            <div className="flex justify-center">
-              <Spinner />
-            </div>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Enrolled Students</CardTitle>
-                <CardDescription>
-                  Page {studentPagination.page} of {studentPagination.pages} —
-                  Total {studentPagination.total}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Exclude</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Admission No</TableHead>
-                        <TableHead>DOB</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {studentRows.map((s) => {
-                        const checked = excludedStudentIds.has(s.id);
-                        return (
-                          <TableRow key={s.id}>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => {
-                                  setExcludedStudentIds((prev) => {
-                                    const next = new Set(prev);
-                                    if (e.target.checked) next.add(s.id);
-                                    else next.delete(s.id);
-                                    return next;
-                                  });
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>{s.full_name}</TableCell>
-                            <TableCell>{s.admission_no || "-"}</TableCell>
-                            <TableCell>
-                              {s.dob
-                                ? new Date(s.dob).toLocaleDateString()
-                                : "-"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* pagination controls */}
-                <div className="flex items-center justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    disabled={studentPagination.page <= 1}
-                    onClick={() =>
-                      setStudentPagination((p) => ({
-                        ...p,
-                        page: Math.max(p.page - 1, 1),
-                      }))
-                    }>
-                    Prev
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={studentPagination.page >= studentPagination.pages}
-                    onClick={() =>
-                      setStudentPagination((p) => ({
-                        ...p,
-                        page: Math.min(p.page + 1, p.pages),
-                      }))
-                    }>
-                    Next
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
-      {/* ------------------------------ Edit Modal ------------------------------ */}
-      <Dialog open={isEditTestOpen} onOpenChange={setIsEditTestOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Test: {selectedTestForEdit?.title}</DialogTitle>
-            <DialogDescription>
-              Modify your test configuration and questions
-            </DialogDescription>
-          </DialogHeader>
-          {selectedTestForEdit && (
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Test Configuration</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Test Title</Label>
-                    <Input
-                      value={currentTest.title}
-                      onChange={(e) =>
-                        setCurrentTest((prev) => ({
-                          ...prev,
-                          title: e.target.value,
+                  {/* pagination controls */}
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      variant="outline"
+                      disabled={studentPagination.page <= 1}
+                      onClick={() =>
+                        setStudentPagination((p) => ({
+                          ...p,
+                          page: Math.max(p.page - 1, 1),
                         }))
-                      }
-                      disabled={isSaving}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Instructions</Label>
-                    <Textarea
-                      value={currentTest.instructions}
-                      onChange={(e) =>
-                        setCurrentTest((prev) => ({
-                          ...prev,
-                          instructions: e.target.value,
+                      }>
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={studentPagination.page >= studentPagination.pages}
+                      onClick={() =>
+                        setStudentPagination((p) => ({
+                          ...p,
+                          page: Math.min(p.page + 1, p.pages),
                         }))
-                      }
-                      placeholder="Provide instructions for this test"
-                      rows={3}
-                      disabled={isSaving}
-                    />
+                      }>
+                      Next
+                    </Button>
                   </div>
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
-                    <div className="flex items-start gap-2">
-                      <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
-                        <p className="text-xs text-blue-800">
-                          Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
-                        </p>
-                        <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
-                          <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
-                          <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
-                        </ul>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+        {/* ------------------------------ Edit Modal ------------------------------ */}
+        <Dialog open={isEditTestOpen} onOpenChange={setIsEditTestOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Test: {selectedTestForEdit?.title}</DialogTitle>
+              <DialogDescription>
+                Modify your test configuration and questions
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTestForEdit && (
+              <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Test Configuration</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Test Title</Label>
+                      <Input
+                        value={currentTest.title}
+                        onChange={(e) =>
+                          setCurrentTest((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
+                        disabled={isSaving}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Instructions</Label>
+                      <Textarea
+                        value={currentTest.instructions}
+                        onChange={(e) =>
+                          setCurrentTest((prev) => ({
+                            ...prev,
+                            instructions: e.target.value,
+                          }))
+                        }
+                        placeholder="Provide instructions for this test"
+                        rows={3}
+                        disabled={isSaving}
+                      />
+                    </div>
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
+                          <p className="text-xs text-blue-800">
+                            Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
+                          </p>
+                          <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
+                            <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
+                            <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-2 border-t border-blue-100/50">
+                        <DateTimePicker
+                          label="Start Date & Time"
+                          valueLocal={currentTest._startLocal}
+                          onChangeLocal={(v) =>
+                            setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
+                          }
+                          disabled={isSaving}
+                        />
+                        <DateTimePicker
+                          label="End Date & Time"
+                          valueLocal={currentTest._endLocal}
+                          onChangeLocal={(v) =>
+                            setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
+                          }
+                          disabled={isSaving}
+                        />
                       </div>
                     </div>
-                    
-                    <div className="space-y-4 pt-2 border-t border-blue-100/50">
-                      <DateTimePicker
-                        label="Start Date & Time"
-                        valueLocal={currentTest._startLocal}
-                        onChangeLocal={(v) =>
-                          setCurrentTest((prev) => ({ ...prev, _startLocal: v }))
-                        }
-                        disabled={isSaving}
-                      />
-                      <DateTimePicker
-                        label="End Date & Time"
-                        valueLocal={currentTest._endLocal}
-                        onChangeLocal={(v) =>
-                          setCurrentTest((prev) => ({ ...prev, _endLocal: v }))
-                        }
-                        disabled={isSaving}
-                      />
-                    </div>
-                  </div>
-                  {/* <div className="space-y-2">
+                    {/* <div className="space-y-2">
                     <Label htmlFor="total_marks">Total Marks</Label>
                     <Input
                       id="total_marks"
@@ -3336,632 +3483,633 @@ export function TeacherCBTCreator() {
                       disabled={isSaving}
                     />
                   </div> */}
-                </CardContent>
-              </Card>
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>
-                      Questions ({currentTest.questions.length})
-                    </CardTitle>
-                    <Button onClick={addQuestion} size="sm" disabled={isSaving}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Question
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {currentTest.questions.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                        <p>No questions added yet</p>
-                        <p className="text-sm">
-                          Click "Add Question" to create your first question
-                        </p>
-                      </div>
-                    ) : (
-                      currentTest.questions.map((question, index) => (
-                        <Card
-                          key={question.id}
-                          className="border-l-4 border-l-primary/20">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">
-                                  Question {index + 1}
-                                </span>
-                                <Badge variant="outline">
-                                  {question.type.replace("-", " ")}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  {question.points} pts
-                                </span>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  deleteQuestion(currentTest.id, question.id)
-                                }
-                                disabled={isSaving}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                              <Label>Question Type</Label>
-                              <Select
-                                value={question.type}
-                                onValueChange={(value: Question["type"]) =>
-                                  updateQuestion(question.id, { type: value })
-                                }
-                                disabled={isSaving}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="single-choice">
-                                    Single Choice
-                                  </SelectItem>
-                                  <SelectItem value="true-false">
-                                    True/False
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2 relative">
-                              <Label>Question</Label>
-                              <Textarea
-                                value={question.question}
-                                onChange={(e) =>
-                                  updateQuestion(question.id, {
-                                    question: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter your question here"
-                                rows={3}
-                                disabled={isSaving}
-                                className="pr-10"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="absolute bottom-2 right-2 p-1"
-                                onClick={handleOpenExpandModal}
-                                disabled={isSaving}
-                                title="Expand question editor">
-                                <Maximize className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            {question.type === "single-choice" && (
-                              <div className="space-y-3">
-                                <Label>Answer Options</Label>
-                                <RadioGroup
-                                  value={question.correctAnswer.toString()}
-                                  onValueChange={(value) =>
-                                    updateQuestion(question.id, {
-                                      correctAnswer: Number.parseInt(value),
-                                    })
+                  </CardContent>
+                </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>
+                        Questions ({currentTest.questions.length})
+                      </CardTitle>
+                      <Button onClick={addQuestion} size="sm" disabled={isSaving}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Question
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {currentTest.questions.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                          <p>No questions added yet</p>
+                          <p className="text-sm">
+                            Click "Add Question" to create your first question
+                          </p>
+                        </div>
+                      ) : (
+                        currentTest.questions.map((question, index) => (
+                          <Card
+                            key={question.id}
+                            className="border-l-4 border-l-primary/20">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    Question {index + 1}
+                                  </span>
+                                  <Badge variant="outline">
+                                    {question.type.replace("-", " ")}
+                                  </Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    {question.points} pts
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    deleteQuestion(currentTest.id, question.id)
                                   }
                                   disabled={isSaving}>
-                                  {question.options?.map((option, optIndex) => (
-                                    <div
-                                      key={optIndex}
-                                      className="flex items-center space-x-2">
-                                      <RadioGroupItem
-                                        value={optIndex.toString()}
-                                        id={`q${question.id}-option-${optIndex}`}
-                                      />
-                                      <Input
-                                        value={option}
-                                        onChange={(e) => {
-                                          const newOptions = [
-                                            ...(question.options || []),
-                                          ];
-                                          newOptions[optIndex] = e.target.value;
-                                          updateQuestion(question.id, {
-                                            options: newOptions,
-                                          });
-                                        }}
-                                        placeholder={`Option ${optIndex + 1}`}
-                                        className="flex-1"
-                                        disabled={isSaving}
-                                      />
-                                      {optIndex === question.correctAnswer && (
-                                        <Badge
-                                          variant="default"
-                                          className="text-xs">
-                                          Correct
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  ))}
-                                </RadioGroup>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
-                            )}
-                            {question.type === "true-false" && (
+                            </CardHeader>
+                            <CardContent className="space-y-4">
                               <div className="space-y-2">
-                                <div
-                                  className={`p-2 border rounded ${question.correctAnswer === true
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-gray-200"
-                                    }`}>
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-4 h-4 border border-gray-300 rounded-full" />
-                                    <span className="text-sm">True</span>
-                                    {question.correctAnswer === true && (
-                                      <Badge
-                                        variant="default"
-                                        className="text-xs ml-auto">
-                                        Correct Answer
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                                <div
-                                  className={`p-2 border rounded ${question.correctAnswer === false
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-gray-200"
-                                    }`}>
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-4 h-4 border border-gray-300 rounded-full" />
-                                    <span className="text-sm">False</span>
-                                    {question.correctAnswer === false && (
-                                      <Badge
-                                        variant="default"
-                                        className="text-xs ml-auto">
-                                        Correct Answer
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Points</Label>
-                                <Input
-                                  type="number"
-                                  value={Number.isNaN(question.points) ? "" : question.points}
-                                  onChange={(e) => {
-                                    const parsed = Number.parseInt(e.target.value);
-                                    const newPoints = Number.isNaN(parsed) ? 0 : parsed;
-                                    const oldPoints = question.points;
-                                    updateQuestion(question.id, {
-                                      points: newPoints,
-                                    });
-                                    setCurrentTest((prev) => ({
-                                      ...prev,
-                                      totalPoints:
-                                        prev.totalPoints -
-                                        oldPoints +
-                                        newPoints,
-                                    }));
-                                  }}
-                                  min={1}
-                                  max={50}
-                                  disabled={isSaving}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Difficulty</Label>
+                                <Label>Question Type</Label>
                                 <Select
-                                  value={question.difficulty || "Medium"}
-                                  onValueChange={(
-                                    value: "Easy" | "Medium" | "Hard",
-                                  ) =>
-                                    updateQuestion(question.id, {
-                                      difficulty: value,
-                                    })
+                                  value={question.type}
+                                  onValueChange={(value: Question["type"]) =>
+                                    updateQuestion(question.id, { type: value })
                                   }
                                   disabled={isSaving}>
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="Easy">Easy</SelectItem>
-                                    <SelectItem value="Medium">
-                                      Medium
+                                    <SelectItem value="single-choice">
+                                      Single Choice
                                     </SelectItem>
-                                    <SelectItem value="Hard">Hard</SelectItem>
+                                    <SelectItem value="true-false">
+                                      True/False
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Explanation (Optional)</Label>
-                              <Textarea
-                                value={question.explanation || ""}
-                                onChange={(e) =>
-                                  updateQuestion(question.id, {
-                                    explanation: e.target.value,
-                                  })
-                                }
-                                placeholder="Explain the correct answer"
-                                rows={2}
-                                disabled={isSaving}
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditTestOpen(false)}
-              disabled={isSaving}>
-              Cancel
-            </Button>
-            <Button onClick={saveTest} disabled={isSaving}>
-              {isSaving ? (
-                <Spinner size="sm" className="mr-2 text-white" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* ----------------------------- Preview Modal ----------------------------- */}
-      <Dialog open={isPreviewTestOpen} onOpenChange={setIsPreviewTestOpen}>
-        <DialogContent className="max-w-md sm:max-w-xl md:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Preview Test: {selectedTestForPreview?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Preview how students will see this test
-            </DialogDescription>
-          </DialogHeader>
-          {selectedTestForPreview && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-xl">
-                        {selectedTestForPreview.title}
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        {selectedTestForPreview.instructions}
-                      </CardDescription>
-                    </div>
-                    <div className="text-left sm:text-right text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Clock className="h-3 w-3" />
-                        {selectedTestForPreview.duration} minutes
-                      </div>
-                      <div>
-                        {selectedTestForPreview.totalPoints} points total
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">
-                      {selectedTestForPreview.difficulty}
-                    </Badge>
-                    <Badge variant="outline">
-                      {selectedTestForPreview.category}
-                    </Badge>
-                    <Badge
-                      variant={
-                        selectedTestForPreview.isPublished
-                          ? "default"
-                          : "secondary"
-                      }
-                      className="bg-[#f57c50]/70">
-                      {selectedTestForPreview.isPublished
-                        ? "Published"
-                        : "Draft"}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">
-                  Questions ({selectedTestForPreview.questions.length})
-                </h3>
-                {selectedTestForPreview.questions.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-8 text-muted-foreground">
-                      <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                      <p>No questions added to this test yet</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  selectedTestForPreview.questions.map((question, index) => (
-                    <Card key={question.id}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <CardTitle className="text-base">
-                            Question {index + 1} ({question.points} points)
-                          </CardTitle>
-                          <Badge
-                            variant="outline"
-                            className="text-xs border-[#f57c50]/70">
-                            {question.type.replace("-", " ")}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-sm">{question.question}</p>
-                        {question.type === "single-choice" &&
-                          question.options && (
-                            <div className="space-y-2">
-                              {question.options.map((option, optIndex) => (
-                                <div
-                                  key={optIndex}
-                                  className={`p-2 border rounded ${optIndex === question.correctAnswer
-                                    ? "border-[#f57c50] bg-[#f57c50]/10"
-                                    : "border-gray-200"
-                                    }`}>
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-4 h-4 border border-gray-300 rounded-full" />
-                                    <span className="text-sm">{option}</span>
-                                    {optIndex === question.correctAnswer && (
-                                      <Badge
-                                        variant="default"
-                                        className="text-xs bg-[#f57c50]/70 ml-auto">
-                                        Correct Answer
-                                      </Badge>
-                                    )}
+                              <div className="space-y-2 relative">
+                                <Label>Question</Label>
+                                <Textarea
+                                  value={question.question}
+                                  onChange={(e) =>
+                                    updateQuestion(question.id, {
+                                      question: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Enter your question here"
+                                  rows={3}
+                                  disabled={isSaving}
+                                  className="pr-10"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute bottom-2 right-2 p-1"
+                                  onClick={handleOpenExpandModal}
+                                  disabled={isSaving}
+                                  title="Expand question editor">
+                                  <Maximize className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {question.type === "single-choice" && (
+                                <div className="space-y-3">
+                                  <Label>Answer Options</Label>
+                                  <RadioGroup
+                                    value={question.correctAnswer.toString()}
+                                    onValueChange={(value) =>
+                                      updateQuestion(question.id, {
+                                        correctAnswer: Number.parseInt(value),
+                                      })
+                                    }
+                                    disabled={isSaving}>
+                                    {question.options?.map((option, optIndex) => (
+                                      <div
+                                        key={optIndex}
+                                        className="flex items-center space-x-2">
+                                        <RadioGroupItem
+                                          value={optIndex.toString()}
+                                          id={`q${question.id}-option-${optIndex}`}
+                                        />
+                                        <Input
+                                          value={option}
+                                          onChange={(e) => {
+                                            const newOptions = [
+                                              ...(question.options || []),
+                                            ];
+                                            newOptions[optIndex] = e.target.value;
+                                            updateQuestion(question.id, {
+                                              options: newOptions,
+                                            });
+                                          }}
+                                          placeholder={`Option ${optIndex + 1}`}
+                                          className="flex-1"
+                                          disabled={isSaving}
+                                        />
+                                        {optIndex === question.correctAnswer && (
+                                          <Badge
+                                            variant="default"
+                                            className="text-xs">
+                                            Correct
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </RadioGroup>
+                                </div>
+                              )}
+                              {question.type === "true-false" && (
+                                <div className="space-y-2">
+                                  <div
+                                    className={`p-2 border rounded ${question.correctAnswer === true
+                                      ? "border-green-500 bg-green-50"
+                                      : "border-gray-200"
+                                      }`}>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                      <span className="text-sm">True</span>
+                                      {question.correctAnswer === true && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs ml-auto">
+                                          Correct Answer
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={`p-2 border rounded ${question.correctAnswer === false
+                                      ? "border-green-500 bg-green-50"
+                                      : "border-gray-200"
+                                      }`}>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                      <span className="text-sm">False</span>
+                                      {question.correctAnswer === false && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs ml-auto">
+                                          Correct Answer
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        {question.type === "true-false" && (
-                          <div className="space-y-2">
-                            <div
-                              className={`p-2 border rounded ${question.correctAnswer === true
-                                ? "border-green-500 bg-green-50"
-                                : "border-gray-200"
-                                }`}>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-4 h-4 border border-gray-300 rounded-full" />
-                                <span className="text-sm">True</span>
-                                {question.correctAnswer === true && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs ml-auto">
-                                    Correct Answer
-                                  </Badge>
-                                )}
+                              )}
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Points</Label>
+                                  <Input
+                                    type="number"
+                                    value={Number.isNaN(question.points) ? "" : question.points}
+                                    onChange={(e) => {
+                                      const parsed = Number.parseInt(e.target.value);
+                                      const newPoints = Number.isNaN(parsed) ? 0 : parsed;
+                                      const oldPoints = question.points;
+                                      updateQuestion(question.id, {
+                                        points: newPoints,
+                                      });
+                                      setCurrentTest((prev) => ({
+                                        ...prev,
+                                        totalPoints:
+                                          prev.totalPoints -
+                                          oldPoints +
+                                          newPoints,
+                                      }));
+                                    }}
+                                    min={1}
+                                    max={50}
+                                    disabled={isSaving}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Difficulty</Label>
+                                  <Select
+                                    value={question.difficulty || "Medium"}
+                                    onValueChange={(
+                                      value: "Easy" | "Medium" | "Hard",
+                                    ) =>
+                                      updateQuestion(question.id, {
+                                        difficulty: value,
+                                      })
+                                    }
+                                    disabled={isSaving}>
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Easy">Easy</SelectItem>
+                                      <SelectItem value="Medium">
+                                        Medium
+                                      </SelectItem>
+                                      <SelectItem value="Hard">Hard</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
-                            </div>
-                            <div
-                              className={`p-2 border rounded ${question.correctAnswer === false
-                                ? "border-green-500 bg-green-50"
-                                : "border-gray-200"
-                                }`}>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-4 h-4 border border-gray-300 rounded-full" />
-                                <span className="text-sm">False</span>
-                                {question.correctAnswer === false && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs ml-auto">
-                                    Correct Answer
-                                  </Badge>
-                                )}
+                              <div className="space-y-2">
+                                <Label>Explanation (Optional)</Label>
+                                <Textarea
+                                  value={question.explanation || ""}
+                                  onChange={(e) =>
+                                    updateQuestion(question.id, {
+                                      explanation: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Explain the correct answer"
+                                  rows={2}
+                                  disabled={isSaving}
+                                />
                               </div>
-                            </div>
-                          </div>
-                        )}
-                        {question.explanation && (
-                          <div className="mt-4">
-                            <Label className="text-sm font-semibold">
-                              Explanation
-                            </Label>
-                            <p className="text-sm text-muted-foreground">
-                              {question.explanation}
-                            </p>
-                          </div>
-                        )}
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsEditTestOpen(false)}
+                disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button onClick={saveTest} disabled={isSaving}>
+                {isSaving ? (
+                  <Spinner size="sm" className="mr-2 text-white" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* ----------------------------- Preview Modal ----------------------------- */}
+        <Dialog open={isPreviewTestOpen} onOpenChange={setIsPreviewTestOpen}>
+          <DialogContent className="max-w-md sm:max-w-xl md:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Preview Test: {selectedTestForPreview?.title}
+              </DialogTitle>
+              <DialogDescription>
+                Preview how students will see this test
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTestForPreview && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
+                      <div>
+                        <CardTitle className="text-xl">
+                          {selectedTestForPreview.title}
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          {selectedTestForPreview.instructions}
+                        </CardDescription>
+                      </div>
+                      <div className="text-left sm:text-right text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Clock className="h-3 w-3" />
+                          {selectedTestForPreview.duration} minutes
+                        </div>
+                        <div>
+                          {selectedTestForPreview.totalPoints} points total
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">
+                        {selectedTestForPreview.difficulty}
+                      </Badge>
+                      <Badge variant="outline">
+                        {selectedTestForPreview.category}
+                      </Badge>
+                      <Badge
+                        variant={
+                          selectedTestForPreview.isPublished
+                            ? "default"
+                            : "secondary"
+                        }
+                        className="bg-[#f57c50]/70">
+                        {selectedTestForPreview.isPublished
+                          ? "Published"
+                          : "Draft"}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">
+                    Questions ({selectedTestForPreview.questions.length})
+                  </h3>
+                  {selectedTestForPreview.questions.length === 0 ? (
+                    <Card>
+                      <CardContent className="text-center py-8 text-muted-foreground">
+                        <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                        <p>No questions added to this test yet</p>
                       </CardContent>
                     </Card>
-                  ))
-                )}
+                  ) : (
+                    selectedTestForPreview.questions.map((question, index) => (
+                      <Card key={question.id}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <CardTitle className="text-base">
+                              Question {index + 1} ({question.points} points)
+                            </CardTitle>
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-[#f57c50]/70">
+                              {question.type.replace("-", " ")}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <p className="text-sm">{question.question}</p>
+                          {question.type === "single-choice" &&
+                            question.options && (
+                              <div className="space-y-2">
+                                {question.options.map((option, optIndex) => (
+                                  <div
+                                    key={optIndex}
+                                    className={`p-2 border rounded ${optIndex === question.correctAnswer
+                                      ? "border-[#f57c50] bg-[#f57c50]/10"
+                                      : "border-gray-200"
+                                      }`}>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                      <span className="text-sm">{option}</span>
+                                      {optIndex === question.correctAnswer && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs bg-[#f57c50]/70 ml-auto">
+                                          Correct Answer
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          {question.type === "true-false" && (
+                            <div className="space-y-2">
+                              <div
+                                className={`p-2 border rounded ${question.correctAnswer === true
+                                  ? "border-green-500 bg-green-50"
+                                  : "border-gray-200"
+                                  }`}>
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                  <span className="text-sm">True</span>
+                                  {question.correctAnswer === true && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs ml-auto">
+                                      Correct Answer
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div
+                                className={`p-2 border rounded ${question.correctAnswer === false
+                                  ? "border-green-500 bg-green-50"
+                                  : "border-gray-200"
+                                  }`}>
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                                  <span className="text-sm">False</span>
+                                  {question.correctAnswer === false && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs ml-auto">
+                                      Correct Answer
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {question.explanation && (
+                            <div className="mt-4">
+                              <Label className="text-sm font-semibold">
+                                Explanation
+                              </Label>
+                              <p className="text-sm text-muted-foreground">
+                                {question.explanation}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-      {/* ---------------------------- Analytics Modal ---------------------------- */}
-      <Dialog
-        open={isAnalyticsDetailOpen}
-        onOpenChange={setIsAnalyticsDetailOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Analytics for {selectedTestForAnalytics?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Performance summary for this test
-            </DialogDescription>
-          </DialogHeader>
-          {analyticsSummary ? (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Attempts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analyticsSummary.totalAttempts}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Average Score
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analyticsSummary.averageScore}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Pass Rate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analyticsSummary.passRate}%
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Average Completion Time
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analyticsSummary.averageCompletionTime} mins
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <p>No analytics data available for this test.</p>
-          )}
-        </DialogContent>
-      </Dialog>
-      {/* ------------------- Delete Confirmation Dialog ------------------- */}
-      <AlertDialog
-        open={deleteConfirm.open}
-        onOpenChange={(open) =>
-          setDeleteConfirm((prev) => ({ ...prev, open }))
-        }>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-red-500" />
-              Delete Test
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                {deleteConfirm.checking ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Spinner size="sm" />
-                    Checking for student attempts…
-                  </div>
-                ) : deleteConfirm.hasAttempts ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-red-600">
-                      This test cannot be deleted.
-                    </p>
+            )}
+          </DialogContent>
+        </Dialog>
+        {/* ---------------------------- Analytics Modal ---------------------------- */}
+        <Dialog
+          open={isAnalyticsDetailOpen}
+          onOpenChange={setIsAnalyticsDetailOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Analytics for {selectedTestForAnalytics?.title}
+              </DialogTitle>
+              <DialogDescription>
+                Performance summary for this test
+              </DialogDescription>
+            </DialogHeader>
+            {analyticsSummary ? (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Attempts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsSummary.totalAttempts}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Average Score
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsSummary.averageScore}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Pass Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsSummary.passRate}%
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Average Completion Time
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsSummary.averageCompletionTime} mins
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <p>No analytics data available for this test.</p>
+            )}
+          </DialogContent>
+        </Dialog>
+        {/* ------------------- Delete Confirmation Dialog ------------------- */}
+        <AlertDialog
+          open={deleteConfirm.open}
+          onOpenChange={(open) =>
+            setDeleteConfirm((prev) => ({ ...prev, open }))
+          }>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-red-500" />
+                Delete Test
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  {deleteConfirm.checking ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Spinner size="sm" />
+                      Checking for student attempts…
+                    </div>
+                  ) : deleteConfirm.hasAttempts ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-red-600">
+                        This test cannot be deleted.
+                      </p>
+                      <p className="text-sm">
+                        <span className="font-semibold">
+                          &quot;{deleteConfirm.testTitle}&quot;
+                        </span>{" "}
+                        has{" "}
+                        <span className="font-semibold text-red-600">
+                          {deleteConfirm.attemptCount} student
+                          {deleteConfirm.attemptCount === 1 ? " attempt" : " attempts"}
+                        </span>.
+                        Deleting it would erase student performance records. Please
+                        unpublish it instead.
+                      </p>
+                    </div>
+                  ) : (
                     <p className="text-sm">
+                      Are you sure you want to permanently delete{" "}
                       <span className="font-semibold">
                         &quot;{deleteConfirm.testTitle}&quot;
-                      </span>{" "}
-                      has{" "}
-                      <span className="font-semibold text-red-600">
-                        {deleteConfirm.attemptCount} student
-                        {deleteConfirm.attemptCount === 1 ? " attempt" : " attempts"}
-                      </span>.
-                      Deleting it would erase student performance records. Please
-                      unpublish it instead.
+                      </span>?
+                      This action cannot be undone.
                     </p>
-                  </div>
-                ) : (
-                  <p className="text-sm">
-                    Are you sure you want to permanently delete{" "}
-                    <span className="font-semibold">
-                      &quot;{deleteConfirm.testTitle}&quot;
-                    </span>?
-                    This action cannot be undone.
-                  </p>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            {!deleteConfirm.checking && !deleteConfirm.hasAttempts && (
-              <AlertDialogAction
-                className="bg-red-600 hover:bg-red-700 text-white"
-                onClick={async () => {
-                  setDeleteConfirm((prev) => ({ ...prev, open: false }));
-                  await deleteTest(deleteConfirm.testId);
-                }}>
-                Yes, Delete
-              </AlertDialogAction>
-            )}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              {!deleteConfirm.checking && !deleteConfirm.hasAttempts && (
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={async () => {
+                    setDeleteConfirm((prev) => ({ ...prev, open: false }));
+                    await deleteTest(deleteConfirm.testId);
+                  }}>
+                  Yes, Delete
+                </AlertDialogAction>
+              )}
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <AlertDialog
-        open={alertState.open}
-        onOpenChange={(open) => setAlertState((prev) => ({ ...prev, open }))}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{alertState.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {alertState.message || " "}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>OK</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {/* New Expanded Question Modal */}
-      <Dialog
-        open={isQuestionExpandOpen}
-        onOpenChange={setIsQuestionExpandOpen}>
-        <DialogContent className="max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-6xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Edit Question</DialogTitle>
-            <DialogDescription>
-              Enter the full question text here
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto">
-            <Textarea
-              value={expandedQuestionText}
-              onChange={(e) => setExpandedQuestionText(e.target.value)}
-              placeholder="Enter your question here..."
-              className="min-h-[200px] h-full resize-none"
-              autoFocus
-            />
-          </div>
-          <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsQuestionExpandOpen(false)}
-              className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveExpandedQuestion}
-              className="w-full sm:w-auto">
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <AlertDialog
+          open={alertState.open}
+          onOpenChange={(open) => setAlertState((prev) => ({ ...prev, open }))}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{alertState.title}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {alertState.message || " "}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction>OK</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        {/* New Expanded Question Modal */}
+        <Dialog
+          open={isQuestionExpandOpen}
+          onOpenChange={setIsQuestionExpandOpen}>
+          <DialogContent className="max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-6xl max-h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Edit Question</DialogTitle>
+              <DialogDescription>
+                Enter the full question text here
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              <Textarea
+                value={expandedQuestionText}
+                onChange={(e) => setExpandedQuestionText(e.target.value)}
+                placeholder="Enter your question here..."
+                className="min-h-[200px] h-full resize-none"
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsQuestionExpandOpen(false)}
+                className="w-full sm:w-auto">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveExpandedQuestion}
+                className="w-full sm:w-auto">
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TeacherOnboardingGate>
   );
 }

@@ -233,7 +233,7 @@ export function CourseModal({
     const saveData = {
       name: formData.name,
       subject: formData.subject,
-      classroom: formData.classroom,
+      classroom: formData.classroom || null,
       teacher: formData.teacher,
       description: formData.description || undefined,
       is_active: formData.status === "active",
@@ -290,18 +290,19 @@ export function CourseModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="classroom">Classroom *</Label>
+                <Label htmlFor="classroom">Classroom <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Select
                   value={formData.classroom}
                   onValueChange={(value) =>
-                    setFormData({...formData, classroom: value})
+                    setFormData({...formData, classroom: value === "__none__" ? "" : value})
                   }
                   disabled={loading} // Disable select
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select classroom" />
+                    <SelectValue placeholder="No classroom" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">— No Classroom —</SelectItem>
                     {options.classrooms.map((cls) => (
                       <SelectItem key={cls.id} value={cls.name}>
                         {cls.name}
