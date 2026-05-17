@@ -3,6 +3,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 export interface InProgressAttempt {
   testId: string;
+  userId?: string; // scoping field — filters prevent cross-user bleed
   clientSubmissionId: string;
   mode: "online" | "offline";
   questions: any[];
@@ -46,6 +47,7 @@ export type NewQueuedSubmission = Omit<
 
 export interface CompletedTestRecord {
   testId: string;
+  userId?: string; // scoping field — filters prevent cross-user bleed
   clientSubmissionId: string;
   completedAt: number;
   syncStatus: "pending" | "confirmed" | "failed";
@@ -156,6 +158,17 @@ export async function loadInProgress(
 export async function listAllInProgress(): Promise<InProgressAttempt[]> {
   const db = await getDb();
   return db.getAll("in_progress");
+}
+
+/**
+ * Return only in-progress records that belong to the given userId.
+ * Records without a userId (legacy) are excluded to prevent cross-user bleed.
+ */
+export async function listAllInProgressForUser(
+  userId: string
+): Promise<InProgressAttempt[]> {
+  const all = await listAllInProgress();
+  return all.filter((r) => r.userId === userId);
 }
 
 export async function clearInProgress(testId: string): Promise<void> {
@@ -300,6 +313,18 @@ export async function getCompletedTest(
 export async function listCompletedTests(): Promise<CompletedTestRecord[]> {
   const db = await getDb();
   return db.getAll("completed_tests");
+}
+
+/**
+ * Return only completed-test records that belong to the given userId.
+ * Records written before the userId field was introduced (legacy) are
+ * excluded so they don't bleed across accounts.
+ */
+export async function listCompletedTestsForUser(
+  userId: string
+): Promise<CompletedTestRecord[]> {
+  const all = await listCompletedTests();
+  return all.filter((r) => r.userId === userId);
 }
 
 export async function updateCompletedSyncStatus(

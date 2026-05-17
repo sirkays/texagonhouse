@@ -180,109 +180,109 @@ export default function StudentEnrollmentsPage() {
   };
 
   return (
-  
-      <div className="space-y-6 px-2 sm:px-0">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col md:flex-row items-center gap-2">
-            <Button variant="outline" onClick={() => router.back()} className="self-start" disabled={loading || assigning}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
 
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">{pageTitle}</h1>
-              <p className="text-muted-foreground">
-                View enrolled courses and assign a new course.
-              </p>
-            </div>
-          </div>
-
-          <Button variant="outline" onClick={refreshAll} disabled={loading || assigning}>
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Refresh
+    <div className="space-y-6 px-2 sm:px-0">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col md:flex-row items-center gap-2">
+          <Button variant="outline" onClick={() => router.back()} className="self-start" disabled={loading || assigning}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
           </Button>
+
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">{pageTitle}</h1>
+            <p className="text-muted-foreground">
+              View enrolled courses and assign a new course.
+            </p>
+          </div>
         </div>
 
-        {/* Enrolled courses */}
-        <Card>
-          <CardHeader className="space-y-2">
-            <CardTitle>Enrolled Courses ({enrollments.length})</CardTitle>
-            <Input
-              placeholder="Search enrolled courses…"
-              value={searchEnrolled}
-              onChange={(e) => setSearchEnrolled(e.target.value)}
-              disabled={loading}
-            />
-          </CardHeader>
-
-          <CardContent className="space-y-3">
-            {enrollments.map((e) => (
-              <div key={e.id} className="border rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold">{e.course.name}</div>
-                  {statusBadge(e.status)}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {e.course.subject} • {e.course.classroom} • {e.course.teacher}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Progress: {Math.round(e.progress_pct)}%
-                </div>
-              </div>
-            ))}
-
-            {!loading && enrollments.length === 0 && (
-              <p className="text-center text-muted-foreground py-10">
-                No enrollments found.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Assign new course */}
-        <Card>
-          <CardHeader className="space-y-2">
-            <CardTitle>Assign a New Course</CardTitle>
-            <Input
-              placeholder="Search available courses…"
-              value={searchAvailable}
-              onChange={(e) => setSearchAvailable(e.target.value)}
-              disabled={loading || assigning}
-            />
-          </CardHeader>
-
-          <CardContent className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCourses.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name} — {c.subject} • {c.classroom}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                onClick={handleAssign}
-                disabled={loading || assigning || !selectedCourseId}
-                className="w-full sm:w-auto"
-              >
-                {assigning ? "Assigning…" : "Assign"}
-              </Button>
-            </div>
-
-            {!loading && availableCourses.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No available courses (student may already be enrolled in all active courses).
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <Button variant="outline" onClick={refreshAll} disabled={loading || assigning}>
+          <RefreshCcw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
+
+      {/* Enrolled courses */}
+      <Card>
+        <CardHeader className="space-y-2">
+          <CardTitle>Enrolled Courses ({enrollments.length})</CardTitle>
+          <Input
+            placeholder="Search enrolled courses…"
+            value={searchEnrolled}
+            onChange={(e) => setSearchEnrolled(e.target.value)}
+            disabled={loading}
+          />
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          {enrollments.map((e) => (
+            <div key={e.id} className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-semibold">{e.course.name}</div>
+                {statusBadge(e.status)}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {e.course.subject} • {e.course.classroom} • {e.course.teacher}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Progress: {Math.round(e.progress_pct)}%
+              </div>
+            </div>
+          ))}
+
+          {!loading && enrollments.length === 0 && (
+            <p className="text-center text-muted-foreground py-10">
+              No enrollments found.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Assign new course */}
+      <Card>
+        <CardHeader className="space-y-2">
+          <CardTitle>Assign a New Course</CardTitle>
+          <Input
+            placeholder="Search available courses…"
+            value={searchAvailable}
+            onChange={(e) => setSearchAvailable(e.target.value)}
+            disabled={loading || assigning}
+          />
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a course" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCourses.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>
+                    {c.name} — {c.subject} • {c.classroom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              onClick={handleAssign}
+              disabled={loading || assigning || !selectedCourseId}
+              className="w-full sm:w-auto"
+            >
+              {assigning ? "Assigning…" : "Assign"}
+            </Button>
+          </div>
+
+          {!loading && availableCourses.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No available courses (student may already be enrolled in all active courses).
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

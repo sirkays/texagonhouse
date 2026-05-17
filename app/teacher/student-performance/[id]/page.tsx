@@ -99,6 +99,7 @@ export default function StudentPerformancePage() {
         return;
       }
       setPerformanceDetail(data);
+      console.log("[DEBUG] performance detail answers:", data.answers);
 
       const testRes = await fetch(
         `/api/teacher/assessments/tests/${data.test.testId}`

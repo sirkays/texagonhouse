@@ -12,6 +12,7 @@ interface Student {
 
 interface Test {
   testTitle: string;
+  testId: string;
   score: number;
   totalMarks: number;
   percentage: number;
@@ -97,6 +98,7 @@ export async function GET(req: Request) {
     let data: PerformanceDetail;
     try {
       data = text ? (JSON.parse(text) as PerformanceDetail) : ({} as any);
+      console.log("[DEBUG proxy] Received answers from backend:", JSON.stringify(data.answers, null, 2));
     } catch (parseError) {
       console.error(
         "[TeacherPerformanceDetailAPI] Failed to parse JSON:",
@@ -120,6 +122,7 @@ export async function GET(req: Request) {
       },
       test: {
         testTitle: data?.test?.testTitle || "",
+        testId: data?.test?.testId || "",
         score: data?.test?.score || 0,
         totalMarks: data?.test?.totalMarks || 0,
         percentage: data?.test?.percentage || 0,

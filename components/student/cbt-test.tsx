@@ -56,12 +56,12 @@ import {
   saveInProgress,
   loadInProgress,
   clearInProgress,
-  listAllInProgress,
+  listAllInProgressForUser,
   enqueueSubmission,
   getSubmissionForTest,
   markTestCompleted,
   getCompletedTest,
-  listCompletedTests,
+  listCompletedTestsForUser,
   type InProgressAttempt,
   type CompletedTestRecord,
 } from "@/lib/cbt/db";
@@ -253,7 +253,9 @@ export function CBTTest() {
   );
 
   const refreshCompleted = useCallback(async () => {
-    const all = await listCompletedTests();
+    // Only load records that belong to this user — prevents cross-user bleed
+    // when two students share the same browser/device.
+    const all = await listCompletedTestsForUser(userId);
     const map: Record<string, CompletedTestRecord> = {};
 
     for (const item of all) {
@@ -281,7 +283,7 @@ export function CBTTest() {
       }
       return prev;
     });
-  }, []);
+  }, [userId]);
 
   // ---- ui / list state ----
   const [availableTests, setAvailableTests] = useState<any[]>([]);
@@ -545,6 +547,7 @@ export function CBTTest() {
       ) => {
         await markTestCompleted({
           testId: snap.testId,
+          userId,
           clientSubmissionId: snap.clientSubmissionId,
           completedAt: Date.now(),
           syncStatus: "confirmed",
@@ -703,6 +706,7 @@ export function CBTTest() {
 
       await markTestCompleted({
         testId: snap.testId,
+        userId,
         clientSubmissionId: snap.clientSubmissionId,
         completedAt: Date.now(),
         syncStatus: "pending",
@@ -793,6 +797,7 @@ export function CBTTest() {
   // Once done, only attemptsPage changes (or explicit refreshes) should
   // re-fetch — NOT background session re-validations from NextAuth.
   const initialFetchDoneRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -809,6 +814,13 @@ export function CBTTest() {
       return;
     }
 
+    // If a different user just logged in, reset the fetch flag so we load
+    // their data fresh instead of showing the previous user's data.
+    if (lastUserIdRef.current !== null && lastUserIdRef.current !== userId) {
+      initialFetchDoneRef.current = false;
+    }
+    lastUserIdRef.current = userId;
+
     // Skip re-fetching if the initial load was already done and
     // the only thing that changed was the session status/token
     // (i.e. a background NextAuth re-validation).
@@ -817,7 +829,7 @@ export function CBTTest() {
     initialFetchDoneRef.current = true;
     fetchData(hasLoadedOnceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, sessionToken]);
+  }, [status, sessionToken, userId]);
 
   // Separate effect for page changes — always re-fetch when the page changes.
   useEffect(() => {
@@ -969,7 +981,8 @@ export function CBTTest() {
     let cancelled = false;
 
     (async () => {
-      const inProgressList = await listAllInProgress();
+      // Only resume tests that belong to the current user
+      const inProgressList = await listAllInProgressForUser(userId);
 
       if (cancelled || inProgressList.length === 0) return;
 
@@ -1202,7 +1215,8 @@ export function CBTTest() {
 
     if (!testId || startingTestIds[testId]) return;
 
-    const inProgressList = await listAllInProgress();
+    // Only check in-progress tests that belong to the current user
+    const inProgressList = await listAllInProgressForUser(userId);
 
     if (inProgressList.length > 0) {
       const snap = inProgressList[0];
@@ -1312,6 +1326,7 @@ export function CBTTest() {
 
       await saveInProgress({
         testId,
+        userId,
         clientSubmissionId: csid,
         mode: "offline",
         questions: mapped,
@@ -1389,6 +1404,7 @@ export function CBTTest() {
 
       await saveInProgress({
         testId,
+        userId,
         clientSubmissionId: csid,
         mode: "online",
         questions: mapped,
@@ -1443,6 +1459,7 @@ export function CBTTest() {
     const timer = setTimeout(() => {
       saveInProgress({
         testId: currentTest,
+        userId,
         clientSubmissionId,
         mode: currentMode,
         questions,
@@ -1479,6 +1496,7 @@ export function CBTTest() {
 
     saveInProgress({
       testId: currentTest,
+      userId,
       clientSubmissionId,
       mode: currentMode,
       questions,
@@ -1503,6 +1521,7 @@ export function CBTTest() {
       if (clientSubmissionId && startTime) {
         saveInProgress({
           testId: currentTest,
+          userId,
           clientSubmissionId,
           mode: currentMode,
           questions,
@@ -1695,6 +1714,7 @@ export function CBTTest() {
     if (markCompleted && clientSubmissionId) {
       await markTestCompleted({
         testId,
+        userId,
         clientSubmissionId,
         completedAt: Date.now(),
         syncStatus: "confirmed",
@@ -1942,6 +1962,7 @@ export function CBTTest() {
          */
         await markTestCompleted({
           testId: currentTest,
+          userId,
           clientSubmissionId: csid,
           completedAt: Date.now(),
           syncStatus: "confirmed",
@@ -1996,6 +2017,7 @@ export function CBTTest() {
 
       await markTestCompleted({
         testId: currentTest,
+        userId,
         clientSubmissionId: csid,
         completedAt: Date.now(),
         syncStatus: "pending",
