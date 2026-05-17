@@ -170,26 +170,28 @@ export async function POST(
         start_at: data.test?.start_at || null,
         end_at: data.test?.end_at || null,
         test_type: data.test?.mode || "online",
-        questions: Array.isArray(data.test?.questions)
-          ? data.test.questions.map((q: any) => ({
-              id: q?.id || "",
-              type: q?.type || "",
-              question: q?.question || "",
-              points: q?.points || 0,
-              options: q?.options || [],
-              explanation: q?.explanation || "",
-              difficulty: q?.difficulty || "Medium",
-              correctAnswer:
-                q?.correctAnswer ??
-                (q?.type === "multiple-choice"
-                  ? 0
-                  : q?.type === "true-false"
-                  ? false
-                  : q?.type === "short-answer"
-                  ? ""
-                  : ""),
-            }))
-          : [],
+        ...(data.test?.questions !== undefined && {
+          questions: Array.isArray(data.test.questions)
+            ? data.test.questions.map((q: any) => ({
+                id: q?.id || "",
+                type: q?.type || "",
+                question: q?.question || "",
+                points: q?.points || 0,
+                options: q?.options || [],
+                explanation: q?.explanation || "",
+                difficulty: q?.difficulty || "Medium",
+                correctAnswer:
+                  q?.correctAnswer ??
+                  (q?.type === "multiple-choice"
+                    ? 0
+                    : q?.type === "true-false"
+                    ? false
+                    : q?.type === "short-answer"
+                    ? ""
+                    : ""),
+              }))
+            : [],
+        }),
       },
       message: data.message || "Test published/unpublished successfully.",
     };

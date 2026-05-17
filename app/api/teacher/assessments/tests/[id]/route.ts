@@ -87,6 +87,7 @@ export async function GET(
         start_at: data.test?.start_at || null,
         end_at: data.test?.end_at || null,
         excluded_students: data.test?.excluded_students || null,
+        require_browser_code: data.test?.require_browser_code ?? false,
         questions: Array.isArray(data.test?.questions)
           ? data.test.questions.map((q: any) => ({
               id: q.id || "",

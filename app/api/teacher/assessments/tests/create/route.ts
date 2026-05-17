@@ -27,6 +27,7 @@ export async function POST(
       end_at: body.end_at || null,
       total_marks: body.total_marks || 0,
       mode: body.mode || "online",
+      require_browser_code: body.require_browser_code ?? false,
     };
 
     const { response, text, setCookie } = await djangoFetch(endpoint, {
@@ -103,6 +104,7 @@ export async function POST(
         start_at: data.test?.start_at || null,
         end_at: data.test?.end_at || null,
         mode: data.test?.mode || "online",
+        require_browser_code: data.test?.require_browser_code ?? false,
         excluded_students: data.test?.excluded_students || null,
         questions: Array.isArray(data.test?.questions)
           ? data.test.questions.map((q: any) => ({
@@ -176,8 +178,16 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
 
     if (endpoint.includes("/tests/") && !endpoint.includes("/questions/")) {
       processedBody = {
+        title: body.title,
+        instructions: body.instructions,
+        duration: body.duration,
+        difficulty: body.difficulty,
+        mode: body.mode,
+        require_browser_code: body.require_browser_code,
         start_at: body.start_at || null,
         end_at: body.end_at || null,
+        total_marks: body.total_marks,
+        excluded_students: body.excluded_students,
       };
     } else if (endpoint.includes("/questions/")) {
       processedBody = {
@@ -276,6 +286,7 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
           start_at: data.test?.start_at || null,
           end_at: data.test?.end_at || null,
           mode: data.test?.mode || "online",
+          require_browser_code: data.test?.require_browser_code ?? false,
           excluded_students: data.test?.excluded_students || null,
           questions: Array.isArray(data.test?.questions)
             ? data.test.questions.map((q: any) => ({
