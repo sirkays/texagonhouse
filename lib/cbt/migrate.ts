@@ -47,6 +47,7 @@ export async function migrateLegacyCBTState(userId: string) {
         const snap = JSON.parse(raw);
         await saveInProgress({
           testId: String(snap.testId),
+          userId,
           clientSubmissionId: snap.clientSubmissionId || crypto.randomUUID(),
           mode: snap.mode || "offline",
           questions: snap.questions || [],

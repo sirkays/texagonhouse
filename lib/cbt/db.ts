@@ -148,11 +148,23 @@ export async function saveInProgress(
   });
 }
 
+/**
+ * Load an in-progress attempt for a specific user.
+ * Returns undefined if no record exists OR if the record belongs to a different user.
+ */
 export async function loadInProgress(
-  testId: string
+  testId: string,
+  userId: string
 ): Promise<InProgressAttempt | undefined> {
   const db = await getDb();
-  return db.get("in_progress", testId);
+  const record = await db.get("in_progress", testId);
+
+  // Ownership check: prevent cross-user data bleed
+  if (record && record.userId && record.userId !== userId) {
+    return undefined;
+  }
+
+  return record;
 }
 
 export async function listAllInProgress(): Promise<InProgressAttempt[]> {
@@ -171,8 +183,19 @@ export async function listAllInProgressForUser(
   return all.filter((r) => r.userId === userId);
 }
 
-export async function clearInProgress(testId: string): Promise<void> {
+/**
+ * Clear an in-progress record only if it belongs to the given user.
+ * This prevents one user from accidentally clearing another user's in-progress attempt.
+ */
+export async function clearInProgress(testId: string, userId: string): Promise<void> {
   const db = await getDb();
+
+  // Only clear if the record belongs to this user (or has no userId — legacy)
+  const existing = await db.get("in_progress", testId);
+  if (existing && existing.userId && existing.userId !== userId) {
+    return; // Don't delete another user's record
+  }
+
   await db.delete("in_progress", testId);
 }
 
@@ -200,6 +223,7 @@ export async function enqueueSubmission(
 
   const completedRecord: CompletedTestRecord = {
     testId: sub.testId,
+    userId: sub.userId,
     clientSubmissionId: sub.clientSubmissionId,
     completedAt: now,
     syncStatus: "pending",
@@ -303,11 +327,24 @@ export async function markTestCompleted(
   notifyCbtChanged("completed-changed");
 }
 
+/**
+ * Get a completed test record only if it belongs to the given user.
+ * Returns undefined if no record exists OR if the record belongs to a different user.
+ * This prevents cross-user bleed when two students share the same browser.
+ */
 export async function getCompletedTest(
-  testId: string
+  testId: string,
+  userId: string
 ): Promise<CompletedTestRecord | undefined> {
   const db = await getDb();
-  return db.get("completed_tests", testId);
+  const record = await db.get("completed_tests", testId);
+
+  // Ownership check: prevent cross-user data bleed
+  if (record && record.userId && record.userId !== userId) {
+    return undefined;
+  }
+
+  return record;
 }
 
 export async function listCompletedTests(): Promise<CompletedTestRecord[]> {
@@ -329,12 +366,16 @@ export async function listCompletedTestsForUser(
 
 export async function updateCompletedSyncStatus(
   testId: string,
+  userId: string,
   patch: Partial<CompletedTestRecord>
 ): Promise<void> {
   const db = await getDb();
   const existing = await db.get("completed_tests", testId);
 
   if (!existing) return;
+
+  // Only update if the record belongs to this user
+  if (existing.userId && existing.userId !== userId) return;
 
   await db.put("completed_tests", {
     ...existing,
@@ -344,8 +385,15 @@ export async function updateCompletedSyncStatus(
   notifyCbtChanged("completed-changed");
 }
 
-export async function deleteCompletedTest(testId: string): Promise<void> {
+export async function deleteCompletedTest(testId: string, userId?: string): Promise<void> {
   const db = await getDb();
+
+  // If userId provided, verify ownership before deleting
+  if (userId) {
+    const existing = await db.get("completed_tests", testId);
+    if (existing && existing.userId && existing.userId !== userId) return;
+  }
+
   await db.delete("completed_tests", testId);
 
   notifyCbtChanged("completed-changed");

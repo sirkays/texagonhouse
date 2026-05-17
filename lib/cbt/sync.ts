@@ -105,7 +105,7 @@ async function processOne(
         }
       );
 
-      await updateCompletedSyncStatus(sub.testId, {
+      await updateCompletedSyncStatus(sub.testId, sub.userId, {
         syncStatus: "confirmed",
         serverAttemptId: data?.attempt_id ?? null,
         serverResponse: data,
@@ -145,7 +145,7 @@ async function processOne(
         }
       );
 
-      await updateCompletedSyncStatus(sub.testId, {
+      await updateCompletedSyncStatus(sub.testId, sub.userId, {
         syncStatus: "confirmed",
         serverResponse,
       });
@@ -165,7 +165,7 @@ async function processOne(
         }
       );
 
-      await updateCompletedSyncStatus(sub.testId, {
+      await updateCompletedSyncStatus(sub.testId, sub.userId, {
         syncStatus: "failed",
       });
 
@@ -193,7 +193,7 @@ async function processOne(
         }
       );
 
-      await updateCompletedSyncStatus(sub.testId, {
+      await updateCompletedSyncStatus(sub.testId, sub.userId, {
         syncStatus: "failed",
       });
 
@@ -230,7 +230,7 @@ async function scheduleRetry(
       }
     );
 
-    await updateCompletedSyncStatus(sub.testId, {
+    await updateCompletedSyncStatus(sub.testId, sub.userId, {
       syncStatus: "failed",
     });
 

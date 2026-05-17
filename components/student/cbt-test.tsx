@@ -559,7 +559,7 @@ export function CBTTest() {
             typeof data?.total_points === "number" ? data.total_points : null,
         });
 
-        await clearInProgress(snap.testId);
+        await clearInProgress(snap.testId, userId);
         await refreshCompleted();
 
         if (reason === "expired") {
@@ -715,7 +715,7 @@ export function CBTTest() {
         localTotalPoints: null,
       });
 
-      await clearInProgress(snap.testId);
+      await clearInProgress(snap.testId, userId);
       await refreshCompleted();
 
       if (navigator.onLine) triggerSync();
@@ -735,7 +735,7 @@ export function CBTTest() {
   const recoverForcedSubmitState = useCallback(async () => {
     if (!currentTest) return;
 
-    const alreadyDone = await getCompletedTest(currentTest);
+    const alreadyDone = await getCompletedTest(currentTest, userId);
 
     if (alreadyDone) {
       setPendingForcedSubmit(false);
@@ -747,7 +747,7 @@ export function CBTTest() {
       return;
     }
 
-    const snap = await loadInProgress(currentTest);
+    const snap = await loadInProgress(currentTest, userId);
 
     if (!snap) {
       setPendingForcedSubmit(false);
@@ -991,10 +991,10 @@ export function CBTTest() {
           new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime()
       )[0];
 
-      const completedRecord = await getCompletedTest(snap.testId);
+      const completedRecord = await getCompletedTest(snap.testId, userId);
 
       if (completedRecord) {
-        await clearInProgress(snap.testId);
+        await clearInProgress(snap.testId, userId);
         return;
       }
 
@@ -1026,7 +1026,7 @@ export function CBTTest() {
         }
 
         if (snap.mode !== "online") {
-          await clearInProgress(snap.testId);
+          await clearInProgress(snap.testId, userId);
           return;
         }
 
@@ -1101,7 +1101,7 @@ export function CBTTest() {
     const timer = setTimeout(async () => {
       if (cancelled) return;
 
-      const alreadyDone = await getCompletedTest(currentTest);
+      const alreadyDone = await getCompletedTest(currentTest, userId);
 
       if (cancelled) return;
 
@@ -1115,7 +1115,7 @@ export function CBTTest() {
         return;
       }
 
-      const snap = await loadInProgress(currentTest);
+      const snap = await loadInProgress(currentTest, userId);
 
       if (cancelled) return;
 
@@ -1163,7 +1163,7 @@ export function CBTTest() {
     const interval = setInterval(async () => {
       if (!navigator.onLine) return;
 
-      const alreadyDone = await getCompletedTest(currentTest);
+      const alreadyDone = await getCompletedTest(currentTest, userId);
 
       if (alreadyDone) {
         setPendingForcedSubmit(false);
@@ -1175,7 +1175,7 @@ export function CBTTest() {
         return;
       }
 
-      const snap = await loadInProgress(currentTest);
+      const snap = await loadInProgress(currentTest, userId);
 
       if (!snap) {
         setPendingForcedSubmit(false);
@@ -1236,7 +1236,7 @@ export function CBTTest() {
       return;
     }
 
-    const alreadyDone = await getCompletedTest(testId);
+    const alreadyDone = await getCompletedTest(testId, userId);
 
     if (alreadyDone) {
       showErrorModal(
@@ -1621,7 +1621,7 @@ export function CBTTest() {
           submitTestRef.current?.();
         }
       } else if (hb.status === "submitted") {
-        await clearInProgress(currentTest);
+        await clearInProgress(currentTest, userId);
         handleResetToList();
         await refreshCompleted();
       }
@@ -1727,7 +1727,7 @@ export function CBTTest() {
       });
     }
 
-    await clearInProgress(testId);
+    await clearInProgress(testId, userId);
     await refreshCompleted();
 
     setListNotice(getTerminalSubmissionNotice(code, detail));
@@ -1767,7 +1767,7 @@ export function CBTTest() {
       let csid = clientSubmissionId;
 
       if (!csid) {
-        const snap = await loadInProgress(currentTest);
+        const snap = await loadInProgress(currentTest, userId);
         csid = snap?.clientSubmissionId ?? crypto.randomUUID();
         setClientSubmissionId(csid);
       }
@@ -1974,7 +1974,7 @@ export function CBTTest() {
             typeof data?.total_points === "number" ? data.total_points : null,
         });
 
-        await clearInProgress(currentTest);
+        await clearInProgress(currentTest, userId);
         await refreshCompleted();
 
         setTestResults((p) => ({
@@ -2036,7 +2036,7 @@ export function CBTTest() {
         channel.close();
       }
 
-      await clearInProgress(currentTest);
+      await clearInProgress(currentTest, userId);
       await refreshCompleted();
 
       setListNotice({
@@ -2418,6 +2418,7 @@ export function CBTTest() {
                         if (currentTest && clientSubmissionId) {
                           await markTestCompleted({
                             testId: currentTest,
+                            userId,
                             clientSubmissionId,
                             completedAt: Date.now(),
                             syncStatus: "failed",
@@ -2428,7 +2429,7 @@ export function CBTTest() {
                             localTotalPoints: null,
                           });
 
-                          await clearInProgress(currentTest);
+                          await clearInProgress(currentTest, userId);
                           await refreshCompleted();
                         }
 
