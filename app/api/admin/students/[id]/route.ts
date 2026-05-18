@@ -17,21 +17,32 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
     const { id } = await Promise.resolve(ctx.params);
 
     if (!id) {
-      return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
+      return NextResponse.json({ detail: "Student ID is required" }, { status: 400 });
     }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    const contentType = request.headers.get("content-type") || "";
+    const isMultipart = contentType.includes("multipart/form-data");
+
+    let proxyBody: BodyInit;
+
+    if (isMultipart) {
+      // Forward raw FormData (includes avatar file if present)
+      proxyBody = await request.formData();
+    } else {
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return NextResponse.json({ detail: "Invalid JSON in request body" }, { status: 400 });
+      }
+      proxyBody = JSON.stringify(body);
     }
 
     const { response, text, setCookie } = await djangoFetch(
       `/orgs/api/admin/students/${encodeURIComponent(id)}/`,
       {
         method: "PUT",
-        body: JSON.stringify(body),
+        body: proxyBody,
       }
     );
 
@@ -41,7 +52,7 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
       const msg =
         data?.detail || data?.error || data?.message || "Failed to update student";
 
-      const res = NextResponse.json({ error: msg }, { status: response.status });
+      const res = NextResponse.json({ detail: msg }, { status: response.status });
       if (setCookie) res.headers.set("set-cookie", setCookie);
       return res;
     }
@@ -51,7 +62,7 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
     return res;
   } catch (error) {
     console.error("[Student PUT] Error updating student:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
 

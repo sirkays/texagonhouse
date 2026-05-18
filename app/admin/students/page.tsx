@@ -145,11 +145,32 @@ export default function StudentsPage() {
   const handleSaveStudent = async (data: any) => {
     setIsSaving(true);
     try {
-      const { id, ...payload } = data;
+      // Separate the file from the rest of the payload — File objects cannot be JSON-serialized
+      const { id, avatarFile, ...jsonFields } = data;
+
+      let body: BodyInit;
+      let headers: Record<string, string> | undefined;
+
+      if (avatarFile instanceof File) {
+        // Use multipart/form-data so the avatar is transmitted correctly
+        const fd = new FormData();
+        Object.entries(jsonFields).forEach(([k, v]) => {
+          if (v !== null && v !== undefined) fd.append(k, String(v));
+        });
+        fd.append("avatar", avatarFile);
+        body = fd;
+        // Let the browser set Content-Type (with boundary) automatically
+        headers = undefined;
+      } else {
+        body = JSON.stringify(jsonFields);
+        headers = { "Content-Type": "application/json" };
+      }
+
       const res = editingStudent
-        ? await fetch(`/api/admin/students/${editingStudent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-        : await fetch("/api/admin/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "Failed to save student"); }
+        ? await fetch(`/api/admin/students/${editingStudent.id}`, { method: "PUT", headers, body })
+        : await fetch("/api/admin/students", { method: "POST", headers, body });
+
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || e.error || "Failed to save student"); }
       toast({ title: "Success", description: editingStudent ? "Student updated" : "Student added" });
       loadStudents();
       setEditingStudent(null);

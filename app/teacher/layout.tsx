@@ -25,6 +25,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Gamepad2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,8 +42,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,14 +52,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
-import {usePathname} from "next/navigation";
-import {useMediaQuery} from "react-responsive";
-import {useSession, signOut} from "next-auth/react";
-import {Spinner} from "@/components/ui/spinner";
-import {useNotificationStore} from "../stores/notificationStore";
-import {createContext, useContext, useEffect, useState, useRef} from "react";
+import { usePathname } from "next/navigation";
+import { useMediaQuery } from "react-responsive";
+import { useSession, signOut } from "next-auth/react";
+import { Spinner } from "@/components/ui/spinner";
+import { useNotificationStore } from "../stores/notificationStore";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +69,7 @@ import {
 } from "@/components/ui/dialog";
 
 const menuItems = [
-  {title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher"},
+  { title: "Dashboard", icon: Home, id: "dashboard", path: "/teacher" },
   {
     title: "Manage CBT",
     icon: TestTube,
@@ -135,6 +136,12 @@ const menuItems = [
     id: "assignments",
     path: "/teacher/assignments",
   },
+  {
+    title: "Scratch Studio",
+    icon: Gamepad2,
+    id: "scratch",
+    path: "/teacher/scratch",
+  },
 
   {
     title: "Student Cert",
@@ -163,9 +170,9 @@ const LoadingContext = createContext<{
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
-  const isMobile = useMediaQuery({maxWidth: 639});
-  const {setIsNavigating} = useContext(LoadingContext)!;
+  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
+  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const { setIsNavigating } = useContext(LoadingContext)!;
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -234,8 +241,8 @@ function PageLoader() {
   );
 }
 
-export default function TeacherLayout({children}: {children: React.ReactNode}) {
-  const {data: session, status} = useSession();
+export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
@@ -272,28 +279,28 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
       // 1. Call your custom backend logout
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
         console.error("[AdminLayout] Backend logout failed");
       }
 
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
 
       window.location.href = "/login";
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
 
       // Fallback: Ensure the user is still visually logged out if an error occurs
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
       window.location.href = "/login";
     }
   };
 
   return (
     <SidebarProvider className="bg-white">
-      <LoadingContext.Provider value={{setIsNavigating}}>
+      <LoadingContext.Provider value={{ setIsNavigating }}>
         <div className="flex min-h-screen w-full font-sans">
           <Sidebar className="">
             <SidebarHeader className="bg-[#EF7B55] py-5">
@@ -375,7 +382,7 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
           </Sidebar>
 
           <div className="flex-1 flex flex-col">
-            <header className="sticky top-0 z-50 py-4">
+            <header id="teacher-layout-header" className="sticky top-0 z-50 py-4">
               <style jsx>{`
                 header {
                   background: rgba(247, 151, 113, 0.3);
@@ -413,7 +420,7 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
               </div>
             </header>
 
-            <main className="flex-1 p-3 xs:p-4 sm:p-6">
+            <main className={`flex-1 ${pathname === "/teacher/scratch" ? "p-0 overflow-hidden" : "p-3 xs:p-4 sm:p-6"}`}>
               {isNavigating ? <PageLoader /> : children}
             </main>
           </div>
@@ -444,8 +451,8 @@ export default function TeacherLayout({children}: {children: React.ReactNode}) {
               try {
                 const res = await fetch("/api/accounts/verify-password", {
                   method: "POST",
-                  headers: {"Content-Type": "application/json"},
-                  body: JSON.stringify({password: switchPassword}),
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ password: switchPassword }),
                 });
                 const data = await res.json();
                 if (!res.ok || !data.valid) {

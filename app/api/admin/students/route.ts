@@ -43,11 +43,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const contentType = request.headers.get("content-type") || "";
+    const isMultipart = contentType.includes("multipart/form-data");
 
-    if (!body?.name || !body?.email || !body?.admissionNo || !body?.classroom) {
+    let proxyBody: BodyInit;
+    let name: string | undefined;
+    let email: string | undefined;
+
+    if (isMultipart) {
+      // Forward the raw FormData to Django (proxy.ts detects FormData and skips Content-Type override)
+      const formData = await request.formData();
+      name = formData.get("name") as string | undefined;
+      email = formData.get("email") as string | undefined;
+      proxyBody = formData;
+    } else {
+      const body = await request.json();
+      name = body?.name;
+      email = body?.email;
+      proxyBody = JSON.stringify(body);
+    }
+
+    // Only enforce truly required fields — classroom is optional
+    if (!name || !email) {
       return NextResponse.json(
-        { error: "Name, email, admissionNo, and classroom are required" },
+        { error: "Name and email are required" },
         { status: 400 }
       );
     }
@@ -56,7 +75,7 @@ export async function POST(request: NextRequest) {
       `/orgs/api/admin/students/`,
       {
         method: "POST",
-        body: JSON.stringify(body),
+        body: proxyBody,
       }
     );
 
@@ -66,7 +85,7 @@ export async function POST(request: NextRequest) {
       const msg =
         data?.detail || data?.error || data?.message || "Failed to create student";
 
-      const res = NextResponse.json({ error: msg }, { status: response.status });
+      const res = NextResponse.json({ detail: msg }, { status: response.status });
       if (setCookie) res.headers.set("set-cookie", setCookie);
       return res;
     }
@@ -76,6 +95,6 @@ export async function POST(request: NextRequest) {
     return res;
   } catch (error) {
     console.error("[Students POST] Error creating student:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ detail: "Internal server error" }, { status: 500 });
   }
 }
