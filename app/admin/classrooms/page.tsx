@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/admin/layout";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ClassroomModal } from "@/components/admin/modals/classroom-modal";
 import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
-import { ClassroomDetailsModal } from "@/components/admin/modals/classroom-details-modal";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -52,6 +52,7 @@ interface Classroom {
 export default function ClassroomsPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,9 +69,7 @@ export default function ClassroomsPage() {
   const [deletingClassroom, setDeletingClassroom] = useState<Classroom | null>(
     null
   );
-  const [viewingClassroom, setViewingClassroom] = useState<Classroom | null>(
-    null
-  );
+
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -365,7 +364,7 @@ export default function ClassroomsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        onClick={() => setViewingClassroom(classroom)}
+                        onClick={() => router.push(`/admin/classrooms/${classroom.id}`)}
                       >
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
@@ -427,7 +426,7 @@ export default function ClassroomsPage() {
                   className="w-full bg-transparent"
                   variant="outline"
                   size="sm"
-                  onClick={() => setViewingClassroom(classroom)}
+                  onClick={() => router.push(`/admin/classrooms/${classroom.id}`)}
                 >
                   <Eye className="mr-2 h-4 w-4" />
                   View Classroom
@@ -475,11 +474,7 @@ export default function ClassroomsPage() {
         loading={isDeleting} // Pass the loading state
       />
 
-      <ClassroomDetailsModal
-        open={!!viewingClassroom}
-        onOpenChange={(open) => !open && setViewingClassroom(null)}
-        classroom={viewingClassroom ?? undefined}
-      />
+
     </>
   );
 }
