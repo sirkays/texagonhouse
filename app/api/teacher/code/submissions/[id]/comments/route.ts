@@ -9,11 +9,12 @@ function attachSetCookie(res: NextResponse, setCookie?: string) {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { response, text, setCookie } = await djangoFetch(
-      `/code-ide/api/teacher/submissions/${params.id}/comments/`,
+      `/code-ide/api/teacher/submissions/${id}/comments/`,
       { method: "GET" }
     );
 
@@ -45,13 +46,14 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
 
     const { response, text, setCookie } = await djangoFetch(
-      `/code-ide/api/teacher/submissions/${params.id}/comments/`,
+      `/code-ide/api/teacher/submissions/${id}/comments/`,
       {
         method: "POST",
         body: JSON.stringify(body),

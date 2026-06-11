@@ -3,6 +3,7 @@
 "use client";
 
 import {useState, useEffect} from "react";
+import {useStudentTheme} from "@/components/student/useStudentTheme";
 import {
   Card,
   CardContent,
@@ -58,6 +59,8 @@ interface LeaderboardData {
 }
 
 export function Leaderboard() {
+  const {theme} = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const [currentPage, setCurrentPage] = useState({
     global: 1,
     school: 1,
@@ -272,7 +275,8 @@ export function Leaderboard() {
   const normalizeAvatarUrl = (avatar: string | null) => {
     if (!avatar) return "/placeholder-avatar.png";
     if (avatar.startsWith("http")) return avatar;
-    return `process.env.BASE_URL${avatar}`;
+    const base = process.env.NEXT_PUBLIC_DJANGO_BASE_URL ?? "";
+    return `${base}${avatar}`;
   };
 
   if (isLoading) {
@@ -344,7 +348,10 @@ export function Leaderboard() {
 
       <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-4">
         {leaderboardStats.map((stat, index) => (
-          <Card key={index}>
+          <Card key={index} className={isAero 
+            ? "bg-white/60 backdrop-blur-md border border-slate-200/40 shadow-sm rounded-2xl hover:translate-y-[-2px] hover:shadow-md transition-all duration-300"
+            : ""
+          }>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 {stat.title}
@@ -364,27 +371,42 @@ export function Leaderboard() {
       </div>
 
       <Tabs defaultValue="global" className="space-y-4">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row items-center w-full gap-2 mb-14">
+        <TabsList className={isAero
+          ? "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/20 p-1.5 border border-slate-200/50 rounded-2xl w-full mb-8"
+          : "bg-[#f797712e] text-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center w-full gap-2 mb-8 p-1.5 rounded-2xl border border-slate-100"
+        }>
           <TabsTrigger
             value="global"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             Global
           </TabsTrigger>
           <TabsTrigger
             value="school"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             My School
           </TabsTrigger>
           <TabsTrigger
             value="weekly"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             This Week
           </TabsTrigger>
         </TabsList>
 
         {/* ---------------- Global Tab ---------------- */}
         <TabsContent value="global" className="space-y-4">
-          <Card className="border border-slate-200 bg-white">
+          <Card className={isAero
+            ? "border border-slate-200/40 bg-white/50 backdrop-blur-md rounded-3xl shadow-lg"
+            : "border border-slate-200 bg-white"
+          }>
             <CardHeader className="space-y-1 px-4 sm:px-6">
               <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">
                 Global Leaderboard
@@ -410,14 +432,18 @@ export function Leaderboard() {
                   return (
                     <div
                       key={`${leader.rank}-${leader.name}`}
-                      className={`flex flex-col gap-3 rounded-md border p-4 transition
-                ${
-                  highlightCurrentUser
-                    ? "border-[#EF7B55] bg-[#FFF4F1]/30"
-                    : "border-slate-200 bg-white"
-                }
-                sm:flex-row sm:items-center sm:justify-between
-              `}>
+                      className={isAero
+                        ? `flex flex-col gap-3 rounded-2xl border p-4 transition ${
+                            highlightCurrentUser
+                              ? "border-[#EF7B55] bg-orange-500/5 shadow-md shadow-orange-50/20"
+                              : "border-slate-200/30 bg-white/40 hover:bg-white/60"
+                          } sm:flex-row sm:items-center sm:justify-between`
+                        : `flex flex-col gap-3 rounded-md border p-4 transition ${
+                            highlightCurrentUser
+                              ? "border-[#EF7B55] bg-[#FFF4F1]/30"
+                              : "border-slate-200 bg-white"
+                          } sm:flex-row sm:items-center sm:justify-between`
+                      }>
                       {/* Left section */}
                       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         {/* Rank + Avatar */}
@@ -487,7 +513,10 @@ export function Leaderboard() {
 
         {/* ---------------- School Tab ---------------- */}
         <TabsContent value="school" className="space-y-4">
-          <Card className="border border-slate-200 bg-white">
+          <Card className={isAero
+            ? "border border-slate-200/40 bg-white/50 backdrop-blur-md rounded-3xl shadow-lg"
+            : "border border-slate-200 bg-white"
+          }>
             <CardHeader className="space-y-1 px-4 sm:px-6">
               <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">
                 School Leaderboard
@@ -512,14 +541,18 @@ export function Leaderboard() {
                   return (
                     <div
                       key={`${leader.rank}-${leader.name}`}
-                      className={`flex flex-col gap-3 rounded-md border p-4 transition
-                  ${
-                    highlightCurrentUser
-                      ? "border-[#EF7B55] bg-[#FFF4F1]/30"
-                      : "border-slate-200 bg-white"
-                  }
-                  sm:flex-row sm:items-center sm:justify-between
-                `}>
+                      className={isAero
+                        ? `flex flex-col gap-3 rounded-2xl border p-4 transition ${
+                            highlightCurrentUser
+                              ? "border-[#EF7B55] bg-orange-500/5 shadow-md shadow-orange-50/20"
+                              : "border-slate-200/30 bg-white/40 hover:bg-white/60"
+                          } sm:flex-row sm:items-center sm:justify-between`
+                        : `flex flex-col gap-3 rounded-md border p-4 transition ${
+                            highlightCurrentUser
+                              ? "border-[#EF7B55] bg-[#FFF4F1]/30"
+                              : "border-slate-200 bg-white"
+                          } sm:flex-row sm:items-center sm:justify-between`
+                      }>
                       {/* Left section */}
                       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         {/* Rank + Avatar */}
@@ -585,7 +618,10 @@ export function Leaderboard() {
 
         {/* ---------------- Weekly Tab ---------------- */}
         <TabsContent value="weekly" className="space-y-4">
-          <Card className="border border-slate-200 bg-white">
+          <Card className={isAero
+            ? "border border-slate-200/40 bg-white/50 backdrop-blur-md rounded-3xl shadow-lg"
+            : "border border-slate-200 bg-white"
+          }>
             <CardHeader className="space-y-1 px-4 sm:px-6">
               <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">
                 Weekly Leaderboard
@@ -610,14 +646,18 @@ export function Leaderboard() {
                   return (
                     <div
                       key={`${leader.rank}-${leader.name}`}
-                      className={`flex flex-col gap-3 rounded-md border p-4 transition
-                  ${
-                    highlightCurrentUser
-                      ? "border-[#EF7B55] bg-[#FFF4F1]/30"
-                      : "border-slate-200 bg-white"
-                  }
-                  sm:flex-row sm:items-center sm:justify-between
-                `}>
+                      className={isAero
+                        ? `flex flex-col gap-3 rounded-2xl border p-4 transition ${
+                            highlightCurrentUser
+                              ? "border-[#EF7B55] bg-orange-500/5 shadow-md shadow-orange-50/20"
+                              : "border-slate-200/30 bg-white/40 hover:bg-white/60"
+                          } sm:flex-row sm:items-center sm:justify-between`
+                        : `flex flex-col gap-3 rounded-md border p-4 transition ${
+                            highlightCurrentUser
+                              ? "border-[#EF7B55] bg-[#FFF4F1]/30"
+                              : "border-slate-200 bg-white"
+                          } sm:flex-row sm:items-center sm:justify-between`
+                      }>
                       {/* Left section */}
                       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         {/* Rank + Avatar */}
@@ -666,7 +706,7 @@ export function Leaderboard() {
                           {leader.points.toLocaleString()}
                         </span>
 
-                        <span className="text-xs sm:text-sm text-slate-500">
+                        <span className="text-xs sm:text-sm text-slate-500 font-semibold">
                           points this week
                         </span>
                       </div>

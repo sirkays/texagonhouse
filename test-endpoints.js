@@ -1,5 +1,5 @@
 const BASE_URL = 'process.env.BASE_URL';
-const API_KEY = 'nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c';
+const API_KEY = 'WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8';
 const EMAIL = 'stu01@gmail.com';
 const PASSWORD = 'testuser';
 

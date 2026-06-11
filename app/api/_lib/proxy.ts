@@ -5,7 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const BASE_URL = process.env.BASE_URL || "https://texagon-backend.onrender.com";
 const API_KEY =
-  process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+  process.env.STORE_API_KEY || "WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8";
 
 type DjangoFetchResult = {
   response: Response;
@@ -24,6 +24,16 @@ function buildAuthHeaders(extra?: HeadersInit) {
     headers.set("Accept", "application/json");
   }
   return headers;
+}
+
+function ensureTrailingSlash(p: string): string {
+  const queryIndex = p.indexOf("?");
+  if (queryIndex !== -1) {
+    const basePath = p.substring(0, queryIndex);
+    const queryStr = p.substring(queryIndex);
+    return basePath.endsWith("/") ? p : `${basePath}/${queryStr}`;
+  }
+  return p.endsWith("/") ? p : `${p}/`;
 }
 
 // Your existing djangoFetch stays the same (or you can refactor it later)
@@ -61,7 +71,11 @@ export async function djangoFetch(
   if (sessionToken) baseHeaders["X-Session-Token"] = sessionToken;
   if (cookieHeader) baseHeaders["Cookie"] = cookieHeader;
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  // Ensure path always ends with a trailing slash before query parameters
+  // so Django's CommonMiddleware never tries to redirect POST/PUT requests
+  const safePath = ensureTrailingSlash(path);
+
+  const response = await fetch(`${BASE_URL}${safePath}`, {
     ...init,
     headers: {
       ...baseHeaders,
@@ -111,7 +125,9 @@ export async function djangoFetchRaw(
     headers.set("Cookie", cookieHeader);
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const safePath = ensureTrailingSlash(path);
+
+  const response = await fetch(`${BASE_URL}${safePath}`, {
     ...init,
     headers,
     cache: "no-store",
@@ -164,7 +180,9 @@ export async function djangoFetchBinary(
     headers.set("Cookie", cookieHeader);
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const safePath = ensureTrailingSlash(path);
+
+  const response = await fetch(`${BASE_URL}${safePath}`, {
     ...init,
     headers,
     cache: "no-store",

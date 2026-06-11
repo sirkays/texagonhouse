@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 
 const BASE_URL = 'process.env.BASE_URL/api/notes/';
-const API_KEY = 'nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c';
+const API_KEY = 'WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8';
 const SESSION_TOKEN = 'CKeB40eCmc0ayvP71aik6OuIcuOBgsLGZjP-BJYcOSEkLRE6HzkOIQmR05eBrcEh';
 
 const headers = {

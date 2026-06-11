@@ -12,6 +12,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@stream-io/video-react-sdk",
+      "date-fns"
+    ],
+  },
 };
 
 export default nextConfig;

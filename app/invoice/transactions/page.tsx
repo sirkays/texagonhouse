@@ -31,19 +31,24 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-3 p-3 sm:p-4">
-      <div className="space-y-3">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight md:text-xl lg:text-2xl">
-            Transaction History
+    <div className="flex flex-1 flex-col gap-4 p-3 sm:p-5 animate-in fade-in duration-500">
+      <div className="space-y-4">
+        {/* Page Header */}
+        <div className="space-y-1.5">
+          <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
+            <span className="bg-gradient-to-r from-[#EF7B55] via-[#e8956f] to-[#d4845e] bg-clip-text text-transparent">
+              Transaction
+            </span>{" "}
+            History
           </h1>
-          <p className="text-muted-foreground text-sm md:text-base">
+          <p className="text-muted-foreground text-sm md:text-base max-w-2xl">
             View and manage all your transaction records. Click on any
             transaction to view details and download PDF.
           </p>
         </div>
 
-        <div>
+        {/* Transaction History Component */}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
           <TransactionHistory
             onSelectTransaction={handleSelectTransaction}
             selectedTransaction={selectedTransaction}

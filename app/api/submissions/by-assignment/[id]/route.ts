@@ -11,8 +11,18 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   noStore();
   try {
     const { id } = params;
+    const { searchParams } = new URL(req.url);
+    const page = searchParams.get("page") || "1";
+    const page_size = searchParams.get("page_size") || "10";
+    const classroom = searchParams.get("classroom") || "";
+
+    let djangoPath = `/api/submissions/?assignment=${id}&page=${page}&page_size=${page_size}`;
+    if (classroom) {
+      djangoPath += `&classroom=${encodeURIComponent(classroom)}`;
+    }
+
     const { response, text, setCookie } = await djangoFetch(
-      `/api/submissions/?assignment=${id}`,
+      djangoPath,
       { method: "GET" }
     );
     if (!response.ok) {

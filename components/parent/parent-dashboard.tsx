@@ -43,11 +43,11 @@ import {
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
 import {ParentOverview} from "./parent-overview";
-import {ChildrenProgress} from "./children-progress";
+import ChildrenProgress from "./children-progress";
 import {PaymentHistory} from "./payment-history";
 import {TutoringBooking} from "./tutoring-booking";
 import {RewardsTracking} from "./rewards-tracking";
-import {ChildAccountManager} from "./child-account-manager";
+import ChildAccountManager from "./child-account-manager";
 
 // const menuItems = [
 //   {

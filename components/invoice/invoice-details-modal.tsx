@@ -133,13 +133,13 @@ export function InvoiceDetailsModal({ invoice, isOpen, onClose, onPay }: Invoice
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 shadow-2xl rounded-2xl">
         {/* Header */}
         <div className="p-6 pb-4">
           <DialogHeader>
             <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <DialogTitle className="text-xl">{title}</DialogTitle>
+              <div className="space-y-2">
+                <DialogTitle className="text-2xl font-bold tracking-tight">{title}</DialogTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                   <PaymentStatusBadge status={invoice.status} />
                   <Badge variant="outline" className="capitalize">
@@ -160,7 +160,7 @@ export function InvoiceDetailsModal({ invoice, isOpen, onClose, onPay }: Invoice
                   <Button
                     size="sm"
                     onClick={() => onPay?.(invoice.number)}
-                    className="gap-2"
+                    className="gap-2 rounded-full bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white shadow-sm hover:shadow-md transition-all duration-200"
                   >
                     <CreditCard className="h-4 w-4" />
                     Pay now
@@ -172,7 +172,7 @@ export function InvoiceDetailsModal({ invoice, isOpen, onClose, onPay }: Invoice
                   size="sm"
                   onClick={handleDownload}
                   disabled={generating}
-                  className="gap-2"
+                  className="gap-2 rounded-full hover:bg-[#EF7B55]/10 hover:text-[#EF7B55] hover:border-[#EF7B55]/30 transition-all duration-200"
                 >
                   <Download className="h-4 w-4" />
                   {generating ? "Generating…" : "Download"}
@@ -188,31 +188,37 @@ export function InvoiceDetailsModal({ invoice, isOpen, onClose, onPay }: Invoice
         <div className="p-6 space-y-6">
           {/* Summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="rounded-xl border p-4">
+            {/* Amount Card */}
+            <div className="animate-fade-in rounded-xl bg-gradient-to-br from-[#EF7B55]/10 to-[#EF7B55]/5 border border-[#EF7B55]/10 p-5 shadow-sm" style={{ animationDelay: "0s", animationFillMode: "both" }}>
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <DollarSign className="h-4 w-4" />
+                <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-1.5 text-[#EF7B55]">
+                  <DollarSign className="h-4 w-4" />
+                </div>
                 Amount
               </div>
-              <div className="mt-1 text-lg font-bold">
+              <div className="mt-2 text-2xl font-bold tracking-tight">
                 {money(invoice.currency, invoice.amount)}
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="mt-2 px-0 h-auto text-xs text-muted-foreground"
+                className="mt-2 px-0 h-auto text-xs text-muted-foreground hover:text-[#EF7B55] transition-colors"
                 onClick={() => copy("amount", money(invoice.currency, invoice.amount))}
               >
                 <Copy className="h-3.5 w-3.5 mr-2" />
-                {copiedKey === "amount" ? "Copied" : "Copy amount"}
+                {copiedKey === "amount" ? "Copied!" : "Copy amount"}
               </Button>
             </div>
 
-            <div className="rounded-xl border p-4">
+            {/* Dates Card */}
+            <div className="animate-fade-in rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/10 p-5 shadow-sm" style={{ animationDelay: "0.08s", animationFillMode: "both" }}>
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Calendar className="h-4 w-4" />
+                <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-1.5 text-blue-500">
+                  <Calendar className="h-4 w-4" />
+                </div>
                 Dates
               </div>
-              <div className="mt-2 space-y-1 text-sm">
+              <div className="mt-3 space-y-2 text-sm">
                 <div className="flex justify-between gap-3">
                   <span className="text-muted-foreground">Issued</span>
                   <span className="font-medium">{issued || "—"}</span>
@@ -224,37 +230,42 @@ export function InvoiceDetailsModal({ invoice, isOpen, onClose, onPay }: Invoice
               </div>
             </div>
 
-            <div className="rounded-xl border p-4">
+            {/* Reference Card */}
+            <div className="animate-fade-in rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/10 p-5 shadow-sm" style={{ animationDelay: "0.16s", animationFillMode: "both" }}>
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <FileText className="h-4 w-4" />
+                <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-1.5 text-violet-500">
+                  <FileText className="h-4 w-4" />
+                </div>
                 Reference
               </div>
-              <div className="mt-1 text-sm font-medium">{invoice.number}</div>
+              <div className="mt-2 text-sm font-semibold">{invoice.number}</div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="mt-2 px-0 h-auto text-xs text-muted-foreground"
+                className="mt-2 px-0 h-auto text-xs text-muted-foreground hover:text-violet-500 transition-colors"
                 onClick={() => copy("number", invoice.number)}
               >
                 <Copy className="h-3.5 w-3.5 mr-2" />
-                {copiedKey === "number" ? "Copied" : "Copy invoice no."}
+                {copiedKey === "number" ? "Copied!" : "Copy invoice no."}
               </Button>
             </div>
           </div>
 
           {/* Parties / info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-xl border p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="animate-fade-in rounded-xl bg-gradient-to-br from-emerald-500/8 to-emerald-500/3 border border-emerald-500/10 p-5 shadow-sm" style={{ animationDelay: "0.24s", animationFillMode: "both" }}>
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <User className="h-4 w-4" />
+                <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-1.5 text-emerald-500">
+                  <User className="h-4 w-4" />
+                </div>
                 Billed to
               </div>
-              <div className="mt-2 text-sm space-y-1">
-                <div className="font-medium">
+              <div className="mt-3 text-sm space-y-1.5">
+                <div className="font-semibold text-base">
                   {invoice.student_name || "Student Name"}
                 </div>
                 <div className="text-muted-foreground">
-                  Type: <span className="capitalize">{invType}</span>
+                  Type: <span className="capitalize font-medium text-foreground">{invType}</span>
                 </div>
                 {invContextLabel && (
                   <div className="text-muted-foreground">
@@ -265,12 +276,14 @@ export function InvoiceDetailsModal({ invoice, isOpen, onClose, onPay }: Invoice
               </div>
             </div>
 
-            <div className="rounded-xl border p-4">
+            <div className="animate-fade-in rounded-xl bg-gradient-to-br from-amber-500/8 to-amber-500/3 border border-amber-500/10 p-5 shadow-sm" style={{ animationDelay: "0.32s", animationFillMode: "both" }}>
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <Clock className="h-4 w-4" />
+                <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-1.5 text-amber-500">
+                  <Clock className="h-4 w-4" />
+                </div>
                 Timeline
               </div>
-              <div className="mt-2 text-sm space-y-2">
+              <div className="mt-3 text-sm space-y-2">
                 <div className="flex justify-between gap-3">
                   <span className="text-muted-foreground">Created</span>
                   <span className="font-medium">

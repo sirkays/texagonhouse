@@ -1126,24 +1126,35 @@ export function TeacherTutoringBooking() {
   }
   console.log(upcomingSessions, " upcomingSessions.... ");
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 container mx-auto sm:px-6 lg:px-8">
       {error && (
         <div className="bg-red-100 text-red-800 p-4 rounded-lg">{error}</div>
       )}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage your tutoring sessions and private offerings
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => router.push("/teacher/tutoring/create")}
-            className="flex items-center gap-2 h-10 bg-transparent border border-[#EF7B55]/70 text-[#EF7B55] hover:bg-[#F79771]/70 hover:text-white">
-            <Plus className="h-4 w-4" />
-            Create Private Session
-          </Button>
+      {/* Premium Hero Header Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none mb-6">
+        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+              Tutoring Center
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+              Tutoring Bookings
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+              Manage your private mentoring sessions, track bookings, schedule upcoming classes, and review student feedback in your tutoring dashboard.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => router.push("/teacher/tutoring/create")}
+              className="flex items-center gap-2 h-11 bg-white hover:bg-slate-50 text-slate-800 rounded-xl font-bold px-4 shadow-lg transition-all duration-300">
+              <Plus className="h-4 w-4 text-[#EF7B55]" />
+              Create Private Session
+            </Button>
+          </div>
         </div>
       </div>
       <Dialog
@@ -1425,48 +1436,54 @@ export function TeacherTutoringBooking() {
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
         className="space-y-4 xs:space-y-6">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-slate-100/50 dark:bg-slate-950/40 border border-slate-200/40 dark:border-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md flex flex-row items-center justify-start overflow-x-auto whitespace-nowrap scrollbar-none w-full gap-1.5 mb-8">
           <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white rounded-xl gap-3 transition-all duration-300"
             value="upcoming">
             Current Private Session
           </TabsTrigger>
           <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white rounded-xl gap-3 transition-all duration-300"
             value="private">
             Private Sessions
           </TabsTrigger>
           <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white rounded-xl gap-3 transition-all duration-300"
             value="past">
             Past Sessions
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="space-y-4 sm:space-y-6">
-          <Card>
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">
+              <CardTitle className="text-slate-800 dark:text-slate-100 font-bold text-lg sm:text-xl">
                 Current Private Session ({upcomingSessions.length})
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-slate-500 dark:text-slate-400 text-sm">
                 Your scheduled private tutoring sessions
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3">
+            <CardContent className="p-4 sm:p-6">
               <div className="space-y-4">
                 {upcomingSessions.length === 0 ? (
-                  <div className="text-sm text-muted-foreground p-4">
+                  <div className="text-sm text-slate-500 dark:text-slate-400 p-4 italic text-center">
                     No current sessions yet.
                   </div>
                 ) : (
                   upcomingSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-                        <div className="flex items-start space-x-3 sm:space-x-4 min-w-0">
-                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                      className="relative overflow-hidden p-5 sm:p-6 rounded-2xl border border-slate-200/50 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/40 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-slate-900/60 transition-all duration-300 shadow-md pl-6">
+                      {/* Left glowing marker based on status */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${
+                        session.status === "Confirmed"
+                          ? "from-emerald-400 to-emerald-600"
+                          : "from-amber-400 to-[#EF7B55]"
+                      }`} />
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="flex items-start gap-4 min-w-0">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 border border-slate-200/50 dark:border-slate-800/50">
                             <AvatarImage src={session.studentAvatar} />
                             <AvatarFallback>
                               {session.student
@@ -1477,26 +1494,26 @@ export function TeacherTutoringBooking() {
                           </Avatar>
                           <div className="space-y-2 flex-1 min-w-0">
                             <div>
-                              <h4 className="font-semibold text-base sm:text-lg truncate">
+                              <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base sm:text-lg truncate">
                                 {session.subject} Tutoring
                               </h4>
-                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold truncate">
                                 Student: {session.student}
                               </p>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-1 rounded-lg">
+                                <CalendarIcon className="h-3.5 w-3.5 text-[#EF7B55]" />
                                 <span>{session.date}</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-1 rounded-lg">
+                                <Clock className="h-3.5 w-3.5 text-[#EF7B55]" />
                                 <span>
-                                  {session.time} ({session.duration}min)
+                                  {session.time} ({session.duration} min)
                                 </span>
                               </div>
                             </div>
-                            <div className="text-xs sm:text-sm text-muted-foreground break-words">
+                            <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/30 dark:border-slate-800/40 italic break-words max-w-xl">
                               {session.notes}
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -1504,24 +1521,24 @@ export function TeacherTutoringBooking() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right space-y-2 flex-shrink-0">
-                          <div className="font-medium text-green-600 text-base sm:text-lg">
+                        <div className="text-right space-y-3 flex-shrink-0 self-end sm:self-start">
+                          <div className="font-extrabold text-green-600 dark:text-green-400 text-base sm:text-lg">
                             {session.cost}
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
-                              className="h-8"
+                              className="h-9 rounded-xl bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 hover:shadow-lg hover:shadow-[#EF7B55]/20 text-white font-bold px-3 py-1 flex items-center gap-1.5 shadow-sm text-xs border-none"
                               onClick={() => handleConfirmSession(session.id)}
                               disabled={session.status === "Confirmed"}>
-                              <Check className="h-3 w-3 mr-1" />
+                              <Check className="h-3.5 w-3.5 mr-1" />
                               {session.status === "Confirmed"
                                 ? "Session Confirmed"
                                 : "Confirm Session"}
                             </Button>
                             <Button
                               size="sm"
-                              className="h-8 bg-green-600 hover:bg-green-700"
+                              className="h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1 flex items-center gap-1.5 shadow-sm text-xs border-none"
                               onClick={() =>
                                 openConfirmAction("complete", session)
                               }
@@ -1530,13 +1547,13 @@ export function TeacherTutoringBooking() {
                                 session.status === "Completed" ||
                                 session.status === "Cancelled"
                               }>
-                              <CheckCircle className="h-3 w-3 mr-1" />
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
                               Complete
                             </Button>
 
                             <Button
                               size="sm"
-                              className="h-8 bg-red-600 hover:bg-red-700"
+                              className="h-9 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1 flex items-center gap-1.5 shadow-sm text-xs border-none"
                               onClick={() =>
                                 openConfirmAction("cancel", session)
                               }
@@ -1544,7 +1561,7 @@ export function TeacherTutoringBooking() {
                                 session.status === "Completed" ||
                                 session.status === "Cancelled"
                               }>
-                              <AlertCircle className="h-3 w-3 mr-1" />
+                              <AlertCircle className="h-3.5 w-3.5 mr-1" />
                               Cancel
                             </Button>
                           </div>
@@ -1618,20 +1635,20 @@ export function TeacherTutoringBooking() {
         </TabsContent>
 
         <TabsContent value="private" className="space-y-4 sm:space-y-6">
-          <Card>
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">
+              <CardTitle className="text-slate-800 dark:text-slate-100 font-bold text-lg sm:text-xl">
                 Private Sessions ({privateSessions.length})
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-slate-500 dark:text-slate-400 text-sm">
                 Your created private tutoring offerings
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3">
+            <CardContent className="p-4 sm:p-6">
               {privateSessions.length === 0 ? (
-                <div className="text-sm text-muted-foreground p-4">
+                <div className="text-sm text-slate-500 dark:text-slate-400 p-4 italic text-center">
                   No private sessions yet. Click{" "}
-                  <span className="font-medium">Create Private Session</span> to
+                  <span className="font-semibold text-[#EF7B55]">Create Private Session</span> to
                   add one.
                 </div>
               ) : (
@@ -1640,10 +1657,16 @@ export function TeacherTutoringBooking() {
                     {privateSessions.map((p) => (
                       <div
                         key={p.id}
-                        className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-                          <div className="space-y-2">
-                            <h4 className="font-semibold text-base sm:text-lg">
+                        className="relative overflow-hidden p-5 sm:p-6 rounded-2xl border border-slate-200/50 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/40 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-slate-900/60 transition-all duration-300 shadow-md pl-6">
+                        {/* Left glowing marker based on status */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${
+                          p.status === "Active"
+                            ? "from-emerald-400 to-emerald-600"
+                            : "from-amber-400 to-[#EF7B55]"
+                        }`} />
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                          <div className="space-y-2.5 flex-1 min-w-0">
+                            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base sm:text-lg">
                               {p.title}
                               {(p.courseName ||
                                 courses.find((c) => c.id === p.courseId)
@@ -1656,79 +1679,66 @@ export function TeacherTutoringBooking() {
                                 )}
                             </h4>
 
-                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                              <span className="font-medium">Rate:</span>
-                              <span>
+                            <div className="flex flex-wrap items-center gap-2.5 text-xs sm:text-sm">
+                              <span className="font-bold text-slate-700 dark:text-slate-300">Rate:</span>
+                              <span className="font-extrabold text-green-600 dark:text-green-400">
                                 ₦{Number(p.ratePerHour).toLocaleString()}/Month
                               </span>
-                              <span className="mx-1">•</span>
-                              <span className="font-medium">Duration:</span>
-                              <span>{p.durationDays} day(s)</span>
+                              <span className="text-slate-300 dark:text-slate-700">•</span>
+                              <span className="font-bold text-slate-700 dark:text-slate-300">Duration:</span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">{p.durationDays} day(s)</span>
                               {p.hoursPerDay && (
                                 <>
-                                  <span className="mx-1">•</span>
-                                  <span className="font-medium">Hours/Day:</span>
-                                  <span>{p.hoursPerDay}</span>
+                                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                                  <span className="font-bold text-slate-700 dark:text-slate-300">Hours/Day:</span>
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200">{p.hoursPerDay}</span>
                                 </>
                               )}
-                              <span className="mx-1">•</span>
+                              <span className="text-slate-300 dark:text-slate-700">•</span>
                               {getStatusBadge(p.status)}
                             </div>
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5 pt-1">
                               {p.availableDays.length > 0 ? (
                                 p.availableDays.map((d) => (
                                   <Badge
                                     key={d}
-                                    variant="outline"
-                                    className="text-xs capitalize">
+                                    className="bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border-none font-bold text-xs capitalize px-2.5 py-0.5 rounded-full shadow-none">
                                     {d}
                                   </Badge>
                                 ))
                               ) : (
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-xs text-slate-500 dark:text-slate-400 italic">
                                   No days selected
                                 </span>
                               )}
                             </div>
                             {p.notes && (
-                              <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/30 dark:border-slate-800/40 italic break-words max-w-xl">
                                 {p.notes}
                               </p>
                             )}
                           </div>
-                          <div className="text-right space-y-2 flex-shrink-0">
-                            <div className="text-xs text-muted-foreground">
+                          <div className="text-right space-y-3 flex-shrink-0 self-end sm:self-start">
+                            <div className="text-xs font-semibold text-slate-400 dark:text-slate-500">
                               Created:{" "}
                               {new Date(p.createdAt).toLocaleDateString()}
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              {/* <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8"
-                                onClick={() =>
-                                  handleTogglePrivateSessionStatus(p.id)
-                                }
-                              >
-                                {p.status === "Active"
-                                  ? "Deactivate"
-                                  : "Activate"}
-                              </Button> */}
+                            <div className="flex flex-wrap gap-2 justify-end">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8"
+                                className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-[#EF7B55] hover:text-[#e26d47] font-bold px-3 py-1 flex items-center gap-1.5 shadow-sm text-xs transition-all duration-300"
                                 onClick={() => openEditDialog(p)}>
-                                <Pencil className="h-3 w-3 mr-1" />
+                                <Pencil className="h-3.5 w-3.5 mr-1" />
                                 Edit
                               </Button>
                               <Button
                                 size="sm"
-                                className="h-8 bg-red-600 hover:bg-red-700"
+                                className="h-9 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1 flex items-center gap-1.5 shadow-sm text-xs border-none transition-all duration-300"
                                 onClick={() =>
                                   handleDeleteSession(p, "private")
                                 }>
-                                <Trash2 className="h-3 w-3 mr-1" />
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
                                 Delete
                               </Button>
                             </div>
@@ -1804,29 +1814,30 @@ export function TeacherTutoringBooking() {
         </TabsContent>
 
         <TabsContent value="past" className="space-y-4 sm:space-y-6">
-          <Card>
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">
+              <CardTitle className="text-slate-800 dark:text-slate-100 font-bold text-lg sm:text-xl">
                 Past Sessions ({pastSessions.length})
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-slate-500 dark:text-slate-400 text-sm">
                 History of completed tutoring sessions
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3">
+            <CardContent className="p-4 sm:p-6">
               <div className="space-y-4">
                 {pastSessions.length === 0 ? (
-                  <div className="text-sm text-muted-foreground p-4">
+                  <div className="text-sm text-slate-500 dark:text-slate-400 p-4 italic text-center">
                     No past sessions yet.
                   </div>
                 ) : (
                   pastSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-                        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+                      className="relative overflow-hidden p-5 sm:p-6 rounded-2xl border border-slate-200/50 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/40 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-slate-900/60 transition-all duration-300 shadow-md pl-6">
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-400 dark:bg-slate-600" />
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1 min-w-0">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 border border-slate-200/50 dark:border-slate-800/50">
                             <AvatarImage src={session.studentAvatar} />
                             <AvatarFallback>
                               {session.student
@@ -1835,13 +1846,13 @@ export function TeacherTutoringBooking() {
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="space-y-2 flex-1 min-w-0">
+                          <div className="space-y-2.5 flex-1 min-w-0">
                             <div>
-                              <h4 className="font-semibold text-base sm:text-lg truncate">
+                              <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base sm:text-lg truncate">
                                 {session.subject} Tutoring
                               </h4>
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold truncate">
                                   Student: {session.student}
                                 </p>
 
@@ -1853,36 +1864,35 @@ export function TeacherTutoringBooking() {
                                   )}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                                {session.date}
+                            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2 py-1 rounded-lg">
+                                <CalendarIcon className="h-3.5 w-3.5 text-[#EF7B55]" />
+                                <span>{session.date}</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                {session.time} ({session.actualDuration}min)
+                              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2 py-1 rounded-lg">
+                                <Clock className="h-3.5 w-3.5 text-[#EF7B55]" />
+                                <span>{session.time} ({session.actualDuration} min)</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 text-xs sm:text-sm">
-                              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-semibold">
+                              <CheckCircle className="h-4 w-4 text-emerald-500" />
                               <span>
-                                {" "}
-                                Date completed: {session.dateCompleted}
+                                Date completed: <span className="font-bold">{session.dateCompleted}</span>
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
                               {renderStars(session.rating)}
-                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">
+                              <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold ml-1">
                                 ({session.rating}/5)
                               </span>
                             </div>
-                            <div className="text-xs sm:text-sm text-muted-foreground italic break-words">
+                            <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/30 dark:border-slate-800/40 italic break-words max-w-xl">
                               "{session.feedback}"
                             </div>
                           </div>
                         </div>
-                        <div className="text-right space-y-2 flex-shrink-0">
-                          <div className="font-medium text-green-600 text-base sm:text-lg">
+                        <div className="text-right space-y-3 flex-shrink-0 self-end sm:self-start">
+                          <div className="font-bold text-green-600 dark:text-green-400 text-base sm:text-lg">
                             {session.cost}
                           </div>
                           {session.hasRecording && (
@@ -1890,7 +1900,7 @@ export function TeacherTutoringBooking() {
                               href={session.recordingUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs sm:text-sm underline text-muted-foreground">
+                              className="text-xs sm:text-sm underline text-indigo-500 hover:text-indigo-600 font-medium block">
                               View recording
                             </a>
                           )}

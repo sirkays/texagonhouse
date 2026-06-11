@@ -40,8 +40,8 @@ export async function POST(
 
   const t = withTimeout(20000);
   try {
-    // backend: /code-ide/api/ide/submissions/{id}/comments/
-    const startFetch = await djangoFetch(`/code-ide/api/ide/submissions/${id}/comments/`, {
+    // backend: /code-ide/api/ide/student/projects/{id}/comments/
+    const startFetch = await djangoFetch(`/code-ide/api/ide/student/projects/${id}/comments/`, {
       method: "POST",
       signal: t.signal,
       body: JSON.stringify(body),

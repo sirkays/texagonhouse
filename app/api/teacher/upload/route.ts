@@ -69,8 +69,9 @@ export async function POST(req: Request) {
 
     // Important: use djangoFetch so we reuse API key + session token + cookies
     // and DO NOT force Content-Type (FormData boundary must be set by fetch)
+    // The presign-s3 endpoint handles both local (direct upload) and S3 modes.
     const { response, text, setCookie } = await djangoFetch(
-      "/learning/api/upload/",
+      "/learning/api/presign-s3/",
       {
         method: "POST",
         body: formDataToSend,
@@ -122,8 +123,10 @@ export async function POST(req: Request) {
       return nextRes;
     }
 
-    // Prefer backend URL if provided
-    const fileUrl = data?.url || data?.file_url || "";
+    // presign-s3 returns { key, filename, ... }
+    // In local mode: key = "lessons/filename.mp4"
+    // Django's _serialize_report_detail will resolve this key to a full absolute URL when serving.
+    const fileUrl = data?.url || data?.key || data?.file_url || "";
 
     const nextRes = NextResponse.json({ url: fileUrl }, { status: 200 });
     if (setCookie) nextRes.headers.set("set-cookie", setCookie);

@@ -59,7 +59,7 @@ import { useMediaQuery } from "react-responsive";
 import { useSession, signOut } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
 import { useNotificationStore } from "../stores/notificationStore";
-import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -86,7 +86,8 @@ const menuItems = [
     title: "Live Sessions",
     icon: Calendar,
     id: "live-sessions",
-    path: "/main/home",
+    // path is overridden dynamically by useLiveSessionPath() — see below
+    path: "/teacher/live-sessions",
   },
   // {
   //   title: "Upload Materials",
@@ -164,6 +165,28 @@ const menuItems = [
   },
 ];
 
+/** Returns the correct live-sessions path based on the org's video_conferencing setting. */
+function useLiveSessionPath(role: "teacher" | "student") {
+  const [path, setPath] = useState<string>(
+    role === "teacher" ? "/teacher/live-sessions" : "/student/live-sessions"
+  );
+
+  useEffect(() => {
+    fetch("/api/org/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.video_conferencing === "live") {
+          setPath("/main/home");
+        } else {
+          setPath(role === "teacher" ? "/teacher/live-sessions" : "/student/live-sessions");
+        }
+      })
+      .catch(() => {}); // keep default on error
+  }, [role]);
+
+  return path;
+}
+
 const LoadingContext = createContext<{
   setIsNavigating: React.Dispatch<React.SetStateAction<boolean>>;
 } | null>(null);
@@ -173,6 +196,7 @@ function SidebarMenuContent() {
   const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
   const isMobile = useMediaQuery({ maxWidth: 639 });
   const { setIsNavigating } = useContext(LoadingContext)!;
+  const liveSessionPath = useLiveSessionPath("teacher");
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -180,12 +204,17 @@ function SidebarMenuContent() {
     }
   };
 
+  // Resolve the live-sessions path dynamically
+  const resolvedItems = menuItems.map((item) =>
+    item.id === "live-sessions" ? { ...item, path: liveSessionPath } : item
+  );
+
   return (
     <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            {menuItems.map((item) => (
+            {resolvedItems.map((item) => (
               <SidebarMenuItem key={item.id} id={`tour-nav-${item.id}`}>
                 <SidebarMenuButton
                   asChild

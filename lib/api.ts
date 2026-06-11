@@ -11,7 +11,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const session = await getSession();
   const headers: HeadersInit = {
-    Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+    Authorization: `Api-Key WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8`,
   };
 
   if (session?.user?.sessionToken) {

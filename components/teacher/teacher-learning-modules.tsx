@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {useRouter} from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -46,6 +46,10 @@ import {
   Save,
   Upload,
   Search,
+  PlusCircle,
+  ClipboardList,
+  BarChart3,
+  Key,
 } from "lucide-react";
 import {
   Pagination,
@@ -330,8 +334,67 @@ export function TeacherLearningModules() {
       return uploadToCloudinaryWithProgress(file, sessionToken, onProgress);
     }
 
+    if (UPLOAD_BUCKET === "local") {
+      return uploadToLocalWithProgress(file, sessionToken, onProgress);
+    }
+
     // default → S3
     return uploadToS3WithProgress(file, sessionToken, onProgress);
+  }
+
+  /**
+   * LOCAL MODE: Upload file through the Next.js proxy → Django (saves to media/lessons/).
+   * Uses /api/teacher/presign-local (same-origin) to avoid CORS issues.
+   * Used when NEXT_PUBLIC_UPLOAD_BUCKET=local.
+   */
+  async function uploadToLocalWithProgress(
+    file: File,
+    sessionToken: string,
+    onProgress?: (p: UploadProgress) => void,
+  ): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("filename", file.name);
+
+    return new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      // ✅ Use the Next.js proxy (same-origin) — no CORS issues
+      xhr.open("POST", "/api/teacher/presign-local", true);
+
+      // X-Session-Token is handled server-side by the proxy via next-auth session
+      // No need to set it manually here
+
+      if (xhr.upload) {
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          const percent = Math.min(
+            99,
+            Math.floor((e.loaded / e.total) * 100),
+          );
+          onProgress?.({ percent, loaded: e.loaded, total: e.total });
+        };
+      }
+
+      xhr.onload = () => {
+        const text = xhr.responseText || "{}";
+        let json: any = {};
+        try {
+          json = JSON.parse(text);
+        } catch {}
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.({ percent: 100, loaded: file.size, total: file.size });
+          resolve(json.key as string);
+        } else {
+          reject(
+            new Error(json?.error || json?.detail || `Upload failed (${xhr.status})`),
+          );
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during local upload"));
+      xhr.send(formData);
+    });
   }
 
   async function uploadToCloudinaryWithProgress(
@@ -1633,7 +1696,8 @@ export function TeacherLearningModules() {
         );
       }
       const resp = await uploadWithProgress<any>({
-        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/`,
+        // ✅ Use Next.js proxy (same-origin) instead of DJANGO_BASE — avoids CORS on localhost
+        url: `/api/teacher/modules/${currentModule.id}/lessons/`,
         method: "POST",
         sessionToken,
         apiKey: "",
@@ -1785,7 +1849,8 @@ export function TeacherLearningModules() {
         );
       }
       const resp = await uploadWithProgress<any>({
-        url: `${DJANGO_BASE}/learning/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
+        // ✅ Use Next.js proxy (same-origin) instead of DJANGO_BASE — avoids CORS on localhost
+        url: `/api/teacher/modules/${currentModule.id}/lessons/${lessonId}/`,
         method: "PATCH",
         sessionToken,
         apiKey: "",
@@ -1876,15 +1941,27 @@ export function TeacherLearningModules() {
   //   );
   // }
   return (
-    <div className="space-y-4 xs:p-4 sm:p-4 max-w-full mx-auto">
-      <div>
-        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">
-          Learning Modules
-        </h1>
-        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">
-          Create and manage comprehensive learning experiences
-        </p>
+    <div className="space-y-6 max-w-7xl mx-auto p-1 sm:p-2">
+      {/* Premium Hero Header Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none mb-6">
+        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+              E-Learning Course Manager
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+              Learning Modules
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+              Organize lesson playlists, upload rich video/audio course assets, manage student syllabus access permissions, and evaluate performance analytics in your premium virtual library.
+            </p>
+          </div>
+        </div>
       </div>
+
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
@@ -1893,25 +1970,33 @@ export function TeacherLearningModules() {
           setCurrentPageAnalytics(1);
         }}
         className="w-full">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className="bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/40 dark:border-slate-800/40 p-1.5 rounded-2xl backdrop-blur-md flex flex-row items-center justify-start w-full overflow-x-auto no-scrollbar gap-2 mb-8">
           <TabsTrigger
             value="create"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+          >
+            <PlusCircle className="h-4 w-4 shrink-0" />
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+          >
+            <ClipboardList className="h-4 w-4 shrink-0" />
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+          >
+            <BarChart3 className="h-4 w-4 shrink-0" />
             Module Analytics
           </TabsTrigger>
           <TabsTrigger
             value="course-access"
-            className="bg-transparent w-full sm:w-32 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+          >
+            <Key className="h-4 w-4 shrink-0" />
             Course Access
           </TabsTrigger>
         </TabsList>
@@ -1934,43 +2019,38 @@ export function TeacherLearningModules() {
                 return (
                   <Card
                     key={c.id}
-                    className="flex flex-col h-full min-h-[240px]">
+                    className="flex flex-col h-full min-h-[240px] bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 rounded-2xl shadow-md transition-all duration-300 hover:shadow-lg pl-1 relative overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#EF7B55]" />
                     <CardHeader>
-                      <CardTitle className="text-sm xs:text-base sm:text-lg line-clamp-2">
+                      <CardTitle className="text-sm xs:text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 line-clamp-2">
                         {c.name}
                       </CardTitle>
-                      <CardDescription className="text-xs sm:text-sm line-clamp-1">
+                      <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 font-medium">
                         {c.subject} • {c.classroom}
                         {c.course_type ? ` • ${c.course_type}` : ""}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3 flex-1">
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {!isPrivate && (
-                          <span>
-                            {" "}
-                            <Badge
-                              variant={
-                                c.general_activation ? "default" : "secondary"
-                              }
-                              className={
-                                c.general_activation
-                                  ? "bg-[#EF7B55]/70 px-2"
-                                  : "bg-gray-500 text-white"
-                              }>
-                              {c.general_activation
-                                ? "General Access ON"
-                                : "General Access OFF"}
-                            </Badge>{" "}
-                          </span>
+                          <Badge
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              c.general_activation
+                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
+                            }`}>
+                            {c.general_activation
+                              ? "General Access ON"
+                              : "General Access OFF"}
+                          </Badge>
                         )}
                         {isPrivate && (
-                          <Badge className="bg-gray-700 text-white">
+                          <Badge className="bg-slate-500/10 text-slate-500 border border-slate-500/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">
                             Private
                           </Badge>
                         )}
                         {c.general_activation && (
-                          <Badge variant="outline">
+                          <Badge className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">
                             Expiry:{" "}
                             {c.general_activation_date
                               ? new Date(
@@ -1982,12 +2062,11 @@ export function TeacherLearningModules() {
                       </div>
                       <div>
                         <Badge
-                          variant="outline"
-                          className={
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             c.freeze_code_submission
-                              ? "border-red-400 text-red-600"
-                              : ""
-                          }>
+                              ? "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                              : "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"
+                          }`}>
                           Code Submit:{" "}
                           {c.freeze_code_submission ? "Frozen" : "Allowed"}
                         </Badge>
@@ -1996,17 +2075,18 @@ export function TeacherLearningModules() {
                         c.general_activation_date &&
                         new Date(c.general_activation_date).getTime() <
                         Date.now() && (
-                          <Badge className="bg-red-600/80 text-white w-fit">
+                          <Badge className="bg-rose-600/10 text-rose-500 border border-rose-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold w-fit">
                             Expired
                           </Badge>
                         )}
                       <Button
                         onClick={() => openGA(c)}
                         disabled={isPrivate}
-                        className={`w-full text-xs xs:text-sm sm:text-base shadow-md mt-auto ${isPrivate
-                            ? "opacity-50 cursor-not-allowed"
-                            : "bg-[#f79771]/70 hover:bg-[#EF7B55]/90"
-                          }`}>
+                        className={`w-full rounded-xl text-xs xs:text-sm sm:text-base font-bold shadow-md mt-auto transition-all duration-300 py-2.5 ${
+                          isPrivate
+                            ? "opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400"
+                            : "bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white"
+                        }`}>
                         {isPrivate
                           ? "Not available for private courses"
                           : "Update Access"}
@@ -2015,7 +2095,7 @@ export function TeacherLearningModules() {
                         onClick={() => toggleCourseCodeSubmit(String(c.id))}
                         disabled={togglingCourseId === String(c.id)}
                         variant="outline"
-                        className="w-full mt-2 text-xs xs:text-sm sm:text-base bg-transparent shadow-md">
+                        className="w-full mt-2 rounded-xl text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold shadow-md text-slate-700 dark:text-slate-200 h-10">
                         {togglingCourseId === String(c.id) ? (
                           <>
                             <Spinner size="sm" className="mr-2" />
@@ -2043,7 +2123,7 @@ export function TeacherLearningModules() {
             </div>
           ) : (
             <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="md:col-span-1">
+              <Card className="md:col-span-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-sm xs:text-base sm:text-lg">
                     Module Configuration
@@ -2056,7 +2136,7 @@ export function TeacherLearningModules() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="title"
-                      className="text-xs xs:text-sm sm:text-base">
+                      className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                       Module Title
                     </Label>
                     <Input
@@ -2069,13 +2149,13 @@ export function TeacherLearningModules() {
                         }))
                       }
                       placeholder="Enter module title"
-                      className="text-xs xs:text-sm sm:text-base"
+                      className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label
                       htmlFor="order"
-                      className="text-xs xs:text-sm sm:text-base">
+                      className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                       Order
                     </Label>
                     <Input
@@ -2090,13 +2170,13 @@ export function TeacherLearningModules() {
                         }))
                       }
                       placeholder="e.g., 1"
-                      className="text-xs xs:text-sm sm:text-base"
+                      className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label
                       htmlFor="description"
-                      className="text-xs xs:text-sm sm:text-base">
+                      className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                       Description
                     </Label>
                     <Textarea
@@ -2110,12 +2190,12 @@ export function TeacherLearningModules() {
                       }
                       placeholder="Describe what students will learn"
                       rows={3}
-                      className="text-xs xs:text-sm sm:text-base"
+                      className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                     />
                   </div>
                   <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs xs:text-sm sm:text-base">
+                      <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                         Difficulty
                       </Label>
                       <Select
@@ -2126,23 +2206,23 @@ export function TeacherLearningModules() {
                             difficulty: value,
                           }))
                         }>
-                        <SelectTrigger className="text-xs xs:text-sm sm:text-base">
+                        <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                           <SelectItem
                             value="Beginner"
-                            className="text-xs xs:text-sm sm:text-base">
+                            className="text-xs xs:text-sm sm:text-base rounded-lg">
                             Beginner
                           </SelectItem>
                           <SelectItem
                             value="Intermediate"
-                            className="text-xs xs:text-sm sm:text-base">
+                            className="text-xs xs:text-sm sm:text-base rounded-lg">
                             Intermediate
                           </SelectItem>
                           <SelectItem
                             value="Advanced"
-                            className="text-xs xs:text-sm sm:text-base">
+                            className="text-xs xs:text-sm sm:text-base rounded-lg">
                             Advanced
                           </SelectItem>
                         </SelectContent>
@@ -2150,7 +2230,7 @@ export function TeacherLearningModules() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs xs:text-sm sm:text-base">
+                    <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                       Course
                     </Label>
                     <Select
@@ -2165,13 +2245,13 @@ export function TeacherLearningModules() {
                           },
                         }))
                       }>
-                      <SelectTrigger className="text-xs xs:text-sm sm:text-base">
+                      <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base">
+                          className="text-xs xs:text-sm sm:text-base rounded-lg">
                           Select course
                         </SelectItem>
                         {courses
@@ -2180,7 +2260,7 @@ export function TeacherLearningModules() {
                             <SelectItem
                               key={course.id}
                               value={course.id}
-                              className="text-xs xs:text-sm sm:text-base">
+                              className="text-xs xs:text-sm sm:text-base rounded-lg">
                               {course.name}
                             </SelectItem>
                           ))}
@@ -2188,7 +2268,7 @@ export function TeacherLearningModules() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs xs:text-sm sm:text-base">
+                    <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                       Category
                     </Label>
                     <Select
@@ -2199,13 +2279,13 @@ export function TeacherLearningModules() {
                           category: value === "none" ? undefined : value,
                         }))
                       }>
-                      <SelectTrigger className="text-xs xs:text-sm sm:text-base">
+                      <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                         <SelectItem
                           value="none"
-                          className="text-xs xs:text-sm sm:text-base">
+                          className="text-xs xs:text-sm sm:text-base rounded-lg">
                           Select category
                         </SelectItem>
                         {categories
@@ -2214,7 +2294,7 @@ export function TeacherLearningModules() {
                             <SelectItem
                               key={category.id}
                               value={category.name}
-                              className="text-xs xs:text-sm sm:text-base">
+                              className="text-xs xs:text-sm sm:text-base rounded-lg">
                               {category.name}
                             </SelectItem>
                           ))}
@@ -2224,7 +2304,7 @@ export function TeacherLearningModules() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="duration"
-                      className="text-xs xs:text-sm sm:text-base">
+                      className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                       Estimated Duration (minutes)
                     </Label>
                     <Input
@@ -2239,7 +2319,7 @@ export function TeacherLearningModules() {
                         }))
                       }
                       placeholder="e.g., 37"
-                      className="text-xs xs:text-sm sm:text-base"
+                      className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                     />
                     <p className="text-[0.7rem] text-muted-foreground">
                       Enter total minutes (e.g., 37 for 37 minutes)
@@ -2259,15 +2339,15 @@ export function TeacherLearningModules() {
                   <div className="pt-2 xs:pt-3 space-y-2">
                     <Button
                       onClick={currentModule.id ? updateModule : saveModule}
-                      className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771]/80 shadow-md"
+                      className="w-full rounded-xl text-xs xs:text-sm sm:text-base font-bold bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white shadow-md py-2.5 h-10"
                       disabled={isSaving}>
                       {isSaving ? (
                         <Spinner
                           size="sm"
-                          className="mr-1 xs:mr-2 text-white"
+                          className="mr-2 text-white"
                         />
                       ) : (
-                        <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                        <Save className="mr-2 h-4 w-4" />
                       )}
                       {isSaving
                         ? "Saving..."
@@ -2283,9 +2363,9 @@ export function TeacherLearningModules() {
                         )
                       }
                       variant="outline"
-                      className="w-full bg-transparent text-xs xs:text-sm sm:text-base"
+                      className="w-full mt-2 rounded-xl text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold shadow-md text-slate-700 dark:text-slate-200 h-10"
                       disabled={!currentModule.id}>
-                      <Upload className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      <Upload className="mr-2 h-4 w-4 text-[#EF7B55]" />
                       {currentModule.isPublished
                         ? "Unpublish Module"
                         : "Publish Module"}
@@ -2293,7 +2373,7 @@ export function TeacherLearningModules() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="md:col-span-1">
+              <Card className="md:col-span-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -2308,18 +2388,18 @@ export function TeacherLearningModules() {
                       onClick={addLesson}
                       size="sm"
                       disabled={!canAddLessons}
-                      className="text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-xs xs:text-sm sm:text-base bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-bold"
                       title={
                         !canAddLessons
                           ? "Save the module first to add lessons"
                           : "Add lesson"
                       }>
-                      <Plus className="h-3 w-3 xs:h-4 xs:w-4" />
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-2 xs:space-y-3">
-                  {/* Search input - appears only when lessons exist, minimal styling to match original design */}
+                <CardContent className="space-y-3">
+                  {/* Search input */}
                   {currentModule.lessonCount !== 0 && (
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -2327,26 +2407,26 @@ export function TeacherLearningModules() {
                         placeholder="Search lessons..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 h-9 text-[0.85rem] xs:text-xs sm:text-sm"
+                        className="pl-10 h-10 text-[0.85rem] xs:text-xs sm:text-sm border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                       />
                     </div>
                   )}
 
-                  {/* Scrollable container - preserves original spacing and card styles */}
-                  <div className="max-h-[100vh] overflow-y-auto pr-2 space-y-2 xs:space-y-3">
+                  {/* Scrollable container */}
+                  <div className="max-h-[100vh] overflow-y-auto pr-2 space-y-3">
                     {currentModule.lessonCount === 0 ? (
-                      <div className="text-center py-6 xs:py-8 text-muted-foreground">
-                        <BookOpen className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 mb-2 xs:mb-3 sm:mb-4 opacity-50" />
-                        <p className="text-[0.85rem] xs:text-xs sm:text-sm">
+                      <div className="text-center py-8 text-muted-foreground bg-slate-50/30 dark:bg-slate-950/10 rounded-2xl border border-dashed border-slate-200/50 dark:border-slate-800/60 p-4">
+                        <BookOpen className="mx-auto h-12 w-12 mb-3 opacity-50 text-[#EF7B55]" />
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                           No lessons added yet
                         </p>
 
                         {!canAddLessons ? (
-                          <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                             Save the module first, then you can add lessons.
                           </p>
                         ) : (
-                          <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                             Click the + button to add your first lesson
                           </p>
                         )}
@@ -2364,8 +2444,8 @@ export function TeacherLearningModules() {
 
                         if (filteredLessons.length === 0) {
                           return (
-                            <div className="text-center py-8 text-muted-foreground">
-                              <p className="text-[0.85rem] xs:text-xs sm:text-sm">
+                            <div className="text-center py-8 text-slate-500">
+                              <p className="text-sm">
                                 No lessons match your search
                               </p>
                             </div>
@@ -2381,22 +2461,22 @@ export function TeacherLearningModules() {
                           return (
                             <div
                               key={lesson.id}
-                              className={`p-2 px-4 xs:p-3 rounded-lg cursor-pointer transition-colors shadow-md ${editingLesson?.id === lesson.id
-                                  ? "border-primary bg-primary/5"
-                                  : "hover:bg-muted/50"
+                              className={`relative overflow-hidden p-4 rounded-xl cursor-pointer transition-all duration-300 border pl-6 ${editingLesson?.id === lesson.id
+                                ? "border-[#EF7B55]/30 bg-[#EF7B55]/5 shadow-sm shadow-[#EF7B55]/5"
+                                : "border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/20 hover:bg-slate-50/50 dark:hover:bg-slate-850/20"
                                 }`}
                               onClick={() => setEditingLesson(lesson)}
                             >
+                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${editingLesson?.id === lesson.id ? "bg-[#EF7B55]" : "bg-slate-300 dark:bg-slate-700"}`} />
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 max-w-[85%]">
-                                  <div className="flex items-center gap-1 xs:gap-2 mb-1">
-                                    <Icon className="h-3 w-3 xs:h-4 xs:w-4" />
-                                    <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium whitespace-nowrap">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Icon className="h-4 w-4 text-[#EF7B55]" />
+                                    <span className="text-xs xs:text-sm font-bold text-slate-800 dark:text-slate-200">
                                       Lesson {originalIndex + 1}
                                     </span>
                                     <Badge
-                                      variant="outline"
-                                      className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs whitespace-nowrap"
+                                      className="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                                     >
                                       {lesson.type}
                                     </Badge>
@@ -2407,15 +2487,15 @@ export function TeacherLearningModules() {
                                         onError={(e) => {
                                           e.currentTarget.src = "/placeholder.jpg";
                                         }}
-                                        className="w-6 h-4 object-cover rounded ml-1 shrink-0"
+                                        className="w-8 h-6 object-cover rounded ml-1 shrink-0 border border-slate-200/50 dark:border-slate-800/50"
                                       />
                                     )}
                                   </div>
-                                  <p className="text-[0.85rem] xs:text-xs sm:text-sm line-clamp-2 overflow-hidden text-ellipsis">
+                                  <p className="text-xs xs:text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
                                     {lesson.title || "Untitled lesson"}
                                   </p>
                                   {lesson.duration && (
-                                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground mt-0.5 xs:mt-1">
+                                    <p className="text-[0.65rem] text-slate-400 dark:text-slate-500 mt-1 font-medium">
                                       {lesson.duration}
                                     </p>
                                   )}
@@ -2423,13 +2503,13 @@ export function TeacherLearningModules() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="p-1 xs:p-2 shrink-0"
+                                  className="p-1 xs:p-2 shrink-0 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     deleteLesson(lesson.id);
                                   }}
                                 >
-                                  <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-[#DD2701]" />
+                                  <Trash2 className="h-4 w-4 text-rose-500" />
                                 </Button>
                               </div>
                             </div>
@@ -2440,7 +2520,7 @@ export function TeacherLearningModules() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="md:col-span-1">
+              <Card className="md:col-span-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-sm xs:text-base sm:text-lg">
                     Lesson Editor
@@ -2453,10 +2533,10 @@ export function TeacherLearningModules() {
                 </CardHeader>
                 <CardContent>
                   {editingLesson ? (
-                    <div className="space-y-3 xs:space-y-4">
+                    <div className="space-y-4">
                       {/* Cover Image Section */}
                       <div className="space-y-2">
-                        <Label className="text-xs xs:text-sm sm:text-base">
+                        <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                           Cover Image
                         </Label>
                         {editingLesson.coverImageUrl &&
@@ -2471,12 +2551,12 @@ export function TeacherLearningModules() {
                               onError={(e) => {
                                 e.currentTarget.src = "/placeholder.svg";
                               }}
-                              className="h-16 w-16 object-cover rounded"
+                              className="h-16 w-16 object-cover rounded border border-slate-200/50"
                             />
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-xs xs:text-sm sm:text-base shadow-md"
+                              className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold rounded-xl shadow-md h-10 px-4"
                               onClick={() =>
                                 updateLessonFields(editingLesson.id, {
                                   remove_cover: true,
@@ -2491,12 +2571,12 @@ export function TeacherLearningModules() {
                             <Input
                               value={editingLesson.coverImage.name}
                               readOnly
-                              className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                              className="text-xs xs:text-sm sm:text-base bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl"
                             />
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-xs xs:text-sm sm:text-base shadow-md"
+                              className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold rounded-xl shadow-md h-10 px-4"
                               onClick={() =>
                                 updateLessonFields(editingLesson.id, {
                                   coverImage: null,
@@ -2533,11 +2613,11 @@ export function TeacherLearningModules() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                              className="w-full bg-transparent hover:bg-slate-100 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs xs:text-sm sm:text-base font-bold shadow-md h-10"
                               onClick={() =>
                                 coverImageInputRef.current?.click()
                               }>
-                              <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                              <Upload className="mr-2 h-4 w-4 text-[#EF7B55]" />
                               Upload Cover Image
                             </Button>
                           </>
@@ -2545,7 +2625,7 @@ export function TeacherLearningModules() {
                       </div>
                       {/* Lesson Type */}
                       <div className="space-y-2">
-                        <Label className="text-xs xs:text-sm sm:text-base">
+                        <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                           Lesson Type
                         </Label>
                         <Select
@@ -2561,23 +2641,23 @@ export function TeacherLearningModules() {
                               coverImage: null, // Reset cover when changing type
                             })
                           }>
-                          <SelectTrigger className="text-xs xs:text-sm sm:text-base">
+                          <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <SelectItem
                               value="video"
-                              className="text-xs xs:text-sm sm:text-base">
+                              className="text-xs xs:text-sm sm:text-base rounded-lg">
                               Video
                             </SelectItem>
                             <SelectItem
                               value="audio"
-                              className="text-xs xs:text-sm sm:text-base">
+                              className="text-xs xs:text-sm sm:text-base rounded-lg">
                               Audio
                             </SelectItem>
                             <SelectItem
                               value="pdf"
-                              className="text-xs xs:text-sm sm:text-base">
+                              className="text-xs xs:text-sm sm:text-base rounded-lg">
                               PDF
                             </SelectItem>
                           </SelectContent>
@@ -2586,7 +2666,7 @@ export function TeacherLearningModules() {
                       <div className="space-y-2">
                         <Label
                           htmlFor="lesson-title"
-                          className="text-xs xs:text-sm sm:text-base font-medium">
+                          className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                           {`Lesson ${editingLesson.type.charAt(0).toUpperCase() +
                             editingLesson.type.slice(1)
                             }`}
@@ -2600,11 +2680,11 @@ export function TeacherLearningModules() {
                             })
                           }
                           placeholder={`Enter ${editingLesson.type} title`}
-                          className="text-xs xs:text-sm sm:text-base w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="text-xs xs:text-sm sm:text-base w-full border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs xs:text-sm sm:text-base">
+                        <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                           Duration (Minutes)
                         </Label>
                         <Input
@@ -2615,13 +2695,13 @@ export function TeacherLearningModules() {
                             })
                           }
                           placeholder="e.g., 15 mins"
-                          className="text-xs xs:text-sm sm:text-base"
+                          className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                         />
                       </div>
                       {/* Video Upload */}
                       {editingLesson.type === "video" && (
                         <div className="space-y-2">
-                          <Label className="text-xs xs:text-sm sm:text-base">
+                          <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                             Video{" "}
                             {editingLesson.file ? "File (Selected)" : "Upload"}
                           </Label>
@@ -2632,12 +2712,12 @@ export function TeacherLearningModules() {
                                   editingLesson.file || editingLesson.videoUrl,
                                 )}
                                 readOnly
-                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                                className="text-xs xs:text-sm sm:text-base bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl"
                               />
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold rounded-xl shadow-md h-10 px-4"
                                 onClick={() =>
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
@@ -2670,9 +2750,9 @@ export function TeacherLearningModules() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                className="w-full bg-transparent hover:bg-slate-100 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs xs:text-sm sm:text-base font-bold shadow-md h-10"
                                 onClick={() => fileInputRef.current?.click()}>
-                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                <Upload className="mr-2 h-4 w-4 text-[#EF7B55]" />
                                 Upload Video
                               </Button>
                             </>
@@ -2682,7 +2762,7 @@ export function TeacherLearningModules() {
                       {/* Audio Upload */}
                       {editingLesson.type === "audio" && (
                         <div className="space-y-2">
-                          <Label className="text-xs xs:text-sm sm:text-base">
+                          <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                             Audio{" "}
                             {editingLesson.file || editingLesson.audioUrl ? "File (Selected)" : "Upload"}
                           </Label>
@@ -2693,12 +2773,12 @@ export function TeacherLearningModules() {
                                   editingLesson.file || editingLesson.audioUrl,
                                 )}
                                 readOnly
-                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                                className="text-xs xs:text-sm sm:text-base bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl"
                               />
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold rounded-xl shadow-md h-10 px-4"
                                 onClick={() =>
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
@@ -2731,9 +2811,9 @@ export function TeacherLearningModules() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                className="w-full bg-transparent hover:bg-slate-100 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs xs:text-sm sm:text-base font-bold shadow-md h-10"
                                 onClick={() => fileInputRef.current?.click()}>
-                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                <Upload className="mr-2 h-4 w-4 text-[#EF7B55]" />
                                 Upload Audio
                               </Button>
                             </>
@@ -2743,7 +2823,7 @@ export function TeacherLearningModules() {
                       {/* PDF Upload */}
                       {editingLesson.type === "pdf" && (
                         <div className="space-y-2">
-                          <Label className="text-xs xs:text-sm sm:text-base">
+                          <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                             PDF{" "}
                             {editingLesson.file || editingLesson.pdfUrl ? "File (Selected)" : "Upload"}
                           </Label>
@@ -2754,12 +2834,12 @@ export function TeacherLearningModules() {
                                   editingLesson.file || editingLesson.pdfUrl,
                                 )}
                                 readOnly
-                                className="text-xs xs:text-sm sm:text-base bg-gray-100"
+                                className="text-xs xs:text-sm sm:text-base bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl"
                               />
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-xs xs:text-sm sm:text-base shadow-md"
+                                className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold rounded-xl shadow-md h-10 px-4"
                                 onClick={() =>
                                   updateLessonFields(editingLesson.id, {
                                     file: null,
@@ -2792,9 +2872,9 @@ export function TeacherLearningModules() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full bg-transparent text-xs xs:text-sm sm:text-base shadow-md"
+                                className="w-full bg-transparent hover:bg-slate-100 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs xs:text-sm sm:text-base font-bold shadow-md h-10"
                                 onClick={() => fileInputRef.current?.click()}>
-                                <Upload className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                <Upload className="mr-2 h-4 w-4 text-[#EF7B55]" />
                                 Upload PDF
                               </Button>
                             </>
@@ -2804,7 +2884,7 @@ export function TeacherLearningModules() {
                       {/* Text Upload - Simplified, as per original */}
                       {editingLesson.type === "text" && (
                         <div className="space-y-2">
-                          <Label className="text-xs xs:text-sm sm:text-base">
+                          <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                             Content
                           </Label>
                           <Textarea
@@ -2816,7 +2896,7 @@ export function TeacherLearningModules() {
                             }
                             placeholder="Write your lesson content here..."
                             rows={4}
-                            className="text-xs xs:text-sm sm:text-base"
+                            className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                           />
                         </div>
                       )}
@@ -2827,15 +2907,15 @@ export function TeacherLearningModules() {
                             ? saveLesson()
                             : updateLesson(editingLesson.id)
                         }
-                        className="w-full text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771]/80"
+                        className="w-full rounded-xl text-xs xs:text-sm sm:text-base font-bold bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white shadow-md h-10 mt-2"
                         disabled={isSavingLesson}>
                         {isSavingLesson ? (
                           <Spinner
                             size="sm"
-                            className="mr-1 xs:mr-2 text-white"
+                            className="mr-2 text-white"
                           />
                         ) : (
-                          <Save className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                          <Save className="mr-2 h-4 w-4" />
                         )}
                         {isSavingLesson
                           ? "Saving..."
@@ -2907,12 +2987,12 @@ export function TeacherLearningModules() {
                     onKeyDown={(e) =>
                       e.key === "Enter" && setSearch(searchQuery)
                     }
-                    className="pl-8 text-sm"
+                    className="pl-9 h-10 border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 text-xs xs:text-sm sm:text-base"
                   />
                 </div>
                 <Button
                   onClick={() => setSearch(searchQuery)}
-                  className="px-3 bg-[#f79771] hover:bg-gray-300 shadow-md">
+                  className="px-3 bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white rounded-xl shadow-md h-10 shrink-0">
                   <Search className="h-4 w-4" />
                 </Button>
               </div>
@@ -2921,25 +3001,25 @@ export function TeacherLearningModules() {
                 <Select
                   value={difficultyFilter}
                   onValueChange={setDifficultyFilter}>
-                  <SelectTrigger className="w-full text-sm">
+                  <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 h-10">
                     <SelectValue placeholder="Difficulty" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Beginner">Beginner</SelectItem>
-                    <SelectItem value="Intermediate">Intermediate</SelectItem>
-                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    <SelectItem value="Beginner" className="rounded-lg text-xs xs:text-sm sm:text-base">Beginner</SelectItem>
+                    <SelectItem value="Intermediate" className="rounded-lg text-xs xs:text-sm sm:text-base">Intermediate</SelectItem>
+                    <SelectItem value="Advanced" className="rounded-lg text-xs xs:text-sm sm:text-base">Advanced</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={courseFilter} onValueChange={setCourseFilter}>
-                  <SelectTrigger className="w-full text-sm">
+                  <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 h-10">
                     <SelectValue placeholder="All Courses" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Courses</SelectItem>
+                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    <SelectItem value="all" className="rounded-lg text-xs xs:text-sm sm:text-base">All Courses</SelectItem>
                     {courses
                       .filter((c) => c.id)
                       .map((course) => (
-                        <SelectItem key={course.id} value={String(course.id)}>
+                        <SelectItem key={course.id} value={String(course.id)} className="rounded-lg text-xs xs:text-sm sm:text-base">
                           {course.name}
                         </SelectItem>
                       ))}
@@ -2948,17 +3028,18 @@ export function TeacherLearningModules() {
                 <Select
                   value={categoryFilter}
                   onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full text-sm">
+                  <SelectTrigger className="w-full text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 h-10">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
+                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    <SelectItem value="all" className="rounded-lg text-xs xs:text-sm sm:text-base">All Categories</SelectItem>
                     {categories
                       .filter((cat) => cat.id)
                       .map((category) => (
                         <SelectItem
                           key={category.id}
-                          value={String(category.id)}>
+                          value={String(category.id)}
+                          className="rounded-lg text-xs xs:text-sm sm:text-base">
                           {category.name}
                         </SelectItem>
                       ))}
@@ -2970,15 +3051,7 @@ export function TeacherLearningModules() {
                     setCurrentModule(initialModule);
                     setActiveTab("create");
                   }}
-                  className="
-        w-full
-        lg:w-auto
-        bg-[#f79771]
-        hover:bg-gray-300
-        shadow-md
-        text-sm
-        flex items-center justify-center
-      ">
+                  className="w-full lg:w-auto bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white rounded-xl shadow-md h-10 shrink-0 font-bold">
                   <Plus className="mr-2 h-4 w-4" />
                   Create New
                 </Button>
@@ -3013,30 +3086,32 @@ export function TeacherLearningModules() {
                   return (
                     <Card
                       key={module.id}
-                      className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                      className="hover:shadow-lg transition-all duration-300 border border-slate-200/50 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/60 rounded-2xl shadow-md flex flex-col h-full overflow-hidden pl-1 relative">
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#EF7B55]/70" />
                       <CardHeader>
                         <div className="flex items-start justify-between">
-                          <div className="space-y-1 flex-1">
+                          <div className="space-y-1.5 flex-1 pr-2">
                             <CardTitle
-                              className="text-sm xs:text-base sm:text-lg"
+                              className="text-sm xs:text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100"
                               title={module.title}>
                               {shortenText(module.title, 45)}
                             </CardTitle>
                             <CardDescription
-                              className="text-xs sm:text-sm"
+                              className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium"
                               title={module.description}>
                               {shortenText(module.description, 90)}
                             </CardDescription>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button variant="ghost" className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-850">
                                 <span className="sr-only">Open menu</span>
-                                <MoreVertical className="h-4 w-4" />
+                                <MoreVertical className="h-4 w-4 text-slate-500" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                               <DropdownMenuItem
+                                className="rounded-lg"
                                 onClick={async () => {
                                   const moduleData = await getModuleDetails(
                                     module.id,
@@ -3046,10 +3121,11 @@ export function TeacherLearningModules() {
                                     setActiveTab("create");
                                   }
                                 }}>
-                                <Edit className="mr-2 h-4 w-4" />
+                                <Edit className="mr-2 h-4 w-4 text-[#EF7B55]" />
                                 <span>Edit</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                className="rounded-lg"
                                 onClick={async () => {
                                   const moduleData = await getModuleDetails(
                                     module.id,
@@ -3059,63 +3135,60 @@ export function TeacherLearningModules() {
                                     setIsPreviewOpen(true);
                                   }
                                 }}>
-                                <Eye className="mr-2 h-4 w-4" />
+                                <Eye className="mr-2 h-4 w-4 text-indigo-500" />
                                 <span>Preview</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() =>
                                   handleDeleteModuleClick(module.id)
                                 }
-                                className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
+                                className="text-red-600 rounded-lg">
+                                <Trash2 className="mr-2 h-4 w-4 text-rose-500" />
                                 <span>Delete</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
                       </CardHeader>
-                      <CardContent className="flex flex-col flex-1 justify-between space-y-3 xs:space-y-4">
+                      <CardContent className="flex flex-col flex-1 justify-between space-y-4">
                         <div>
                           <div className="flex items-center flex-wrap gap-2">
                             <Badge
-                              variant={
-                                module.isPublished ? "default" : "secondary"
-                              }
                               className={
                                 module.isPublished
-                                  ? "bg-[#EF7B55]/70 hover:bg-[#EF7B55]/80"
-                                  : "bg-gray-500 text-white hover:bg-gray-600"
+                                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                                  : "bg-slate-500/10 text-slate-500 border border-slate-500/20 px-2.5 py-0.5 rounded-full text-xs font-semibold"
                               }>
                               {module.isPublished ? "Published" : "Draft"}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              className="text-[0.85rem] xs:text-xs sm:text-sm px-2 py-0.5 rounded-full border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                               {module.difficulty}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              className="text-[0.85rem] xs:text-xs sm:text-sm px-2 py-0.5 rounded-full border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                               {module.category || "Uncategorized"}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              className="text-[0.85rem] xs:text-xs sm:text-sm px-2 py-0.5 rounded-full border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                               {module.course.name}
                             </Badge>
                           </div>
-                          <div className="grid grid-cols-2 gap-3 xs:gap-4 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mt-3">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                              {module.duration} min
+                          <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 dark:text-slate-400 mt-4">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5 text-[#EF7B55]" />
+                              <span>{module.duration} min</span>
                             </div>
-                            <div>{module.createdDate}</div>
+                            <div className="text-right">{module.createdDate}</div>
                           </div>
                         </div>
                         {/* 👇 Buttons pushed to bottom */}
-                        <div className="flex gap-2 flex-col lg:flex-row mt-auto">
+                        <div className="flex gap-2 flex-col lg:flex-row mt-auto pt-2">
                           <Button
-                            className="flex-1 text-xs xs:text-sm sm:text-base bg-[#f79771]/70 hover:bg-[#f79771]/90"
+                            className="flex-1 rounded-xl text-xs xs:text-sm sm:text-base font-bold bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white shadow-md h-10"
                             disabled={loadingModuleId === module.id}
                             onClick={async () => {
                               setLoadingModuleId(module.id); // 🔹 start loading
@@ -3135,20 +3208,20 @@ export function TeacherLearningModules() {
                               <>
                                 <Spinner
                                   size="sm"
-                                  className="mr-1 xs:mr-2 text-white"
+                                  className="mr-2 text-white"
                                 />
                                 Loading...
                               </>
                             ) : (
                               <>
-                                <Edit className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </>
                             )}
                           </Button>
                           <Button
                             variant="outline"
-                            className="flex-1 text-xs xs:text-sm sm:text-base"
+                            className="flex-1 rounded-xl text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold text-slate-700 dark:text-slate-200 h-10"
                             disabled={loadingModuleId === module.id}
                             onClick={async () => {
                               setLoadingModuleId(module.id);
@@ -3166,12 +3239,12 @@ export function TeacherLearningModules() {
                             }}>
                             {loadingModuleId === module.id ? (
                               <>
-                                <Spinner size="sm" className="mr-1 xs:mr-2" />
+                                <Spinner size="sm" className="mr-2" />
                                 Loading...
                               </>
                             ) : (
                               <>
-                                <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                                <Eye className="mr-2 h-4 w-4 text-[#EF7B55]" />
                                 Preview
                               </>
                             )}
@@ -3269,27 +3342,29 @@ export function TeacherLearningModules() {
                 </p>
               </div>
               {/* */}
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <Card>
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <Card className="bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 rounded-2xl shadow-md pl-1 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
                   <CardHeader className="pb-1 xs:pb-2">
-                    <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
+                    <CardTitle className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       Total Enrollments
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg xs:text-xl sm:text-2xl font-bold">
+                    <div className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400">
                       {analytics.aggregates.total_enrollments}
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 rounded-2xl shadow-md pl-1 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#EF7B55]" />
                   <CardHeader className="pb-1 xs:pb-2">
-                    <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
+                    <CardTitle className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       Avg. Completion Rate
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg xs:text-xl sm:text-2xl font-bold">
+                    <div className="text-xl sm:text-2xl font-black text-[#EF7B55]">
                       {analytics.aggregates.completion_rate.toFixed(1)}%
                     </div>
                   </CardContent>

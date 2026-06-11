@@ -40,6 +40,7 @@ import {VideoModal} from "./video-modal";
 import {AudioPlayer} from "./audio-player";
 import {signOut, useSession} from "next-auth/react";
 import {Spinner} from "@/components/ui/spinner";
+import {useStudentTheme} from "@/components/student/useStudentTheme";
 import {
   Select,
   SelectContent,
@@ -97,6 +98,8 @@ type LessonMediaResp = {
   expires_in?: number;
 };
 export function ResourceMaterials() {
+  const {theme} = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const [pageLoading, setPageLoading] = useState(true); // first load only
   const [dataLoading, setDataLoading] = useState(false); // filter/search reload
   const didInitialLoadRef = useRef(false);
@@ -550,45 +553,6 @@ export function ResourceMaterials() {
     );
   }
 
-  if (
-    error === "Resources not found" ||
-    (resourcesData &&
-      resourcesData.pdfs.length === 0 &&
-      resourcesData.videos.length === 0 &&
-      resourcesData.audio.length === 0 &&
-      resourcesData.journals.length === 0)
-  ) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-              <AlertCircle className="h-6 w-6 text-red-500" />
-              Resources Not Found
-            </CardTitle>
-            <CardDescription className="text-center">
-              No resources were found for your query or selected course. Try a
-              different search term or course.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center gap-2">
-            <Button
-              onClick={() => setSearchQuery("")}
-              className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              Clear Search
-            </Button>
-            <Button
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (error && !resourcesData) {
     return (
@@ -724,28 +688,43 @@ export function ResourceMaterials() {
       </div> */}
 
       <Tabs defaultValue="pdfs" className="w-full mr-auto relative">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+        <TabsList className={isAero
+          ? "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/20 p-1.5 border border-slate-200/50 rounded-2xl w-full mb-8"
+          : "bg-[#f797712e] text-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center w-full gap-2 mb-8 p-1.5 rounded-2xl border border-slate-100"
+        }>
           <TabsTrigger
             value="pdfs"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+              : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             <FileText className="h-4 w-4" />
             PDFs
           </TabsTrigger>
           <TabsTrigger
             value="videos"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+              : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             <Video className="h-4 w-4" />
             Videos
           </TabsTrigger>
           <TabsTrigger
             value="audio"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+              : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             <Headphones className="h-4 w-4" />
             Audio
           </TabsTrigger>
           <TabsTrigger
             value="journals"
-            className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+              : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             <BookOpen className="h-4 w-4" />
             Journals
           </TabsTrigger>
@@ -805,10 +784,16 @@ export function ResourceMaterials() {
                       {pdfItems.map((pdf, index) => (
                         <Card
                           key={pdf.id || index}
-                          className={cn(
-                            "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
-                            pdf.blur && "cursor-not-allowed",
-                          )}>
+                          className={isAero
+                            ? cn(
+                                "group relative flex flex-col sm:flex-row h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px] max-w-md",
+                                pdf.blur && "cursor-not-allowed"
+                              )
+                            : cn(
+                                "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
+                                pdf.blur && "cursor-not-allowed",
+                              )
+                          }>
                           {/* BLUR WRAPPER */}
                           <div
                             className={cn(
@@ -894,7 +879,7 @@ export function ResourceMaterials() {
 
                           {/* OVERLAY */}
                           {pdf.blur && (
-                            <LockedOverlay label="Login / Subscribe to unlock PDF" />
+                            <LockedOverlay label="Course access has expired. Please renew your subscription" />
                           )}
                         </Card>
                       ))}
@@ -963,10 +948,16 @@ export function ResourceMaterials() {
                       {videoItems.map((video, index) => (
                         <Card
                           key={video.id || index}
-                          className={cn(
-                            "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
-                            video.blur && "cursor-not-allowed",
-                          )}>
+                          className={isAero
+                            ? cn(
+                                "group relative flex flex-col sm:flex-row h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px] max-w-md",
+                                video.blur && "cursor-not-allowed"
+                              )
+                            : cn(
+                                "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
+                                video.blur && "cursor-not-allowed",
+                              )
+                          }>
                           <div
                             className={cn(
                               "flex flex-col sm:flex-row w-full",
@@ -978,7 +969,7 @@ export function ResourceMaterials() {
                                   src={
                                     video.thumbnail.startsWith("http")
                                       ? video.thumbnail
-                                      : `process.env.BASE_URL${video.thumbnail}`
+                                      : `${process.env.NEXT_PUBLIC_DJANGO_BASE_URL ?? ""}${video.thumbnail}`
                                   }
                                   alt={video.title}
                                   className="w-full h-full object-cover"
@@ -1045,7 +1036,7 @@ export function ResourceMaterials() {
                           </div>
 
                           {video.blur && (
-                            <LockedOverlay label="Login / Subscribe to unlock Video" />
+                            <LockedOverlay label="Course access has expired. Please renew your subscription" />
                           )}
                         </Card>
                       ))}
@@ -1114,10 +1105,16 @@ export function ResourceMaterials() {
                       {audioItems.map((audio, index) => (
                         <Card
                           key={audio.id || index}
-                          className={cn(
-                            "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
-                            audio.blur && "cursor-not-allowed",
-                          )}>
+                          className={isAero
+                            ? cn(
+                                "group relative flex flex-col sm:flex-row h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px] max-w-md",
+                                audio.blur && "cursor-not-allowed"
+                              )
+                            : cn(
+                                "hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative",
+                                audio.blur && "cursor-not-allowed",
+                              )
+                          }>
                           <div
                             className={cn(
                               "flex flex-col sm:flex-row w-full",
@@ -1184,7 +1181,7 @@ export function ResourceMaterials() {
                           </div>
 
                           {audio.blur && (
-                            <LockedOverlay label="Login / Subscribe to unlock Audio" />
+                            <LockedOverlay label="Course access has expired. Please renew your subscription" />
                           )}
                         </Card>
                       ))}
@@ -1254,7 +1251,10 @@ export function ResourceMaterials() {
                       {journalItems.map((journal, index) => (
                         <Card
                           key={journal.id || index}
-                          className="hover:shadow-lg transition-shadow flex flex-col h-full">
+                          className={isAero
+                            ? "group relative flex flex-col h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px]"
+                            : "hover:shadow-lg transition-shadow flex flex-col h-full"
+                          }>
                           <CardHeader>
                             <div className="flex flex-wrap gap-2 items-start justify-between">
                               <div className="space-y-1">

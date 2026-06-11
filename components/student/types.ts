@@ -10,7 +10,7 @@ export type LangConfig = {
   template: string;
 };
 
-export type Lesson = { id: string; title: string };
+export type Lesson = { id: string; title: string; module?: number; };
 
 export type Folder = {
   id: number;

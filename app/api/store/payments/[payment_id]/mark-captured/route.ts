@@ -44,7 +44,7 @@ export async function POST(
         // This endpoint expects these header names; we add them here.
         // proxy.ts still adds Authorization: Api-Key ... but backend can ignore it.
         headers: {
-          "X-API-KEY": process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c",
+          "X-API-KEY": process.env.STORE_API_KEY || "WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8",
           "X-SESSION-TOKEN": sessionToken,
           // optional: also send the standard casing some endpoints use
           "X-Session-Token": sessionToken,

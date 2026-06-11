@@ -59,8 +59,11 @@ export async function GET(request: Request) {
   }
 }
 
-// ✅ POST endpoint - reset password
+// ✅ POST endpoint - reset password or update child profile
 export async function POST(request: Request) {
+  const url = new URL(request.url);
+  const action = url.pathname.split("/").pop();
+
   let body: any;
   try {
     body = await request.json();
@@ -71,50 +74,85 @@ export async function POST(request: Request) {
     );
   }
 
-  const { childId, newPassword } = body || {};
-
-  if (!childId || !newPassword) {
-    return NextResponse.json(
-      { detail: "childId and newPassword are required." },
-      { status: 400 }
-    );
-  }
-
-  if (String(newPassword).length < 8) {
-    return NextResponse.json(
-      { detail: "Password must be at least 8 characters." },
-      { status: 400 }
-    );
-  }
-
   const t = withTimeout(15000);
 
   try {
-    const startFetch = await djangoFetch(`/accounts/api/parent/reset-child-password/`, {
-      method: "POST",
-      signal: t.signal,
-      body: JSON.stringify({
-        // keep whatever your backend expects:
-        childId,
-        newPassword,
-      }),
-    });
+    if (action === "update-profile") {
+      const { childId, fullName, dob, gender } = body || {};
+      if (!childId) {
+        return NextResponse.json(
+          { detail: "childId is required." },
+          { status: 400 }
+        );
+      }
 
-    const data = safeJsonParse(startFetch.text);
+      const startFetch = await djangoFetch(`/accounts/api/parent/update-child-profile/`, {
+        method: "POST",
+        signal: t.signal,
+        body: JSON.stringify({
+          childId,
+          fullName,
+          dob,
+          gender,
+        }),
+      });
 
-    if (!startFetch.response.ok) {
-      const res = NextResponse.json(
-        { detail: data?.detail || "Failed to reset password", raw: startFetch.text },
-        { status: startFetch.response.status }
-      );
+      const data = safeJsonParse(startFetch.text);
+
+      if (!startFetch.response.ok) {
+        const res = NextResponse.json(
+          { detail: data?.detail || "Failed to update child profile", raw: startFetch.text },
+          { status: startFetch.response.status }
+        );
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const res = NextResponse.json(data, { status: 200 });
+      return attachSetCookie(res, startFetch.setCookie);
+
+    } else {
+      // Default to Reset Password behavior
+      const { childId, newPassword } = body || {};
+
+      if (!childId || !newPassword) {
+        return NextResponse.json(
+          { detail: "childId and newPassword are required." },
+          { status: 400 }
+        );
+      }
+
+      if (String(newPassword).length < 8) {
+        return NextResponse.json(
+          { detail: "Password must be at least 8 characters." },
+          { status: 400 }
+        );
+      }
+
+      const startFetch = await djangoFetch(`/accounts/api/parent/reset-child-password/`, {
+        method: "POST",
+        signal: t.signal,
+        body: JSON.stringify({
+          childId,
+          newPassword,
+        }),
+      });
+
+      const data = safeJsonParse(startFetch.text);
+
+      if (!startFetch.response.ok) {
+        const res = NextResponse.json(
+          { detail: data?.detail || "Failed to reset password", raw: startFetch.text },
+          { status: startFetch.response.status }
+        );
+        return attachSetCookie(res, startFetch.setCookie);
+      }
+
+      const res = NextResponse.json(data, { status: 200 });
       return attachSetCookie(res, startFetch.setCookie);
     }
-
-    const res = NextResponse.json(data, { status: 200 });
-    return attachSetCookie(res, startFetch.setCookie);
   } catch (error: any) {
     const isTimeout = error?.name === "AbortError";
-    console.error("[Route] Error resetting password:", error);
+    console.error(`[Route] Error executing action ${action}:`, error);
 
     return NextResponse.json(
       {

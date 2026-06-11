@@ -5,7 +5,7 @@ import {unstable_noStore as noStore} from "next/cache";
 
 const BASE_URL = process.env.BASE_URL;
 //const BASE_URL = "http://127.0.0.1:9098";
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8";
 
 const headers = (sessionToken) => ({
   Authorization: `Api-Key ${API_KEY}`,

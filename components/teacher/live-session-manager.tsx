@@ -326,13 +326,13 @@ export function LiveSessionManager() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "live":
-        return "bg-red-100 text-red-700";
+        return "bg-rose-500/10 text-rose-500 border border-rose-500/20";
       case "scheduled":
-        return "bg-blue-100 text-blue-700";
+        return "bg-amber-500/10 text-amber-500 border border-amber-500/20";
       case "completed":
-        return "bg-green-100 text-green-700";
+        return "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-slate-500/10 text-slate-500 border border-slate-500/20";
     }
   };
 
@@ -340,13 +340,13 @@ export function LiveSessionManager() {
     switch (status) {
       case "live":
         return (
-          <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-red-500 rounded-full animate-pulse" />
+          <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-rose-500 rounded-full animate-pulse" />
         );
       case "scheduled":
-        return <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />;
+        return <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-amber-500" />;
       case "completed":
         return (
-          <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-green-500 rounded-full" />
+          <div className="w-1.5 h-1.5 xs:w-2 xs:h-2 bg-emerald-500 rounded-full" />
         );
       default:
         return null;
@@ -354,43 +354,49 @@ export function LiveSessionManager() {
   };
 
   return (
-    <div className="space-y-4 xs:p-4 sm:p-6 max-w-full mx-auto">
-      <div>
-        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">
-          Live Session Manager
-        </h1>
-        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">
-          Schedule and manage live teaching sessions
-        </p>
+    <div className="space-y-6 max-w-7xl mx-auto p-1 sm:p-2">
+      {/* Premium Hero Header Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none mb-6">
+        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+              Live Classroom Manager
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+              Live Session Manager
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+              Schedule interactive sessions, manage calendar streams, stream real-time lessons, and coordinate chat discussions with students in one unified dashboard.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="sessions" className="space-y-4 xs:space-y-6">
-        <TabsList
-          className="
-      grid grid-cols-2 xs:grid-cols-3 gap-2
-      sm:flex sm:justify-start sm:gap-4
-      w-full mb-14
-    ">
+      <Tabs defaultValue="sessions" className="space-y-6">
+        <TabsList className="bg-slate-100/50 dark:bg-slate-950/40 border border-slate-200/40 dark:border-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md flex flex-row overflow-x-auto w-full gap-1.5 mb-8 scrollbar-none whitespace-nowrap justify-start md:justify-center">
           <TabsTrigger
             value="sessions"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3">
             My Sessions
           </TabsTrigger>
           <TabsTrigger
             value="schedule"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3">
             Schedule Now
           </TabsTrigger>
           <TabsTrigger
             value="live"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3">
             Live Control
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="sessions" className="space-y-4 xs:space-y-6">
-          <div className="grid gap-4 xs:gap-6 grid-cols-1 md:grid-cols-2">
-            <Card className="w-full">
+        <TabsContent value="sessions" className="space-y-6">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+            <Card className="w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
               <CardHeader className="text-center sm:text-left">
                 <CardTitle className="text-base sm:text-lg md:text-xl">
                   Session Calendar
@@ -413,7 +419,7 @@ export function LiveSessionManager() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
               <CardHeader>
                 <CardTitle className="text-base xs:text-lg sm:text-xl">
                   Quick Stats
@@ -422,37 +428,43 @@ export function LiveSessionManager() {
                   Your session overview
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 xs:space-y-4">
-                <div className="flex items-center justify-between p-2 xs:p-3 bg-blue-50 rounded-lg">
-                  <div className="flex items-center gap-1 xs:gap-2">
-                    <CalendarIcon className="h-3 w-3 xs:h-4 xs:w-4 text-blue-600" />
-                    <span className="font-medium text-xs xs:text-sm sm:text-base">
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-3 xs:p-4 rounded-xl border border-[#EF7B55]/15 bg-[#EF7B55]/5 dark:bg-[#EF7B55]/5 backdrop-blur-sm transition-all duration-300 hover:border-[#EF7B55]/30">
+                  <div className="flex items-center gap-2 xs:gap-3">
+                    <div className="p-2 rounded-lg bg-[#EF7B55]/10">
+                      <CalendarIcon className="h-4 w-4 text-[#EF7B55]" />
+                    </div>
+                    <span className="font-medium text-xs xs:text-sm sm:text-base text-slate-700 dark:text-slate-200">
                       Scheduled
                     </span>
                   </div>
-                  <span className="text-lg xs:text-xl sm:text-2xl font-bold text-blue-600">
+                  <span className="text-lg xs:text-xl sm:text-2xl font-bold text-[#EF7B55]">
                     3
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-2 xs:p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center gap-1 xs:gap-2">
-                    <Users className="h-3 w-3 xs:h-4 xs:w-4 text-green-600" />
-                    <span className="font-medium text-xs xs:text-sm sm:text-base">
+                <div className="flex items-center justify-between p-3 xs:p-4 rounded-xl border border-indigo-500/15 bg-indigo-500/5 dark:bg-indigo-500/5 backdrop-blur-sm transition-all duration-300 hover:border-indigo-500/30">
+                  <div className="flex items-center gap-2 xs:gap-3">
+                    <div className="p-2 rounded-lg bg-indigo-500/10">
+                      <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <span className="font-medium text-xs xs:text-sm sm:text-base text-slate-700 dark:text-slate-200">
                       Total Students
                     </span>
                   </div>
-                  <span className="text-lg xs:text-xl sm:text-2xl font-bold text-green-600">
+                  <span className="text-lg xs:text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                     75
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-2 xs:p-3 bg-purple-50 rounded-lg">
-                  <div className="flex items-center gap-1 xs:gap-2">
-                    <Clock className="h-3 w-3 xs:h-4 xs:w-4 text-purple-600" />
-                    <span className="font-medium text-xs xs:text-sm sm:text-base">
+                <div className="flex items-center justify-between p-3 xs:p-4 rounded-xl border border-purple-500/15 bg-purple-500/5 dark:bg-purple-500/5 backdrop-blur-sm transition-all duration-300 hover:border-purple-500/30">
+                  <div className="flex items-center gap-2 xs:gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10">
+                      <Clock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <span className="font-medium text-xs xs:text-sm sm:text-base text-slate-700 dark:text-slate-200">
                       Hours This Week
                     </span>
                   </div>
-                  <span className="text-lg xs:text-xl sm:text-2xl font-bold text-purple-600">
+                  <span className="text-lg xs:text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">
                     12
                   </span>
                 </div>
@@ -460,7 +472,7 @@ export function LiveSessionManager() {
             </Card>
           </div>
 
-          <Card>
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
             <CardHeader>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 xs:gap-4">
                 <div>
@@ -473,56 +485,67 @@ export function LiveSessionManager() {
                 </div>
                 <Button
                   onClick={handleNewSession}
-                  className="text-xs xs:text-sm sm:text-base">
-                  <Plus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                  className="text-xs xs:text-sm sm:text-base bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white rounded-xl shadow-md font-semibold transition-all duration-300">
+                  <Plus className="mr-1 xs:mr-2 h-3.5 w-3.5" />
                   New Session
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3 xs:space-y-4">
               {sessions.map((session) => (
-                <div key={session.id} className="border rounded-lg p-3 xs:p-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 xs:gap-4">
-                    <div className="space-y-1 xs:space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-xs xs:text-sm sm:text-base">
+                <div
+                  key={session.id}
+                  className="relative overflow-hidden rounded-2xl p-5 sm:p-6 border border-slate-200/50 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/40 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-slate-900/60 transition-all duration-300 shadow-sm pl-6"
+                >
+                  {/* Left glowing marker based on status */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${
+                    session.status === "live"
+                      ? "from-rose-500 to-red-600"
+                      : session.status === "scheduled"
+                      ? "from-amber-400 to-[#EF7B55]"
+                      : "from-emerald-400 to-emerald-600"
+                  }`} />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm xs:text-base">
                           {session.title}
                         </h3>
                         <Badge
                           className={`${getStatusColor(
                             session.status
-                          )} text-[0.85rem] xs:text-xs sm:text-sm`}>
-                          <div className="flex items-center gap-1">
+                          )} px-2.5 py-0.5 rounded-full text-xs font-semibold`}>
+                          <div className="flex items-center gap-1.5">
                             {getStatusIcon(session.status)}
-                            {session.status}
+                            <span className="capitalize">{session.status}</span>
                           </div>
                         </Badge>
                       </div>
-                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-xs xs:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
                         {session.description}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 xs:gap-3 text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <CalendarIcon className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2 py-1 rounded-lg">
+                          <CalendarIcon className="h-3.5 w-3.5 text-[#EF7B55]" />
                           {session.date}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                          {session.time} ({session.duration}min)
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2 py-1 rounded-lg">
+                          <Clock className="h-3.5 w-3.5 text-[#EF7B55]" />
+                          {session.time} ({session.duration} min)
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-2 py-1 rounded-lg">
+                          <Users className="h-3.5 w-3.5 text-indigo-500" />
                           {session.students} students
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1 xs:gap-2">
+                    <div className="flex gap-2 self-end sm:self-center">
                       {session.status === "live" && (
                         <Button
                           size="sm"
-                          className="bg-red-600 hover:bg-red-700 text-xs xs:text-sm"
+                          className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold px-4 py-2 flex items-center gap-2 shadow-sm text-xs xs:text-sm"
                           onClick={() => handleJoinSession(session)}>
-                          <Video className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                          <Video className="h-4 w-4" />
                           Join Live
                         </Button>
                       )}
@@ -532,15 +555,15 @@ export function LiveSessionManager() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditSession(session)}
-                            className="p-1 xs:p-2">
-                            <Edit className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            className="p-2 border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <Edit className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteSession(session)}
-                            className="p-1 xs:p-2">
-                            <Trash2 className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
+                            className="p-2 border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <Trash2 className="h-4 w-4 text-rose-500" />
                           </Button>
                         </>
                       )}
@@ -552,8 +575,8 @@ export function LiveSessionManager() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="schedule" className="space-y-4 xs:space-y-6">
-          <Card>
+        <TabsContent value="schedule" className="space-y-6">
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-base xs:text-lg sm:text-xl">
                 Schedule New Session
@@ -562,12 +585,12 @@ export function LiveSessionManager() {
                 Create a new live teaching session
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 xs:space-y-4">
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2">
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label
                     htmlFor="session-title"
-                    className="text-xs xs:text-sm sm:text-base">
+                    className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Session Title
                   </Label>
                   <Input
@@ -577,13 +600,13 @@ export function LiveSessionManager() {
                     onChange={(e) =>
                       setNewSession({...newSession, title: e.target.value})
                     }
-                    className="text-xs xs:text-sm sm:text-base"
+                    className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label
                     htmlFor="subject"
-                    className="text-xs xs:text-sm sm:text-base">
+                    className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Subject
                   </Label>
                   <Select
@@ -591,28 +614,28 @@ export function LiveSessionManager() {
                     onValueChange={(value) =>
                       setNewSession({...newSession, subject: value})
                     }>
-                    <SelectTrigger className="text-xs xs:text-sm sm:text-base">
+                    <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] focus:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                       <SelectItem
                         value="programming"
-                        className="text-xs xs:text-sm sm:text-base">
+                        className="text-xs xs:text-sm sm:text-base rounded-lg">
                         Programming
                       </SelectItem>
                       <SelectItem
                         value="mathematics"
-                        className="text-xs xs:text-sm sm:text-base">
+                        className="text-xs xs:text-sm sm:text-base rounded-lg">
                         Mathematics
                       </SelectItem>
                       <SelectItem
                         value="science"
-                        className="text-xs xs:text-sm sm:text-base">
+                        className="text-xs xs:text-sm sm:text-base rounded-lg">
                         Science
                       </SelectItem>
                       <SelectItem
                         value="language"
-                        className="text-xs xs:text-sm sm:text-base">
+                        className="text-xs xs:text-sm sm:text-base rounded-lg">
                         Language Arts
                       </SelectItem>
                     </SelectContent>
@@ -623,7 +646,7 @@ export function LiveSessionManager() {
               <div className="space-y-2">
                 <Label
                   htmlFor="description"
-                  className="text-xs xs:text-sm sm:text-base">
+                  className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                   Description
                 </Label>
                 <Textarea
@@ -634,15 +657,15 @@ export function LiveSessionManager() {
                     setNewSession({...newSession, description: e.target.value})
                   }
                   rows={3}
-                  className="text-xs xs:text-sm sm:text-base"
+                  className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                 />
               </div>
 
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label
                     htmlFor="date"
-                    className="text-xs xs:text-sm sm:text-base">
+                    className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Date
                   </Label>
                   <Input
@@ -652,13 +675,13 @@ export function LiveSessionManager() {
                     onChange={(e) =>
                       setNewSession({...newSession, date: e.target.value})
                     }
-                    className="text-xs xs:text-sm sm:text-base"
+                    className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label
                     htmlFor="time"
-                    className="text-xs xs:text-sm sm:text-base">
+                    className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Time
                   </Label>
                   <Input
@@ -668,13 +691,13 @@ export function LiveSessionManager() {
                     onChange={(e) =>
                       setNewSession({...newSession, time: e.target.value})
                     }
-                    className="text-xs xs:text-sm sm:text-base"
+                    className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label
                     htmlFor="duration"
-                    className="text-xs xs:text-sm sm:text-base">
+                    className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Duration (minutes)
                   </Label>
                   <Input
@@ -688,7 +711,7 @@ export function LiveSessionManager() {
                         duration: Number.parseInt(e.target.value),
                       })
                     }
-                    className="text-xs xs:text-sm sm:text-base"
+                    className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                   />
                 </div>
               </div>
@@ -696,7 +719,7 @@ export function LiveSessionManager() {
               <div className="space-y-2">
                 <Label
                   htmlFor="max-students"
-                  className="text-xs xs:text-sm sm:text-base">
+                  className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                   Maximum Students
                 </Label>
                 <Input
@@ -710,21 +733,21 @@ export function LiveSessionManager() {
                       maxStudents: Number.parseInt(e.target.value),
                     })
                   }
-                  className="text-xs xs:text-sm sm:text-base"
+                  className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 xs:gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button
                   variant="outline"
-                  className="flex-1 bg-transparent text-xs xs:text-sm sm:text-base"
+                  className="flex-1 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40 border-slate-200 dark:border-slate-800 rounded-xl font-bold py-2.5 text-xs xs:text-sm sm:text-base transition-all duration-300 text-slate-700 dark:text-slate-300"
                   onClick={handleSaveDraft}>
                   Save Draft
                 </Button>
                 <Button
-                  className="flex-1 text-xs xs:text-sm sm:text-base"
+                  className="flex-1 bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 hover:shadow-lg hover:shadow-[#EF7B55]/20 text-white rounded-xl font-bold py-2.5 text-xs xs:text-sm sm:text-base transition-all duration-300"
                   onClick={handleScheduleSession}>
-                  <CalendarIcon className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                  <CalendarIcon className="mr-2 h-4 w-4" />
                   Schedule Session
                 </Button>
               </div>
@@ -732,13 +755,13 @@ export function LiveSessionManager() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="live" className="space-y-4 xs:space-y-6">
+        <TabsContent value="live" className="space-y-6">
           <div
-            className={`grid gap-4 xs:gap-6 ${
+            className={`grid gap-6 ${
               isChatOpen ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1"
             }`}>
             <div className={isChatOpen ? "md:col-span-2" : "col-span-1"}>
-              <Card>
+              <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-base xs:text-lg sm:text-xl">
                     Live Session Controls
@@ -803,18 +826,20 @@ export function LiveSessionManager() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap justify-center gap-2 xs:gap-3">
+                  <div className="flex flex-wrap justify-center gap-3">
                     <Button
                       variant="outline"
                       size="lg"
                       onClick={handleMuteMic}
-                      className={`text-xs xs:text-sm sm:text-base ${
-                        isMuted ? "bg-red-100 text-red-700 border-red-300" : ""
+                      className={`rounded-xl border border-slate-200 dark:border-slate-800 font-bold transition-all duration-300 text-xs xs:text-sm sm:text-base ${
+                        isMuted 
+                          ? "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20" 
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
                       }`}>
                       {isMuted ? (
-                        <MicOff className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                        <MicOff className="mr-2 h-4 w-4" />
                       ) : (
-                        <Mic className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                        <Mic className="mr-2 h-4 w-4" />
                       )}
                       {isMuted ? "Unmute" : "Mute"}
                     </Button>
@@ -822,81 +847,81 @@ export function LiveSessionManager() {
                       variant="outline"
                       size="lg"
                       onClick={handleCameraToggle}
-                      className={`text-xs xs:text-sm sm:text-base ${
+                      className={`rounded-xl border border-slate-200 dark:border-slate-800 font-bold transition-all duration-300 text-xs xs:text-sm sm:text-base ${
                         !isCameraOn
-                          ? "bg-red-100 text-red-700 border-red-300"
-                          : ""
+                          ? "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20"
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
                       }`}>
                       {isCameraOn ? (
-                        <Camera className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                        <Camera className="mr-2 h-4 w-4" />
                       ) : (
-                        <VideoOff className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                        <VideoOff className="mr-2 h-4 w-4" />
                       )}
                       Camera
                     </Button>
                     <Button
                       size="lg"
-                      className={`text-xs xs:text-sm sm:text-base ${
+                      className={`rounded-xl font-bold text-white transition-all duration-300 text-xs xs:text-sm sm:text-base shadow-md ${
                         isSessionStarted
-                          ? "bg-red-600 hover:bg-red-700"
-                          : "bg-green-600 hover:bg-green-700"
+                          ? "bg-rose-600 hover:bg-rose-700 hover:shadow-rose-600/25"
+                          : "bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-600/25"
                       }`}
                       onClick={handleStartSession}>
-                      <Play className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      <Play className="mr-2 h-4 w-4" />
                       {isSessionStarted ? "End Session" : "Start Session"}
                     </Button>
                     <Button
                       variant="outline"
                       size="lg"
                       onClick={() => setIsScreenShareOpen(true)}
-                      className={`text-xs xs:text-sm sm:text-base ${
+                      className={`rounded-xl border border-slate-200 dark:border-slate-800 font-bold transition-all duration-300 text-xs xs:text-sm sm:text-base ${
                         isScreenSharing
-                          ? "bg-blue-100 text-blue-700 border-blue-300"
-                          : ""
+                          ? "bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20"
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
                       }`}>
-                      <Share className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      <Share className="mr-2 h-4 w-4" />
                       {isScreenSharing ? "Stop Share" : "Share Screen"}
                     </Button>
                     <Button
                       variant="outline"
                       size="lg"
                       onClick={handleOpenChat}
-                      className={`text-xs xs:text-sm sm:text-base ${
+                      className={`rounded-xl border border-slate-200 dark:border-slate-800 font-bold transition-all duration-300 text-xs xs:text-sm sm:text-base ${
                         isChatOpen
-                          ? "bg-blue-100 text-blue-700 border-blue-300"
-                          : ""
+                          ? "bg-[#EF7B55]/10 text-[#EF7B55] border-[#EF7B55]/30 hover:bg-[#EF7B55]/20"
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
                       }`}>
-                      <MessageSquare className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                      <MessageSquare className="mr-2 h-4 w-4" />
                       Chat
                     </Button>
                   </div>
 
-                  <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2">
-                    <Card>
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                    <Card className="bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 rounded-2xl shadow-md">
                       <CardHeader>
-                        <CardTitle className="text-sm xs:text-base sm:text-lg">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">
                           Session Info
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
+                      <CardContent className="space-y-3">
+                        <div className="flex justify-between items-center text-xs xs:text-sm text-slate-600 dark:text-slate-400">
                           <span>Status:</span>
                           <Badge
                             className={`${
                               isSessionStarted
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-700"
-                            } text-[0.85rem] xs:text-xs sm:text-sm`}>
+                                ? "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                                : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
+                            } text-xs px-2.5 py-0.5 rounded-full font-semibold`}>
                             {isSessionStarted ? "Live" : "Not Started"}
                           </Badge>
                         </div>
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between items-center text-xs xs:text-sm text-slate-600 dark:text-slate-400">
                           <span>Duration:</span>
-                          <span>00:00:00</span>
+                          <span className="font-medium">00:00:00</span>
                         </div>
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
+                        <div className="flex justify-between items-center text-xs xs:text-sm text-slate-600 dark:text-slate-400">
                           <span>Participants:</span>
-                          <span>
+                          <span className="font-semibold text-[#EF7B55]">
                             {
                               participants.filter((p) => p.status === "online")
                                 .length
@@ -907,30 +932,30 @@ export function LiveSessionManager() {
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 rounded-2xl shadow-md">
                       <CardHeader>
-                        <CardTitle className="text-sm xs:text-base sm:text-lg">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">
                           Quick Actions
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
                         <Button
                           variant="outline"
-                          className="w-full justify-start bg-transparent text-xs xs:text-sm sm:text-base">
-                          <UserPlus className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                          className="w-full justify-start bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 text-xs xs:text-sm sm:text-base">
+                          <UserPlus className="mr-2 h-4 w-4 text-[#EF7B55]" />
                           Invite Students
                         </Button>
                         <Button
                           variant="outline"
-                          className="w-full justify-start bg-transparent text-xs xs:text-sm sm:text-base">
-                          <Settings className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                          className="w-full justify-start bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 text-xs xs:text-sm sm:text-base">
+                          <Settings className="mr-2 h-4 w-4 text-[#EF7B55]" />
                           Session Settings
                         </Button>
                         <Button
                           variant="outline"
-                          className="w-full justify-start bg-transparent text-xs xs:text-sm sm:text-base"
+                          className="w-full justify-start bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 text-xs xs:text-sm sm:text-base"
                           onClick={handleOpenChat}>
-                          <MessageSquare className="mr-1 xs:mr-2 h-3 w-3 xs:h-4 xs:w-4" />
+                          <MessageSquare className="mr-2 h-4 w-4 text-[#EF7B55]" />
                           Open Chat Panel
                         </Button>
                       </CardContent>
@@ -942,14 +967,14 @@ export function LiveSessionManager() {
 
             {isChatOpen && (
               <div className="md:col-span-1">
-                <Card className="h-[400px] xs:h-[500px] sm:h-[600px] flex flex-col">
-                  <CardHeader className="flex-shrink-0 border-b">
+                <Card className="h-[400px] xs:h-[500px] sm:h-[600px] flex flex-col bg-white/70 dark:bg-slate-900/70 border border-slate-200/50 dark:border-slate-800/60 rounded-2xl shadow-lg backdrop-blur-md overflow-hidden">
+                  <CardHeader className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-sm xs:text-base sm:text-lg">
+                        <CardTitle className="text-sm xs:text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">
                           Live Chat
                         </CardTitle>
-                        <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
+                        <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
                           {
                             participants.filter((p) => p.status === "online")
                               .length
@@ -961,15 +986,15 @@ export function LiveSessionManager() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsChatOpen(false)}
-                        className="p-1 xs:p-2">
-                        <X className="h-3 w-3 xs:h-4 xs:w-4" />
+                        className="p-1 xs:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-850">
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="flex-1 flex flex-col p-0">
-                    <ScrollArea className="flex-1 p-3 xs:p-4">
-                      <div className="space-y-3 xs:space-y-4">
+                  <CardContent className="flex-1 flex flex-col p-0 bg-transparent">
+                    <ScrollArea className="flex-1 p-4">
+                      <div className="space-y-4">
                         {chatMessages.map((message) => (
                           <div
                             key={message.id}
@@ -979,24 +1004,24 @@ export function LiveSessionManager() {
                                 : "justify-start"
                             }`}>
                             <div
-                              className={`max-w-[80%] rounded-lg px-2 xs:px-3 py-1 xs:py-2 ${
+                              className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-xs xs:text-sm shadow-sm ${
                                 message.isTeacher
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-100 text-gray-900"
+                                  ? "bg-gradient-to-r from-[#EF7B55] to-[#e26d47] text-white rounded-tr-none"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/20"
                               }`}>
                               {!message.isTeacher && (
-                                <div className="text-[0.85rem] xs:text-xs sm:text-sm font-medium text-blue-600 mb-1">
+                                <div className="text-[0.85rem] xs:text-xs sm:text-sm font-bold text-[#EF7B55] mb-1">
                                   {message.user}
                                 </div>
                               )}
-                              <div className="text-[0.85rem] xs:text-xs sm:text-sm">
+                              <div className="leading-relaxed">
                                 {message.message}
                               </div>
                               <div
-                                className={`text-[0.6rem] xs:text-[0.65rem] sm:text-xs mt-1 ${
+                                className={`text-[0.65rem] mt-1.5 text-right font-medium ${
                                   message.isTeacher
-                                    ? "text-blue-100"
-                                    : "text-gray-500"
+                                    ? "text-orange-100"
+                                    : "text-slate-500 dark:text-slate-400"
                                 }`}>
                                 {message.time}
                               </div>
@@ -1007,36 +1032,36 @@ export function LiveSessionManager() {
                       </div>
                     </ScrollArea>
 
-                    <div className="border-t p-3 xs:p-4">
-                      <div className="flex gap-1 xs:gap-2">
+                    <div className="border-t border-slate-100 dark:border-slate-800 p-4 bg-white/40 dark:bg-slate-900/40">
+                      <div className="flex gap-2">
                         <div className="flex-1 relative">
                           <Input
                             placeholder="Type your message..."
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            className="pr-16 xs:pr-20 text-xs xs:text-sm sm:text-base"
+                            className="pr-16 xs:pr-20 text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                           />
                           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-5 w-5 xs:h-6 xs:w-6 p-0">
-                              <Smile className="h-3 w-3 xs:h-4 xs:w-4" />
+                              className="h-6 w-6 p-0 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-500">
+                              <Smile className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-5 w-5 xs:h-6 xs:w-6 p-0">
-                              <Paperclip className="h-3 w-3 xs:h-4 xs:w-4" />
+                              className="h-6 w-6 p-0 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-500">
+                              <Paperclip className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
                         <Button
                           onClick={handleSendMessage}
                           size="sm"
-                          className="p-1 xs:p-2">
-                          <Send className="h-3 w-3 xs:h-4 xs:w-4" />
+                          className="p-2 rounded-xl bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white shadow-sm flex items-center justify-center h-10 w-10">
+                          <Send className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -1058,16 +1083,18 @@ export function LiveSessionManager() {
               Choose what you'd like to share with your students
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 xs:gap-4">
+          <div className="grid gap-3">
             <Button
               variant="outline"
-              className="h-16 xs:h-20 justify-start bg-transparent hover:bg-gray-50 text-xs xs:text-sm sm:text-base"
+              className="h-20 justify-start bg-transparent border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-xs xs:text-sm sm:text-base rounded-xl"
               onClick={handleShareScreen}>
-              <div className="flex items-center gap-3 xs:gap-4">
-                <Monitor className="h-6 w-6 xs:h-8 xs:w-8 text-blue-600" />
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-lg bg-blue-500/10">
+                  <Monitor className="h-6 w-6 text-blue-600" />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">Entire Screen</div>
-                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">Entire Screen</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     Share everything on your screen
                   </div>
                 </div>
@@ -1075,13 +1102,15 @@ export function LiveSessionManager() {
             </Button>
             <Button
               variant="outline"
-              className="h-16 xs:h-20 justify-start bg-transparent hover:bg-gray-50 text-xs xs:text-sm sm:text-base"
+              className="h-20 justify-start bg-transparent border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-xs xs:text-sm sm:text-base rounded-xl"
               onClick={handleShareScreen}>
-              <div className="flex items-center gap-3 xs:gap-4">
-                <Square className="h-6 w-6 xs:h-8 xs:w-8 text-green-600" />
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-lg bg-green-500/10">
+                  <Square className="h-6 w-6 text-green-600" />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">Application Window</div>
-                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">Application Window</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     Share a specific application
                   </div>
                 </div>
@@ -1089,13 +1118,15 @@ export function LiveSessionManager() {
             </Button>
             <Button
               variant="outline"
-              className="h-16 xs:h-20 justify-start bg-transparent hover:bg-gray-50 text-xs xs:text-sm sm:text-base"
+              className="h-20 justify-start bg-transparent border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-xs xs:text-sm sm:text-base rounded-xl"
               onClick={handleShareScreen}>
-              <div className="flex items-center gap-3 xs:gap-4">
-                <Chrome className="h-6 w-6 xs:h-8 xs:w-8 text-orange-600" />
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-lg bg-orange-500/10">
+                  <Chrome className="h-6 w-6 text-orange-600" />
+                </div>
                 <div className="text-left">
-                  <div className="font-medium">Browser Tab</div>
-                  <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">Browser Tab</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     Share a specific browser tab
                   </div>
                 </div>
@@ -1106,7 +1137,7 @@ export function LiveSessionManager() {
             <Button
               variant="outline"
               onClick={() => setIsScreenShareOpen(false)}
-              className="text-xs xs:text-sm sm:text-base">
+              className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300">
               Cancel
             </Button>
           </DialogFooter>
@@ -1124,54 +1155,54 @@ export function LiveSessionManager() {
             </DialogDescription>
           </DialogHeader>
           {selectedSession && (
-            <div className="space-y-3 xs:space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs xs:text-sm sm:text-base">
+                <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                   Session Title
                 </Label>
                 <Input
                   defaultValue={selectedSession.title}
-                  className="text-xs xs:text-sm sm:text-base"
+                  className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs xs:text-sm sm:text-base">
+                <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                   Description
                 </Label>
                 <Textarea
                   defaultValue={selectedSession.description}
-                  className="text-xs xs:text-sm sm:text-base"
+                  className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                 />
               </div>
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs xs:text-sm sm:text-base">
+                  <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Date
                   </Label>
                   <Input
                     type="date"
                     defaultValue={selectedSession.date}
-                    className="text-xs xs:text-sm sm:text-base"
+                    className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs xs:text-sm sm:text-base">
+                  <Label className="text-xs xs:text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                     Time
                   </Label>
                   <Input
                     type="time"
                     defaultValue={selectedSession.time}
-                    className="text-xs xs:text-sm sm:text-base"
+                    className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20"
                   />
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
-              className="text-xs xs:text-sm sm:text-base">
+              className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300">
               Cancel
             </Button>
             <Button
@@ -1179,7 +1210,7 @@ export function LiveSessionManager() {
                 setIsEditDialogOpen(false);
                 alert("Session updated successfully!");
               }}
-              className="text-xs xs:text-sm sm:text-base">
+              className="text-xs xs:text-sm sm:text-base bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 text-white rounded-xl font-bold transition-all duration-300">
               Save Changes
             </Button>
           </DialogFooter>
@@ -1189,25 +1220,25 @@ export function LiveSessionManager() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-[90vw] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base xs:text-lg sm:text-xl">
+            <DialogTitle className="text-base xs:text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100">
               Delete Session
             </DialogTitle>
-            <DialogDescription className="text-xs xs:text-sm sm:text-base">
+            <DialogDescription className="text-xs xs:text-sm sm:text-base text-slate-500 dark:text-slate-400">
               Are you sure you want to delete this session? This action cannot
               be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
-              className="text-xs xs:text-sm sm:text-base">
+              className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300">
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={confirmDelete}
-              className="text-xs xs:text-sm sm:text-base">
+              className="text-xs xs:text-sm sm:text-base rounded-xl font-bold">
               Delete Session
             </Button>
           </DialogFooter>

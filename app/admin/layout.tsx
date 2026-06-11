@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import {useState, useEffect, useRef} from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Home,
   Users,
@@ -42,7 +42,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,9 +51,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {Spinner} from "@/components/ui/spinner";
-import {Input} from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -69,12 +69,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Link from "next/link";
-import {usePathname} from "next/navigation";
-import {useMediaQuery} from "react-responsive";
-import {useSession, signOut} from "next-auth/react";
-import {useRouter} from "next/navigation";
-import {useNotificationStore} from "../stores/notificationStore";
-import {createContext, useContext} from "react";
+import { usePathname } from "next/navigation";
+import { useMediaQuery } from "react-responsive";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useNotificationStore } from "../stores/notificationStore";
+import { createContext, useContext } from "react";
 
 interface Organization {
   id: number;
@@ -83,7 +83,7 @@ interface Organization {
 }
 
 const navigation = [
-  {title: "Dashboard", icon: Home, id: "dashboard", path: "/admin"},
+  { title: "Dashboard", icon: Home, id: "dashboard", path: "/admin" },
   {
     title: "Classrooms",
     icon: Users,
@@ -96,16 +96,16 @@ const navigation = [
     id: "students",
     path: "/admin/students",
   },
-  {title: "Teachers", icon: Users, id: "teachers", path: "/admin/teachers"},
-  {title: "Parents", icon: UserCircle, id: "parents", path: "/admin/parents"},
+  { title: "Teachers", icon: Users, id: "teachers", path: "/admin/teachers" },
+  { title: "Parents", icon: UserCircle, id: "parents", path: "/admin/parents" },
   {
     title: "Subjects",
     icon: BookMarked,
     id: "subjects",
     path: "/admin/subjects",
   },
-  {title: "Courses", icon: BookOpen, id: "courses", path: "/admin/courses"},
-  {title: "Modules", icon: FileText, id: "modules", path: "/admin/modules"},
+  { title: "Courses", icon: BookOpen, id: "courses", path: "/admin/courses" },
+  { title: "Modules", icon: FileText, id: "modules", path: "/admin/modules" },
   {
     title: "Verify User",
     icon: UserCheck,
@@ -124,17 +124,17 @@ const navigation = [
     id: "change-password",
     path: "/admin/change-password",
   },
-  {title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing"},
+  { title: "Billing", icon: CreditCard, id: "billing", path: "/admin/billing" },
   {
     title: "Gamification",
     icon: Award,
     id: "gamification",
     path: "/admin/gamification",
   },
-  {title: "Certificate", icon: Award, id: "cert", path: "/admin/certificate"},
-  {title: "Settings", icon: Settings, id: "settings", path: "/admin/settings"},
-  {title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store"},
-  {title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports"},
+  { title: "Certificate", icon: Award, id: "cert", path: "/admin/certificate" },
+  { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
+  { title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store" },
+  { title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports" },
   {
     title: "Leaderboard",
     icon: Trophy,
@@ -155,9 +155,9 @@ const LoadingContext = createContext<{
 
 function SidebarMenuContent() {
   const pathname = usePathname();
-  const {setOpenMobile, isMobile: isMobileFromSidebar} = useSidebar();
-  const isMobile = useMediaQuery({maxWidth: 639});
-  const {setIsNavigating} = useContext(LoadingContext)!;
+  const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
+  const isMobile = useMediaQuery({ maxWidth: 639 });
+  const { setIsNavigating } = useContext(LoadingContext)!;
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -232,7 +232,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   // All hooks at the top, unconditionally
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [availableOrganizations, setAvailableOrganizations] = useState<
     Organization[]
@@ -308,16 +308,16 @@ export default function DashboardLayout({
     try {
       const response = await fetch("/api/auth/logout-route", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) {
         console.error("[AdminLayout] Backend logout failed");
       }
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
       window.location.href = "/login";
     } catch (error) {
       console.error("[AdminLayout] Logout error:", error);
-      await signOut({redirect: false});
+      await signOut({ redirect: false });
       window.location.href = "/login";
     }
   };
@@ -342,8 +342,8 @@ export default function DashboardLayout({
     try {
       const res = await fetch("/api/accounts/verify-password", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({password: switchPassword}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: switchPassword }),
       });
       const data = await res.json();
       if (!res.ok || !data.valid) {
@@ -369,7 +369,7 @@ export default function DashboardLayout({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({orgs_id: orgId}),
+        body: JSON.stringify({ orgs_id: orgId }),
       });
 
       const data = await res.json();
@@ -414,7 +414,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider className="bg-white">
-      <LoadingContext.Provider value={{setIsNavigating}}>
+      <LoadingContext.Provider value={{ setIsNavigating }}>
         <div className="flex min-h-screen w-full font-sans">
           <Sidebar className="">
             <SidebarHeader className="bg-[#EF7B55] py-5">

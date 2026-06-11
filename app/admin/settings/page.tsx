@@ -475,6 +475,7 @@ import {Card} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
 import {Spinner} from "@/components/ui/spinner";
+import {useSession} from "next-auth/react";
 import {
   Dialog,
   DialogContent,
@@ -529,10 +530,56 @@ function localInputToIso(value: string) {
 }
 
 export default function AdminSettingsPage() {
+  const {data: session} = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [seasons, setSeasons] = useState<LeaderboardSeason[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const [org, setOrg] = useState<any>(null);
+  const [orgLoading, setOrgLoading] = useState(true);
+  const [orgSaving, setOrgSaving] = useState(false);
+
+  const fetchOrgSettings = async () => {
+    try {
+      setOrgLoading(true);
+      const orgsRes = await fetch("/api/admin/access-orgs");
+      if (!orgsRes.ok) throw new Error("Failed to get current organization");
+      const orgsData = await orgsRes.json();
+      const currentOrgId = orgsData?.selected_organization?.id;
+      if (!currentOrgId) return;
+
+      const settingsRes = await fetch(`/api/admin/settings/organization?org_id=${currentOrgId}`);
+      if (!settingsRes.ok) throw new Error("Failed to load organization settings");
+      const settingsData = await settingsRes.json();
+      setOrg(settingsData);
+    } catch (e: any) {
+      console.error(e);
+      toast?.({title: "Error", description: e?.message || "Failed to load organization settings"});
+    } finally {
+      setOrgLoading(false);
+    }
+  };
+
+  const handleToggleAllowUnsubscribed = async (checked: boolean) => {
+    if (!org) return;
+    setOrgSaving(true);
+    try {
+      const res = await fetch(`/api/admin/settings/organization?org_id=${org.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow_unsubscribed_users: checked }),
+      });
+      if (!res.ok) throw new Error("Failed to update settings");
+      const updatedOrg = await res.json();
+      setOrg(updatedOrg);
+      toast?.({title: "Settings updated successfully"});
+    } catch (e: any) {
+      toast?.({title: "Error", description: e?.message || "Failed to update settings"});
+    } finally {
+      setOrgSaving(false);
+    }
+  };
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>({
@@ -591,6 +638,7 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     fetchSeasons();
+    fetchOrgSettings();
   }, []);
 
   const saveSeason = async () => {
@@ -821,6 +869,37 @@ export default function AdminSettingsPage() {
             </Card>
           ))}
         </div>
+      </Card>
+
+      <Card className="p-4 sm:p-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-medium text-slate-900 mb-2">Organization Settings</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Manage global settings for your organization.
+          </p>
+        </div>
+        
+        {orgLoading ? (
+          <div className="flex justify-center p-4">
+            <Spinner size="sm" />
+          </div>
+        ) : org ? (
+          <div className="flex items-center justify-between border rounded-xl p-4 bg-slate-50/50">
+            <div>
+              <div className="text-sm font-medium text-slate-800">Allow Expired/Unsubscribed Student Logins</div>
+              <div className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+                If enabled, students whose subscriptions have expired or who have no active subscription will still be allowed to log in. Their access will be restricted to courses with General Activation active.
+              </div>
+            </div>
+            <Switch
+              disabled={orgSaving}
+              checked={!!org.allow_unsubscribed_users}
+              onCheckedChange={handleToggleAllowUnsubscribed}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Failed to load organization settings.</p>
+        )}
       </Card>
 
       {/* Dialog */}

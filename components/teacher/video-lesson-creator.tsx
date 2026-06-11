@@ -141,30 +141,25 @@ export function VideoLessonCreator() {
       </div>
 
       <Tabs defaultValue="basic" className="space-y-4 xs:space-y-6">
-        <TabsList
-          className="
-    grid grid-cols-2 xs:grid-cols-4 gap-2
-    sm:flex sm:justify-start sm:gap-4
-    w-full mb-14
-  ">
+        <TabsList className="bg-slate-100/50 dark:bg-slate-950/40 border border-slate-200/40 dark:border-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md flex flex-row overflow-x-auto w-full gap-1.5 mb-14 scrollbar-none whitespace-nowrap justify-start md:justify-center">
           <TabsTrigger
             value="basic"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
             Basic Info
           </TabsTrigger>
           <TabsTrigger
             value="video"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
             Video Upload
           </TabsTrigger>
           <TabsTrigger
             value="chapters"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
             Chapters
           </TabsTrigger>
           <TabsTrigger
             value="interactive"
-            className="flex-1 sm:flex-none text-xs xs:text-sm sm:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
             Interactive Elements
           </TabsTrigger>
         </TabsList>

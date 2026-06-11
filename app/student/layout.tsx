@@ -52,6 +52,8 @@ import { useMediaQuery } from "react-responsive";
 import { signOut, useSession } from "next-auth/react";
 import { useNotificationStore } from "../stores/notificationStore";
 import { createContext, useContext, useEffect, useState } from "react";
+import { StudentThemeProvider, useStudentTheme } from "@/components/student/useStudentTheme";
+import { CourseAccessProvider } from "@/providers/CourseAccessProvider";
 
 const menuItems = [
   { title: "Dashboard", icon: Home, id: "dashboard", path: "/student" },
@@ -65,7 +67,7 @@ const menuItems = [
   { title: "Learning Modules", icon: GraduationCap, id: "modules", path: "/student/modules" },
   { title: "Achievements", icon: Trophy, id: "achievements", path: "/student/achievements" },
   { title: "Leaderboard", icon: Medal, id: "leaderboard", path: "/student/leaderboard" },
-  { title: "Live Sessions", icon: Video, id: "live-sessions", path: "/main/home" },
+  { title: "Live Sessions", icon: Video, id: "live-sessions", path: "/student/live-sessions" },
   { title: "Certificates", icon: Award, id: "certificates", path: "/student/certificate" },
   { title: "Reports", icon: FileText, id: "reports", path: "/student/reports" },
   { title: "Profile Settings", path: "/profile", icon: Settings, description: "Manage your profile settings", id: "profile" },
@@ -74,6 +76,28 @@ const menuItems = [
 // Routes that should fill the entire content area without header/padding
 // ⬇️ Added "/student/scratch" so the Scratch iframe fills the viewport (same treatment as Code IDE)
 const FULL_BLEED_ROUTES = ["/student/code", "/student/scratch"];
+
+/** Returns the correct live-sessions path based on the org's video_conferencing setting. */
+function useLiveSessionPath(role: "teacher" | "student") {
+  const [path, setPath] = useState<string>(
+    role === "teacher" ? "/teacher/live-sessions" : "/student/live-sessions"
+  );
+
+  useEffect(() => {
+    fetch("/api/org/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.video_conferencing === "live") {
+          setPath("/main/home");
+        } else {
+          setPath(role === "teacher" ? "/teacher/live-sessions" : "/student/live-sessions");
+        }
+      })
+      .catch(() => {}); // keep default on error
+  }, [role]);
+
+  return path;
+}
 
 const LoadingContext = createContext<{
   setIsNavigating: React.Dispatch<React.SetStateAction<boolean>>;
@@ -84,6 +108,7 @@ function SidebarMenuContent() {
   const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
   const isMobile = useMediaQuery({ maxWidth: 639 });
   const { setIsNavigating } = useContext(LoadingContext)!;
+  const liveSessionPath = useLiveSessionPath("student");
 
   const handleLinkClick = () => {
     if (isMobile || isMobileFromSidebar) {
@@ -91,12 +116,17 @@ function SidebarMenuContent() {
     }
   };
 
+  // Resolve the live-sessions path dynamically
+  const resolvedItems = menuItems.map((item) =>
+    item.id === "live-sessions" ? { ...item, path: liveSessionPath } : item
+  );
+
   return (
     <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            {menuItems.map((item) => (
+            {resolvedItems.map((item) => (
               <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton
                   asChild
@@ -154,10 +184,22 @@ function PageLoader() {
 }
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <StudentThemeProvider>
+      <CourseAccessProvider>
+        <StudentLayoutContent>{children}</StudentLayoutContent>
+      </CourseAccessProvider>
+    </StudentThemeProvider>
+  );
+}
+
+function StudentLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
+  const { theme } = useStudentTheme();
+  const isAero = theme === "aero-premium";
 
   const isFullBleed = FULL_BLEED_ROUTES.some((p) => pathname?.startsWith(p));
 
@@ -195,12 +237,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <SidebarProvider className="bg-white">
+    <SidebarProvider className={isAero ? "bg-slate-50/50" : "bg-white"}>
       <LoadingContext.Provider value={{ setIsNavigating }}>
         {/* Use h-screen + overflow-hidden so the right column can manage its own scrolling
             (critical for the IDE to fill the viewport without page scroll) */}
         <div className="flex h-screen w-full font-sans overflow-hidden">
-          <Sidebar collapsible="icon">
+          <Sidebar collapsible="icon" className={isAero ? "border-r border-slate-200/50" : ""}>
             <SidebarHeader className="bg-[#EF7B55] py-5">
               <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
                 <Image
@@ -268,7 +310,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </Sidebar>
 
           {/* Right column. min-w-0 prevents flex children from overflowing horizontally. */}
-          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <div className={`flex-1 flex flex-col min-w-0 min-h-0 ${isAero ? "bg-gradient-to-br from-slate-50 via-orange-50/5 to-slate-100/50" : ""}`}>
             {/* Orange top header — rendered on every page so the SidebarTrigger is always available.
                 On full-bleed routes (the IDE), it shrinks to a slim bar containing just the trigger. */}
             <header
@@ -280,12 +322,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               }>
               <style jsx>{`
                 header {
-                  background: rgba(247, 151, 113, 0.3);
-                  backdrop-filter: blur(8px);
-                  -webkit-backdrop-filter: blur(8px);
+                  background: ${isAero ? "rgba(255, 255, 255, 0.45)" : "rgba(247, 151, 113, 0.3)"};
+                  backdrop-filter: blur(12px);
+                  -webkit-backdrop-filter: blur(12px);
                   position: sticky;
                   top: 0;
                   z-index: 50;
+                  border-bottom: ${isAero ? "1px solid rgba(226, 232, 240, 0.5)" : "none"};
                 }
                 header > div {
                   position: relative;
@@ -300,7 +343,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               ) : (
                 <div className="flex h-12 xs:h-14 items-center justify-between gap-3 xs:gap-4 px-3 xs:px-4 sm:px-6 text-slate-800">
                   <SidebarTrigger className="hover:bg-transparent focus:bg-transparent active:bg-transparent" />
-                  <div className="flex-1 max-w-[90vw] xs:max-w-md"></div>
+                  <div className="flex-1" />
                   <Link href="/notifications">
                     <Button
                       variant="ghost"
@@ -325,7 +368,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               className={
                 isFullBleed
                   ? "flex-1 min-h-0 overflow-hidden"
-                  : "flex-1 p-3 xs:p-4 sm:p-6 overflow-auto"
+                  : isAero
+                    ? "flex-1 p-3 xs:p-4 sm:p-6 overflow-auto bg-gradient-to-br from-slate-50/60 via-orange-50/10 to-slate-100/40"
+                    : "flex-1 p-3 xs:p-4 sm:p-6 overflow-auto"
               }>
               {isNavigating ? <PageLoader /> : children}
             </main>

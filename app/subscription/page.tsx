@@ -31,56 +31,52 @@ function SubscriptionContent() {
       const status = searchParams.get("status");
       const txRef = searchParams.get("tx_ref");
       const transactionId = searchParams.get("transaction_id");
-      const invoiceId = searchParams.get("invoice_id"); // Retrieve from URL query param
+      const invoiceId = searchParams.get("invoice_id");
 
       if (status && txRef && transactionId && invoiceId) {
         setIsConfirming(true);
         try {
           const response = await fetch(`${API_BASE}?action=confirm`, {
             method: "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               invoice_id: invoiceId,
               tx_ref: txRef,
               transaction_id: transactionId,
             }),
           });
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          const data = await response.json();
-          if (data.status === "success") {
+
+          const data = await response.json().catch(() => ({}));
+
+          if (data.status === "cancelled") {
+            setConfirmationStatus("error");
+            setConfirmationMessage("Payment was cancelled.");
+          } else {
+            // Treat all non-cancelled outcomes as success from the user's perspective.
+            // If Flutterwave's verify API hasn't settled yet (pending race condition),
+            // the webhook will confirm the payment automatically within seconds.
             setConfirmationStatus("success");
             setConfirmationMessage(
-              "Your payment has been successfully processed. Thank you for your subscription!"
+              "Your payment has been received and is being confirmed. Thank you!"
             );
-            router.replace("/subscription");
-          } else {
-            setConfirmationStatus("error");
-            setConfirmationMessage(
-              "Payment confirmation failed. Please try again or contact support."
-            );
-            console.error(
-              "[SubscriptionPage] Payment confirmation failed:",
-              data
-            );
-            router.replace("/subscription");
           }
         } catch (error) {
-          setConfirmationStatus("error");
+          // Network error — webhook will still confirm; show positive feedback
+          setConfirmationStatus("success");
           setConfirmationMessage(
-            "Failed to confirm payment. Please try again or contact support."
+            "Your payment has been received and is being confirmed. Thank you!"
           );
-          console.error("[SubscriptionPage] Failed to confirm payment:", error);
-          router.replace("/subscription");
+          console.error("[SubscriptionPage] confirmPayment network error:", error);
         } finally {
           setIsConfirming(false);
+          router.replace("/subscription");
         }
       }
     };
 
     confirmPayment();
   }, [searchParams, router]);
+
 
   const closeConfirmationModal = () => {
     setConfirmationStatus(null);

@@ -4,9 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { FileText, Link as LinkIcon, CheckCircle, Clock, Upload, ChevronRight, ArrowLeft, Send, Play, Pause, Volume2, VolumeX, Maximize, Minimize, X, Download } from "lucide-react";
+import { useStudentTheme } from "@/components/student/useStudentTheme";
+import { FileText, Link as LinkIcon, CheckCircle, Clock, Upload, ChevronRight, ArrowLeft, Send, Play, Pause, Volume2, VolumeX, Maximize, Minimize, X, Download, Headphones, ExternalLink, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
+
+import { cn } from "@/lib/utils";
+import { useCourseAccess } from "@/providers/CourseAccessProvider";
+import { CourseLockedOverlay } from "@/components/student/course-locked-overlay";
+import { AudioPlayer } from "@/components/student/audio-player";
 
 type ResolvedFile = { key: string; url: string; filename: string };
 
@@ -58,7 +64,11 @@ function MySubmissionFiles({ keys }: { keys: string[] }) {
 }
 
 export default function StudentAssignmentsPage() {
+  const { theme } = useStudentTheme();
+  const isAero = theme === "aero-premium";
+  const { hasAccess } = useCourseAccess();
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
@@ -76,6 +86,16 @@ export default function StudentAssignmentsPage() {
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined);
+
+  // Audio & PDF player state
+  const [audioPlayerOpen, setAudioPlayerOpen] = useState(false);
+  const [selectedAudio, setSelectedAudio] = useState<any>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [pdfModal, setPdfModal] = useState<{ open: boolean; lessonId: number | null; title: string }>({
+    open: false,
+    lessonId: null,
+    title: "",
+  });
   const [resolvedFiles, setResolvedFiles] = useState<ResolvedFile[]>([]);
   const [isResolvingFiles, setIsResolvingFiles] = useState(false);
 
@@ -99,13 +119,34 @@ export default function StudentAssignmentsPage() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchSubmissions = async () => {
+    try {
+      const res = await fetch("/api/submissions?page_size=100");
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data.results || data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchAssignments(), fetchSubmissions()]);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAssignments();
+    loadData();
   }, []);
 
   const { data: session } = useSession();
@@ -149,7 +190,8 @@ export default function StudentAssignmentsPage() {
   }
 
   async function uploadToS3(file: File): Promise<string> {
-    const pres = await fetch(`${DJANGO_BASE}/learning/api/presign-s3/`, {
+    // 1. First, request a presigned URL using JSON
+    let pres = await fetch(`${DJANGO_BASE}/learning/api/presign-s3/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -165,6 +207,28 @@ export default function StudentAssignmentsPage() {
       return j;
     });
 
+    // 2. If backend is in local mode, it can't presign. We must upload the file directly to it.
+    if (pres.mode === "local" || !pres.upload_url) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("filename", file.name);
+      fd.append("content_type", file.type || "application/octet-stream");
+
+      pres = await fetch(`${DJANGO_BASE}/learning/api/presign-s3/`, {
+        method: "POST",
+        headers: {
+          "X-Session-Token": sessionToken,
+        },
+        body: fd,
+      }).then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j?.detail || j?.error || "Failed to local upload");
+        return j;
+      });
+      return pres.key as string;
+    }
+
+    // 3. In production, we get a presigned URL. Upload directly to S3.
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", pres.upload_url, true);
@@ -203,6 +267,41 @@ export default function StudentAssignmentsPage() {
     } finally {
       setIsVideoLoading(false);
     }
+  };
+
+  const handlePlayAudio = async () => {
+    if (!selectedAssignment || !selectedAssignment.lesson) return;
+    setIsAudioLoading(true);
+    try {
+      const res = await fetch(`/api/student/lesson-media-url/${selectedAssignment.lesson}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load audio");
+      const data = await res.json();
+      if (!data?.url) throw new Error("Media URL missing");
+      setSelectedAudio({
+        title: selectedAssignment.lesson_details?.name || "Lesson Audio",
+        url: data.url,
+        duration: selectedAssignment.lesson_details?.duration || "—",
+      });
+      setAudioPlayerOpen(true);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to load the audio. Please try again later.");
+    } finally {
+      setIsAudioLoading(false);
+    }
+  };
+
+  const handlePreviewPdf = () => {
+    if (!selectedAssignment || !selectedAssignment.lesson) return;
+    setPdfModal({
+      open: true,
+      lessonId: selectedAssignment.lesson,
+      title: selectedAssignment.lesson_details?.name || "Lesson PDF",
+    });
   };
 
   const resolveAttachmentFiles = async (keys: string[]) => {
@@ -310,7 +409,12 @@ export default function StudentAssignmentsPage() {
         setMySubmission(data);
         setSubmissionText("");
         setAttachments([]);
+        setSubmissions(prev => {
+          const filtered = prev.filter(s => s.assignment !== selectedAssignment.id);
+          return [...filtered, data];
+        });
         fetchAssignments();
+        fetchSubmissions();
         setModal({ type: 'success', title: 'Submitted!', message: 'Your assignment has been submitted successfully. Your teacher will review it soon.' });
       } else {
         const errMsg = data?.detail || data?.error || "Failed to submit.";
@@ -379,11 +483,14 @@ export default function StudentAssignmentsPage() {
       {!selectedAssignment ? (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Assignments Workspace</h1>
+            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Assignments Workspace</h1>
             <p className="text-slate-500 mt-1">Review your tasks, access lesson materials, and submit your work.</p>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-2 min-h-[400px]">
+          <div className={isAero 
+            ? "bg-white/50 backdrop-blur-md rounded-3xl shadow-lg border border-slate-300/70 p-4 min-h-[400px]" 
+            : "bg-white rounded-3xl shadow-sm border border-slate-200 p-2 min-h-[400px]"
+          }>
             {assignments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-500">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
@@ -394,34 +501,70 @@ export default function StudentAssignmentsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                {assignments.map(a => (
-                  <div
-                    key={a.id}
-                    onClick={() => setSelectedAssignment(a)}
-                    className="group relative p-6 border border-slate-100 rounded-3xl hover:border-[#EF7B55] hover:shadow-md hover:shadow-orange-100 transition-all duration-300 bg-white cursor-pointer flex flex-col justify-between h-[220px]"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="p-2.5 bg-orange-50 rounded-xl">
-                          <FileText className="w-5 h-5 text-[#EF7B55]" />
+                {assignments.map(a => {
+                  const isLocked = !hasAccess(a.course);
+                  const submission = submissions.find(s => s.assignment === a.id);
+                  const hasSubmitted = !!submission;
+                  const isGraded = submission && submission.score !== null;
+                  return (
+                    <div
+                      key={a.id}
+                      onClick={() => {
+                        if (isLocked) return;
+                        setSelectedAssignment(a);
+                      }}
+                      className={cn(
+                        "relative overflow-hidden",
+                        isAero
+                          ? "group p-6 border border-slate-300/70 rounded-3xl hover:border-[#EF7B55] hover:shadow-lg transition-all duration-300 bg-white/60 backdrop-blur-sm cursor-pointer flex flex-col justify-between h-[220px] hover:translate-y-[-2px]"
+                          : "group p-6 border border-slate-200 rounded-3xl hover:border-[#EF7B55] hover:shadow-md hover:shadow-orange-100 transition-all duration-300 bg-white cursor-pointer flex flex-col justify-between h-[220px]",
+                        isLocked && "cursor-default select-none hover:shadow-none hover:translate-y-0 hover:border-slate-200"
+                      )}
+                    >
+                      {isLocked && (
+                        <CourseLockedOverlay
+                          message="Course access has expired."
+                          subMessage="Please renew your subscription"
+                        />
+                      )}
+                      <div>
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="p-2.5 bg-orange-50 rounded-xl">
+                            <FileText className="w-5 h-5 text-[#EF7B55]" />
+                          </div>
+                          {a.due_at && (
+                            <span className="text-[10px] font-semibold px-2.5 py-1 bg-red-50 text-red-600 rounded-full flex items-center gap-1.5">
+                              <Clock className="w-3 h-3" /> Due {new Date(a.due_at).toLocaleDateString()}
+                            </span>
+                          )}
                         </div>
-                        {a.due_at && (
-                          <span className="text-[10px] font-semibold px-2.5 py-1 bg-red-50 text-red-600 rounded-full flex items-center gap-1.5">
-                            <Clock className="w-3 h-3" /> Due {new Date(a.due_at).toLocaleDateString()}
+                        <h3 className="font-bold text-slate-800 text-lg leading-snug line-clamp-2">{a.title}</h3>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-4">
+                        {isGraded ? (
+                          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Graded
+                          </span>
+                        ) : hasSubmitted ? (
+                          <span className="text-xs font-bold text-blue-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                            Submitted
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                            Not Submitted
                           </span>
                         )}
-                      </div>
-                      <h3 className="font-bold text-slate-800 text-lg leading-snug line-clamp-2">{a.title}</h3>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-4">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Not Submitted</span>
-                      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#EF7B55] group-hover:text-white transition-colors">
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#EF7B55] group-hover:text-white transition-colors">
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -441,7 +584,10 @@ export default function StudentAssignmentsPage() {
             <div className="lg:col-span-2 space-y-6">
 
               {/* Instructions Card */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+              <div className={isAero
+                ? "bg-white/65 backdrop-blur-md rounded-3xl shadow-lg border border-slate-300/70 p-8"
+                : "bg-white rounded-3xl shadow-sm border border-slate-200 p-8"
+              }>
                 <div className="mb-8 pb-6 border-b border-slate-100">
                   <h2 className="text-3xl font-extrabold text-slate-900 leading-tight mb-3">{selectedAssignment.title}</h2>
                   <div className="flex gap-4 items-center">
@@ -460,7 +606,10 @@ export default function StudentAssignmentsPage() {
               </div>
 
               {/* Submission Card */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+              <div className={isAero
+                ? "bg-white/65 backdrop-blur-md rounded-3xl shadow-lg border border-slate-300/70 p-8"
+                : "bg-white rounded-3xl shadow-sm border border-slate-200 p-8"
+              }>
                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                   <Send className="w-5 h-5 text-[#EF7B55]" />
                   Your Submission
@@ -473,13 +622,19 @@ export default function StudentAssignmentsPage() {
                       value={submissionText}
                       onChange={e => setSubmissionText(e.target.value)}
                       placeholder="Type your answer, observations, or paste project links here..."
-                      className="min-h-[150px] bg-slate-50/50 border-slate-200 focus:bg-white rounded-2xl resize-none p-4 text-sm"
+                      className={isAero
+                        ? "min-h-[150px] bg-white/40 border-slate-200/70 focus:bg-white/80 rounded-2xl resize-none p-4 text-sm focus:ring-2 focus:ring-[#EF7B55]/10"
+                        : "min-h-[150px] bg-slate-50/50 border-slate-200 focus:bg-white rounded-2xl resize-none p-4 text-sm"
+                      }
                     />
                   </div>
 
                   <div>
                     <label className="text-sm font-semibold text-slate-700 mb-2 block">Attach Files (Optional)</label>
-                    <label className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer group relative">
+                    <label className={isAero
+                      ? "border-2 border-dashed border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:bg-white/60 transition-colors cursor-pointer group relative bg-white/30"
+                      : "border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer group relative"
+                    }>
                       <input
                         type="file"
                         multiple
@@ -634,31 +789,132 @@ export default function StudentAssignmentsPage() {
               )}
 
               {/* Resources Sidebar */}
-              <div className="bg-slate-800 rounded-3xl shadow-sm p-8 text-white">
+              <div className={isAero
+                ? "bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl shadow-lg p-8 text-white border border-slate-700/30"
+                : "bg-slate-800 rounded-3xl shadow-sm p-8 text-white"
+              }>
                 <h3 className="font-semibold text-lg mb-2">Learning Resources</h3>
                 <p className="text-sm text-slate-300 mb-6">Review the material before attempting the assignment.</p>
 
-                {selectedAssignment.lesson ? (
-                  <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
-                    <div className="flex gap-3 mb-4">
-                      <div className="bg-blue-500/20 p-2 rounded-xl text-blue-400 h-fit">
-                        <Play className="w-5 h-5" />
+                {selectedAssignment.lesson ? (() => {
+                  const details = selectedAssignment.lesson_details;
+                  const contentType = details?.content_type || "video";
+                  const lessonName = details?.name || "Lesson Guide";
+
+                  if (contentType === "audio") {
+                    return (
+                      <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
+                        <div className="flex gap-3 mb-4">
+                          <div className="bg-purple-500/20 p-2 rounded-xl text-purple-400 h-fit">
+                            <Headphones className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white text-sm truncate max-w-[180px]" title={lessonName}>{lessonName}</h4>
+                            <p className="text-xs text-slate-400 mt-1">Listen to the module audio</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handlePlayAudio}
+                          disabled={isAudioLoading}
+                          className="w-full bg-purple-500 hover:bg-purple-600 text-white rounded-xl"
+                        >
+                          {isAudioLoading ? <Spinner size="sm" className="mr-2" /> : <Headphones className="w-4 h-4 mr-2" />}
+                          {audioPlayerOpen ? "Playing Audio" : "Listen Audio"}
+                        </Button>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-white text-sm">Lesson Guide</h4>
-                        <p className="text-xs text-slate-400 mt-1">Watch the module video</p>
+                    );
+                  } else if (contentType === "pdf") {
+                    return (
+                      <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
+                        <div className="flex gap-3 mb-4">
+                          <div className="bg-emerald-500/20 p-2 rounded-xl text-emerald-400 h-fit">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white text-sm truncate max-w-[180px]" title={lessonName}>{lessonName}</h4>
+                            <p className="text-xs text-slate-400 mt-1">Read the lesson PDF</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handlePreviewPdf}
+                          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
+                        >
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          Read PDF
+                        </Button>
                       </div>
-                    </div>
-                    <Button
-                      onClick={handlePlayVideo}
-                      disabled={isVideoLoading || showVideoPlayer}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl"
-                    >
-                      {isVideoLoading ? <Spinner size="sm" className="mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                      {showVideoPlayer ? "Now Playing" : "Watch Video"}
-                    </Button>
-                  </div>
-                ) : (
+                    );
+                  } else if (contentType === "doc") {
+                    const docUrl = details?.url || details?.file;
+                    return (
+                      <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
+                        <div className="flex gap-3 mb-4">
+                          <div className="bg-yellow-500/20 p-2 rounded-xl text-yellow-400 h-fit">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white text-sm truncate max-w-[180px]" title={lessonName}>{lessonName}</h4>
+                            <p className="text-xs text-slate-400 mt-1">Open the lesson document</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => docUrl && window.open(docUrl, "_blank")}
+                          disabled={!docUrl}
+                          className="w-full bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Open Document
+                        </Button>
+                      </div>
+                    );
+                  } else if (contentType === "link") {
+                    const linkUrl = details?.url;
+                    return (
+                      <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
+                        <div className="flex gap-3 mb-4">
+                          <div className="bg-orange-500/20 p-2 rounded-xl text-orange-400 h-fit">
+                            <LinkIcon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white text-sm truncate max-w-[180px]" title={lessonName}>{lessonName}</h4>
+                            <p className="text-xs text-slate-400 mt-1">Visit the external link</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => linkUrl && window.open(linkUrl, "_blank")}
+                          disabled={!linkUrl}
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Visit Link
+                        </Button>
+                      </div>
+                    );
+                  } else {
+                    // Default to video
+                    return (
+                      <div className="bg-slate-700/50 rounded-2xl p-4 border border-slate-600/50">
+                        <div className="flex gap-3 mb-4">
+                          <div className="bg-blue-500/20 p-2 rounded-xl text-blue-400 h-fit">
+                            <Play className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white text-sm truncate max-w-[180px]" title={lessonName}>{lessonName}</h4>
+                            <p className="text-xs text-slate-400 mt-1">Watch the module video</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handlePlayVideo}
+                          disabled={isVideoLoading || showVideoPlayer}
+                          className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl"
+                        >
+                          {isVideoLoading ? <Spinner size="sm" className="mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                          {showVideoPlayer ? "Now Playing" : "Watch Video"}
+                        </Button>
+                      </div>
+                    );
+                  }
+                })() : (
                   <div className="text-center py-6 bg-slate-700/30 rounded-2xl border border-slate-700 border-dashed">
                     <p className="text-sm text-slate-400">No specific lesson linked.</p>
                   </div>
@@ -697,6 +953,64 @@ export default function StudentAssignmentsPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Audio Player and PDF modal overlay */}
+      <AudioPlayer
+        isOpen={audioPlayerOpen}
+        onClose={() => setAudioPlayerOpen(false)}
+        title={selectedAudio?.title || ""}
+        audioUrl={selectedAudio?.url ?? undefined}
+        duration={selectedAudio?.duration}
+      />
+
+      {/* PDF Viewer — full-screen overlay */}
+      {pdfModal.open && pdfModal.lessonId && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-slate-950">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-900 border-b border-slate-700 flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="h-5 w-5 text-orange-400 flex-shrink-0" />
+              <span className="text-white font-semibold text-sm sm:text-base line-clamp-1">
+                {pdfModal.title}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white"
+                onClick={() =>
+                  window.open(
+                    `/api/student/pdf-proxy/${pdfModal.lessonId}`,
+                    "_blank"
+                  )
+                }
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                Open in new tab
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[#EF7B55] hover:bg-orange-600 text-white"
+                onClick={() =>
+                  setPdfModal({ open: false, lessonId: null, title: "" })
+                }
+              >
+                ✕ Close
+              </Button>
+            </div>
+          </div>
+
+          {/* PDF iframe — fills all remaining space */}
+          <iframe
+            key={pdfModal.lessonId}
+            src={`/api/student/pdf-proxy/${pdfModal.lessonId}`}
+            title={pdfModal.title}
+            className="flex-1 w-full border-0 bg-slate-100"
+            style={{ minHeight: 0 }}
+          />
         </div>
       )}
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Radio, Video, Clock, X } from "lucide-react";
+import { useStudentTheme } from "@/components/student/useStudentTheme";
 
 interface Room {
   id: number;
@@ -15,6 +16,8 @@ interface Room {
 }
 
 export default function StudentLiveSessions() {
+  const { theme } = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
@@ -134,7 +137,10 @@ export default function StudentLiveSessions() {
           return (
             <div
               key={room.id}
-              className="border rounded-xl p-4 flex items-center justify-between bg-white shadow-sm"
+              className={isAero
+                ? "border border-slate-250/25 rounded-2xl p-5 flex items-center justify-between bg-white/60 backdrop-blur-md shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-350"
+                : "border rounded-xl p-4 flex items-center justify-between bg-white shadow-sm"
+              }
             >
               <div>
                 <h3 className="font-semibold text-slate-800">{room.name}</h3>

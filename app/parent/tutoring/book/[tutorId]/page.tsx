@@ -25,13 +25,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   ChevronLeft,
-  Video,
+  GraduationCap,
   AlertCircle,
   Clock,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function pad(n: number) {
@@ -298,6 +299,7 @@ export default function BookTutorPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const tutorId = params.tutorId as string;
   const tutorName = searchParams.get("name") || "Tutor";
   const courseName = searchParams.get("course") || "Tutoring";
@@ -343,15 +345,29 @@ export default function BookTutorPage() {
     if (duration < 1) return "Please enter a valid duration";
     if ((sessionStartTime && !sessionEndTime) || (!sessionStartTime && sessionEndTime))
       return "Provide both Start Time and End Time, or leave both empty";
-    if (sessionStartTime && sessionEndTime && sessionStartTime >= sessionEndTime)
-      return "End Time must be after Start Time";
+    if (sessionStartTime && sessionEndTime) {
+      if (sessionStartTime >= sessionEndTime) {
+        return "End Time must be after Start Time";
+      }
+      const diffMinutes = minutesBetween(sessionStartTime, sessionEndTime);
+      if (diffMinutes && diffMinutes > duration * 60) {
+        return `The selected start and end time range (${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m) cannot be longer than the selected session duration (${duration} hours).`;
+      }
+    }
     return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const err = validate();
-    if (err) { alert(err); return; }
+    if (err) {
+      toast({
+        title: "Validation Error",
+        description: err,
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSubmitting(true);
 
     const payload: Record<string, any> = {
@@ -370,13 +386,25 @@ export default function BookTutorPage() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        toast({
+          title: "Booking Request Sent",
+          description: `Your tutoring booking request with ${tutorName} has been submitted successfully.`,
+        });
         router.push("/parent/tutoring?tab=upcoming");
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to book tutoring");
+        toast({
+          title: "Booking Failed",
+          description: data.error || "Failed to book tutoring",
+          variant: "destructive",
+        });
       }
     } catch {
-      alert("An unexpected error occurred");
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -396,7 +424,7 @@ export default function BookTutorPage() {
   }
 
   return (
-    <div className="container max-w-4xl py-6">
+    <div className="container max-w-7xl py-6">
       {/* Back nav */}
       <nav className="mb-6">
         <Button
@@ -621,7 +649,7 @@ export default function BookTutorPage() {
                 </>
               ) : (
                 <>
-                  <Video className="mr-2 h-4 w-4" />
+                  <GraduationCap className="mr-2 h-4 w-4" />
                   Confirm Booking
                 </>
               )}

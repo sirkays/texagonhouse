@@ -52,7 +52,7 @@ const CallList = ({
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8`,
             "X-Session-Token": sessionToken || "",
           },
         });
@@ -109,7 +109,7 @@ const CallList = ({
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Api-Key nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c`,
+            Authorization: `Api-Key WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8`,
             "X-Session-Token": sessionToken || "",
           },
         },

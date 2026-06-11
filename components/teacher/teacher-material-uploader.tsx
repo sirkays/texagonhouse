@@ -367,25 +367,20 @@ export function TeacherMaterialUploader() {
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList
-          className="
-    flex flex-col sm:flex-row 
-    gap-2 sm:gap-4 
-    w-full sm:w-auto
-  ">
+        <TabsList className="bg-slate-100/50 dark:bg-slate-950/40 border border-slate-200/40 dark:border-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md flex flex-row overflow-x-auto w-full gap-1.5 mb-8 scrollbar-none whitespace-nowrap justify-start md:justify-center">
           <TabsTrigger
             value="upload"
-            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3">
             Upload Materials
           </TabsTrigger>
           <TabsTrigger
             value="library"
-            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3">
             Materials Library
           </TabsTrigger>
           <TabsTrigger
             value="organize"
-            className="flex-1 sm:flex-none text-xs sm:text-sm md:text-base">
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3">
             Organize & Tag
           </TabsTrigger>
         </TabsList>

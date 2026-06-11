@@ -47,6 +47,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { generateReceiptPDF, PaymentReceipt } from "@/lib/generate-receipt-pdf";
 
 export function PaymentHistory() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -238,24 +239,27 @@ export function PaymentHistory() {
 
     completedPayments.forEach((payment, index) => {
       setTimeout(() => {
-        const link = document.createElement("a");
-        link.setAttribute("href", "#");
-        link.setAttribute("download", `receipt_${payment.id}.pdf`);
+        handleDownloadReceipt(payment);
         if (index === completedPayments.length - 1) {
-          alert("All receipts downloaded successfully!");
+          // done
         }
       }, index * 500);
     });
   };
 
   const handleDownloadReceipt = (payment: any) => {
-    const link = document.createElement("a");
-    link.setAttribute("href", "#");
-    link.setAttribute("download", `receipt_${payment.id}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    alert(`Receipt for ${payment.id} downloaded successfully!`);
+    const receiptData: PaymentReceipt = {
+      id: payment.id,
+      date: payment.date,
+      description: payment.description,
+      amount: payment.amount,
+      method: payment.method,
+      status: payment.status,
+      invoiceType: payment.invoiceType || payment.invoice_type || "subscription",
+      childName: payment.childName || payment.child_name || "",
+      childAdmissionNo: payment.childAdmissionNo || payment.child_admission_no || "",
+    };
+    generateReceiptPDF(receiptData);
   };
 
   // Pagination calculations

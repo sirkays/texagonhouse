@@ -44,6 +44,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useStudentTheme } from "@/components/student/useStudentTheme";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { cn } from "@/lib/utils";
+import { useCourseAccess } from "@/providers/CourseAccessProvider";
+import { CourseLockedOverlay } from "@/components/student/course-locked-overlay";
 
 import {
   saveInProgress,
@@ -62,6 +67,7 @@ import {
   markTestCompleted,
   getCompletedTest,
   listCompletedTestsForUser,
+  deleteCompletedTest,
   type InProgressAttempt,
   type CompletedTestRecord,
 } from "@/lib/cbt/db";
@@ -80,6 +86,7 @@ type Attempt = {
     duration_minutes?: number;
     total_marks?: string | number;
     visibility?: string;
+    show_score?: boolean;
     start_at?: string | null;
     end_at?: string | null;
     course_id?: number;
@@ -118,7 +125,16 @@ const TERMINAL_SUBMISSION_CODES = new Set([
 
 /* ---------- helpers ---------- */
 
-async function fetchWithTimeout(url: string, options: any = {}, timeout = 40000) {
+/** Sentinel so callers can distinguish a client-side timeout from other errors. */
+class SubmitTimeoutError extends Error {
+  isTimeout = true as const;
+  constructor() {
+    super("Request timed out or was aborted. Please try again.");
+    this.name = "SubmitTimeoutError";
+  }
+}
+
+async function fetchWithTimeout(url: string, options: any = {}, timeout = 90_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -130,10 +146,10 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 40000)
 
     clearTimeout(timer);
     return response;
-  } catch (err) {
+  } catch (err: any) {
     clearTimeout(timer);
     if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
-      throw new Error("Request timed out or was aborted. Please try again.");
+      throw new SubmitTimeoutError();
     }
     throw err;
   }
@@ -227,6 +243,9 @@ function buildAnswersPayload(questions: any[], answers: Record<number, any>): an
 
 export function CBTTest() {
   const { data: session, status } = useSession();
+  const { theme } = useStudentTheme();
+  const isAero = theme === "aero-premium";
+  const { hasAccess } = useCourseAccess();
 
   const userId = session?.user?.id?.toString() || "anon";
 
@@ -395,7 +414,6 @@ export function CBTTest() {
   useEffect(() => {
     if (status !== "authenticated") return;
 
-    console.log("[CBT] Authenticated user", { userId, sessionUserId: session?.user?.id, email: session?.user?.email });
     migrateLegacyCBTState(userId).catch(() => { });
   }, [status, userId]);
 
@@ -603,7 +621,7 @@ export function CBTTest() {
               },
               body: JSON.stringify(payload),
             },
-            40000
+            90_000
           );
 
           let data: any = {};
@@ -619,15 +637,6 @@ export function CBTTest() {
               rawText = "";
             }
           }
-
-          console.log("[CBT submit]", {
-            status: res.status,
-            ok: res.ok,
-            code: data?.code,
-            detail: data?.detail,
-            raw: rawText.slice(0, 200),
-            testId: snap.testId,
-          });
 
           if (res.ok) {
             await markTerminal(data, "submitted");
@@ -659,6 +668,7 @@ export function CBTTest() {
             const looksTerminal =
               blob.includes("time elapsed") ||
               blob.includes("time has elapsed") ||
+              blob.includes("time is up") ||
               blob.includes("time is up") ||
               blob.includes("already performed") ||
               blob.includes("already submitted") ||
@@ -794,9 +804,6 @@ export function CBTTest() {
     hasLoadedOnceRef.current = hasLoadedOnce;
   }, [hasLoadedOnce]);
 
-  // Track whether the initial auth-triggered fetch has been done.
-  // Once done, only attemptsPage changes (or explicit refreshes) should
-  // re-fetch — NOT background session re-validations from NextAuth.
   const initialFetchDoneRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
 
@@ -804,9 +811,6 @@ export function CBTTest() {
     if (status === "loading") return;
 
     if (status !== "authenticated" || !sessionToken) {
-      // Only show "not authenticated" if we've never loaded before.
-      // During a background session refetch, status can flicker briefly;
-      // we don't want to flash an error in that case.
       if (!hasLoadedOnceRef.current) {
         setError("Not authenticated");
         setLoading(false);
@@ -815,16 +819,11 @@ export function CBTTest() {
       return;
     }
 
-    // If a different user just logged in, reset the fetch flag so we load
-    // their data fresh instead of showing the previous user's data.
     if (lastUserIdRef.current !== null && lastUserIdRef.current !== userId) {
       initialFetchDoneRef.current = false;
     }
     lastUserIdRef.current = userId;
 
-    // Skip re-fetching if the initial load was already done and
-    // the only thing that changed was the session status/token
-    // (i.e. a background NextAuth re-validation).
     if (initialFetchDoneRef.current) return;
 
     initialFetchDoneRef.current = true;
@@ -832,11 +831,10 @@ export function CBTTest() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, sessionToken, userId]);
 
-  // Separate effect for page changes — always re-fetch when the page changes.
   useEffect(() => {
-    if (!initialFetchDoneRef.current) return; // initial fetch handles first load
+    if (!initialFetchDoneRef.current) return;
     if (!sessionToken) return;
-    fetchData(true); // silent refresh for page changes
+    fetchData(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptsPage]);
 
@@ -893,7 +891,11 @@ export function CBTTest() {
           ? d.available_tests
           : [];
 
-      setAvailableTests(tests);
+      const untakenTests = tests.filter(
+        (t: any) => !(d.results || {})[t.id || t.pk]
+      );
+
+      setAvailableTests(untakenTests);
       setTestResults(d.results || {});
 
       const offlineOnly = (tests || []).filter(
@@ -932,6 +934,57 @@ export function CBTTest() {
           attempts: rawAttempts,
         })
       );
+
+      // ── Prune stale local locks ─────────────────────────────────────────
+      try {
+        const inProgressList = await listAllInProgressForUser(userId);
+        for (const snap of inProgressList) {
+          const testId = snap.testId;
+          const hasResult = !!(d.results || {})[testId];
+          const hasAttempt = (rawAttempts.results || []).some(
+            (a: any) => String(a.test_id) === String(testId)
+          );
+          const testDef = tests.find(
+            (t: any) => String(t.id || t.pk) === String(testId)
+          );
+          const isOfflineTest = testDef?.mode === "offline";
+
+          if (hasResult) {
+            // Test is finished and graded
+            await clearInProgress(testId, userId);
+          } else if (!hasResult && !hasAttempt) {
+            // Server doesn't know about this attempt
+            if (isOfflineTest) {
+              continue; // Keep offline tests, server wouldn't know yet
+            }
+            // Online test that server forgot about (deleted attempt)
+            await clearInProgress(testId, userId);
+          }
+        }
+
+        // Also prune completed test records that were deleted on the server
+        const completedTests = await listCompletedTestsForUser(userId);
+        let prunedCompleted = false;
+        
+        for (const ct of completedTests) {
+          const testId = ct.testId;
+          const hasResult = !!(d.results || {})[testId];
+          const hasAttempt = (rawAttempts.results || []).some(
+            (a: any) => String(a.test_id) === String(testId)
+          );
+
+          if (!hasResult && !hasAttempt && ct.syncStatus !== "pending") {
+            await deleteCompletedTest(testId, userId);
+            prunedCompleted = true;
+          }
+        }
+        
+        if (prunedCompleted) {
+          await refreshCompleted();
+        }
+      } catch (e) {
+        console.error("Failed to prune stale local locks", e);
+      }
 
       setError(null);
       setHasLoadedOnce(true);
@@ -973,8 +1026,6 @@ export function CBTTest() {
     }
   };
 
-  /* ---------- resume in-progress attempt from IndexedDB ---------- */
-
   useEffect(() => {
     if (status !== "authenticated") return;
     if (currentTest) return;
@@ -982,7 +1033,6 @@ export function CBTTest() {
     let cancelled = false;
 
     (async () => {
-      // Only resume tests that belong to the current user
       const inProgressList = await listAllInProgressForUser(userId);
 
       if (cancelled || inProgressList.length === 0) return;
@@ -1076,8 +1126,6 @@ export function CBTTest() {
     };
   }, [status, currentTest, submitFromSnapshot]);
 
-  /* ---------- refresh after queue confirms ---------- */
-
   const lastConfirmedCountRef = useRef(0);
 
   useEffect(() => {
@@ -1088,8 +1136,6 @@ export function CBTTest() {
       refreshCompleted().catch(() => { });
     }
   }, [queue, refreshCompleted]);
-
-  /* ---------- auto-submit forced online tests when network returns ---------- */
 
   useEffect(() => {
     if (!isOnline) return;
@@ -1125,10 +1171,6 @@ export function CBTTest() {
         setForcedSubmitReason(null);
         setForcedSubmitRetries(0);
         handleResetToList();
-        showErrorModal(
-          "Submission state lost",
-          "We couldn’t find your in-progress test data on this device. Please contact support if your attempt isn’t reflected in past attempts."
-        );
         return;
       }
 
@@ -1153,8 +1195,6 @@ export function CBTTest() {
       clearTimeout(timer);
     };
   }, [isOnline, isOnlineMode, pendingForcedSubmit, currentTest, submitFromSnapshot]);
-
-  /* ---------- retry forced submit while locked ---------- */
 
   useEffect(() => {
     if (!pendingForcedSubmit) return;
@@ -1209,14 +1249,11 @@ export function CBTTest() {
     MAX_FORCED_RETRIES,
   ]);
 
-  /* ---------- start test ---------- */
-
   const startTest = async (testPk: string | number) => {
     const testId = testPk?.toString();
 
     if (!testId || startingTestIds[testId]) return;
 
-    // Only check in-progress tests that belong to the current user
     const inProgressList = await listAllInProgressForUser(userId);
 
     if (inProgressList.length > 0) {
@@ -1239,7 +1276,6 @@ export function CBTTest() {
 
     const alreadyDone = await getCompletedTest(testId, userId);
 
-    console.log("[CBT startTest] completed check", { testId, userId, alreadyDone: alreadyDone ? { testId: alreadyDone.testId, userId: alreadyDone.userId, syncStatus: alreadyDone.syncStatus } : null });
     if (alreadyDone) {
       showErrorModal(
         "Already submitted",
@@ -1428,8 +1464,6 @@ export function CBTTest() {
     }
   };
 
-  /* ---------- timer ---------- */
-
   useEffect(() => {
     if (!currentTest || timeLeft <= 0) return;
 
@@ -1452,8 +1486,6 @@ export function CBTTest() {
 
     return () => clearInterval(timer);
   }, [currentTest, timeLeft, isOnlineMode]);
-
-  /* ---------- autosave snapshot ---------- */
 
   useEffect(() => {
     if (!currentTest || !clientSubmissionId || !startTime) return;
@@ -1514,8 +1546,6 @@ export function CBTTest() {
     }).catch(() => { });
   }, [answers]);
 
-  /* ---------- before unload save + warning ---------- */
-
   useEffect(() => {
     if (!currentTest) return;
 
@@ -1563,8 +1593,6 @@ export function CBTTest() {
     clockSkewMs,
   ]);
 
-  /* ---------- security listeners ---------- */
-
   useEffect(() => {
     if (!currentTest || !isSecureMode) return;
 
@@ -1595,8 +1623,6 @@ export function CBTTest() {
       document.removeEventListener("keydown", onKey);
     };
   }, [currentTest, isSecureMode, bumpSuspicious]);
-
-  /* ---------- heartbeat ---------- */
 
   useEffect(() => {
     if (!currentTest || currentMode !== "online" || !sessionToken) return;
@@ -1638,6 +1664,7 @@ export function CBTTest() {
       clearInterval(id);
     };
   }, [currentTest, currentMode, sessionToken, deviceId, refreshCompleted]);
+
   const getTerminalSubmissionNotice = (code?: string, detail?: string) => {
     switch (code) {
       case "TIME_ELAPSED":
@@ -1690,13 +1717,7 @@ export function CBTTest() {
     }
   };
 
-  /**
-   * Important:
-   * This closes the active exam screen and returns the user to the CBT list.
-   * It must be used for terminal Django CBT errors so the user does not get
-   * stuck inside the test page with an HTTP 400 modal.
-   */
-  const closeAttemptAndReturnToList = async ({
+  const closeAttemptAndReturnToList = useCallback(async ({
     code,
     detail,
     data,
@@ -1744,21 +1765,9 @@ export function CBTTest() {
 
     setAttemptsPage(1);
 
-    /**
-     * This is the key action.
-     * It removes the active test screen and sends the user back to the test list.
-     */
     handleResetToList();
-
-    /**
-     * Refresh the list after resetting.
-     * Do not await this because the user should leave the exam screen immediately.
-     */
     fetchData(true);
-  };
-  /* ---------- submit ---------- */
-
-  /* ---------- submit ---------- */
+  }, [userId, refreshCompleted]);
 
   const submitTest = useCallback(async () => {
     if (!currentTest || isSubmitting) return;
@@ -1818,7 +1827,7 @@ export function CBTTest() {
             },
             body: JSON.stringify(payload),
           },
-          40000
+          90_000
         );
 
         let data: any = {};
@@ -1831,16 +1840,6 @@ export function CBTTest() {
           data = {};
         }
 
-        /**
-         * Defensive fallback:
-         * If the proxy still wraps Django's error inside `error`,
-         * try to extract the original Django JSON from the string.
-         *
-         * Example bad proxy body:
-         * {
-         *   error: "Failed to submit test: {\"code\":\"TIME_ELAPSED\",...}"
-         * }
-         */
         if (!data?.code && typeof data?.error === "string") {
           const match = data.error.match(/\{.*\}/);
 
@@ -1852,7 +1851,7 @@ export function CBTTest() {
                 _proxyWrappedError: data.error,
               };
             } catch {
-              // keep original data
+              /* ignore */
             }
           }
         }
@@ -1866,19 +1865,7 @@ export function CBTTest() {
           rawText ||
           `HTTP ${res.status}`;
 
-        console.log("[CBT submit response]", {
-          status: res.status,
-          ok: res.ok,
-          code,
-          detail,
-          raw: rawText?.slice(0, 300),
-        });
-
         if (!res.ok) {
-          /**
-           * These are terminal CBT states.
-           * They should NOT leave the student inside the test screen.
-           */
           if (TERMINAL_SUBMISSION_CODES.has(code)) {
             const shouldMarkCompleted =
               code === "TIME_ELAPSED" ||
@@ -1898,11 +1885,6 @@ export function CBTTest() {
             return;
           }
 
-          /**
-           * Extra fallback:
-           * If Django/proxy did not expose `code`, but the text clearly says
-           * the attempt expired or does not exist, still close the test page.
-           */
           const lowered = String(detail || "").toLowerCase();
 
           const looksTerminal =
@@ -1910,13 +1892,9 @@ export function CBTTest() {
             lowered.includes("time has elapsed") ||
             lowered.includes("time is up") ||
             lowered.includes("already expired") ||
-            lowered.includes("attempt already expired") ||
             lowered.includes("already submitted") ||
-            lowered.includes("already performed") ||
-            lowered.includes("no active online attempt") ||
             lowered.includes("no active attempt") ||
             lowered.includes("attempt not found") ||
-            lowered.includes("attempt does not exist") ||
             lowered.includes("not started");
 
           if (looksTerminal && res.status >= 400 && res.status < 500) {
@@ -1924,8 +1902,7 @@ export function CBTTest() {
               ? "TIME_ELAPSED"
               : lowered.includes("already")
                 ? "ATTEMPT_ALREADY_SUBMITTED"
-                : lowered.includes("not found") ||
-                  lowered.includes("does not exist")
+                : lowered.includes("not found")
                   ? "ATTEMPT_NOT_FOUND"
                   : "NO_ACTIVE_ATTEMPT";
 
@@ -1951,17 +1928,10 @@ export function CBTTest() {
             return;
           }
 
-          /**
-           * Non-terminal server validation errors remain on the test page.
-           * Example: invalid payload, auth issue, server error.
-           */
           showErrorModal("Submission failed", detail);
           return;
         }
 
-        /**
-         * Normal successful submission.
-         */
         await markTestCompleted({
           testId: currentTest,
           userId,
@@ -1995,10 +1965,6 @@ export function CBTTest() {
 
         setAttemptsPage(1);
 
-        /**
-         * Return to the CBT test list immediately.
-         * This avoids the completed screen countdown and lets the user continue.
-         */
         handleResetToList();
 
         fetchData(true);
@@ -2006,9 +1972,6 @@ export function CBTTest() {
         return;
       }
 
-      /**
-       * Offline tests are queued locally.
-       */
       await enqueueSubmission({
         clientSubmissionId: csid,
         testId: currentTest,
@@ -2030,11 +1993,7 @@ export function CBTTest() {
 
       if (typeof BroadcastChannel !== "undefined") {
         const channel = new BroadcastChannel("cbt-queue");
-
-        channel.postMessage({
-          type: "completed-changed",
-        });
-
+        channel.postMessage({ type: "completed-changed" });
         channel.close();
       }
 
@@ -2060,8 +2019,6 @@ export function CBTTest() {
 
       const mode: "online" | "offline" = (test?.mode || currentMode) as any;
 
-      console.error("[CBT submit exception]", err);
-
       if (mode === "offline") {
         setListNotice({
           type: "success",
@@ -2077,6 +2034,57 @@ export function CBTTest() {
         setForcedSubmitReason(
           forcedSubmitReason ||
           (timeLeft <= 0 ? "time_elapsed" : "suspicious_threshold")
+        );
+      } else if (err?.isTimeout && currentTest) {
+        // The request timed out on the client, but the server may have already
+        // recorded the submission. Query the heartbeat to find out.
+        try {
+          const hb = await checkHeartbeat(currentTest, sessionToken!, deviceId);
+
+          if (hb && (hb.status === "submitted" || hb.status === "graded")) {
+            // Server confirms it went through — mark locally and move on.
+            let csid = clientSubmissionId;
+            if (!csid) {
+              const snap = await loadInProgress(currentTest, userId);
+              csid = snap?.clientSubmissionId ?? null;
+            }
+
+            await markTestCompleted({
+              testId: currentTest,
+              userId,
+              clientSubmissionId: csid ?? crypto.randomUUID(),
+              completedAt: Date.now(),
+              syncStatus: "confirmed",
+              serverAttemptId: hb.attempt_id ?? null,
+              serverResponse: { status: hb.status, _recoveredAfterTimeout: true },
+              testTitle: test?.title,
+              localScore: null,
+              localTotalPoints: null,
+            });
+
+            await clearInProgress(currentTest, userId);
+            await refreshCompleted();
+
+            setListNotice({
+              type: "success",
+              title: "Test submitted",
+              message: "Your test was submitted successfully.",
+            });
+
+            setAttemptsPage(1);
+            handleResetToList();
+            fetchData(true);
+            return;
+          }
+        } catch {
+          /* heartbeat itself failed — fall through to the error modal */
+        }
+
+        // Heartbeat didn't confirm — let the student retry.
+        showErrorModal(
+          "Network error",
+          "The request timed out. Please check your connection and try submitting again. " +
+          "If this keeps happening your answers are saved and will sync automatically."
         );
       } else {
         showErrorModal(
@@ -2117,12 +2125,6 @@ export function CBTTest() {
   }, [submitTest]);
 
   useEffect(() => {
-    submitTestRef.current = submitTest;
-  }, [submitTest]);
-
-  /* ---------- post-submit auto-reload ---------- */
-
-  useEffect(() => {
     if (!testCompleted) return;
 
     setAutoReloadSeconds(120);
@@ -2148,9 +2150,7 @@ export function CBTTest() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [testCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ---------- reset ---------- */
+  }, [testCompleted]);
 
   const handleResetToList = () => {
     setCurrentTest(null);
@@ -2178,8 +2178,6 @@ export function CBTTest() {
     lastSuspiciousAtRef.current = 0;
     autoSubmitTriggeredRef.current = false;
   };
-
-  /* ---------- helpers for UI ---------- */
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
@@ -2276,10 +2274,6 @@ export function CBTTest() {
     </Dialog>
   );
 
-  // Only show the full-page spinner on the very first render, before we've
-  // ever loaded data. After that, keep rendering the existing UI even while
-  // NextAuth re-validates the session in the background — otherwise every
-  // /api/auth/session poll causes a logo flash.
   if (!hasLoadedOnce && (status === "loading" || loading)) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
@@ -2517,33 +2511,42 @@ export function CBTTest() {
           </DialogContent>
         </Dialog>
 
-        <div className="flex items-center sm:flex-row flex-col gap-4 justify-between">
+        <div className={isAero 
+          ? "relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 text-white shadow-lg flex items-center sm:flex-row flex-col gap-4 justify-between"
+          : "flex items-center sm:flex-row flex-col gap-4 justify-between"
+        }>
           <div className="flex sm:self-auto self-start items-start sm:items-center flex-col sm:flex-row gap-2">
-            <h1 className="text-3xl font-bold">{test?.title}</h1>
-            <p className="text-muted-foreground">
+            <h1 className={isAero 
+              ? "text-2xl font-black bg-gradient-to-r from-white to-orange-100 bg-clip-text text-transparent" 
+              : "text-3xl font-bold"
+            }>
+              {test?.title}
+            </h1>
+            <p className={isAero ? "text-orange-200/90 text-sm font-semibold" : "text-muted-foreground"}>
               Question {currentQuestion + 1} of {questions.length}
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row self-start sm:self-auto items-start sm:items-center gap-4">
             {isSecureMode && (
-              <div className="flex items-center gap-2 text-red-600">
+              <div className={isAero ? "flex items-center gap-2 text-red-200" : "flex items-center gap-2 text-red-600"}>
                 <Shield className="h-4 w-4" />
-                <span className="text-sm font-medium">Secure Mode</span>
+                <span className="text-sm font-bold">Secure Mode</span>
               </div>
             )}
 
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+              <Clock className={isAero ? "h-4 w-4 text-orange-200" : "h-4 w-4"} />
               <span
-                className={`font-mono ${timeLeft < 300 ? "text-red-600" : ""
-                  }`}
+                className={`font-mono ${timeLeft < 300 ? "text-red-450 font-bold" : (isAero ? "text-white font-bold" : "")}`}
               >
                 {formatTime(timeLeft)}
               </span>
             </div>
 
-            <Badge variant="outline">{Math.round(progress)}% Complete</Badge>
+            <Badge className={isAero ? "bg-[#EF7B55] hover:bg-[#e26d47] text-white font-bold rounded-full border-none" : ""} variant="outline">
+              {Math.round(progress)}% Complete
+            </Badge>
           </div>
         </div>
 
@@ -2571,7 +2574,10 @@ export function CBTTest() {
               </div>
             )}
 
-            <Card className="border-[#EF7B55]/40 bg-gradient-to-r from-[#EF7B55]/5 to-transparent">
+            <Card className={isAero
+              ? "border border-[#EF7B55]/30 bg-white/60 backdrop-blur-md rounded-2xl shadow-sm"
+              : "border-[#EF7B55]/40 bg-gradient-to-r from-[#EF7B55]/5 to-transparent"
+            }>
               <CardContent className="flex items-center justify-between gap-4 p-4">
                 <div className="flex items-center gap-3 text-sm">
                   <CheckCircle className="h-4 w-4 text-emerald-600" />
@@ -2589,7 +2595,7 @@ export function CBTTest() {
                 <Button
                   onClick={() => setShowSubmitConfirm(true)}
                   disabled={isSubmitting || isAwaitingForcedSubmit}
-                  className="h-10 px-5 bg-[#EF7B55] text-white hover:bg-[#F79771] disabled:bg-slate-200 disabled:text-slate-400"
+                  className="h-10 px-5 bg-[#EF7B55] text-white hover:bg-[#F79771] disabled:bg-slate-200 disabled:text-slate-400 font-bold rounded-xl shadow-sm"
                 >
                   {isSubmitting ? (
                     <>
@@ -2603,7 +2609,10 @@ export function CBTTest() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={isAero 
+              ? "bg-white/60 backdrop-blur-md border border-slate-200/40 shadow-sm rounded-2xl" 
+              : ""
+            }>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Question {currentQuestion + 1}</CardTitle>
@@ -2785,22 +2794,15 @@ export function CBTTest() {
     return db - da;
   });
 
-  const pastTotalPages = Math.max(
-    1,
-    Math.ceil((attempts.count || 0) / (attempts.page_size || 20))
-  );
-  const pastCurrentPage = attempts.page || 1;
-
-  const indexOfLastTest = currentPage * testsPerPage;
-  const indexOfFirstTest = indexOfLastTest - testsPerPage;
-
-  const currentTests = Array.isArray(availableTests)
-    ? availableTests.slice(indexOfFirstTest, indexOfLastTest)
-    : [];
-
   const totalPages = Math.max(
     1,
     Math.ceil((availableTests?.length || 0) / testsPerPage)
+  );
+
+  const pastCurrentPage = attempts.page || attemptsPage || 1;
+  const pastTotalPages = Math.max(
+    1,
+    Math.ceil((attempts.count || 0) / (attempts.page_size || 20))
   );
 
   const hasTests = Array.isArray(availableTests) && availableTests.length > 0;
@@ -2810,10 +2812,6 @@ export function CBTTest() {
       (q.state === "queued" || q.state === "uploading") &&
       q.payload?.mode === "online"
   );
-  // Only show the sync-blocked banner when there are actual items
-  // pending upload. Previously, `isSyncing && isOnline` would be true
-  // every poll cycle (even with an empty queue), causing the banner
-  // and "Syncing" badge to flash repeatedly.
   const isSyncBlocked = hasPendingSyncWork;
 
   return (
@@ -2906,9 +2904,18 @@ export function CBTTest() {
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as "available" | "past")}
       >
-        <TabsList>
-          <TabsTrigger value="available">Available Tests</TabsTrigger>
-          <TabsTrigger value="past">Past Attempts</TabsTrigger>
+        <TabsList className={isAero
+          ? "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/20 p-1.5 border border-slate-200/50 rounded-2xl w-full mb-6"
+          : "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[#f797711a] p-1.5 border border-slate-200/60 rounded-xl w-full mb-6"
+        }>
+          <TabsTrigger value="available" className={isAero
+            ? "flex-1 w-full text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+            : "flex-1 w-full text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-semibold rounded-lg px-4 py-2 text-sm transition-all duration-200"
+          }>Available Tests</TabsTrigger>
+          <TabsTrigger value="past" className={isAero
+            ? "flex-1 w-full text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+            : "flex-1 w-full text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-semibold rounded-lg px-4 py-2 text-sm transition-all duration-200"
+          }>Past Attempts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="available" className="space-y-4">
@@ -2950,7 +2957,7 @@ export function CBTTest() {
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {currentTests.map((test: any) => {
+                {availableTests.slice((currentPage - 1) * testsPerPage, currentPage * testsPerPage).map((test: any) => {
                   const testId = test.pk?.toString();
                   const submission = queueByTestId[testId];
                   const completedRecord = completed[testId];
@@ -2965,14 +2972,30 @@ export function CBTTest() {
                   const res = testResults[testId];
                   const isStarting = !!startingTestIds[testId];
 
+                  const isLocked = !hasAccess(test.course_id);
+
                   return (
                     <Card
                       key={test.pk}
-                      className={`group flex flex-col h-full overflow-hidden transition-all duration-200 ${isLocallyCompleted
-                        ? "border-emerald-200 bg-emerald-50/30 opacity-90"
-                        : "hover:shadow-lg hover:border-[#EF7B55]/40 border-slate-200"
-                        }`}
+                      className={cn(
+                        "relative",
+                        isAero
+                          ? `group flex flex-col h-full overflow-hidden transition-all duration-300 bg-white/60 backdrop-blur-md rounded-2xl hover:translate-y-[-2px] ${isLocallyCompleted
+                            ? "border-emerald-250 bg-emerald-50/30 opacity-90"
+                            : "border-slate-200/50 hover:shadow-lg hover:border-[#EF7B55]/50 shadow-sm"
+                            }`
+                          : `group flex flex-col h-full overflow-hidden transition-all duration-200 ${isLocallyCompleted
+                            ? "border-emerald-200 bg-emerald-50/30 opacity-90"
+                            : "hover:shadow-lg hover:border-[#EF7B55]/40 border-slate-200"
+                            }`
+                      )}
                     >
+                      {isLocked && (
+                        <CourseLockedOverlay
+                          message="Course access has expired."
+                          subMessage="Please renew your subscription"
+                        />
+                      )}
                       <div
                         className={`h-1 w-full ${isPendingSync
                           ? "bg-amber-400"
@@ -3018,27 +3041,6 @@ export function CBTTest() {
                               Secure
                             </Badge>
                           )}
-
-                          {isPendingSync && (
-                            <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
-                              <Clock className="h-2.5 w-2.5 mr-0.5" />
-                              Awaiting sync
-                            </Badge>
-                          )}
-
-                          {isConfirmedSync && (
-                            <Badge className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
-                              <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
-                              Submitted
-                            </Badge>
-                          )}
-
-                          {isFailedSync && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                              Sync failed
-                            </Badge>
-                          )}
                         </div>
 
                         <TruncatedDescription
@@ -3049,7 +3051,10 @@ export function CBTTest() {
                       </CardHeader>
 
                       <CardContent className="flex-1 flex flex-col gap-3 pt-0">
-                        <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-xs">
+                        <div className={isAero
+                          ? "grid grid-cols-2 gap-3 rounded-lg bg-white/40 border border-slate-200/30 p-3 text-xs"
+                          : "grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-xs"
+                        }>
                           <div>
                             <div className="text-slate-500">Questions</div>
                             <div className="font-semibold text-slate-900">
@@ -3068,9 +3073,14 @@ export function CBTTest() {
                           </div>
                         </div>
 
-                        {res && !isLocallyCompleted && (
+                        {res && !isLocallyCompleted && test.show_score !== false && (
                           <p className="text-sm text-green-600">
                             Previous Score: {res.score} / {res.total_points}
+                          </p>
+                        )}
+                        {res && !isLocallyCompleted && test.show_score === false && (
+                          <p className="text-sm text-green-600">
+                            You have completed this test
                           </p>
                         )}
 
@@ -3118,6 +3128,7 @@ export function CBTTest() {
                             disabled={
                               isStarting ||
                               isLocallyCompleted ||
+                              isLocked ||
                               (isSyncBlocked && (test.mode ?? "online") !== "offline") ||
                               (test.type === "exam" &&
                                 examAttempts >= maxAttempts) ||
@@ -3285,21 +3296,29 @@ export function CBTTest() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Score</span>
-                        <span className="font-semibold">
-                          {attempt.score ?? "—"} /{" "}
-                          {attempt.test?.total_marks ?? "—"}
-                        </span>
-                      </div>
+                      {attempt.test?.show_score !== false ? (
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Score</span>
+                            <span className="font-semibold">
+                              {attempt.score ?? "—"} /{" "}
+                              {attempt.test?.total_marks ?? "—"}
+                            </span>
+                          </div>
 
-                      <Progress value={percent} className="h-2" />
+                          <Progress value={percent} className="h-2" />
 
-                      <p className="text-xs text-muted-foreground">
-                        {percent}% score
-                      </p>
-                    </CardContent>
+                          <p className="text-xs text-muted-foreground">
+                            {percent}% score
+                          </p>
+                        </CardContent>
+                      ) : (
+                        <CardContent className="space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            You have completed this test
+                          </p>
+                        </CardContent>
+                      )}
                   </Card>
                 );
               })}

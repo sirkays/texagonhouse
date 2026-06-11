@@ -7,10 +7,10 @@ function safeJson(text: string) {
   try { return JSON.parse(text); } catch { return null; }
 }
 
-export async function GET(req: Request, { params }: { params: { assignmentId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ assignmentId: string }> }) {
   noStore();
   try {
-    const { assignmentId } = params;
+    const { assignmentId } = await params;
     const { response, text, setCookie } = await djangoFetch(
       `/api/submissions/?assignment=${assignmentId}`,
       { method: "GET" }

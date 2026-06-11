@@ -25,6 +25,7 @@ import {
 import {signOut, useSession} from "next-auth/react";
 import {Button} from "@/components/ui/button";
 import {Spinner} from "@/components/ui/spinner";
+import {useStudentTheme} from "@/components/student/useStudentTheme";
 
 interface Achievement {
   id: number;
@@ -79,6 +80,8 @@ const iconMap: {[key: string]: React.ComponentType<{className?: string}>} = {
 
 export function Achievements() {
   const {data: session, status} = useSession();
+  const {theme} = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const [achievementsData, setAchievementsData] = useState<AchievementsData>({
     stats: {
       total_points: 0,
@@ -145,7 +148,7 @@ export function Achievements() {
       }
 
       try {
-        const response = await fetch("/api/student/achievements?debug=true", {
+        const response = await fetch("/api/student/achievements", {
           headers: {
             "Content-Type": "application/json",
             "X-Session-Token": sessionToken,
@@ -299,88 +302,61 @@ export function Achievements() {
 
       {/* Stats Overview */}
       <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Learning Points
-            </CardTitle>
-            <Star className="h-5 w-5 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-700">
-              {achievementsData.stats.total_points.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Accumulated through course completion and activities
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Achievements Unlocked
-            </CardTitle>
-            <Trophy className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-700">
-              {achievementsData.stats.achievements_unlocked}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              of {achievementsData.stats.achievements_total} milestones achieved
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
-            <Medal className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-700">
-              {achievementsData.stats.badges_earned}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              of {achievementsData.stats.badges_total} skill credentials earned
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Learning Streak
-            </CardTitle>
-            <Zap className="h-5 w-5 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-700">
-              {achievementsData.stats.streak_current} days
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Current streak • Best: {achievementsData.stats.streak_best} days
-            </p>
-          </CardContent>
-        </Card>
+        {[
+          { title: "Total Learning Points", value: achievementsData.stats.total_points.toLocaleString(), desc: "Accumulated through course completion", icon: Star, color: "text-yellow-600" },
+          { title: "Achievements Unlocked", value: achievementsData.stats.achievements_unlocked, desc: `of ${achievementsData.stats.achievements_total} milestones achieved`, icon: Trophy, color: "text-blue-600" },
+          { title: "Badges Earned", value: achievementsData.stats.badges_earned, desc: `of ${achievementsData.stats.badges_total} credentials earned`, icon: Medal, color: "text-purple-600" },
+          { title: "Learning Streak", value: `${achievementsData.stats.streak_current} days`, desc: `Current streak • Best: ${achievementsData.stats.streak_best} days`, icon: Zap, color: "text-orange-600" }
+        ].map((item, idx) => (
+          <Card key={idx} className={isAero
+            ? "bg-white/60 backdrop-blur-md border border-slate-200/40 shadow-sm rounded-2xl hover:translate-y-[-2px] hover:shadow-md transition-all duration-300"
+            : ""
+          }>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-bold text-slate-650 dark:text-slate-350">
+                {item.title}
+              </CardTitle>
+              <item.icon className={`h-5 w-5 ${item.color}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-black ${isAero ? "text-slate-800 dark:text-white" : ""}`}>
+                {item.value}
+              </div>
+              <p className="text-xs text-slate-450 dark:text-slate-500 font-semibold mt-1">
+                {item.desc}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Tabs defaultValue="achievements" className="space-y-4">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col items-center lg:flex-row w-full gap-2 mb-14">
+        <TabsList className={isAero
+          ? "flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-white/20 p-1.5 border border-slate-200/50 rounded-2xl w-full mb-8"
+          : "bg-[#f797712e] text-slate-700 flex flex-col md:flex-row items-stretch md:items-center w-full gap-2 mb-8 p-1.5 rounded-2xl border border-slate-100"
+        }>
           <TabsTrigger
             value="achievements"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             Achievements
           </TabsTrigger>
           <TabsTrigger
             value="badges"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             Badges
           </TabsTrigger>
           <TabsTrigger
             value="progress"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             In Progress
           </TabsTrigger>
         </TabsList>
@@ -405,7 +381,10 @@ export function Achievements() {
                 return (
                   <Card
                     key={achievement.id}
-                    className="border-[#EF7B55]/10 bg-gradient-to-b from-[#EF7B55]/5 to-white hover:shadow-md transition-shadow">
+                    className={isAero
+                      ? "bg-white/60 backdrop-blur-md rounded-2xl border border-[#EF7B55]/10 shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300"
+                      : "border-[#EF7B55]/10 bg-gradient-to-b from-[#EF7B55]/5 to-white hover:shadow-md transition-shadow"
+                    }>
                     <CardHeader className="pb-3">
                       <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                         <div className="flex items-center gap-4">
@@ -468,11 +447,18 @@ export function Achievements() {
                 return (
                   <Card
                     key={badge.id}
-                    className={`border transition-all duration-200 hover:shadow-md ${
-                      badge.earned
-                        ? "border-[#EF7B55] bg-[#EF7B55]/10"
-                        : "border-border"
-                    }`}>
+                    className={isAero
+                      ? `group relative border backdrop-blur-md rounded-2xl transition-all duration-300 hover:shadow-lg hover:translate-y-[-2px] ${
+                          badge.earned
+                            ? "border-[#EF7B55] bg-[#EF7B55]/10 shadow-sm shadow-orange-50/20"
+                            : "border-slate-200/50 bg-white/60"
+                        }`
+                      : `border transition-all duration-200 hover:shadow-md ${
+                          badge.earned
+                            ? "border-[#EF7B55] bg-[#EF7B55]/10"
+                            : "border-border"
+                        }`
+                    }>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-4">
@@ -560,7 +546,10 @@ export function Achievements() {
                 return (
                   <Card
                     key={achievement.id}
-                    className="transition-all duration-200 hover:shadow-md">
+                    className={isAero
+                      ? "bg-white/60 backdrop-blur-md border border-slate-200/50 rounded-2xl shadow-sm hover:shadow-lg hover:translate-y-[-2px] transition-all duration-300"
+                      : "transition-all duration-200 hover:shadow-md"
+                    }>
                     <CardHeader className="pb-3">
                       <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                         <div className="flex items-center gap-4">

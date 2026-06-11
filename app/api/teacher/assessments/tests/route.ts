@@ -7,13 +7,9 @@ export async function GET(req: Request) {
   noStore();
 
   const url = new URL(req.url);
-  const page = url.searchParams.get("page") ?? "1";
-  const limit = url.searchParams.get("limit") ?? "10";
-
+  
   // Adjust this path to your actual Django list endpoint
-  const path = `/assessments/api/teacher/tests/?page=${encodeURIComponent(
-    page
-  )}&limit=${encodeURIComponent(limit)}`;
+  const path = `/assessments/api/teacher/tests/${url.search}`;
 
   try {
     const { response, text, setCookie } = await djangoFetch(path, { method: "GET" });

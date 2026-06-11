@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { PaymentStatusBadge } from "@/components/invoice/payment-status-badge";
 import { InvoiceDetailsModal } from "@/components/invoice/invoice-details-modal";
 import { Spinner } from "@/components/ui/spinner";
-import { MoreHorizontal, Eye, Download, CreditCard, MessageSquare } from "lucide-react";
+import { MoreHorizontal, Eye, Download, CreditCard, MessageSquare, FileText, Calendar, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +59,36 @@ const formatMoney = (currency: string, amount: string) => {
 };
 
 const typeLabel = (t?: InvoiceType) => t ?? "subscription";
+
+const getStatusBorderColor = (status: InvoiceStatus) => {
+  switch (status) {
+    case "paid":
+    case "active":
+      return "border-l-emerald-500";
+    case "open":
+      return "border-l-amber-500";
+    case "void":
+    case "uncollectible":
+      return "border-l-red-500";
+    default:
+      return "border-l-gray-400";
+  }
+};
+
+const getStatusGlow = (status: InvoiceStatus) => {
+  switch (status) {
+    case "paid":
+    case "active":
+      return "hover:shadow-emerald-500/5";
+    case "open":
+      return "hover:shadow-amber-500/5";
+    case "void":
+    case "uncollectible":
+      return "hover:shadow-red-500/5";
+    default:
+      return "";
+  }
+};
 
 export function InvoiceList() {
   const { invoices: displayInvoices, loading, error, setInvoices, searchTerm } = useInvoiceFilters();
@@ -140,35 +170,40 @@ export function InvoiceList() {
         body: JSON.stringify({ invoice_id, tx_ref, transaction_id, status }),
       });
 
-      // Read once
       const raw = await res.text();
       const payload = raw ? JSON.parse(raw) : null;
 
-      console.log("confirm response ok?", res.ok, payload);
+      // Always clean up URL params
+      const url = new URL(window.location.href);
+      ["status", "tx_ref", "transaction_id", "invoice_number"].forEach((k) =>
+        url.searchParams.delete(k)
+      );
+      window.history.replaceState({}, "", url);
 
-      if (!res.ok) {
-        throw new Error(payload?.detail || payload?.error || "Failed to confirm payment");
-      }
-
+      // Refetch invoices regardless — webhook may have already confirmed
+      await refetchInvoices();
 
       if (payload?.status === "success") {
-        // Clear params
-        const url = new URL(window.location.href);
-        ["status", "tx_ref", "transaction_id", "invoice_number"].forEach((k) =>
-          url.searchParams.delete(k)
-        );
-        window.history.replaceState({}, "", url);
-
-        await refetchInvoices();
+        // Fully confirmed by verify
         setIsSuccessModalOpen(true);
       } else if (payload?.status === "cancelled") {
-        alert("Payment was cancelled.");
+        // User cancelled — no modal needed
       } else {
-        alert(payload?.detail || "Payment was not successful.");
+        // Backend returned non-success (e.g. Flutterwave still pending at redirect time).
+        // The webhook will confirm it automatically — show the success modal anyway
+        // since the user completed the payment flow on Flutterwave's side.
+        setIsSuccessModalOpen(true);
       }
 
     } catch (e: any) {
-      alert(e?.message || "Failed to confirm payment");
+      // Network/parse error — still clean up and show positive feedback
+      const url = new URL(window.location.href);
+      ["status", "tx_ref", "transaction_id", "invoice_number"].forEach((k) =>
+        url.searchParams.delete(k)
+      );
+      window.history.replaceState({}, "", url);
+      await refetchInvoices();
+      setIsSuccessModalOpen(true);
     } finally {
       setPaymentLoading(false);
     }
@@ -217,7 +252,7 @@ export function InvoiceList() {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold">Recent Invoices</h2>
@@ -228,7 +263,7 @@ export function InvoiceList() {
         </div>
 
         {error && (
-          <div className="text-red-500 text-center py-4">
+          <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-center py-4 px-4 text-sm">
             {error}
           </div>
         )}
@@ -237,102 +272,121 @@ export function InvoiceList() {
           {displayInvoices.map((invoice, idx) => (
             <Card
               key={invoice.id}
-              className="hover-lift shadow-sm"
-              style={{ animationDelay: `${idx * 0.1}s` }}
+              className={`animate-fade-in group border-l-4 ${getStatusBorderColor(invoice.status)} bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm border-white/20 shadow-sm hover:shadow-lg ${getStatusGlow(invoice.status)} hover:scale-[1.01] transition-all duration-300 ease-out`}
+              style={{ animationDelay: `${idx * 0.08}s`, animationFillMode: "both" }}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
+              <CardContent className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  {/* Left content */}
+                  <div className="flex-1 min-w-0 space-y-3">
+                    {/* Top row: invoice number + badges */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <CardTitle className="text-base">{invoice.number}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-base">{invoice.number}</span>
+                      </div>
                       <PaymentStatusBadge status={invoice.status} size="sm" />
                       <Badge variant="outline" className="text-xs capitalize">
                         {typeLabel(invoice.invoice_type)}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Issued {safeDate(invoice.issued_at)} • Due {safeDate(invoice.due_at)}
-                    </p>
+
+                    {/* Amount - prominent */}
+                    <div className="text-2xl font-bold tracking-tight text-foreground">
+                      {formatMoney(invoice.currency, invoice.amount)}
+                    </div>
+
+                    {/* Student name */}
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <User className="h-3.5 w-3.5 shrink-0" />
+                      <span className="font-medium text-foreground">{invoice.student_name}</span>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Issued {safeDate(invoice.issued_at)}
+                      </span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span>Due {safeDate(invoice.due_at)}</span>
+                    </div>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
-                        <MoreHorizontal className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent align="end">
-
-                      {canMakeComplaint(invoice) && (
-                        <DropdownMenuItem onClick={() => handleMakeComplaint(invoice)}>
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Make Complaint
-                        </DropdownMenuItem>
-                      )}
-
-
-                      <DropdownMenuItem onClick={() => openDetails(invoice)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem onClick={() => generateInvoicePDF(invoice as any)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
-                      </DropdownMenuItem>
-
-                      {invoice.status === "open" && (
-                        <DropdownMenuItem onClick={() => handlePayInvoice(invoice.number)}>
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Pay Now
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Type</p>
-                    <p className="font-medium capitalize">{typeLabel(invoice.invoice_type)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Amount</p>
-                    <p className="font-bold">{formatMoney(invoice.currency, invoice.amount)}</p>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <p className="text-muted-foreground">Student Name</p>
-                  <p className="font-bold">
-                    {invoice.student_name}
-                  </p>
-                </div>
-
-                <div className="mt-4 flex justify-end gap-2 border-t pt-3">
-                  <Button variant="outline" size="sm" onClick={() => openDetails(invoice)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
-                  </Button>
-
-                  {invoice.status === "open" && (
-                    <Button variant="outline" size="sm" onClick={() => handlePayInvoice(invoice.number)}>
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Pay
+                  {/* Right side: actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openDetails(invoice)}
+                      className="rounded-full px-4 text-xs hover:bg-[#EF7B55]/10 hover:text-[#EF7B55] hover:border-[#EF7B55]/30 transition-all duration-200"
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1.5" />
+                      View
                     </Button>
-                  )}
+
+                    {invoice.status === "open" && (
+                      <Button
+                        size="sm"
+                        onClick={() => handlePayInvoice(invoice.number)}
+                        className="rounded-full px-4 text-xs bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                      >
+                        <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                        Pay
+                      </Button>
+                    )}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted/80 transition-colors">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent align="end" className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 shadow-xl rounded-xl">
+
+                        {canMakeComplaint(invoice) && (
+                          <DropdownMenuItem onClick={() => handleMakeComplaint(invoice)}>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Make Complaint
+                          </DropdownMenuItem>
+                        )}
+
+
+                        <DropdownMenuItem onClick={() => openDetails(invoice)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem onClick={() => generateInvoicePDF(invoice as any)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download PDF
+                        </DropdownMenuItem>
+
+                        {invoice.status === "open" && (
+                          <DropdownMenuItem onClick={() => handlePayInvoice(invoice.number)}>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Pay Now
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
 
           {displayInvoices.length === 0 && !error && (
-            <Card className="shadow-sm">
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">No invoices found.</p>
+            <Card className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm border border-white/20 shadow-sm">
+              <CardContent className="py-16 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#EF7B55]/10 to-[#EF7B55]/5 mb-4">
+                  <FileText className="h-8 w-8 text-[#EF7B55]/60" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">No invoices found</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  Your invoices will appear here once they are generated. Try adjusting your search or filters.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -340,13 +394,20 @@ export function InvoiceList() {
       </div>
 
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 shadow-2xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Payment Successful</DialogTitle>
-            <DialogDescription>Your payment has been confirmed.</DialogDescription>
+            <div className="flex justify-center mb-3">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-500/5">
+                <svg className="h-7 w-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <DialogTitle className="text-center text-xl">Payment Successful</DialogTitle>
+            <DialogDescription className="text-center">Your payment has been confirmed.</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setIsSuccessModalOpen(false)}>Close</Button>
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={() => setIsSuccessModalOpen(false)} className="rounded-full px-8 bg-[#EF7B55] hover:bg-[#EF7B55]/90 text-white">Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

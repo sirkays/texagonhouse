@@ -29,6 +29,7 @@ export type SubmissionsSidebarProps = {
   fetchSubmissionDetail: (id: number) => Promise<Submission>;
   onComment: (id: number, msg: string) => Promise<Comment>;
   showCustomAlert: (m: string) => void;
+  isLessonAccessible: (lessonId: number | string | undefined | null) => boolean;
   t: ThemeTokens;
 };
 
@@ -51,6 +52,7 @@ export function SubmissionsSidebar({
   fetchSubmissionDetail,
   onComment,
   showCustomAlert,
+  isLessonAccessible,
   t,
 }: SubmissionsSidebarProps) {
   const [filter, setFilter] = useState("");
@@ -104,6 +106,10 @@ export function SubmissionsSidebar({
 
   const sendComment = async () => {
     if (!detail || !comment.trim()) return;
+    if (!isLessonAccessible(detail.lesson)) {
+      showCustomAlert("Course access has expired. Please renew your subscription");
+      return;
+    }
     setSending(true);
     try {
       await onComment(detail.id, comment);
@@ -119,6 +125,7 @@ export function SubmissionsSidebar({
 
   // ─── Detail view ───────────────────────────────────────────────────────
   if (viewingId !== null) {
+    const isLocked = detail ? !isLessonAccessible(detail.lesson) : false;
     return (
       <div
         style={{
@@ -350,22 +357,22 @@ export function SubmissionsSidebar({
               <div style={{ display: "flex", gap: 4 }}>
                 <input
                   type="text"
-                  placeholder="Write a comment..."
+                  placeholder={isLocked ? "Course access has expired" : "Write a comment..."}
                   className="ide-input"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && comment.trim() && !sending) {
+                    if (e.key === "Enter" && comment.trim() && !sending && !isLocked) {
                       sendComment();
                     }
                   }}
-                  disabled={sending}
+                  disabled={sending || isLocked}
                   style={{ flex: 1 }}
                 />
                 <button
                   className="ide-btn primary icon-only"
                   onClick={sendComment}
-                  disabled={!comment.trim() || sending}
+                  disabled={!comment.trim() || sending || isLocked}
                   title="Send"
                 >
                   {sending ? (
@@ -380,9 +387,16 @@ export function SubmissionsSidebar({
             <button
               className="ide-btn primary"
               style={{ width: "100%", marginTop: 4 }}
-              onClick={() => onLoad(detail)}
+              onClick={() => {
+                if (isLocked) {
+                  showCustomAlert("Course access has expired. Please renew your subscription");
+                } else {
+                  onLoad(detail);
+                }
+              }}
+              disabled={isLocked}
             >
-              Load into editor
+              {isLocked ? "Course access expired" : "Load into editor"}
             </button>
           </div>
         )}
@@ -437,91 +451,106 @@ export function SubmissionsSidebar({
             No submissions yet
           </div>
         ) : (
-          visible.map((s) => (
-            <div
-              key={s.id}
-              style={{
-                padding: 8,
-                marginBottom: 4,
-                borderRadius: 4,
-                border: `1px solid ${t.borderMuted}`,
-                background: t.bgPanel,
-                fontSize: 12,
-              }}
-            >
+          visible.map((s) => {
+            const isLocked = !isLessonAccessible(s.lesson);
+            return (
               <div
+                key={s.id}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
+                  padding: 8,
                   marginBottom: 4,
+                  borderRadius: 4,
+                  border: `1px solid ${t.borderMuted}`,
+                  background: t.bgPanel,
+                  fontSize: 12,
+                  opacity: isLocked ? 0.75 : 1,
                 }}
               >
-                <LangBadge lang={s.files?.[0]?.language ?? ""} />
-                <span
+                <div
                   style={{
-                    flex: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginBottom: 4,
                   }}
                 >
-                  {s.title || `#${s.id}`}
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 10,
-                  color: t.textMuted,
-                  marginBottom: 4,
-                }}
-              >
-                <span
+                  <LangBadge lang={s.files?.[0]?.language ?? ""} />
+                  <span
+                    style={{
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontWeight: 500,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    {s.title || `#${s.id}`}
+                    {isLocked && <span style={{ color: "#F97316", fontSize: 10 }} title="Course access has expired">🔒</span>}
+                  </span>
+                </div>
+                <div
                   style={{
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                    color:
-                      s.status === "graded"
-                        ? t.success
-                        : s.status === "revised"
-                        ? t.warning
-                        : t.textMuted,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 10,
+                    color: t.textMuted,
+                    marginBottom: 4,
                   }}
                 >
-                  {s.status}
-                </span>
-                <span>{s.score ?? "—"}</span>
-              </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: t.textDim,
-                  marginBottom: 6,
-                }}
-              >
-                {formatDate(s.created_at)}
-              </div>
-              <div style={{ display: "flex", gap: 4 }}>
-                <button
-                  className="ide-btn ghost"
-                  style={{ flex: 1, height: 24, fontSize: 11 }}
-                  onClick={() => onLoad(s)}
+                  <span
+                    style={{
+                      textTransform: "uppercase",
+                      letterSpacing: 0.4,
+                      color:
+                        s.status === "graded"
+                          ? t.success
+                          : s.status === "revised"
+                          ? t.warning
+                          : t.textMuted,
+                    }}
+                  >
+                    {s.status}
+                  </span>
+                  <span>{s.score ?? "—"}</span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: t.textDim,
+                    marginBottom: 6,
+                  }}
                 >
-                  Load
-                </button>
-                <button
-                  className="ide-btn ghost"
-                  style={{ flex: 1, height: 24, fontSize: 11 }}
-                  onClick={() => openDetail(s.id)}
-                >
-                  Details
-                </button>
+                  {formatDate(s.created_at)}
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    className="ide-btn ghost"
+                    style={{ flex: 1, height: 24, fontSize: 11 }}
+                    onClick={() => {
+                      if (isLocked) {
+                        showCustomAlert("Course access has expired. Please renew your subscription");
+                      } else {
+                        onLoad(s);
+                      }
+                    }}
+                    disabled={isLocked}
+                  >
+                    {isLocked ? "Locked" : "Load"}
+                  </button>
+                  <button
+                    className="ide-btn ghost"
+                    style={{ flex: 1, height: 24, fontSize: 11 }}
+                    onClick={() => openDetail(s.id)}
+                  >
+                    Details
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

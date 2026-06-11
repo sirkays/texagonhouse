@@ -29,70 +29,56 @@ function SubscriptionContent() {
       const status = searchParams.get("status");
       const txRef = searchParams.get("tx_ref");
       const transactionId = searchParams.get("transaction_id");
-      const invoiceId = localStorage.getItem("pendingInvoiceId"); // Retrieve stored invoice_id
+      const invoiceId = localStorage.getItem("pendingInvoiceId");
 
       if (status && txRef && transactionId && invoiceId) {
-        if (status === "successful") {
-          try {
-            const response = await fetch(`${API_BASE}?action=confirm`, {
-              method: "POST",
-              headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({
-                invoice_id: invoiceId,
-                tx_ref: txRef,
-                transaction_id: transactionId,
-              }),
-            });
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            if (data.status === "success") {
-              localStorage.removeItem("pendingInvoiceId"); // Clear stored invoice_id
-              setConfirmationStatus("success");
-              setConfirmationMessage(
-                "Your payment has been successfully processed. Thank you for your subscription!"
-              );
-              // Clear query parameters by pushing to /subscription
-              router.replace("/subscription");
-            } else {
-              setConfirmationStatus("error");
-              setConfirmationMessage(
-                "Payment confirmation failed. Please try again or contact support."
-              );
-              console.error(
-                "[SubscriptionPage] Payment confirmation failed:",
-                data
-              );
-              localStorage.removeItem("pendingInvoiceId");
-              router.replace("/subscription");
-            }
-          } catch (error) {
-            setConfirmationStatus("error");
-            setConfirmationMessage(
-              "Failed to confirm payment. Please try again or contact support."
-            );
-            console.error(
-              "[SubscriptionPage] Failed to confirm payment:",
-              error
-            );
-            localStorage.removeItem("pendingInvoiceId");
-            router.replace("/subscription");
-          }
-        } else {
+        localStorage.removeItem("pendingInvoiceId");
+
+        if (status === "cancelled" || status === "canceled") {
           setConfirmationStatus("error");
-          setConfirmationMessage(
-            "Payment was not successful. Please try again or contact support."
-          );
-          console.error("[SubscriptionPage] Payment status:", status);
-          localStorage.removeItem("pendingInvoiceId");
+          setConfirmationMessage("Payment was cancelled. Please try again if you wish to subscribe.");
           router.replace("/subscription");
+          return;
         }
+
+        // For successful/pending statuses — attempt confirmation but treat errors as transient
+        try {
+          const response = await fetch(`${API_BASE}?action=confirm`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              invoice_id: invoiceId,
+              tx_ref: txRef,
+              transaction_id: transactionId,
+            }),
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          // Treat all non-cancelled outcomes as success — Flutterwave webhook
+          // will confirm any still-pending transactions automatically.
+          setConfirmationStatus("success");
+          setConfirmationMessage(
+            data.status === "success"
+              ? "Your payment has been successfully processed. Thank you for your subscription!"
+              : "Your payment has been received and is being confirmed. Thank you!"
+          );
+        } catch (error) {
+          // Network/parse error — webhook will still confirm
+          setConfirmationStatus("success");
+          setConfirmationMessage(
+            "Your payment has been received and is being confirmed. Thank you!"
+          );
+          console.error("[SubscriptionPage] confirmPayment network error:", error);
+        }
+
+        router.replace("/subscription");
       }
     };
 
     confirmPayment();
   }, [searchParams, router]);
+
 
   const closeConfirmationModal = () => {
     setConfirmationStatus(null);

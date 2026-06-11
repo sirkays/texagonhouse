@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { ArrowLeft, BookOpen, Calendar, User, ClipboardList, Code, Video, Star, TrendingUp, Award, FileText } from "lucide-react";
+import { ArrowLeft, BookOpen, Calendar, User, ClipboardList, Code, Video, Star, TrendingUp, Award, FileText, Play } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { VideoModal } from "@/components/student/video-modal";
 
 type StudentScore = { score: string; total: string; status: string };
 type CodingScore = { score: string; feedback: string; project_title: string; status: string };
@@ -31,12 +32,25 @@ type ReportDetail = {
   };
 };
 
+const DJANGO_BASE = process.env.NEXT_PUBLIC_DJANGO_BASE_URL || "";
+
+function resolveVideoUrl(raw: string | null | undefined): string {
+  if (!raw) return "";
+  if (raw.startsWith("http")) return raw;
+  return `${DJANGO_BASE}${raw}`;
+}
+
 export default function StudentReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { data: session } = useSession();
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Video modal state
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState({ title: "", url: "" });
 
   useEffect(() => {
     fetch(`/api/student/reports/${id}`)
@@ -48,6 +62,13 @@ export default function StudentReportDetailPage({ params }: { params: Promise<{ 
       .catch(() => setError("Failed to load report"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handlePlayVideo = (title: string, rawUrl: string, rawFile: string | null) => {
+    const url = resolveVideoUrl(rawUrl) || resolveVideoUrl(rawFile);
+    if (!url) return;
+    setSelectedVideo({ title: title || "Video", url });
+    setVideoModalOpen(true);
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
@@ -202,7 +223,7 @@ export default function StudentReportDetailPage({ params }: { params: Promise<{ 
                   {sc.score !== "0" && (
                     <p className="text-xl font-bold text-slate-800">{sc.score} <span className="text-xs font-normal text-slate-400">points</span></p>
                   )}
-                  {sc.feedback && <p className="text-xs text-slate-500 mt-1 italic">"{sc.feedback}"</p>}
+                  {sc.feedback && <p className="text-xs text-slate-500 mt-1 italic">&quot;{sc.feedback}&quot;</p>}
                 </div>
               );
             })}
@@ -236,25 +257,33 @@ export default function StudentReportDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* Videos */}
+      {/* Videos — plays inline via VideoModal, no new tab */}
       {report.videos.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
           <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
             <Video className="w-4 h-4 text-[#EF7B55]" /> Videos
           </h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {report.videos.map((v, i) => (
-              <a key={i} href={v.video_url || v.video_file || "#"} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 border border-slate-100 rounded-xl p-3 hover:shadow-md hover:border-[#EF7B55]/30 transition-all group">
-                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition-colors">
-                  <Video className="w-5 h-5 text-red-500" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-700 group-hover:text-[#EF7B55] transition-colors truncate">{v.title || "Watch Video"}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{v.video_url}</p>
-                </div>
-              </a>
-            ))}
+            {report.videos.map((v, i) => {
+              const hasUrl = !!(v.video_url || v.video_file);
+              return (
+                <button
+                  key={i}
+                  disabled={!hasUrl}
+                  onClick={() => handlePlayVideo(v.title, v.video_url, v.video_file)}
+                  className="flex items-center gap-3 border border-slate-100 rounded-xl p-3 hover:shadow-md hover:border-[#EF7B55]/30 transition-all group text-left w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-[#EF7B55]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#EF7B55]/20 transition-colors">
+                    <Play className="w-5 h-5 text-[#EF7B55]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-700 group-hover:text-[#EF7B55] transition-colors truncate">{v.title || "Watch Video"}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Click to play</p>
+                  </div>
+                  <Video className="w-4 h-4 text-slate-300 group-hover:text-[#EF7B55] transition-colors flex-shrink-0" />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -269,6 +298,14 @@ export default function StudentReportDetailPage({ params }: { params: Promise<{ 
           <p className="text-xs text-slate-400 mt-3 text-right">— {report.teacher.name}</p>
         </div>
       )}
+
+      {/* Video Player Modal — renders on top of current page */}
+      <VideoModal
+        isOpen={videoModalOpen}
+        onClose={() => setVideoModalOpen(false)}
+        title={selectedVideo.title}
+        videoUrl={selectedVideo.url}
+      />
     </div>
   );
 }

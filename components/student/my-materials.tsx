@@ -33,6 +33,7 @@ import {AudioPlayer} from "./audio-player";
 import {signOut, useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {Spinner} from "@/components/ui/spinner";
+import {useStudentTheme} from "@/components/student/useStudentTheme";
 
 interface Note {
   id: number;
@@ -103,6 +104,8 @@ type LessonMediaResp = {
 
 export function MyMaterials() {
   const {data: session, status} = useSession();
+  const {theme} = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const router = useRouter();
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
@@ -679,15 +682,24 @@ export function MyMaterials() {
       </div>
 
       <Tabs defaultValue="saved" className="w-full">
-        <TabsList className="bg-[#f797712e] text-slate-700 flex flex-row w-full gap-2 mb-14">
+        <TabsList className={isAero
+          ? "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/20 p-1.5 border border-slate-200/50 rounded-2xl w-full mb-8"
+          : "bg-[#f797712e] text-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center w-full gap-2 mb-8 p-1.5 rounded-2xl border border-slate-100"
+        }>
           <TabsTrigger
             value="saved"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             Saved Items
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="bg-transparent justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+            className={isAero
+              ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300"
+              : "flex-1 text-center bg-transparent justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+            }>
             My Notes
           </TabsTrigger>
         </TabsList>
@@ -744,9 +756,14 @@ export function MyMaterials() {
                     return (
                       <Card
                         key={video.id}
-                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
-                          locked ? "cursor-not-allowed" : ""
-                        }`}>
+                        className={isAero
+                          ? `group relative flex flex-col sm:flex-row h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px] max-w-md ${
+                            locked ? "cursor-not-allowed" : ""
+                          }`
+                          : `hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
+                            locked ? "cursor-not-allowed" : ""
+                          }`
+                        }>
                         {/* BLUR WRAPPER */}
                         <div
                           className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
@@ -757,7 +774,7 @@ export function MyMaterials() {
                                 src={
                                   video.thumbnail.startsWith("http")
                                     ? video.thumbnail
-                                    : `process.env.BASE_URL${video.thumbnail}`
+                                    : `${process.env.NEXT_PUBLIC_DJANGO_BASE_URL ?? ""}${video.thumbnail}`
                                 }
                                 alt={video.title}
                                 className="w-full h-full object-cover"
@@ -828,7 +845,7 @@ export function MyMaterials() {
 
                         {/* OVERLAY */}
                         {locked && (
-                          <LockedOverlay label="Locked video — subscribe to unlock" />
+                          <LockedOverlay label="Course access has expired. Please renew your subscription" />
                         )}
                       </Card>
                     );
@@ -904,9 +921,14 @@ export function MyMaterials() {
                     return (
                       <Card
                         key={pdf.id}
-                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
-                          locked ? "cursor-not-allowed" : ""
-                        }`}>
+                        className={isAero
+                          ? `group relative flex flex-col sm:flex-row h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px] max-w-md ${
+                            locked ? "cursor-not-allowed" : ""
+                          }`
+                          : `hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
+                            locked ? "cursor-not-allowed" : ""
+                          }`
+                        }>
                         <div
                           className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
                           <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
@@ -974,7 +996,7 @@ export function MyMaterials() {
                         </div>
 
                         {locked && (
-                          <LockedOverlay label="Locked PDF — subscribe to unlock" />
+                          <LockedOverlay label="Course access has expired. Please renew your subscription" />
                         )}
                       </Card>
                     );
@@ -1049,9 +1071,14 @@ export function MyMaterials() {
                     return (
                       <Card
                         key={audio.id}
-                        className={`hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
-                          locked ? "cursor-not-allowed" : ""
-                        }`}>
+                        className={isAero
+                          ? `group relative flex flex-col sm:flex-row h-full bg-white/60 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-200/40 hover:translate-y-[-2px] max-w-md ${
+                            locked ? "cursor-not-allowed" : ""
+                          }`
+                          : `hover:shadow-xl transition-shadow flex flex-col sm:flex-row h-full bg-white rounded-lg overflow-hidden shadow-sm max-w-md relative ${
+                            locked ? "cursor-not-allowed" : ""
+                          }`
+                        }>
                         <div
                           className={`flex flex-col sm:flex-row w-full ${locked ? "blur-md" : ""}`}>
                           <div className="relative w-full sm:w-40 flex-shrink-0 aspect-video bg-muted rounded-tr-none rounded-br-none overflow-hidden flex items-center justify-center">
@@ -1114,7 +1141,7 @@ export function MyMaterials() {
                         </div>
 
                         {locked && (
-                          <LockedOverlay label="Locked audio — subscribe to unlock" />
+                          <LockedOverlay label="Course access has expired. Please renew your subscription" />
                         )}
                       </Card>
                     );
@@ -1167,7 +1194,10 @@ export function MyMaterials() {
                 {currentNotes.map((note) => (
                   <Card
                     key={note.id}
-                    className="hover:shadow-lg transition-shadow">
+                    className={isAero 
+                      ? "bg-white/60 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/40 hover:shadow-lg hover:translate-y-[-2px] transition-all duration-300"
+                      : "hover:shadow-lg transition-shadow"
+                    }>
                     <CardHeader>
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{note.title}</CardTitle>

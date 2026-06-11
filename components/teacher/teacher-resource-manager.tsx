@@ -673,41 +673,32 @@ export function TeacherResourceManager() {
           setCurrentPage(1);
         }}
         className="w-full">
-        <TabsList
-          className="
-    grid grid-cols-2 xs:grid-cols-4 gap-2
-    sm:flex sm:justify-start sm:gap-4
-    w-full
-  ">
+        <TabsList className="bg-slate-100/50 dark:bg-slate-950/40 border border-slate-200/40 dark:border-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md flex flex-row overflow-x-auto w-full gap-1.5 mb-8 scrollbar-none whitespace-nowrap justify-start md:justify-center">
           <TabsTrigger
             value="pdfs"
-            className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
-            <FileText className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
+            <FileText className="h-3.5 w-3.5 mr-2" />
             PDFs ({getFilteredResources(resources.pdfs).length})
           </TabsTrigger>
 
           <TabsTrigger
             value="videos"
-            className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
-            <Video className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
+            <Video className="h-3.5 w-3.5 mr-2" />
             Videos ({getFilteredResources(resources.videos).length})
           </TabsTrigger>
 
           <TabsTrigger
             value="audio"
-            className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
-            <Headphones className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
+            <Headphones className="h-3.5 w-3.5 mr-2" />
             Audio ({getFilteredResources(resources.audio).length})
           </TabsTrigger>
 
           <TabsTrigger
             value="journals"
-            className="flex items-center gap-1 xs:gap-2 flex-1 sm:flex-none 
-               text-[0.85rem] xs:text-xs sm:text-sm md:text-base">
-            <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 md:h-5 md:w-5" />
+            className="bg-transparent w-auto px-4 sm:px-6 shrink-0 justify-center py-2.5 text-slate-600 dark:text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-[#e26d47] data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-bold gap-3 flex items-center">
+            <BookOpen className="h-3.5 w-3.5 mr-2" />
             Journals ({getFilteredResources(resources.journals).length})
           </TabsTrigger>
         </TabsList>

@@ -1,24 +1,10 @@
 "use client";
 
-import {useState, useEffect, useMemo} from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {Button} from "@/components/ui/button";
-import {Badge} from "@/components/ui/badge";
-import {Progress} from "@/components/ui/progress";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Pagination,
   PaginationContent,
@@ -40,9 +26,13 @@ import {
   Target,
   Calendar,
   CheckCircle,
+  ArrowRight,
+  Activity,
+  Trophy,
+  Zap,
 } from "lucide-react";
-import {useSession} from "next-auth/react";
-import {Spinner} from "../ui/spinner";
+import { useSession } from "next-auth/react";
+import { Spinner } from "../ui/spinner";
 
 // Map icon names to Lucide icon components
 const iconMap: Record<string, React.ElementType> = {
@@ -59,29 +49,41 @@ const iconMap: Record<string, React.ElementType> = {
   CheckCircle,
 };
 
-/**
- * Backend patch now returns coursePerformance items with modal-required fields:
- * topPerformers, strugglingStudents, etc.
- * Still, we keep everything defensive to avoid UI crashes.
- */
-interface CourseDetail {
+const statGradients = [
+  "from-violet-500 to-purple-600",
+  "from-orange-400 to-rose-500",
+  "from-emerald-400 to-teal-600",
+  "from-sky-400 to-blue-600",
+];
+
+const statBgGlass = [
+  "bg-violet-500/10 border-violet-500/20",
+  "bg-orange-400/10 border-orange-400/20",
+  "bg-emerald-400/10 border-emerald-400/20",
+  "bg-sky-400/10 border-sky-400/20",
+];
+
+const statIconBg = [
+  "bg-violet-500/20 text-violet-500",
+  "bg-orange-400/20 text-orange-400",
+  "bg-emerald-400/20 text-emerald-500",
+  "bg-sky-400/20 text-sky-500",
+];
+
+export interface CourseDetail {
   id: string;
   name: string;
   students: number;
   avgProgress: number;
   avgScore: number;
   completionRate: number;
-
-  // NEW: course pass rate (backend patch)
   passRate?: number;
-
-  // fields used by modal (backend patch now provides)
   rating?: number;
   totalLessons?: number;
   completedLessons?: number;
   enrollmentTrend?: number[];
-  weeklyActivity?: {day: string; active: number}[];
-  topPerformers?: {name: string; score: number; progress: number}[];
+  weeklyActivity?: { day: string; active: number }[];
+  topPerformers?: { name: string; score: number; progress: number }[];
   strugglingStudents?: {
     name: string;
     score: number;
@@ -90,7 +92,7 @@ interface CourseDetail {
   }[];
 }
 
-interface TestDetail {
+export interface TestDetail {
   id: string;
   name: string;
   attempts: number;
@@ -99,25 +101,23 @@ interface TestDetail {
   difficulty: string;
   questions: number;
   timeLimit: string;
-  scoreDistribution: {range: string; count: number}[];
-
-  // optional (you currently commented these out)
-  commonMistakes?: {question: string; incorrectRate: number}[];
-  performanceByTime?: {hour: string; avgScore: number; attempts: number}[];
+  scoreDistribution: { range: string; count: number }[];
+  commonMistakes?: { question: string; incorrectRate: number }[];
+  performanceByTime?: { hour: string; avgScore: number; attempts: number }[];
 }
 
 interface AnalyticsData {
   overallStats: {
     title: string;
     value: string;
-    change?: string; // PATCH: change may be empty or missing
+    change?: string;
     icon: string;
     color: string;
   }[];
   coursePerformance: CourseDetail[];
   topStudents: {
     name: string;
-    coursesCompleted: number; // PATCH: backend now returns this
+    coursesCompleted: number;
     avgScore: number;
     lastActive: string;
   }[];
@@ -130,26 +130,70 @@ interface AnalyticsData {
   }[];
 }
 
+function ScoreRing({ value, size = 56 }: { value: number; size?: number }) {
+  const radius = (size - 8) / 2;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ - (value / 100) * circ;
+  const color =
+    value >= 75 ? "#10b981" : value >= 50 ? "#f59e0b" : "#ef4444";
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={4}
+        className="text-muted/30"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dashoffset 0.6s ease" }}
+      />
+      <text
+        x="50%"
+        y="50%"
+        dominantBaseline="middle"
+        textAnchor="middle"
+        fontSize={size / 4.5}
+        fontWeight="700"
+        fill={color}
+      >
+        {value}%
+      </text>
+    </svg>
+  );
+}
+
+function getDifficultyStyle(difficulty: string) {
+  if (difficulty === "Easy")
+    return "bg-emerald-500/15 text-emerald-600 border-emerald-500/30";
+  if (difficulty === "Medium")
+    return "bg-amber-500/15 text-amber-600 border-amber-500/30";
+  return "bg-rose-500/15 text-rose-600 border-rose-500/30";
+}
+
 export function TeacherStudentAnalytics() {
-  const {data: session, status} = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(
-    null,
-  );
-  const [selectedTest, setSelectedTest] = useState<TestDetail | null>(null);
-
-  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-
   const [currentPageCourses, setCurrentPageCourses] = useState(1);
   const [currentPageStudents, setCurrentPageStudents] = useState(1);
   const [currentPageTests, setCurrentPageTests] = useState(1);
-  const [currentPageContent, setCurrentPageContent] = useState(1);
 
-  const itemsPerPage = 3;
+  const itemsPerPage = 4;
 
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
@@ -169,7 +213,7 @@ export function TeacherStudentAnalytics() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            sessionToken, // matches your current route.ts expectation
+            sessionToken,
           },
         });
 
@@ -198,7 +242,6 @@ export function TeacherStudentAnalytics() {
     fetchAnalytics();
   }, [sessionToken, status]);
 
-  // Pagination logic (safe)
   const getPaginatedItems = <T,>(
     items: T[] | undefined,
     currentPage: number,
@@ -215,100 +258,124 @@ export function TeacherStudentAnalytics() {
   };
 
   const handleViewCourseDetails = (course: CourseDetail) => {
-    setSelectedCourse(course);
-    setIsCourseModalOpen(true);
+    // Store in sessionStorage so the detail page can read it
+    sessionStorage.setItem(
+      `analytics_course_${course.id}`,
+      JSON.stringify(course),
+    );
+    router.push(`/teacher/student-analytics/course/${course.id}`);
   };
 
   const handleViewTestDetails = (test: TestDetail) => {
-    setSelectedTest(test);
-    setIsTestModalOpen(true);
+    sessionStorage.setItem(
+      `analytics_test_${test.id}`,
+      JSON.stringify(test),
+    );
+    router.push(`/teacher/student-analytics/test/${test.id}`);
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Spinner size="md" className="text-orange-500" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Spinner size="md" className="text-orange-500" />
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Loading analytics…
+          </p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-sm xs:text-base sm:text-lg text-red-600">
-          Error: {error}
-        </p>
+      <div className="flex justify-center items-center h-[60vh]">
+        <div className="text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto">
+            <Activity className="h-7 w-7 text-rose-500" />
+          </div>
+          <p className="text-sm text-rose-600 font-medium">Error: {error}</p>
+        </div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-sm xs:text-base sm:text-lg text-muted-foreground">
-          No data available
-        </p>
+      <div className="flex justify-center items-center h-[60vh]">
+        <p className="text-sm text-muted-foreground">No data available</p>
       </div>
     );
   }
 
-  const coursesPage = getPaginatedItems(
-    data.coursePerformance,
-    currentPageCourses,
-  );
+  const coursesPage = getPaginatedItems(data.coursePerformance, currentPageCourses);
   const studentsPage = getPaginatedItems(data.topStudents, currentPageStudents);
   const testsPage = getPaginatedItems(data.testAnalytics, currentPageTests);
-  const contentPage = getPaginatedItems(
-    data.popularContent,
-    currentPageContent,
-  );
 
   return (
-    <div className="space-y-4 p-3 xs:p-4 sm:p-6 max-w-full mx-auto">
-      <div>
-        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold">
-          Student Analytics
-        </h1>
-        <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">
-          Monitor student progress and performance across all courses
-        </p>
+    <div className="space-y-6 p-4 sm:p-6 max-w-full mx-auto">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">
+            Student Analytics
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Monitor student progress and performance across all courses
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-xl px-3 py-2 bg-muted/30 w-fit">
+          <Zap className="h-3.5 w-3.5 text-orange-400" />
+          Live data
+        </div>
       </div>
 
-      {/* Overall Stats */}
-      <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      {/* ── Stat Cards ── */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {Array.isArray(data.overallStats) &&
-          data.overallStats.map((stat, index) => {
+          data.overallStats
+            .filter((stat) => stat.title !== "Course Completions" && stat.title !== "Course Completion")
+            .map((stat, index) => {
             const IconComponent = iconMap[stat.icon] || Users;
             const changeText = (stat.change || "").trim();
+            const gradient = statGradients[index % statGradients.length];
+            const glass = statBgGlass[index % statBgGlass.length];
+            const iconStyle = statIconBg[index % statIconBg.length];
 
             return (
-              <Card key={index}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 xs:pb-2">
-                  <CardTitle className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                    {stat.title}
-                  </CardTitle>
-                  <IconComponent
-                    className={`h-3 w-3 xs:h-4 xs:w-4 ${stat.color}`}
-                  />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                    {stat.value}
-                  </div>
-
-                  {/* PATCH: only show "from last month" if backend provides a change */}
-                  {changeText ? (
-                    <p className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                      <span className="text-green-600">{changeText}</span> from
-                      last month
+              <div
+                key={index}
+                className={`relative overflow-hidden rounded-2xl border p-5 ${glass} backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
+              >
+                {/* decorative blob */}
+                <div
+                  className={`absolute -right-4 -top-4 h-20 w-20 rounded-full bg-gradient-to-br ${gradient} opacity-10 blur-xl`}
+                />
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium mb-1">
+                      {stat.title}
                     </p>
-                  ) : null}
-                </CardContent>
-              </Card>
+                    <div className="text-2xl sm:text-3xl font-bold">
+                      {stat.value}
+                    </div>
+                    {changeText ? (
+                      <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        {changeText} from last month
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className={`p-2.5 rounded-xl ${iconStyle}`}>
+                    <IconComponent className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
             );
           })}
       </div>
 
+      {/* ── Tabs ── */}
       <Tabs
         defaultValue="courses"
         className="w-full"
@@ -316,879 +383,316 @@ export function TeacherStudentAnalytics() {
           setCurrentPageCourses(1);
           setCurrentPageStudents(1);
           setCurrentPageTests(1);
-          setCurrentPageContent(1);
-        }}>
-        <TabsList className="bg-[rgba(247,151,113,0.18)] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
-          <TabsTrigger
-            value="courses"
-            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
-            Course Performance
-          </TabsTrigger>
-          <TabsTrigger
-            value="students"
-            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
-            Top Students
-          </TabsTrigger>
-          <TabsTrigger
-            value="tests"
-            className="bg-transparent w-full sm:w-auto justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
-            Test Analytics
-          </TabsTrigger>
+        }}
+      >
+        <TabsList className="flex flex-row overflow-x-auto gap-1 h-auto p-1.5 rounded-2xl bg-muted/50 border border-border/50 w-full scrollbar-none whitespace-nowrap mb-4 justify-start sm:justify-start">
+          {[
+            { value: "courses", label: "Course Performance", icon: BookOpen },
+            { value: "students", label: "Top Students", icon: Trophy },
+            { value: "tests", label: "Test Analytics", icon: BarChart3 },
+          ].map(({ value, label, icon: Icon }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="flex-none shrink-0 flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-rose-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {/* -------------------- COURSES -------------------- */}
-        <TabsContent value="courses" className="space-y-3 xs:space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm xs:text-base sm:text-lg">
-                Course Performance Overview
-              </CardTitle>
-              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-                Detailed analytics for each course
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
-                Showing {coursesPage.paginatedItems.length} of{" "}
-                {coursesPage.totalCount} Courses
-              </div>
+        {/* ── COURSES ── */}
+        <TabsContent value="courses" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">Course Performance</h2>
+            <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border/50">
+              {coursesPage.totalCount} course{coursesPage.totalCount !== 1 ? "s" : ""}
+            </span>
+          </div>
 
-              <div className="space-y-3 xs:space-y-4">
+          {coursesPage.totalCount === 0 ? (
+            <EmptyState icon={BookOpen} title="No Courses Found" description="No courses available to display analytics" />
+          ) : (
+            <>
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 {coursesPage.paginatedItems.map((course, index) => (
                   <div
                     key={course.id || index}
-                    className="p-2 xs:p-3 sm:p-4 border rounded-lg">
-                    <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
-                      <div>
-                        <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
-                          {course.name}
-                        </h4>
-                        <div className="flex items-center flex-wrap gap-2 xs:gap-3 text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Users className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                            {course.students} students
-                          </div>
+                    className="group relative rounded-2xl border border-border/60 bg-card/50 backdrop-blur-sm p-5 hover:border-orange-400/40 hover:shadow-lg transition-all duration-300"
+                  >
+                    {/* top row */}
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{course.name}</h4>
+                        <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          {course.students} student{course.students !== 1 ? "s" : ""}
                         </div>
                       </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm hover:bg-gray-200"
-                        onClick={() => handleViewCourseDetails(course)}>
-                        <Eye className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                        View Details
-                      </Button>
+                      <ScoreRing value={course.avgScore} size={52} />
                     </div>
 
-                    {/* PATCH: show Pass Rate + keep Completion Rate */}
-                    <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 xs:gap-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
-                          <span>Avg Score</span>
-                          <span>{course.avgScore}%</span>
-                        </div>
-                        <Progress
-                          value={course.avgScore}
-                          className="h-1.5 xs:h-2"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
-                          <span>Pass Rate</span>
-                          <span>{(course.passRate ?? 0).toFixed(2)}%</span>
-                        </div>
-                        <Progress
-                          value={course.passRate ?? 0}
-                          className="h-1.5 xs:h-2"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
-                          <span>Completion Rate</span>
-                          <span>{course.completionRate}%</span>
-                        </div>
-                        <Progress
-                          value={course.completionRate}
-                          className="h-1.5 xs:h-2"
-                        />
-                      </div>
+                    {/* progress bars */}
+                    <div className="space-y-3 mb-4">
+                      <MetricBar label="Pass Rate" value={course.passRate ?? 0} color="bg-emerald-500" />
                     </div>
+
+                    {/* CTA */}
+                    <button
+                      onClick={() => handleViewCourseDetails(course)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-orange-400/40 bg-orange-500/5 hover:bg-orange-500/15 text-orange-600 text-xs font-medium py-2 transition-all duration-200 group-hover:border-orange-400/70"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View Full Details
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
                   </div>
                 ))}
               </div>
-
-              {coursesPage.totalCount === 0 ? (
-                <div className="text-center py-8 xs:py-12">
-                  <BookOpen className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
-                  <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
-                    No Courses Found
-                  </h3>
-                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    No courses available to display analytics
-                  </p>
-                </div>
-              ) : (
-                <Pagination className="mt-4">
-                  <PaginationContent>
-                    <PaginationPrevious
-                      onClick={() =>
-                        setCurrentPageCourses((prev) => Math.max(prev - 1, 1))
-                      }
-                      className={
-                        currentPageCourses === 1
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                    {Array.from(
-                      {length: coursesPage.totalPages},
-                      (_, index) => index + 1,
-                    ).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={currentPageCourses === page}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setCurrentPageCourses(page);
-                          }}>
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    {coursesPage.totalPages > 5 && <PaginationEllipsis />}
-                    <PaginationNext
-                      onClick={() =>
-                        setCurrentPageCourses((prev) =>
-                          Math.min(prev + 1, coursesPage.totalPages),
-                        )
-                      }
-                      className={
-                        currentPageCourses === coursesPage.totalPages
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </CardContent>
-          </Card>
+              <PaginationRow
+                currentPage={currentPageCourses}
+                totalPages={coursesPage.totalPages}
+                onPageChange={setCurrentPageCourses}
+              />
+            </>
+          )}
         </TabsContent>
 
-        {/* -------------------- TOP STUDENTS -------------------- */}
-        <TabsContent value="students" className="space-y-3 xs:space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm xs:text-base sm:text-lg">
-                Top Performing Students
-              </CardTitle>
-              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-                Students with highest engagement and performance
-              </CardDescription>
-            </CardHeader>
+        {/* ── TOP STUDENTS ── */}
+        <TabsContent value="students" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">Top Performing Students</h2>
+            <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border/50">
+              {studentsPage.totalCount} student{studentsPage.totalCount !== 1 ? "s" : ""}
+            </span>
+          </div>
 
-            <CardContent>
-              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
-                Showing {studentsPage.paginatedItems.length} of{" "}
-                {studentsPage.totalCount} Students
-              </div>
+          {studentsPage.totalCount === 0 ? (
+            <EmptyState icon={Users} title="No Students Found" description="No student data available to display" />
+          ) : (
+            <>
+              <div className="grid gap-3">
+                {studentsPage.paginatedItems.map((student, index) => {
+                  const rank = index + 1 + (currentPageStudents - 1) * itemsPerPage;
+                  const rankColors = ["text-amber-500", "text-slate-400", "text-amber-700"];
+                  const rankBg = ["bg-amber-500/10", "bg-slate-400/10", "bg-amber-700/10"];
+                  const isTopThree = rank <= 3;
 
-              <div className="space-y-3 xs:space-y-4">
-                {studentsPage.paginatedItems.map((student, index) => (
-                  <div
-                    key={`${student.name}-${index}`}
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-4 border rounded-lg gap-3">
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span className="font-medium text-primary text-xs sm:text-sm">
-                          #
-                          {index + 1 + (currentPageStudents - 1) * itemsPerPage}
-                        </span>
+                  return (
+                    <div
+                      key={`${student.name}-${index}`}
+                      className="flex items-center gap-4 p-4 rounded-2xl border border-border/60 bg-card/50 hover:border-orange-400/30 transition-all duration-200"
+                    >
+                      {/* rank badge */}
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                          isTopThree
+                            ? `${rankBg[rank - 1]} ${rankColors[rank - 1]}`
+                            : "bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        {isTopThree ? <Trophy className="h-4 w-4" /> : `#${rank}`}
                       </div>
-                      <div>
-                        <h4 className="font-medium text-xs sm:text-sm">
-                          {student.name}
-                        </h4>
-                        <p className="text-[0.65rem] sm:text-xs text-muted-foreground">
+
+                      {/* name & activity */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{student.name}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
                           Last active: {student.lastActive}
                         </p>
                       </div>
-                    </div>
 
-                    <div className="w-full sm:w-auto">
-                      <div className="grid grid-cols-2 sm:gap-4 gap-2 text-center text-xs sm:text-sm">
-                        <div>
-                          <div className="font-medium">
-                            {student.coursesCompleted}
-                          </div>
-                          <div className="text-muted-foreground">Courses</div>
+                      {/* stats */}
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="text-center">
+                          <div className="text-base font-bold">{student.coursesCompleted}</div>
+                          <div className="text-[10px] text-muted-foreground">Courses</div>
                         </div>
-                        <div>
-                          <div className="font-medium">{student.avgScore}%</div>
-                          <div className="text-muted-foreground">Avg Score</div>
+                        <div className="text-center">
+                          <div
+                            className={`text-base font-bold ${
+                              student.avgScore >= 75
+                                ? "text-emerald-600"
+                                : student.avgScore >= 50
+                                  ? "text-amber-600"
+                                  : "text-rose-600"
+                            }`}
+                          >
+                            {student.avgScore}%
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">Avg Score</div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-
-              {studentsPage.totalCount === 0 ? (
-                <div className="text-center py-8 xs:py-12">
-                  <Users className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
-                  <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
-                    No Students Found
-                  </h3>
-                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    No student data available to display
-                  </p>
-                </div>
-              ) : (
-                <Pagination className="mt-4">
-                  <PaginationContent>
-                    <PaginationPrevious
-                      onClick={() =>
-                        setCurrentPageStudents((prev) => Math.max(prev - 1, 1))
-                      }
-                      className={
-                        currentPageStudents === 1
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                    {Array.from(
-                      {length: studentsPage.totalPages},
-                      (_, index) => index + 1,
-                    ).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={currentPageStudents === page}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setCurrentPageStudents(page);
-                          }}>
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    {studentsPage.totalPages > 5 && <PaginationEllipsis />}
-                    <PaginationNext
-                      onClick={() =>
-                        setCurrentPageStudents((prev) =>
-                          Math.min(prev + 1, studentsPage.totalPages),
-                        )
-                      }
-                      className={
-                        currentPageStudents === studentsPage.totalPages
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </CardContent>
-          </Card>
+              <PaginationRow
+                currentPage={currentPageStudents}
+                totalPages={studentsPage.totalPages}
+                onPageChange={setCurrentPageStudents}
+              />
+            </>
+          )}
         </TabsContent>
 
-        {/* -------------------- TESTS -------------------- */}
-        {/* <TabsContent value="tests" className="space-y-3 xs:space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm xs:text-base sm:text-lg">
-                Test Performance Analytics
-              </CardTitle>
-              <CardDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-                Detailed breakdown of test results and difficulty analysis
-              </CardDescription>
-            </CardHeader>
+        {/* ── TESTS ── */}
+        <TabsContent value="tests" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">Test Performance Analytics</h2>
+            <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border/50">
+              {testsPage.totalCount} test{testsPage.totalCount !== 1 ? "s" : ""}
+            </span>
+          </div>
 
-            <CardContent>
-              <div className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground mb-2 xs:mb-3">
-                Showing {testsPage.paginatedItems.length} of {testsPage.totalCount} Tests
-              </div>
-
-              <div className="space-y-3 xs:space-y-4">
-                {testsPage.paginatedItems.map((test, index) => (
-                  <div key={test.id || index} className="p-2 xs:p-3 sm:p-4 border rounded-lg">
-                    <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
-                      <div>
-                        <h4 className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
-                          {test.name}
-                        </h4>
-                        <div className="flex items-center flex-wrap gap-1 xs:gap-2 mt-0.5 xs:mt-1">
-                          <Badge
-                            variant={
-                              test.difficulty === "Easy"
-                                ? "default"
-                                : test.difficulty === "Medium"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                            className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs"
-                          >
-                            {test.difficulty}
-                          </Badge>
-                          <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                            {test.attempts} attempts
-                          </span>
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 xs:mt-0 text-[0.85rem] xs:text-xs sm:text-sm hover:bg-gray-200"
-                        onClick={() => handleViewTestDetails(test)}
-                      >
-                        <BarChart3 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                        View Details
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
-                          <span>Average Score</span>
-                          <span>{test.avgScore}%</span>
-                        </div>
-                        <Progress value={test.avgScore} className="h-1.5 xs:h-2" />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[0.85rem] xs:text-xs sm:text-sm">
-                          <span>Pass Rate</span>
-                          <span>{test.passRate}%</span>
-                        </div>
-                        <Progress value={test.passRate} className="h-1.5 xs:h-2" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {testsPage.totalCount === 0 ? (
-                <div className="text-center py-8 xs:py-12">
-                  <BarChart3 className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
-                  <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
-                    No Tests Found
-                  </h3>
-                  <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                    No test data available to display
-                  </p>
-                </div>
-              ) : (
-                <Pagination className="mt-4">
-                  <PaginationContent>
-                    <PaginationPrevious
-                      onClick={() => setCurrentPageTests((prev) => Math.max(prev - 1, 1))}
-                      className={currentPageTests === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                    {Array.from({ length: testsPage.totalPages }, (_, index) => index + 1).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={currentPageTests === page}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setCurrentPageTests(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    {testsPage.totalPages > 5 && <PaginationEllipsis />}
-                    <PaginationNext
-                      onClick={() =>
-                        setCurrentPageTests((prev) => Math.min(prev + 1, testsPage.totalPages))
-                      }
-                      className={currentPageTests === testsPage.totalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent> */}
-
-        <TabsContent value="tests" className="space-y-3 xs:space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm xs:text-base sm:text-lg">
-                Test Performance Analytics
-              </CardTitle>
-              <CardDescription className="text-xs xs:text-sm sm:text-sm">
-                Detailed breakdown of test results and difficulty analysis
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <div className="text-xs xs:text-sm sm:text-sm text-muted-foreground mb-2 xs:mb-3">
-                Showing {testsPage.paginatedItems.length} of{" "}
-                {testsPage.totalCount} Tests
-              </div>
-
-              <div className="space-y-3 xs:space-y-4">
+          {testsPage.totalCount === 0 ? (
+            <EmptyState icon={BarChart3} title="No Tests Found" description="No test data available to display" />
+          ) : (
+            <>
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 {testsPage.paginatedItems.map((test, index) => (
                   <div
                     key={test.id || index}
-                    className="p-2 xs:p-3 sm:p-4 border rounded-lg">
-                    <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between mb-2 xs:mb-3 sm:mb-4">
-                      <div>
-                        <h4 className="font-medium text-xs xs:text-sm sm:text-sm">
-                          {test.name}
-                        </h4>
-                        <div className="flex items-center flex-wrap gap-1 xs:gap-2 mt-0.5 xs:mt-1">
-                          <Badge
-                            variant={
-                              test.difficulty === "Easy"
-                                ? "default"
-                                : test.difficulty === "Medium"
-                                  ? "secondary"
-                                  : "destructive"
-                            }
-                            className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
+                    className="group relative rounded-2xl border border-border/60 bg-card/50 backdrop-blur-sm p-5 hover:border-sky-400/40 hover:shadow-lg transition-all duration-300"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{test.name}</h4>
+                        <div className="flex items-center flex-wrap gap-2 mt-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${getDifficultyStyle(test.difficulty)}`}
+                          >
                             {test.difficulty}
-                          </Badge>
-                          <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
+                          </span>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" />
                             {test.attempts} attempts
+                          </span>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {test.timeLimit}
                           </span>
                         </div>
                       </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 xs:mt-0 text-xs xs:text-sm sm:text-sm hover:bg-gray-200"
-                        onClick={() => handleViewTestDetails(test)}>
-                        <BarChart3 className="mr-1 xs:mr-2 h-2.5 w-2.5 xs:h-3 xs:w-3" />
-                        View Details
-                      </Button>
+                      <ScoreRing value={test.avgScore} size={52} />
                     </div>
 
-                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 xs:gap-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs xs:text-sm sm:text-sm">
-                          <span>Average Score</span>
-                          <span>{test.avgScore}%</span>
-                        </div>
-                        <Progress
-                          value={test.avgScore}
-                          className="h-1.5 xs:h-2"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs xs:text-sm sm:text-sm">
-                          <span>Pass Rate</span>
-                          <span>{test.passRate}%</span>
-                        </div>
-                        <Progress
-                          value={test.passRate}
-                          className="h-1.5 xs:h-2"
-                        />
-                      </div>
+                    <div className="space-y-3 mb-4">
+                      <MetricBar label="Avg Score" value={test.avgScore} color="bg-sky-500" />
+                      <MetricBar label="Pass Rate" value={test.passRate} color="bg-emerald-500" />
                     </div>
+
+                    <button
+                      onClick={() => handleViewTestDetails(test)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/5 hover:bg-sky-500/15 text-sky-600 text-xs font-medium py-2 transition-all duration-200 group-hover:border-sky-400/70"
+                    >
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      View Full Details
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
                   </div>
                 ))}
               </div>
-
-              {testsPage.totalCount === 0 ? (
-                <div className="text-center py-8 xs:py-12">
-                  <BarChart3 className="mx-auto h-8 w-8 xs:h-12 xs:w-12 text-muted-foreground mb-3 xs:mb-4" />
-                  <h3 className="text-base xs:text-lg sm:text-xl font-medium mb-2">
-                    No Tests Found
-                  </h3>
-                  <p className="text-xs xs:text-sm sm:text-sm text-muted-foreground">
-                    No test data available to display
-                  </p>
-                </div>
-              ) : (
-                <Pagination className="mt-4">
-                  <PaginationContent className="flex-wrap justify-center">
-                    <PaginationPrevious
-                      onClick={() =>
-                        setCurrentPageTests((prev) => Math.max(prev - 1, 1))
-                      }
-                      className={
-                        currentPageTests === 1
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                    {Array.from(
-                      {length: testsPage.totalPages},
-                      (_, index) => index + 1,
-                    ).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={currentPageTests === page}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setCurrentPageTests(page);
-                          }}>
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    {testsPage.totalPages > 5 && <PaginationEllipsis />}
-                    <PaginationNext
-                      onClick={() =>
-                        setCurrentPageTests((prev) =>
-                          Math.min(prev + 1, testsPage.totalPages),
-                        )
-                      }
-                      className={
-                        currentPageTests === testsPage.totalPages
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </CardContent>
-          </Card>
+              <PaginationRow
+                currentPage={currentPageTests}
+                totalPages={testsPage.totalPages}
+                onPageChange={setCurrentPageTests}
+              />
+            </>
+          )}
         </TabsContent>
       </Tabs>
-
-      {/* -------------------- COURSE DETAILS MODAL -------------------- */}
-      <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
-        <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm xs:text-base sm:text-lg">
-              <BookOpen className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
-              {selectedCourse?.name} - Detailed Analytics
-            </DialogTitle>
-            <DialogDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-              Comprehensive performance analysis and student insights
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedCourse && (
-            <div className="space-y-3 xs:space-y-4">
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-3 w-3 xs:h-4 xs:w-4 text-blue-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedCourse.students}
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Total Students
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <Star className="h-3 w-3 xs:h-4 xs:w-4 text-yellow-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedCourse.avgScore}%
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Avg Score
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-3 w-3 xs:h-4 xs:w-4 text-purple-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedCourse.completionRate}%
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Completion Rate
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* PATCH: MODAL LISTS ARE DEFENSIVE */}
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm xs:text-base sm:text-lg text-green-600">
-                      Top Performers
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {(selectedCourse.topPerformers ?? []).length === 0 ? (
-                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                        No top performer data available.
-                      </p>
-                    ) : (
-                      <div className="space-y-2 xs:space-y-3">
-                        {(selectedCourse.topPerformers ?? []).map(
-                          (student, index) => (
-                            <div
-                              key={`${student.name}-${index}`}
-                              className="flex items-center justify-between p-2 xs:p-3 bg-green-50 rounded">
-                              <div className="flex items-center gap-2 xs:gap-3">
-                                <div className="w-6 h-6 xs:w-8 xs:h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                  <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs font-medium text-green-700">
-                                    #{index + 1}
-                                  </span>
-                                </div>
-                                <span className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
-                                  {student.name}
-                                </span>
-                              </div>
-                              <div className="text-right text-[0.85rem] xs:text-xs sm:text-sm">
-                                <div className="font-medium text-green-600">
-                                  {student.score}% score
-                                </div>
-                                <div className="text-muted-foreground">
-                                  {student.progress}% progress
-                                </div>
-                              </div>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm xs:text-base sm:text-lg text-red-600">
-                      Students Needing Help
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {(selectedCourse.strugglingStudents ?? []).length === 0 ? (
-                      <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                        No struggling student data available.
-                      </p>
-                    ) : (
-                      <div className="space-y-2 xs:space-y-3">
-                        {(selectedCourse.strugglingStudents ?? []).map(
-                          (student, index) => (
-                            <div
-                              key={`${student.name}-${index}`}
-                              className="flex items-center justify-between p-2 xs:p-3 bg-red-50 rounded">
-                              <div>
-                                <div className="font-medium text-[0.85rem] xs:text-xs sm:text-sm">
-                                  {student.name}
-                                </div>
-                                <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                                  Last active: {student.lastActive}
-                                </div>
-                              </div>
-                              <div className="text-right text-[0.85rem] xs:text-xs sm:text-sm">
-                                <div className="font-medium text-red-600">
-                                  {student.score}% score
-                                </div>
-                                <div className="text-muted-foreground">
-                                  {student.progress}% progress
-                                </div>
-                              </div>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* -------------------- TEST DETAILS MODAL -------------------- */}
-      <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
-        <DialogContent className="w-full max-w-[95vw] xs:max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm xs:text-base sm:text-lg">
-              <BarChart3 className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
-              {selectedTest?.name} - Test Analytics
-            </DialogTitle>
-            <DialogDescription className="text-[0.85rem] xs:text-xs sm:text-sm">
-              Detailed analysis of test performance and student responses
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedTest && (
-            <div className="space-y-3 xs:space-y-4">
-              <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-3 w-3 xs:h-4 xs:w-4 text-blue-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedTest.attempts}
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Total Attempts
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <Target className="h-3 w-3 xs:h-4 xs:w-4 text-green-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedTest.avgScore}%
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Average Score
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-3 w-3 xs:h-4 xs:w-4 text-purple-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedTest.passRate}%
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Pass Rate
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3 xs:h-4 xs:w-4 text-orange-500" />
-                      <div>
-                        <div className="text-lg xs:text-xl sm:text-2xl font-bold">
-                          {selectedTest.questions}
-                        </div>
-                        <div className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground">
-                          Questions
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm xs:text-base sm:text-lg">
-                    Test Configuration
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 xs:gap-4 grid-cols-1 xs:grid-cols-3">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          selectedTest.difficulty === "Easy"
-                            ? "default"
-                            : selectedTest.difficulty === "Medium"
-                              ? "secondary"
-                              : "destructive"
-                        }
-                        className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs">
-                        {selectedTest.difficulty}
-                      </Badge>
-                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
-                        Difficulty Level
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3 xs:h-4 xs:w-4" />
-                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
-                        {selectedTest.timeLimit}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="h-3 w-3 xs:h-4 xs:w-4" />
-                      <span className="text-[0.85rem] xs:text-xs sm:text-sm">
-                        {selectedTest.questions} Questions
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm xs:text-base sm:text-lg">
-                    Score Distribution
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(selectedTest.scoreDistribution ?? []).length === 0 ? (
-                    <p className="text-[0.85rem] xs:text-xs sm:text-sm text-muted-foreground">
-                      No distribution data available.
-                    </p>
-                  ) : (
-                    <div className="space-y-2 xs:space-y-3">
-                      {(selectedTest.scoreDistribution ?? []).map(
-                        (range, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between">
-                            <span className="text-[0.85rem] xs:text-xs sm:text-sm font-medium">
-                              {range.range}%
-                            </span>
-                            <div className="flex items-center gap-2 xs:gap-3 flex-1 ml-2 xs:ml-4">
-                              <div className="flex-1 bg-muted rounded-full h-1.5 xs:h-2">
-                                <div
-                                  className="bg-primary h-1.5 xs:h-2 rounded-full"
-                                  style={{
-                                    width: `${
-                                      selectedTest.attempts
-                                        ? (range.count /
-                                            selectedTest.attempts) *
-                                          100
-                                        : 0
-                                    }%`,
-                                  }}
-                                />
-                              </div>
-                              <span className="text-[0.6rem] xs:text-[0.65rem] sm:text-xs text-muted-foreground w-10 xs:w-12 text-right">
-                                {range.count}
-                              </span>
-                            </div>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
+  );
+}
+
+/* ── Shared sub-components ── */
+
+function MetricBar({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium">{value.toFixed(1)}%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${color} transition-all duration-700`}
+          style={{ width: `${Math.min(value, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="text-center py-16 rounded-2xl border border-dashed border-border/60">
+      <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+        <Icon className="h-7 w-7 text-muted-foreground" />
+      </div>
+      <h3 className="text-base font-semibold mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function PaginationRow({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <Pagination className="mt-4">
+      <PaginationContent className="flex-wrap justify-center gap-1">
+        <PaginationPrevious
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          className={currentPage === 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
+        />
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          <PaginationItem key={page}>
+            <PaginationLink
+              href="#"
+              isActive={currentPage === page}
+              onClick={(e) => {
+                e.preventDefault();
+                onPageChange(page);
+              }}
+              className={currentPage === page ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-600" : ""}
+            >
+              {page}
+            </PaginationLink>
+          </PaginationItem>
+        ))}
+        {totalPages > 5 && <PaginationEllipsis />}
+        <PaginationNext
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          className={currentPage === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
+        />
+      </PaginationContent>
+    </Pagination>
   );
 }

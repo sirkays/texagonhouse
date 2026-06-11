@@ -24,8 +24,15 @@ import {
   Target,
   CheckCircle,
   RefreshCw,
+  Zap,
+  BookOpen,
+  Calendar,
+  Clock,
+  Filter,
 } from "lucide-react";
 import { Spinner } from "../ui/spinner";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 // Types based on API docs and logs
 interface Subject {
   name: string;
@@ -272,56 +279,76 @@ const refreshAll = async () => {
     );
   }
   return (
-    <div className="container mx-auto sm:p-6">
-      <div className="space-y-4 mb-6">
-        <div className="flex flex-col items-start gap-2">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-            Children&apos;s Progress
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Detailed learning analytics and performance tracking
-          </p>
+    <div className="space-y-8 max-w-7xl mx-auto p-1 sm:p-2">
+      {/* Premium Gradient Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none">
+        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+              Detailed Learning Analytics
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+              Children's Progress & Performance
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+              Track course performance, evaluation trends, and active learning milestones for all your registered children.
+            </p>
+          </div>
+          
+          <Button 
+            onClick={refreshAll}
+            className="backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl shadow-md shrink-0 flex items-center gap-2 self-start sm:self-center"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Analytics
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={refreshAll}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh Data
-        </Button>
       </div>
+
       {error && (
-        <div className="text-center py-4 mb-6">
-          <p className="text-red-600 mb-2">{error}</p>
+        <div className="text-center py-4 mb-6 backdrop-blur-md bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-450 p-4 rounded-xl shadow-sm">
+          <p className="font-bold mb-2">{error}</p>
           {error.includes("Unauthorized") && (
-            <p className="text-sm text-red-600 mb-4">Please log in again.</p>
+            <p className="text-xs text-rose-500 mb-4 font-semibold">Please log in again.</p>
           )}
-          <Button variant="outline" onClick={refreshAll}>
+          <Button variant="outline" onClick={refreshAll} className="rounded-xl font-bold border-rose-250 text-rose-600 hover:bg-rose-50">
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
         </div>
       )}
+
       {children.length === 0 && !error && (
-        <Card className="text-center py-8">
-          <CardContent>
-            <p className="text-muted-foreground">
-              No children linked to your account yet.
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Contact support to get started.
+        <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl rounded-2xl overflow-hidden py-12 text-center">
+          <CardContent className="space-y-3">
+            <div className="mx-auto w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-850 flex items-center justify-center text-slate-400">
+              <Zap className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-350">No Children Linked</h3>
+            <p className="text-slate-400 text-sm max-w-sm mx-auto">
+              No children profiles are linked to this parent account yet. Please contact support or your school administrator to link student accounts.
             </p>
           </CardContent>
         </Card>
       )}
+
       {children.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg">
-              Filter & View Options
-            </CardTitle>
+        <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden w-full">
+          <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-3 sm:pb-4">
+            <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-100">
+              <Filter className="h-4.5 w-4.5 text-[#EF7B55]" />
+              <CardTitle className="text-base sm:text-lg font-bold">
+                Filter & View Options
+              </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-5">
               <div className="flex-1 space-y-2">
-                <label className="text-xs sm:text-sm font-medium">
+                <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400">
                   Select Child
                 </label>
              
@@ -332,33 +359,33 @@ const refreshAll = async () => {
                     if (!open) setChildSearch(""); // Clear search on close
                   }}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white/50 dark:bg-slate-950/20 border-slate-200/80 dark:border-slate-800 focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/10 rounded-xl h-10 transition-all font-semibold">
                     <SelectValue placeholder="Choose child" />
                   </SelectTrigger>
                   
-                  <SelectContent>
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl shadow-xl">
                     {/* Sticky Search Header */}
-                    <div className="p-2 sticky top-0 bg-popover z-10 border-b">
+                    <div className="p-2 sticky top-0 bg-white dark:bg-slate-900 z-10 border-b border-slate-100 dark:border-slate-850">
                       <Input
                         placeholder="Search children..."
                         value={childSearch}
                         onChange={(e) => setChildSearch(e.target.value)}
                         onKeyDown={(e) => e.stopPropagation()}
-                        className="h-8 text-sm"
+                        className="h-8 text-sm bg-slate-50 dark:bg-slate-950/50 rounded-lg border-slate-200 dark:border-slate-800"
                       />
                     </div>
 
                     {/* Scrollable List */}
                     <div className="max-h-[200px] overflow-y-auto mt-1">
                       {/* Always keep 'All Children' visible at the top */}
-                      <SelectItem value="all">All Children</SelectItem>
+                      <SelectItem value="all" className="font-semibold rounded-lg m-1 hover:bg-slate-50 dark:hover:bg-slate-850 focus:bg-slate-50 dark:focus:bg-slate-850">All Children</SelectItem>
                       
                       {children
                         .filter((child) =>
                           child.name.toLowerCase().includes(childSearch.toLowerCase())
                         )
                         .map((child) => (
-                          <SelectItem key={child.id} value={child.id.toString()}>
+                          <SelectItem key={child.id} value={child.id.toString()} className="font-semibold rounded-lg m-1 hover:bg-slate-50 dark:hover:bg-slate-850 focus:bg-slate-50 dark:focus:bg-slate-850">
                             {child.name}
                           </SelectItem>
                         ))}
@@ -367,33 +394,33 @@ const refreshAll = async () => {
                       {children.filter((child) =>
                         child.name.toLowerCase().includes(childSearch.toLowerCase())
                       ).length === 0 && (
-                        <div className="p-2 text-sm text-muted-foreground text-center">
+                        <div className="p-2 text-sm text-slate-400 dark:text-slate-500 text-center font-semibold">
                           No children found
                         </div>
                       )}
                     </div>
                   </SelectContent>
                 </Select>
-      
               </div>
               <div className="flex-1 space-y-2">
-                <label className="text-xs sm:text-sm font-medium">
+                <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400">
                   Time Period
                 </label>
                 <Select
                   value={selectedPeriod}
                   onValueChange={setSelectedPeriod}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white/50 dark:bg-slate-950/20 border-slate-200/80 dark:border-slate-800 focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/10 rounded-xl h-10 transition-all font-semibold">
                     <SelectValue placeholder="Choose period" />
                   </SelectTrigger>
-                  <SelectContent>
-                  {(timePeriods.length ? timePeriods : DEFAULT_TIME_PERIODS).map((period) => (
-                    <SelectItem key={period.value} value={period.value}>
-                      {period.label}
-                    </SelectItem>
-                  ))}
-
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl shadow-xl">
+                    <div className="p-1">
+                      {(timePeriods.length ? timePeriods : DEFAULT_TIME_PERIODS).map((period) => (
+                        <SelectItem key={period.value} value={period.value} className="font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-850 focus:bg-slate-50 dark:focus:bg-slate-850">
+                          {period.label}
+                        </SelectItem>
+                      ))}
+                    </div>
                   </SelectContent>
                 </Select>
               </div>
@@ -401,182 +428,238 @@ const refreshAll = async () => {
           </CardContent>
         </Card>
       )}
+
       {isProgressLoading && (
-        <p className="text-center py-4">Updating progress...</p>
+        <div className="flex justify-center items-center py-12 gap-3 text-[#EF7B55]">
+          <Spinner className="w-6 h-6 text-[#EF7B55]" />
+          <span className="font-bold text-sm">Updating analytics...</span>
+        </div>
       )}
+
       {!isProgressLoading && !error && progressData.length > 0 && (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden group">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-bold text-slate-600 dark:text-slate-400 group-hover:text-[#EF7B55] transition-colors">
                 Tests Completed
               </CardTitle>
-              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 shrink-0 shadow-sm">
+                <CheckCircle className="h-4.5 w-4.5" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-xl font-bold">
+            <CardContent className="space-y-1 pb-4">
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
                 {overallStats.totalTests}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wide">
                 This {selectedPeriod}
               </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">
+          
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden group">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-bold text-slate-600 dark:text-slate-400 group-hover:text-emerald-500 transition-colors">
                 Average Score
               </CardTitle>
-              <Target className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 shrink-0 shadow-sm">
+                <Target className="h-4.5 w-4.5" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-xl font-bold text-green-600">
+            <CardContent className="space-y-1 pb-4">
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-500 tracking-tight">
                 {overallStats.avgScore}%
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wide">
                 Across all tests
               </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">
+          
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden group">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-bold text-slate-600 dark:text-slate-400 group-hover:text-orange-500 transition-colors">
                 Learning Streak
               </CardTitle>
-              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-xl font-bold text-orange-600">
-                {overallStats.avgStreak}
+              <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-[#EF7B55] shrink-0 shadow-sm">
+                <TrendingUp className="h-4.5 w-4.5" />
               </div>
-              <p className="text-xs text-muted-foreground">Days average</p>
+            </CardHeader>
+            <CardContent className="space-y-1 pb-4">
+              <div className="text-2xl sm:text-3xl font-extrabold text-orange-500 tracking-tight">
+                {overallStats.avgStreak} Days
+              </div>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wide">
+                Days average
+              </p>
             </CardContent>
           </Card>
         </div>
       )}
-      <Tabs defaultValue="subjects" className="space-y-4">
-        <TabsList className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-          <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="subjects"
-          >
-            Tests Performance
-          </TabsTrigger>
-          <TabsTrigger
-            className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white gap-3"
-            value="timeline"
-          >
-            Progress Timeline
-          </TabsTrigger>
-        </TabsList>
+
+      <Tabs defaultValue="subjects" className="space-y-6">
+        {/* Floating Glassmorphic Tabs Bar */}
+        <div className="flex justify-center md:justify-start">
+          <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl flex w-full max-w-md gap-1 border border-slate-200/60 dark:border-slate-700/50 shadow-sm">
+            <TabsTrigger
+              className="w-full justify-center py-2 px-3 rounded-lg text-slate-600 dark:text-slate-300 font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md gap-2 text-xs sm:text-sm"
+              value="subjects"
+            >
+              <Target className="h-4 w-4 shrink-0" />
+              Tests Performance
+            </TabsTrigger>
+            <TabsTrigger
+              className="w-full justify-center py-2 px-3 rounded-lg text-slate-600 dark:text-slate-300 font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#EF7B55] data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md gap-2 text-xs sm:text-sm"
+              value="timeline"
+            >
+              <TrendingUp className="h-4 w-4 shrink-0" />
+              Progress Timeline
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
         <TabsContent
           value="subjects"
-          className="grid gap-4 grid-cols-1 md:grid-cols-2"
+          className="grid gap-6 grid-cols-1 md:grid-cols-2 outline-none"
         >
           {!isProgressLoading &&
             !error &&
             progressData.length > 0 &&
             selectedData.map((child) => (
-              <Card key={child.id}>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+              <Card key={child.id} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden">
+                <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl border border-slate-100 dark:border-slate-800 shrink-0 shadow-sm">
                       <AvatarImage src={child.avatar || "/placeholder.svg"} />
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback className="bg-gradient-to-tr from-[#EF7B55]/10 to-orange-500/10 text-[#EF7B55] font-extrabold text-xs sm:text-sm rounded-xl">
                         {child.name
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
-                      <CardTitle className="text-sm sm:text-base truncate">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 truncate">
                         {child.name}
                       </CardTitle>
-                      <CardDescription className="text-xs sm:text-sm truncate">
-                        {child.grade} • {child.school}
+                      <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold truncate">
+                        {child.grade} &bull; {child.school}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+                <CardContent className="p-5 sm:p-6">
+                  <div className="space-y-4">
                     {(child.subjects || []).length > 0 ? (
                       child.subjects!.map((subject, index) => (
                         <div
                           key={index}
-                          className="flex flex-col gap-3 p-3 border rounded-lg"
+                          className="flex flex-col gap-3 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/20 hover:bg-slate-50/50 dark:hover:bg-slate-850/20 transition-all duration-300 relative group overflow-hidden"
                         >
                           <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div className="flex flex-col gap-1">
-                              <h4 className="font-medium text-sm sm:text-base">
+                            <div className="flex flex-col gap-1 min-w-0">
+                              <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100 group-hover:text-[#EF7B55] transition-colors truncate">
                                 {subject.name}
                               </h4>
 
                               {subject.isPrivate && (
-                                <div className="flex flex-col gap-1">
-                                  <Badge className="bg-red-600 text-white text-xs w-fit">
+                                <div className="flex flex-col gap-0.5 mt-0.5">
+                                  <Badge className="bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 text-[10px] w-fit font-bold rounded px-1.5 py-0">
                                     Private
                                   </Badge>
-                                  <span className="text-[11px] text-red-600">
+                                  <span className="text-[10px] text-rose-450 dark:text-rose-500 font-semibold">
                                     Not included in average score
                                   </span>
                                 </div>
                               )}
                             </div>
 
-
                             <div className="flex items-center gap-2">
-                              <Badge className={getGradeColor(subject.grade)}>
+                              <Badge className={cn("text-xs font-extrabold rounded-full px-2.5 py-0.5 border shadow-none",
+                                subject.grade.startsWith("A") ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30" :
+                                subject.grade.startsWith("B") ? "bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30" :
+                                subject.grade.startsWith("C") ? "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30" :
+                                "bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+                              )}>
                                 {subject.grade}
                               </Badge>
-                              {getTrendIcon(subject.trend)}
+                              <div className="p-1 rounded bg-slate-100 dark:bg-slate-800 shrink-0">
+                                {getTrendIcon(subject.trend)}
+                              </div>
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                            <div className="text-left sm:text-right">
-                              <div className="text-xs sm:text-sm font-medium">
-                                Score
-                              </div>
-                              <div
-                                className={`text-sm sm:text-base font-bold ${getGradeColor(
-                                  subject.grade
-                                )}`}
-                              >
+                          
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                              <span>Evaluation Score</span>
+                              <span className={cn("font-extrabold text-sm",
+                                subject.lastScore >= 90 ? "text-emerald-500" :
+                                subject.lastScore >= 80 ? "text-indigo-500" :
+                                subject.lastScore >= 70 ? "text-amber-500" :
+                                "text-rose-500"
+                              )}>
                                 {subject.lastScore}%
-                              </div>
+                              </span>
                             </div>
+                            <Progress
+                              value={subject.lastScore}
+                              className={cn(
+                                "h-2 bg-slate-100 dark:bg-slate-800 rounded-full",
+                                subject.lastScore >= 90 ? "[&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-emerald-600" :
+                                subject.lastScore >= 80 ? "[&>div]:bg-gradient-to-r [&>div]:from-indigo-500 [&>div]:to-indigo-600" :
+                                subject.lastScore >= 70 ? "[&>div]:bg-gradient-to-r [&>div]:from-amber-500 [&>div]:to-amber-600" :
+                                "[&>div]:bg-gradient-to-r [&>div]:from-rose-500 [&>div]:to-rose-600"
+                              )}
+                            />
                           </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-center text-muted-foreground">
-                        No tests available
-                      </p>
+                      <div className="py-12 text-center">
+                        <div className="mx-auto w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-850 flex items-center justify-center text-slate-400 mb-3 border border-slate-100 dark:border-slate-800">
+                          <BookOpen className="h-6 w-6" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">No Tests Recorded</h4>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                          Subject evaluation reports will populate here once published.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
             ))}
           {!isProgressLoading && !error && selectedData.length === 0 && (
-            <p className="text-center col-span-full py-8 text-muted-foreground">
-              No progress data for selected filters.
-            </p>
+            <div className="py-16 text-center col-span-full bg-white/40 dark:bg-slate-900/40 border border-dashed rounded-2xl">
+              <div className="mx-auto w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 mb-3">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">No matching progress data</h4>
+              <p className="text-xs text-slate-400 mt-1">Try adapting your search query or selected filters.</p>
+            </div>
           )}
         </TabsContent>
-        <TabsContent value="timeline" className="space-y-4">
+        
+        <TabsContent value="timeline" className="space-y-6 outline-none">
           {!isProgressLoading && !error && progressData.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base sm:text-lg">
-                  Learning Timeline
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Progress over time for selected period
-                </CardDescription>
+            <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/20 text-[#EF7B55]">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                      Learning Timeline
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                      Comparison of learning metrics and progress history over the selected period.
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+              <CardContent className="p-5 sm:p-6">
+                <div className="space-y-8">
                   {selectedData.map((child) => {
                     const statsKey = getStatsKey(selectedPeriod);
                     const stats = (child[statsKey] as Stats | undefined) || {
@@ -585,62 +668,61 @@ const refreshAll = async () => {
                       streak: 0,
                     };
                     return (
-                      <div key={child.id} className="space-y-4">
-                        <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-                          <Avatar className="h-6 w-6">
+                      <div key={child.id} className="space-y-4 border-b border-slate-100 dark:border-slate-800/80 last:border-b-0 pb-6 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 rounded-lg border border-slate-100 dark:border-slate-800 shrink-0">
                             <AvatarImage
                               src={child.avatar || "/placeholder.svg"}
                             />
-                            <AvatarFallback className="text-xs">
+                            <AvatarFallback className="bg-gradient-to-tr from-[#EF7B55]/10 to-orange-500/10 text-[#EF7B55] font-extrabold text-xs rounded-lg">
                               {child.name
                                 .split(" ")
                                 .map((n) => n[0])
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
-                          {child.name}
-                        </h3>
-                        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-                          <div className="p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
-                              <span className="text-xs sm:text-sm font-medium">
-                                Tests
-                              </span>
+                          <h3 className="font-bold text-sm sm:text-base text-slate-850 dark:text-slate-200">
+                            {child.name}
+                          </h3>
+                        </div>
+                        
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+                          <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-xl space-y-1">
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold text-xs">
+                              <CheckCircle className="h-4 w-4 text-indigo-500" />
+                              <span>Tests Completed</span>
                             </div>
-                            <div className="text-base sm:text-lg font-bold">
+                            <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100 pt-1">
                               {stats.testsCompleted}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              Completed
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
+                              In {selectedPeriod}
                             </div>
                           </div>
-                          <div className="p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Target className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
-                              <span className="text-xs sm:text-sm font-medium">
-                                Avg Score
-                              </span>
+                          
+                          <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-xl space-y-1">
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold text-xs">
+                              <Target className="h-4 w-4 text-emerald-500" />
+                              <span>Average Score</span>
                             </div>
-                            <div className="text-base sm:text-lg font-bold">
+                            <div className="text-xl font-extrabold text-emerald-500 pt-1">
                               {stats.averageScore}%
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              This period
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
+                              Overall progress
                             </div>
                           </div>
-                          <div className="p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
-                              <span className="text-xs sm:text-sm font-medium">
-                                Streak
-                              </span>
+                          
+                          <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-xl space-y-1">
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold text-xs">
+                              <TrendingUp className="h-4 w-4 text-orange-500" />
+                              <span>Current Streak</span>
                             </div>
-                            <div className="text-base sm:text-lg font-bold">
-                              {stats.streak}
+                            <div className="text-xl font-extrabold text-orange-500 pt-1">
+                              {stats.streak} Days
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              Days
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
+                              Consistent study
                             </div>
                           </div>
                         </div>
@@ -652,9 +734,13 @@ const refreshAll = async () => {
             </Card>
           ) : (
             !error && (
-              <p className="text-center py-8 text-muted-foreground">
-                Select filters to view timeline.
-              </p>
+              <div className="py-16 text-center bg-white/40 dark:bg-slate-900/40 border border-dashed rounded-2xl">
+                <div className="mx-auto w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 mb-3">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Select filters to view timeline</h4>
+                <p className="text-xs text-slate-400 mt-1">Please ensure you have children records and a period selected.</p>
+              </div>
             )
           )}
         </TabsContent>

@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 
 const BASE_URL = process.env.BASE_URL || "https://texagon-backend.onrender.com";
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+const API_KEY = process.env.STORE_API_KEY || "WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8";
 
 async function proxyPublic(path: string, init: RequestInit = {}) {
   const headers: Record<string, string> = {

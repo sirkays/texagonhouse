@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Users,
@@ -26,6 +27,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
 import { useOnboarding } from "@/components/teacher/teacher-onboarding";
+import { cn } from "@/lib/utils";
 
 interface Stat {
   title: string;
@@ -221,49 +223,34 @@ export function TeacherOverview() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back! Here&apos;s what&apos;s happening with your courses.
+    <div className="space-y-8 max-w-7xl mx-auto p-1 sm:p-2">
+      {/* Premium Gradient Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none">
+        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+              Academy Educator Portal
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+              Teacher Dashboard Overview
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+              Welcome back! Monitor student registration, manage computer-based tests, publish video learning modules, and coordinate interactive live sessions in your premium digital classroom.
             </p>
           </div>
-          {/* Replay onboarding tour */}
+          
           <button
             onClick={startTour}
             title="Replay the dashboard tour"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "8px 16px",
-              borderRadius: 10,
-              border: "1.5px solid #f9731633",
-              background: "#f9731610",
-              color: "#f97316",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              fontFamily: "'Inter', system-ui, sans-serif",
-              whiteSpace: "nowrap",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "#f9731622";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f97316";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "#f9731610";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#f9731633";
-            }}
+            className="backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl shadow-md shrink-0 flex items-center gap-2 self-start sm:self-center px-4 py-2.5 transition-all duration-300 text-xs sm:text-sm"
           >
-            <Sparkles size={14} />
-            Take the Tour
+            <Sparkles className="h-4 w-4 text-[#ffae91] animate-pulse" />
+            <span>Take the Tour</span>
           </button>
         </div>
-        {error && <p className="text-yellow-600 text-sm mt-1">{error}</p>}
       </div>
 
       {/* Stats Cards */}
@@ -271,18 +258,21 @@ export function TeacherOverview() {
         {data.stats.map((stat, index) => {
           const Icon = getStatIcon(stat.title);
           return (
-            <Card key={index}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+            <Card key={index} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden group">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-bold text-slate-600 dark:text-slate-400 group-hover:text-[#EF7B55] transition-colors">
                   {stat.title}
                 </CardTitle>
-                <Icon className={`h-4 w-4 ${getStatColor(stat.title)}`} />
+                <div className={cn(
+                  "p-2 rounded-xl transition-colors shrink-0 shadow-sm bg-orange-50 dark:bg-orange-950/20 text-[#EF7B55]"
+                )}>
+                  <Icon className="h-4 w-4" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-green-600">{stat.change}</span> from
-                  last month
+              <CardContent className="space-y-1 pb-4">
+                <div className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">{stat.value}</div>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold">
+                  <span className="text-emerald-500 font-bold">{stat.change}</span> from last month
                 </p>
               </CardContent>
             </Card>
@@ -292,33 +282,27 @@ export function TeacherOverview() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Quick Actions */}
-        <Card id="tour-quick-actions">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks to get you started</CardDescription>
+        <Card id="tour-quick-actions" className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden w-full">
+          <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+            <CardTitle className="text-lg font-bold text-slate-850 dark:text-slate-100">Quick Actions</CardTitle>
+            <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold">Common tasks to get you started</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 flex flex-col gap-3">
-            <Link
-              href={"/teacher/create-cbt"}
-              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] border bg-white rounded-lg border-[#f797713d] hover:border-none">
-              <Button className="w-full justify-start bg-transparent hover:bg-[#F797713a] text-slate-800">
-                <TestTube className="mr-2 h-4 w-4" />
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <Link href="/teacher/create-cbt" className="block w-full">
+              <Button className="w-full justify-start bg-slate-50 hover:bg-[#F797712a] border border-slate-150 dark:border-slate-800 dark:bg-slate-950/20 dark:hover:bg-slate-900/20 text-slate-800 dark:text-slate-200 font-bold rounded-xl h-11 transition-all">
+                <TestTube className="mr-2.5 h-4.5 w-4.5 text-[#EF7B55]" />
                 Create CBT Test
               </Button>
             </Link>
-            <Link
-              href={"/teacher/learning-module"}
-              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] rounded-lg border bg-white border-[#f797713d] hover:border-none">
-              <Button className="w-full bg-transparent hover:bg-[#F797713a] justify-start text-slate-800">
-                <BookOpen className="mr-2 h-4 w-4" />
+            <Link href="/teacher/learning-module" className="block w-full">
+              <Button className="w-full justify-start bg-slate-50 hover:bg-[#F797712a] border border-slate-150 dark:border-slate-800 dark:bg-slate-950/20 dark:hover:bg-slate-900/20 text-slate-800 dark:text-slate-200 font-bold rounded-xl h-11 transition-all">
+                <BookOpen className="mr-2.5 h-4.5 w-4.5 text-[#EF7B55]" />
                 Create Learning Module
               </Button>
             </Link>
-            <Link
-              href={"/teacher/student-analytics"}
-              className="w-full justify-start text-slate-800 hover:text-slate-600 hover:bg-[#F797713a] rounded-lg border bg-white border-[#f797713d] hover:border-none">
-              <Button className="w-full justify-start bg-transparent hover:bg-[#F797713a] text-slate-800">
-                <Users className="mr-2 h-4 w-4" />
+            <Link href="/teacher/student-analytics" className="block w-full">
+              <Button className="w-full justify-start bg-slate-50 hover:bg-[#F797712a] border border-slate-150 dark:border-slate-800 dark:bg-slate-950/20 dark:hover:bg-slate-900/20 text-slate-800 dark:text-slate-200 font-bold rounded-xl h-11 transition-all">
+                <Users className="mr-2.5 h-4.5 w-4.5 text-[#EF7B55]" />
                 View Student Analysis
               </Button>
             </Link>
@@ -326,26 +310,25 @@ export function TeacherOverview() {
         </Card>
 
         {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest updates from your courses</CardDescription>
+        <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden w-full">
+          <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+            <CardTitle className="text-lg font-bold text-slate-850 dark:text-slate-100">Recent Activity</CardTitle>
+            <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold">Latest updates from your courses</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-5 sm:p-6 space-y-4">
             {data.recent_activity.slice(0, 3).map((activity, index) => {
               const Icon = getIconByType(activity.type);
               return (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="p-2 bg-muted rounded-full">
-                    <Icon className="h-3 w-3" />
+                <div key={index} className="flex items-start gap-4 p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/20 hover:bg-slate-50/50 dark:hover:bg-slate-850/20 transition-all duration-300">
+                  <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl shrink-0 mt-0.5">
+                    <Icon className="h-4 w-4 text-[#EF7B55]" />
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.action}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.time}
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-850 dark:text-slate-150 truncate">{activity.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{activity.action}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center font-bold">
+                      <Clock className="mr-1 h-3.5 w-3.5 text-slate-450" />
+                      <span>{activity.time}</span>
                     </p>
                   </div>
                 </div>
@@ -355,30 +338,31 @@ export function TeacherOverview() {
         </Card>
 
         {/* Performance Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>This Month</CardTitle>
-            <CardDescription>Your teaching performance</CardDescription>
+        <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden w-full">
+          <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+            <CardTitle className="text-lg font-bold text-slate-850 dark:text-slate-100">Performance Metrics</CardTitle>
+            <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold">Evaluation stats for this term</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-5 sm:p-6 space-y-5">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Course Completion Rate</span>
-                <span>{data.performance.course_completion_rate}%</span>
-              </div>
-              <Progress
-                value={data.performance.course_completion_rate}
-                className="h-2"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Test Pass Rate</span>
-                <span>{data.performance.test_pass_rate}%</span>
+              <div className="flex justify-between items-center text-xs font-bold text-slate-600 dark:text-slate-400">
+                <span className="uppercase tracking-wider">Test Pass Rate</span>
+                <span className="text-emerald-500 text-sm font-extrabold">{data.performance.test_pass_rate}%</span>
               </div>
               <Progress
                 value={data.performance.test_pass_rate}
-                className="h-2"
+                className="h-2.5 bg-slate-100 dark:bg-slate-800 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-emerald-600 rounded-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-600 dark:text-slate-400">
+                <span className="uppercase tracking-wider">Course Completion Rate</span>
+                <span className="text-indigo-500 text-sm font-extrabold">{data.performance.course_completion_rate}%</span>
+              </div>
+              <Progress
+                value={data.performance.course_completion_rate}
+                className="h-2.5 bg-slate-100 dark:bg-slate-800 [&>div]:bg-gradient-to-r [&>div]:from-indigo-500 [&>div]:to-indigo-600 rounded-full"
               />
             </div>
           </CardContent>
@@ -386,45 +370,51 @@ export function TeacherOverview() {
       </div>
 
       {/* Top Performing Courses */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Performing Courses</CardTitle>
-          <CardDescription>
-            Your most successful courses this month
-          </CardDescription>
+      <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden w-full">
+        <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/20 text-[#EF7B55]">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">Top Performing Courses</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Your most successful learning cohorts this month</CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-5 sm:p-6">
+          <div className="grid gap-4 sm:grid-cols-3">
             {data.top_courses.slice(0, 3).map((course, index) => (
               <div
                 key={index}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg">
-                <div className="space-y-1 flex-1">
-                  <h4 className="font-medium text-base">{course.title}</h4>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/60 dark:bg-slate-950/40 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-orange-200/50 dark:hover:border-slate-700/60 transition-all duration-300 space-y-4 relative overflow-hidden group"
+              >
+                {/* Visual marker */}
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#EF7B55] to-orange-500" />
+                
+                <h4 className="font-bold text-slate-805 dark:text-slate-100 leading-snug group-hover:text-[#EF7B55] transition-colors truncate">{course.title}</h4>
+                
+                <div className="space-y-2 pt-1.5">
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-500 dark:text-slate-450">
                     <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>{course.students} students</span>
+                      <Users className="h-4 w-4 text-slate-455" />
+                      <span>{course.students} Students</span>
                     </div>
-                    {/* <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span>{course.rating}</span>
-                    </div> */}
                     {course.revenue && (
-                      <div className="font-medium text-green-600">
-                        {course.revenue}
-                      </div>
+                      <span className="text-emerald-500 font-extrabold">{course.revenue}</span>
                     )}
                   </div>
-                </div>
-                <div className="sm:text-right space-y-2">
-                  <div className="text-sm font-medium">
-                    {course.progress}% Complete
+                  
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                      <span>Completion Rate</span>
+                      <span>{course.progress}%</span>
+                    </div>
+                    <Progress
+                      value={course.progress}
+                      className="h-2 bg-slate-100 dark:bg-slate-850 [&>div]:bg-gradient-to-r [&>div]:from-[#EF7B55] [&>div]:to-orange-500 rounded-full"
+                    />
                   </div>
-                  <Progress
-                    value={course.progress}
-                    className="w-full sm:w-24 h-2"
-                  />
                 </div>
               </div>
             ))}
@@ -433,12 +423,19 @@ export function TeacherOverview() {
       </Card>
 
       {/* Recent Materials */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recently Uploaded Materials</CardTitle>
-          <CardDescription>Your latest content uploads</CardDescription>
+      <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-xl shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden w-full">
+        <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500">
+              <Upload className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">Recently Uploaded Materials</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Your latest uploaded resource content and files</CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 sm:p-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {data.recent_materials.slice(0, 3).map((material, index) => {
               const Icon =
@@ -447,22 +444,15 @@ export function TeacherOverview() {
                   ? Play
                   : Download;
               return (
-                <div key={index} className="p-3 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-muted rounded">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <h5 className="font-medium text-sm">{material.title}</h5>
-                      <p className="text-xs text-muted-foreground">
-                        {material.type} • {material.size}
-                      </p>
-                    </div>
+                <div key={index} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-950/20 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-all duration-300 flex items-start gap-4">
+                  <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl shrink-0">
+                    <Icon className="h-4.5 w-4.5 text-[#EF7B55]" />
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Eye className="h-3 w-3" />
-                    {material.views || material.downloads || 0}{" "}
-                    {material.views ? "views" : "downloads"}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h5 className="font-bold text-sm text-slate-855 dark:text-slate-150 truncate leading-snug">{material.title}</h5>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                      {material.type} &bull; {material.size}
+                    </p>
                   </div>
                 </div>
               );

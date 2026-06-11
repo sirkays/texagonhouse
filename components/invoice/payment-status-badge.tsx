@@ -12,51 +12,51 @@ export function PaymentStatusBadge({ status, className, showIcon = true, size = 
   const statusConfig = {
     paid: {
       label: "Paid",
-      variant: "default" as const,
       icon: CheckCircle,
-      className: "bg-success/10 text-success border-success/20 hover:bg-success/20",
+      dotColor: "bg-emerald-500",
+      className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/15 dark:text-emerald-400",
     },
     pending: {
       label: "Pending",
-      variant: "secondary" as const,
       icon: Clock,
-      className: "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20",
+      dotColor: "bg-amber-500 animate-pulse",
+      className: "bg-amber-500/10 text-amber-700 border-amber-500/20 hover:bg-amber-500/15 dark:text-amber-400",
     },
     overdue: {
       label: "Overdue",
-      variant: "destructive" as const,
       icon: AlertTriangle,
-      className: "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20",
+      dotColor: "bg-rose-500 animate-pulse",
+      className: "bg-rose-500/10 text-rose-700 border-rose-500/20 hover:bg-rose-500/15 dark:text-rose-400",
     },
     failed: {
       label: "Failed",
-      variant: "destructive" as const,
       icon: XCircle,
-      className: "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20",
+      dotColor: "bg-red-500",
+      className: "bg-red-500/10 text-red-700 border-red-500/20 hover:bg-red-500/15 dark:text-red-400",
     },
     open: {
       label: "Open",
-      variant: "outline" as const,
       icon: Clock,
-      className: "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
+      dotColor: "bg-blue-500",
+      className: "bg-blue-500/10 text-blue-700 border-blue-500/20 hover:bg-blue-500/15 dark:text-blue-400",
     },
     void: {
       label: "Void",
-      variant: "outline" as const,  
       icon: XCircle,
-      className: "bg-muted/10 text-muted border-muted/20 hover:bg-muted/20",
+      dotColor: "bg-slate-400",
+      className: "bg-slate-400/10 text-slate-600 border-slate-400/20 hover:bg-slate-400/15 dark:text-slate-400",
     },
     uncollectible: {
       label: "Uncollectible",
-      variant: "outline" as const,  
       icon: XCircle,
-      className: "bg-muted/10 text-muted border-muted/20 hover:bg-muted/20",
+      dotColor: "bg-slate-400",
+      className: "bg-slate-400/10 text-slate-600 border-slate-400/20 hover:bg-slate-400/15 dark:text-slate-400",
     },
     active: {
       label: "Active",
-      variant: "outline" as const, 
       icon: CheckCircle,
-      className: "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
+      dotColor: "bg-emerald-500",
+      className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/15 dark:text-emerald-400",
     },
   }
 
@@ -64,17 +64,23 @@ export function PaymentStatusBadge({ status, className, showIcon = true, size = 
   const Icon = config.icon
 
   const sizeClasses = {
-    sm: "text-xs h-5 px-2",
-    md: "text-sm h-6 px-3",
-    lg: "text-base h-7 px-4",
+    sm: "text-[11px] h-5 px-2 gap-1.5",
+    md: "text-xs h-6 px-2.5 gap-1.5",
+    lg: "text-sm h-7 px-3 gap-2",
+  }
+
+  const dotSizes = {
+    sm: "h-1.5 w-1.5",
+    md: "h-2 w-2",
+    lg: "h-2.5 w-2.5",
   }
 
   return (
     <Badge
       variant="outline"
-      className={`${config.className} ${sizeClasses[size]} font-medium transition-all duration-200 ${className}`}
+      className={`${config.className} ${sizeClasses[size]} font-semibold tracking-wide transition-all duration-200 inline-flex items-center rounded-full ${className}`}
     >
-      {showIcon && <Icon className={`${size === "sm" ? "h-3 w-3" : size === "lg" ? "h-4 w-4" : "h-3 w-3"} mr-1.5`} />}
+      <span className={`${config.dotColor} ${dotSizes[size]} rounded-full shrink-0`} />
       {config.label}
     </Badge>
   )

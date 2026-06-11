@@ -1188,13 +1188,13 @@ export function TeacherAttendance() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 shadow-sm w-fit">
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 shadow-sm w-full sm:w-fit overflow-x-auto scrollbar-none whitespace-nowrap">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all shrink-0",
                 activeTab === t.id
                   ? "bg-[#ef7b55] text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"

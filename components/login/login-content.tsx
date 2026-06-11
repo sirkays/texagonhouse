@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -65,6 +65,7 @@ export default function LoginContent() {
   const [pastEmails, setPastEmails] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [forgotSuggestions, setForgotSuggestions] = useState<string[]>([]);
   const [showForgotSuggestions, setShowForgotSuggestions] = useState(false);
   const { data: session, status, update } = useSession();
@@ -168,8 +169,14 @@ export default function LoginContent() {
 
   const saveEmail = useCallback(
     (newEmail: string) => {
-      if (newEmail && !pastEmails.includes(newEmail)) {
-        const updated = [...pastEmails, newEmail].slice(-5); // Keep last 5
+      if (newEmail) {
+        const trimmed = newEmail.trim();
+        // Remove existing case-insensitive duplicate if any
+        const filtered = pastEmails.filter(
+          (em) => em.toLowerCase() !== trimmed.toLowerCase()
+        );
+        // Prepend new email to keep it at the top (most recent)
+        const updated = [trimmed, ...filtered].slice(0, 5); // Keep top 5
         setPastEmails(updated);
         localStorage.setItem("pastEmails", JSON.stringify(updated));
       }
@@ -177,10 +184,23 @@ export default function LoginContent() {
     [pastEmails],
   );
 
+  const removeSuggestion = (sugToRemove: string) => {
+    const updated = pastEmails.filter((em) => em !== sugToRemove);
+    setPastEmails(updated);
+    localStorage.setItem("pastEmails", JSON.stringify(updated));
+    if (identifier) {
+      setSuggestions(updated.filter((em) => em.toLowerCase().includes(identifier.toLowerCase())));
+    } else {
+      setSuggestions(updated);
+    }
+    setActiveSuggestionIndex(-1);
+  };
+
   // Handle email suggestions for login
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setIdentifier(value);
+    setActiveSuggestionIndex(-1);
     if (value) {
       const filtered = pastEmails.filter((em) =>
         em.toLowerCase().includes(value.toLowerCase()),
@@ -194,6 +214,7 @@ export default function LoginContent() {
   };
 
   const handleEmailFocus = () => {
+    setActiveSuggestionIndex(-1);
     if (identifier) {
       const filtered = pastEmails.filter((em) =>
         em.toLowerCase().includes(identifier.toLowerCase()),
@@ -206,12 +227,53 @@ export default function LoginContent() {
   };
 
   const handleEmailBlur = () => {
-    setTimeout(() => setShowSuggestions(false), 300); // Increased to 300ms for reliability
+    setTimeout(() => {
+      setShowSuggestions(false);
+      setActiveSuggestionIndex(-1);
+    }, 300); // 300ms for reliability
   };
 
   const selectSuggestion = (sug: string) => {
     setIdentifier(sug);
     setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === "ArrowDown") {
+        setShowSuggestions(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveSuggestionIndex((prev) => 
+          prev === suggestions.length - 1 ? 0 : prev + 1
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveSuggestionIndex((prev) => 
+          prev <= 0 ? suggestions.length - 1 : prev - 1
+        );
+        break;
+      case "Enter":
+        if (activeSuggestionIndex >= 0 && activeSuggestionIndex < suggestions.length) {
+          e.preventDefault();
+          selectSuggestion(suggestions[activeSuggestionIndex]);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setShowSuggestions(false);
+        setActiveSuggestionIndex(-1);
+        break;
+      default:
+        break;
+    }
   };
 
   // Handle forgot email suggestions
@@ -500,9 +562,10 @@ export default function LoginContent() {
                   onFocus={handleEmailFocus}
                   onClick={handleEmailFocus}
                   onBlur={handleEmailBlur}
+                  onKeyDown={handleKeyDown}
                   placeholder="Email or Admission Number*"
                   className="pl-12 pr-4 border border-gray-300 placeholder:text-gray-400 rounded-lg h-14 text-gray-900 text-lg focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
-                  autoComplete="off"
+                  autoComplete="no-autocomplete"
                   required
                   disabled={loginLoading}
                 />
@@ -512,16 +575,39 @@ export default function LoginContent() {
                 />
               </div>
               {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
-                  {suggestions.map((sug) => (
-                    <li
+                <div 
+                  className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-xl shadow-xl z-50 mt-1 max-h-56 overflow-y-auto overflow-x-hidden divide-y divide-gray-100 animate-in fade-in slide-in-from-top-2 duration-200"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {suggestions.map((sug, index) => (
+                    <div
                       key={sug}
-                      onMouseDown={() => selectSuggestion(sug)} // Changed to onMouseDown for reliable click before blur
-                      className="px-4 py-3 cursor-pointer hover:bg-orange-50 hover:text-orange-700 text-sm text-gray-900 truncate transition-colors duration-150">
-                      {sug}
-                    </li>
+                      onClick={() => selectSuggestion(sug)}
+                      onMouseEnter={() => setActiveSuggestionIndex(index)}
+                      className={`flex items-center justify-between px-4 py-3.5 cursor-pointer transition-all duration-150 ${
+                        index === activeSuggestionIndex 
+                          ? "bg-orange-50 text-orange-700 font-medium" 
+                          : "text-gray-700 hover:bg-orange-50/50 hover:text-orange-700"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <History size={16} className={`flex-shrink-0 ${index === activeSuggestionIndex ? "text-orange-500" : "text-gray-400"}`} />
+                        <span className="text-sm truncate">{sug}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSuggestion(sug);
+                        }}
+                        className="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-red-500 transition-colors ml-2 animate-none"
+                        title="Remove from history"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
 

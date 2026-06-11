@@ -17,7 +17,7 @@ const moduleId = 21; // your module ID
 const lessonId = 14; // your lesson ID
 const SESSION_TOKEN =
   "IPcjB_NPTn_o0trv6gyQtoG9I1EnjZLN5jWW1xD4TjqrcWywehQ9PVR8A2Cj0yKD"; // replace
-const API_KEY = process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c"; // replace with real if needed
+const API_KEY = process.env.STORE_API_KEY || "WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8"; // replace with real if needed
 const COVER_PATH = `C:/Texagon/texagon/public/banner_splash.png`; // path to local test image
 
 async function testUpload() {

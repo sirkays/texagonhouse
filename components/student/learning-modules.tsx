@@ -53,6 +53,7 @@ import { Spinner } from "@/components/ui/spinner";
 import toast from "react-hot-toast";
 import AntiInspect from "@/components/AntiInspect";
 import { cn } from "@/lib/utils";
+import { useStudentTheme } from "@/components/student/useStudentTheme";
 
 import {
   Dialog,
@@ -160,6 +161,8 @@ function markSavedInData(data: ModulesData, lessonId: number): ModulesData {
 }
 
 export function LearningModules() {
+  const { theme } = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const [pageLoading, setPageLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const didInitialLoadRef = useRef(false);
@@ -210,6 +213,13 @@ export function LearningModules() {
     setAlertModal({ open: true, title, message });
   };
 
+  // PDF viewer modal
+  const [pdfModal, setPdfModal] = useState<{
+    open: boolean;
+    lessonId: number | null;
+    title: string;
+  }>({ open: false, lessonId: null, title: "" });
+
   const sessionToken = useMemo(
     () => session?.user?.sessionToken || null,
     [session?.user?.sessionToken]
@@ -221,9 +231,9 @@ export function LearningModules() {
 
   const resolveCoverSrc = (cover?: string | null) => {
     if (!cover) return null;
-    return cover.startsWith("http")
-      ? cover
-      : `process.env.BASE_URL${cover}`;
+    if (cover.startsWith("http")) return cover;
+    const base = process.env.NEXT_PUBLIC_DJANGO_BASE_URL ?? "";
+    return `${base}${cover}`;
   };
 
   // -------------------- Fetch modules --------------------
@@ -558,7 +568,7 @@ export function LearningModules() {
   // -------------------- Play / Preview handlers --------------------
   const handlePlayVideo = async (video: ModuleItem) => {
     if (video.blur) {
-      showAlert("Locked lesson", "Subscribe or upgrade your plan to access this video.");
+      showAlert("Course access expired", "Course access has expired. Please renew your subscription");
       return;
     }
 
@@ -584,7 +594,7 @@ export function LearningModules() {
 
   const handlePlayAudio = async (audio: ModuleItem) => {
     if (audio.blur) {
-      showAlert("Locked lesson", "Subscribe or upgrade your plan to access this audio.");
+      showAlert("Course access expired", "Course access has expired. Please renew your subscription");
       return;
     }
 
@@ -611,25 +621,11 @@ export function LearningModules() {
 
   const handlePreviewPdf = async (pdf: ModuleItem) => {
     if (pdf.blur) {
-      showAlert("Locked document", "Subscribe or upgrade your plan to access this PDF.");
+      showAlert("Course access expired", "Course access has expired. Please renew your subscription");
       return;
     }
-
-    try {
-      withMediaLoading(pdf.id, true);
-      const signedUrl = await fetchLessonMediaUrl(pdf.id);
-      window.open(signedUrl, "_blank");
-    } catch (e: any) {
-      if (e?.message === "SESSION_EXPIRED") {
-        setError("Session expired");
-        setModules(null);
-        showAlert("Session expired", "Please log in again to continue.");
-        return;
-      }
-      showAlert("PDF unavailable", e?.message || "Unable to preview PDF.");
-    } finally {
-      withMediaLoading(pdf.id, false);
-    }
+    // Open the modal immediately — the iframe loads from the proxy route
+    setPdfModal({ open: true, lessonId: pdf.id, title: pdf.title });
   };
 
   // -------------------- Loading / error states --------------------
@@ -785,22 +781,34 @@ export function LearningModules() {
         </div>
 
         <Tabs defaultValue="videos" className="w-full">
-          <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col lg:flex-row w-full gap-2 mb-14">
+          <TabsList className={isAero
+            ? "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/20 p-1.5 border border-slate-200/50 rounded-2xl w-full mb-8"
+            : "bg-[#f797712e] text-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center w-full gap-2 mb-8 p-1.5 rounded-2xl border border-slate-100"
+          }>
             <TabsTrigger
               value="videos"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+              className={isAero
+                ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+                : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+              }>
               <Video className="h-4 w-4" />
               Video
             </TabsTrigger>
             <TabsTrigger
               value="audio"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+              className={isAero
+                ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+                : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+              }>
               <Headphones className="h-4 w-4" />
               Audio
             </TabsTrigger>
             <TabsTrigger
               value="pdfs"
-              className="bg-transparent w-full justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3">
+              className={isAero
+                ? "flex-1 text-center data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all duration-300 flex items-center justify-center gap-2"
+                : "flex-1 text-center bg-transparent w-full justify-center py-2.5 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3 rounded-xl"
+              }>
               <FileText className="h-4 w-4" />
               PDFs
             </TabsTrigger>
@@ -855,11 +863,14 @@ export function LearningModules() {
                         return (
                           <Card
                             key={video.id}
-                            className={cn(
-                              "group hover:shadow-md transition-all duration-200",
-                              "flex flex-col overflow-hidden rounded-xl border bg-white",
-                              "h-full max-w-md mx-auto sm:max-w-none" // centered on mobile, full-width in lists
-                            )}>
+                            className={isAero
+                              ? "group flex flex-col overflow-hidden rounded-2xl border border-slate-200/40 bg-white/60 backdrop-blur-md shadow-sm hover:shadow-lg hover:translate-y-[-2px] transition-all duration-350 h-full max-w-md mx-auto sm:max-w-none"
+                              : cn(
+                                  "group hover:shadow-md transition-all duration-200",
+                                  "flex flex-col overflow-hidden rounded-xl border bg-white",
+                                  "h-full max-w-md mx-auto sm:max-w-none" // centered on mobile, full-width in lists
+                                )
+                            }>
                             {/* Thumbnail - more prominent like Udemy */}
                             <div className="relative aspect-video w-full flex-shrink-0 bg-gray-100 overflow-hidden">
                               {video.cover_image ? (
@@ -885,9 +896,9 @@ export function LearningModules() {
 
                               {/* Locked overlay */}
                               {video.blur && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white text-center p-2">
                                   <div className="text-sm font-semibold">Locked</div>
-                                  <div className="text-xs opacity-90 mt-1">Subscribe to access</div>
+                                  <div className="text-xs opacity-90 mt-1">Course access has expired. Please renew your subscription</div>
                                 </div>
                               )}
                             </div>
@@ -978,6 +989,7 @@ export function LearningModules() {
                                   )}
                                   onClick={() => handleSaveLesson(video)}
                                   disabled={
+                                    video.blur ||
                                     !session?.user?.sessionToken ||
                                     isSaved ||
                                     isSaving
@@ -999,7 +1011,7 @@ export function LearningModules() {
                                           "fill-current text-gray-800"
                                         )}
                                       />
-                                      {isSaved ? "Saved" : "Save for later"}
+                                      {video.blur ? "Locked" : isSaved ? "Saved" : "Save for later"}
                                     </>
                                   )}
                                 </Button>
@@ -1065,19 +1077,25 @@ export function LearningModules() {
                         return (
                           <Card
                             key={audio.id}
-                            className={cn(
-                              "group flex flex-col overflow-hidden rounded-xl border bg-white",
-                              "hover:shadow-md transition-all duration-200",
-                              "min-h-[240px] h-full max-w-md mx-auto sm:max-w-none",
-                              audio.blur && "opacity-95"
-                            )}
+                            className={isAero
+                              ? cn(
+                                  "group flex flex-col overflow-hidden rounded-2xl border border-slate-200/40 bg-white/60 backdrop-blur-md shadow-sm hover:shadow-lg hover:translate-y-[-2px] transition-all duration-350 min-h-[240px] h-full max-w-md mx-auto sm:max-w-none",
+                                  audio.blur && "opacity-95"
+                                )
+                              : cn(
+                                  "group flex flex-col overflow-hidden rounded-xl border bg-white",
+                                  "hover:shadow-md transition-all duration-200",
+                                  "min-h-[240px] h-full max-w-md mx-auto sm:max-w-none",
+                                  audio.blur && "opacity-95"
+                                )
+                            }
                           >
                             <CardContent className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
                               {/* Locked overlay (covers card content) */}
                               {audio.blur && (
-                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 text-white">
+                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 text-white text-center p-2">
                                   <div className="text-sm font-semibold">Locked</div>
-                                  <div className="text-xs opacity-90 mt-1">Subscribe to access</div>
+                                  <div className="text-xs opacity-90 mt-1">Course access has expired. Please renew your subscription</div>
                                 </div>
                               )}
 
@@ -1263,19 +1281,25 @@ export function LearningModules() {
                         return (
                           <Card
                             key={pdf.id}
-                            className={cn(
-                              "group flex flex-col overflow-hidden rounded-xl border bg-white",
-                              "hover:shadow-md transition-all duration-200",
-                              "min-h-[260px] h-full max-w-md mx-auto sm:max-w-none",
-                              pdf.blur && "opacity-95"
-                            )}
+                            className={isAero
+                              ? cn(
+                                  "group flex flex-col overflow-hidden rounded-2xl border border-slate-200/40 bg-white/60 backdrop-blur-md shadow-sm hover:shadow-lg hover:translate-y-[-2px] transition-all duration-350 min-h-[260px] h-full max-w-md mx-auto sm:max-w-none",
+                                  pdf.blur && "opacity-95"
+                                )
+                              : cn(
+                                  "group flex flex-col overflow-hidden rounded-xl border bg-white",
+                                  "hover:shadow-md transition-all duration-200",
+                                  "min-h-[260px] h-full max-w-md mx-auto sm:max-w-none",
+                                  pdf.blur && "opacity-95"
+                                )
+                            }
                           >
                             <CardContent className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
                               {/* Locked overlay */}
                               {pdf.blur && (
-                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 text-white">
+                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 text-white text-center p-2">
                                   <div className="text-sm font-semibold">Locked</div>
-                                  <div className="text-xs opacity-90 mt-1">Subscribe to access</div>
+                                  <div className="text-xs opacity-90 mt-1">Course access has expired. Please renew your subscription</div>
                                 </div>
                               )}
 
@@ -1434,6 +1458,55 @@ export function LearningModules() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* PDF Viewer — full-screen overlay */}
+        {pdfModal.open && pdfModal.lessonId && (
+          <div className="fixed inset-0 z-[100] flex flex-col bg-gray-950">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-900 border-b border-gray-700 flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-5 w-5 text-orange-400 flex-shrink-0" />
+                <span className="text-white font-semibold text-sm sm:text-base line-clamp-1">
+                  {pdfModal.title}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-600 text-gray-200 hover:bg-gray-700 hover:text-white"
+                  onClick={() =>
+                    window.open(
+                      `/api/student/pdf-proxy/${pdfModal.lessonId}`,
+                      "_blank"
+                    )
+                  }
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Open in new tab
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() =>
+                    setPdfModal({ open: false, lessonId: null, title: "" })
+                  }
+                >
+                  ✕ Close
+                </Button>
+              </div>
+            </div>
+
+            {/* PDF iframe — fills all remaining space */}
+            <iframe
+              key={pdfModal.lessonId}
+              src={`/api/student/pdf-proxy/${pdfModal.lessonId}`}
+              title={pdfModal.title}
+              className="flex-1 w-full border-0 bg-gray-100"
+              style={{ minHeight: 0 }}
+            />
+          </div>
+        )}
       </div>
     </>
   );

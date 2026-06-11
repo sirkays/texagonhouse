@@ -51,6 +51,10 @@ import {
   Search,
   Info,
   Sparkles,
+  PlusCircle,
+  ClipboardList,
+  BarChart3,
+  GraduationCap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -153,6 +157,7 @@ interface CBTTest {
   /** UI-local string for datetime-local input (YYYY-MM-DDTHH:mm) */
   _startLocal?: string;
   _endLocal?: string;
+  show_score?: boolean;
 }
 interface PaginationInfo {
   page: number;
@@ -463,6 +468,7 @@ export function TeacherCBTCreator() {
     total_marks: 0,
     _startLocal: "",
     _endLocal: "",
+    show_score: true,
   });
   const [myTests, setMyTests] = useState<TeacherTestMini[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1008,6 +1014,48 @@ export function TeacherCBTCreator() {
       setIsSaving(false);
     }
   };
+
+  const handleDeleteAttempt = async (attemptId: number) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this test attempt? The system will keep an audit log of this deletion.",
+      )
+    )
+      return;
+
+    setIsSaving(true);
+    try {
+      const res = await fetch(
+        `/api/teacher/test-attempts/${attemptId}/delete/`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || "Failed to delete attempt");
+      }
+
+      showAlert({
+        title: "Success",
+        message: data.message || "Test attempt deleted successfully.",
+        type: "success",
+      });
+
+      fetchPerformances();
+    } catch (err: any) {
+      console.error(err);
+      showAlert({
+        title: "Delete failed",
+        message: err.message,
+        type: "error",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const exportCurrentTestQuestionsToExcel = () => {
     const questions = currentTest.questions || [];
     // Sheet teachers edit
@@ -1130,7 +1178,10 @@ export function TeacherCBTCreator() {
     setTests(
       (data.tests || []).map((t: any) => ({
         ...t,
-        require_browser_code: t.require_browser_code ?? false, // 👈 ADD
+        duration: t.duration_minutes || 30,
+        require_browser_code: t.require_browser_code ?? false,
+        show_score: t.show_score ?? true,
+        total_marks: t.total_marks || 0,
         _startLocal: t.start_at
           ? toLocalInputValue(parseToDate(t.start_at))
           : "",
@@ -1174,7 +1225,8 @@ export function TeacherCBTCreator() {
       mode: mode === "offline" ? "offline" : "online",
       description: data.test.description || "",
       instructions: data.test.instructions || "",
-      require_browser_code: data.test.require_browser_code ?? false, // 👈 ADD
+      require_browser_code: data.test.require_browser_code ?? false,
+      show_score: data.test.show_score ?? true,
       duration: data.test.duration || 30,
       totalPoints: data.test.totalPoints || 0,
       questions:
@@ -1265,21 +1317,33 @@ export function TeacherCBTCreator() {
     performancePagination.limit,
     router,
   ]);
+  // Reset tests page to 1 when search query or filter changes
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [searchQuery, filterPublished]);
+
+  // Reset performance page to 1 when search query or filter changes
+  useEffect(() => {
+    setPerformancePagination((prev) => ({ ...prev, page: 1 }));
+  }, [studentFilter, selectedTestFilter]);
+
   useEffect(() => {
     if (activeTab === "manage" || activeTab === "analytics") {
       fetchTests();
     }
-  }, [activeTab, fetchTests]);
+  }, [activeTab, pagination.page, pagination.limit, searchQuery, filterPublished, fetchTests]);
+
   useEffect(() => {
     if (activeTab === "analytics") {
       fetchSummary().then(setSummary);
     }
   }, [activeTab, fetchSummary]);
+
   useEffect(() => {
-    if (activeTab === "student-performance") {
+    if (activeTab === "student-performance" || activeTab === "delete-attempts") {
       fetchPerformances();
     }
-  }, [activeTab, fetchPerformances]);
+  }, [activeTab, performancePagination.page, performancePagination.limit, studentFilter, selectedTestFilter, sortField, sortOrder, fetchPerformances]);
   useEffect(() => {
     if (isAnalyticsDetailOpen && selectedTestForAnalytics) {
       fetchSummary(selectedTestForAnalytics.id).then(setAnalyticsSummary);
@@ -1350,6 +1414,7 @@ export function TeacherCBTCreator() {
       difficulty: currentTest.difficulty,
       mode: currentTest.mode,
       require_browser_code: currentTest.require_browser_code,
+      show_score: currentTest.show_score ?? true,
       ...(startISO ? { start_at: startISO } : {}),
       ...(endISO ? { end_at: endISO } : {}),
       total_marks: currentTest.total_marks,
@@ -1951,64 +2016,89 @@ export function TeacherCBTCreator() {
   return (
     <TeacherOnboardingGate page="cbt-creator" steps={CBT_TOUR_STEPS}>
       <div className="space-y-6 container mx-auto sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">CBT Test Creator</h1>
-            <p className="text-muted-foreground">
-              Create and manage computer-based tests for your students
-            </p>
+        {/* Premium Hero Header Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none mb-6">
+          <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+          <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+          
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+                CBT Assessment Hub
+              </Badge>
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+                CBT Test Creator
+              </h1>
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+                Design engaging assessments, configure browser safety settings, schedule test windows, and analyze student performances with our premium testing suite.
+              </p>
+            </div>
+            
+            <ReplayTourButton />
           </div>
-          <ReplayTourButton />
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-[#f797712e] text-slate-700 flex flex-col md:flex-row w-full gap-2 mb-14">
+          <TabsList className="bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/40 dark:border-slate-800/40 p-1.5 rounded-2xl backdrop-blur-md flex flex-row items-center justify-start w-full overflow-x-auto no-scrollbar gap-2 mb-8">
             <TabsTrigger
               value="create"
               id="tour-cbt-create-tab"
-              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
+              <PlusCircle className="h-4 w-4 shrink-0" />
               Create New Test
             </TabsTrigger>
             <TabsTrigger
               value="manage"
               id="tour-cbt-manage-tab"
-              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
+              <ClipboardList className="h-4 w-4 shrink-0" />
               Manage Tests
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
               id="tour-cbt-analytics-tab"
-              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
+              <BarChart3 className="h-4 w-4 shrink-0" />
               Test Analytics
             </TabsTrigger>
             <TabsTrigger
               value="student-performance"
               id="tour-cbt-performance-tab"
-              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70   data-[state=active]:text-white gap-3"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
+              <GraduationCap className="h-4 w-4 shrink-0" />
               Student Performance
             </TabsTrigger>
             <TabsTrigger
               value="manage-student"
               id="tour-cbt-manage-student-tab"
-              className="bg-transparent w-full sm:w-40 justify-center py-2 data-[state=active]:bg-[#EF7B55]/70 data-[state=active]:text-white gap-3"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
+              <Users className="h-4 w-4 shrink-0" />
               Manage Student
+            </TabsTrigger>
+            <TabsTrigger
+              value="delete-attempts"
+              id="tour-cbt-delete-attempts-tab"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              disabled={isSaving}>
+              <Trash2 className="h-4 w-4 shrink-0" />
+              Delete Attempts
             </TabsTrigger>
           </TabsList>
           {/* ------------------------------ Create ------------------------------ */}
           <TabsContent value="create" className="space-y-6">
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="order-last lg:order-first">
+              <Card className="order-last lg:order-first bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl overflow-hidden transition-all duration-300">
                 <CardHeader>
-                  <CardTitle>Test Configuration</CardTitle>
-                  <CardDescription>Set up your test parameters</CardDescription>
+                  <CardTitle className="text-slate-800 dark:text-slate-100 font-bold">Test Configuration</CardTitle>
+                  <CardDescription className="text-slate-500 dark:text-slate-400">Set up your test parameters</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Test Title</Label>
+                    <Label htmlFor="title" className="font-semibold text-slate-700 dark:text-slate-300">Test Title</Label>
                     <Input
                       id="title"
                       value={currentTest.title}
@@ -2020,10 +2110,11 @@ export function TeacherCBTCreator() {
                       }
                       placeholder="Enter test title"
                       disabled={isSaving}
+                      className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 transition-all duration-300"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="instructions">Instructions</Label>
+                    <Label htmlFor="instructions" className="font-semibold text-slate-700 dark:text-slate-300">Instructions</Label>
                     <Textarea
                       id="instructions"
                       value={currentTest.instructions}
@@ -2036,11 +2127,12 @@ export function TeacherCBTCreator() {
                       placeholder="Provide instructions for this test"
                       rows={3}
                       disabled={isSaving}
+                      className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 transition-all duration-300"
                     />
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 space-y-2">
-                      <Label htmlFor="duration">Duration (minutes)</Label>
+                      <Label htmlFor="duration" className="font-semibold text-slate-700 dark:text-slate-300">Duration (minutes)</Label>
                       <Input
                         id="duration"
                         type="number"
@@ -2052,10 +2144,11 @@ export function TeacherCBTCreator() {
                             duration: Number.isNaN(parsed) ? 0 : parsed,
                           }));
                         }}
+                        className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus-visible:ring-[#EF7B55] focus-visible:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20 transition-all duration-300"
                       />
                     </div>
                     <div className="flex-1 space-y-2">
-                      <Label>Difficulty</Label>
+                      <Label className="font-semibold text-slate-700 dark:text-slate-300">Difficulty</Label>
                       <Select
                         value={currentTest.difficulty}
                         onValueChange={(value: "Easy" | "Medium" | "Hard") =>
@@ -2064,35 +2157,35 @@ export function TeacherCBTCreator() {
                             difficulty: value,
                           }))
                         }>
-                        <SelectTrigger>
+                        <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] focus:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Easy">Easy</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="Hard">Hard</SelectItem>
+                        <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                          <SelectItem value="Easy" className="rounded-lg">Easy</SelectItem>
+                          <SelectItem value="Medium" className="rounded-lg">Medium</SelectItem>
+                          <SelectItem value="Hard" className="rounded-lg">Hard</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Test Type</Label>
+                    <Label className="font-semibold text-slate-700 dark:text-slate-300">Test Type</Label>
                     <Select
                       value={currentTest.mode}
                       onValueChange={(value: "online" | "offline") =>
                         setCurrentTest((prev) => ({ ...prev, mode: value }))
                       }
                       disabled={isSaving}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] focus:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                         <SelectValue placeholder="Select test type" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="online">Online</SelectItem>
-                        <SelectItem value="offline">Offline</SelectItem>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <SelectItem value="online" className="rounded-lg">Online</SelectItem>
+                        <SelectItem value="offline" className="rounded-lg">Offline</SelectItem>
                       </SelectContent>
                     </Select>
                     {currentTest.mode === "offline" && (
-                      <p className="text-xs text-amber-600">
+                      <p className="text-xs text-amber-600 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
                         Offline tests can be accessed once downloaded. Use only
                         when you can monitor the session or accept lower security.
                       </p>
@@ -2113,23 +2206,38 @@ export function TeacherCBTCreator() {
                       If enabled, the test will be locked to the first browser the student uses to view it. If the student logs in on another browser or device, this test will not be visible.
                     </p>
                   </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      Show Score to Students
+                      <Switch
+                        checked={currentTest.show_score ?? true}
+                        onCheckedChange={(checked) =>
+                          setCurrentTest((prev) => ({ ...prev, show_score: checked }))
+                        }
+                        disabled={isSaving}
+                      />
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      If enabled, students will see their score immediately after completing the test. If disabled, they will only see a completion message.
+                    </p>
+                  </div>
                   {/* Better Date UI */}
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-md p-4 space-y-3 mt-4">
+                  <div className="bg-[#EF7B55]/5 border border-[#EF7B55]/20 text-slate-800 dark:text-slate-200 p-4 rounded-2xl backdrop-blur-md space-y-3 mt-4">
                     <div className="flex items-start gap-2">
-                      <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                      <Info className="h-4 w-4 text-[#EF7B55] mt-0.5 shrink-0" />
                       <div className="space-y-1">
-                        <p className="text-sm font-medium text-blue-900">Test Availability Window</p>
-                        <p className="text-xs text-blue-800">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Test Availability Window</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
                           Define when students can take this test. If both dates are left empty, the test will be available as long as it remains published.
                         </p>
-                        <ul className="list-disc pl-4 text-xs text-blue-800 space-y-1 mt-2">
+                        <ul className="list-disc pl-4 text-xs text-slate-600 dark:text-slate-400 space-y-1 mt-2">
                           <li><strong>Start Date & Time:</strong> The exact moment the test opens. Students cannot start or see questions before this time.</li>
                           <li><strong>End Date & Time:</strong> The absolute deadline. The test will automatically close and students will not be able to start or submit attempts after this time.</li>
                         </ul>
                       </div>
                     </div>
 
-                    <div className="space-y-4 pt-2 border-t border-blue-100/50">
+                    <div className="space-y-4 pt-2 border-t border-[#EF7B55]/10">
                       <DateTimePicker
                         label="Start Date & Time"
                         valueLocal={currentTest._startLocal}
@@ -2148,64 +2256,48 @@ export function TeacherCBTCreator() {
                       />
                     </div>
                   </div>
-                  {/* <div className="space-y-2">
-                  <Label htmlFor="total_marks">Total Marks</Label>
-                  <Input
-                    id="total_marks"
-                    type="number"
-                    value={currentTest.total_marks || ""}
-                    onChange={(e) =>
-                      setCurrentTest((prev) => ({
-                        ...prev,
-                        total_marks: Number(e.target.value) || 0,
-                      }))
-                    }
-                    min={1}
-                    placeholder="Enter total marks"
-                    disabled={isSaving}
-                  />
-                </div> */}
                   <div className="space-y-2">
-                    <Label>Course</Label>
+                    <Label className="font-semibold text-slate-700 dark:text-slate-300">Course</Label>
                     <Select
                       value={currentTest.courseId || ""}
                       onValueChange={(value) =>
                         setCurrentTest((prev) => ({ ...prev, courseId: value }))
                       }
                       disabled={isSaving}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-xs xs:text-sm sm:text-base border-slate-200 dark:border-slate-800 focus:ring-[#EF7B55] focus:border-[#EF7B55] rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                         {courses.map((course) => (
                           <SelectItem
                             key={course.id}
-                            value={course.id.toString()}>
+                            value={course.id.toString()}
+                            className="rounded-lg">
                             {course.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="pt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
+                  <div className="pt-4 space-y-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between text-sm font-semibold text-slate-600 dark:text-slate-400">
                       <span>Total Questions:</span>
-                      <span>{currentTest.questions.length}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{currentTest.questions.length}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm font-semibold text-slate-600 dark:text-slate-400">
                       <span>Total Points:</span>
-                      <span>{currentTest.totalPoints}</span>
+                      <span className="text-[#EF7B55] font-bold">{currentTest.totalPoints}</span>
                     </div>
                   </div>
-                  <div className="pt-4 flex flex-col sm:flex-row gap-4">
+                  <div className="pt-4 flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={saveTest}
-                      className="w-full bg-[#f79771]/70 hover:bg-gray-300 shadow-md"
+                      className="w-full bg-gradient-to-r from-[#EF7B55] to-[#e26d47] hover:opacity-90 hover:shadow-lg hover:shadow-[#EF7B55]/20 text-white rounded-xl font-bold py-2.5 transition-all duration-300 shadow-md flex items-center justify-center gap-2"
                       disabled={isSaving}>
                       {isSaving ? (
-                        <Spinner size="sm" className="mr-2 text-white" />
+                        <Spinner size="sm" className="text-white" />
                       ) : (
-                        <Save className="mr-2 h-4 w-4" />
+                        <Save className="h-4 w-4" />
                       )}
                       {isSaving ? "Saving..." : "Save Test"}
                     </Button>
@@ -2215,13 +2307,13 @@ export function TeacherCBTCreator() {
                       }
                       variant="outline"
                       id="tour-cbt-publish"
-                      className="w-full bg-transparent shadow-md"
+                      className="w-full bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl font-semibold py-2.5 transition-all duration-300 shadow-md flex items-center justify-center gap-2"
                       disabled={isSaving || !currentTest.id}
                     >
                       {isSaving ? (
-                        <Spinner size="sm" className="mr-2" />
+                        <Spinner size="sm" />
                       ) : (
-                        <TestTube className="mr-2 h-4 w-4" />
+                        <TestTube className="h-4 w-4 text-[#EF7B55]" />
                       )}
 
                       {isSaving
@@ -2822,47 +2914,49 @@ export function TeacherCBTCreator() {
                 ))}
               </div>
             )}
-            <Pagination className="mt-4 justify-center">
-              <PaginationContent className="flex-wrap justify-center">
-                <PaginationPrevious
-                  onClick={() =>
-                    handlePageChange(Math.max(pagination.page - 1, 1))
-                  }
-                  className={
-                    pagination.page === 1 ? "pointer-events-none opacity-50" : ""
-                  }
-                />
-                {Array.from(
-                  { length: pagination.pages },
-                  (_, index) => index + 1,
-                ).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      href="#"
-                      isActive={pagination.page === page}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handlePageChange(page);
-                      }}>
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                {pagination.pages > 5 && <PaginationEllipsis />}
-                <PaginationNext
-                  onClick={() =>
-                    handlePageChange(
-                      Math.min(pagination.page + 1, pagination.pages),
-                    )
-                  }
-                  className={
-                    pagination.page === pagination.pages
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-              </PaginationContent>
-            </Pagination>
+            {pagination.pages > 1 && (
+              <Pagination className="mt-4 justify-center">
+                <PaginationContent className="flex-wrap justify-center">
+                  <PaginationPrevious
+                    onClick={() =>
+                      handlePageChange(Math.max(pagination.page - 1, 1))
+                    }
+                    className={
+                      pagination.page === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                  {Array.from(
+                    { length: pagination.pages },
+                    (_, index) => index + 1,
+                  ).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        isActive={pagination.page === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(page);
+                        }}>
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  {pagination.pages > 5 && <PaginationEllipsis />}
+                  <PaginationNext
+                    onClick={() =>
+                      handlePageChange(
+                        Math.min(pagination.page + 1, pagination.pages),
+                      )
+                    }
+                    className={
+                      pagination.page === pagination.pages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationContent>
+              </Pagination>
+            )}
           </TabsContent>
           {/* ----------------------------- Analytics ---------------------------- */}
           <TabsContent value="analytics" className="space-y-6">
@@ -3215,54 +3309,56 @@ export function TeacherCBTCreator() {
                 )}
               </CardContent>
             </Card>
-            <Pagination className="mt-4 justify-center">
-              <PaginationContent>
-                <PaginationPrevious
-                  onClick={() =>
-                    handlePerformancePageChange(
-                      Math.max(performancePagination.page - 1, 1),
-                    )
-                  }
-                  className={
-                    performancePagination.page === 1
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-                {Array.from(
-                  { length: performancePagination.pages },
-                  (_, index) => index + 1,
-                ).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      href="#"
-                      isActive={performancePagination.page === page}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handlePerformancePageChange(page);
-                      }}>
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                {performancePagination.pages > 5 && <PaginationEllipsis />}
-                <PaginationNext
-                  onClick={() =>
-                    handlePerformancePageChange(
-                      Math.min(
-                        performancePagination.page + 1,
-                        performancePagination.pages,
-                      ),
-                    )
-                  }
-                  className={
-                    performancePagination.page === performancePagination.pages
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-              </PaginationContent>
-            </Pagination>
+            {performancePagination.pages > 1 && (
+              <Pagination className="mt-4 justify-center">
+                <PaginationContent className="flex-wrap justify-center">
+                  <PaginationPrevious
+                    onClick={() =>
+                      handlePerformancePageChange(
+                        Math.max(performancePagination.page - 1, 1),
+                      )
+                    }
+                    className={
+                      performancePagination.page === 1
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                  {Array.from(
+                    { length: performancePagination.pages },
+                    (_, index) => index + 1,
+                  ).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        isActive={performancePagination.page === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePerformancePageChange(page);
+                        }}>
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  {performancePagination.pages > 5 && <PaginationEllipsis />}
+                  <PaginationNext
+                    onClick={() =>
+                      handlePerformancePageChange(
+                        Math.min(
+                          performancePagination.page + 1,
+                          performancePagination.pages,
+                        ),
+                      )
+                    }
+                    className={
+                      performancePagination.page === performancePagination.pages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationContent>
+              </Pagination>
+            )}
           </TabsContent>
 
           <TabsContent value="manage-student" className="space-y-6">
@@ -3409,6 +3505,141 @@ export function TeacherCBTCreator() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+          
+          {/* ----------------------- Delete Attempts ------------------------ */}
+          <TabsContent value="delete-attempts" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold">Delete Test Attempts</h2>
+              <p className="text-muted-foreground">
+                Remove a student's test attempt and save it for historical audit
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 w-full sm:w-auto">
+                <Input
+                  placeholder="Search students..."
+                  value={studentFilter}
+                  onChange={(e) => setStudentFilter(e.target.value)}
+                  disabled={isSaving}
+                />
+              </div>
+              <Select
+                value={selectedTestFilter}
+                onValueChange={(value) => setSelectedTestFilter(value)}
+                disabled={isSaving}>
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Filter by test" />
+                </SelectTrigger>
+                <SelectContent>
+                  <Input
+                    placeholder="Search tests..."
+                    className="mb-2"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <div className="max-h-[120px] overflow-y-auto">
+                    <SelectItem value="all">All Tests</SelectItem>
+                    {filteredMyTests.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {truncateText(t.title, 40)}
+                      </SelectItem>
+                    ))}
+                  </div>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {loadingPerformances ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#EF7B55]"></div>
+              </div>
+            ) : filteredPerformances.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No attempts found matching the filters.
+              </p>
+            ) : (
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/50 dark:border-slate-800/60 overflow-hidden shadow-lg shadow-slate-100/40 dark:shadow-none">
+                <div className="overflow-x-auto hidden md:block">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">Student Name</TableHead>
+                        <TableHead className="whitespace-nowrap max-w-[220px]">Test</TableHead>
+                        <TableHead className="whitespace-nowrap">Score</TableHead>
+                        <TableHead className="whitespace-nowrap">Status</TableHead>
+                        <TableHead className="whitespace-nowrap">Submitted At</TableHead>
+                        <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPerformances.map((performance) => (
+                        <TableRow key={performance.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {performance.studentName}
+                          </TableCell>
+                          <TableCell className="max-w-[220px] truncate" title={performance.testTitle || "Unknown Test"}>
+                            {performance.testTitle || "Unknown Test"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {performance.score}/{performance.totalMarks}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={performance.status === "Passed" ? "default" : "destructive"}
+                              className={performance.status === "Passed" ? "bg-[#EF7B55]" : "bg-red-500"}>
+                              {performance.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {new Date(performance.submittedAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={isSaving}
+                              onClick={() => handleDeleteAttempt(performance.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {/* Mobile view */}
+                <div className="md:hidden flex flex-col p-4 space-y-4">
+                  {filteredPerformances.map((performance) => (
+                    <Card key={performance.id} className="p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold truncate max-w-[70%]">{performance.studentName}</span>
+                        <Badge
+                          variant={performance.status === "Passed" ? "default" : "destructive"}
+                          className={performance.status === "Passed" ? "bg-[#EF7B55]" : "bg-red-500"}>
+                          {performance.status}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate">{performance.testTitle}</div>
+                      <div className="flex justify-between text-sm">
+                        <span>Score: {performance.score}/{performance.totalMarks}</span>
+                        <span>{new Date(performance.submittedAt).toLocaleDateString()}</span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full"
+                        disabled={isSaving}
+                        onClick={() => handleDeleteAttempt(performance.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Attempt
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             )}
           </TabsContent>
         </Tabs>

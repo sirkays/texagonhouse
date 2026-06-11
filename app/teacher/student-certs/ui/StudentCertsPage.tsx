@@ -1,8 +1,8 @@
 //texagon_academy/texagonui/app/teacher/student-certs/ui/StudentCertsPage.tsx
 "use client";
 
-import {useEffect, useState} from "react";
-import {Button} from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 type CourseRow = {
@@ -13,7 +13,7 @@ type CourseRow = {
 };
 
 type CompletedStudentsResponse = {
-  course?: {id: number; name: string};
+  course?: { id: number; name: string };
   season?: null | {
     name: string;
     start_at: string; // backend returns datetimes; treat as ISO strings
@@ -118,8 +118,8 @@ export default function StudentCertsPage() {
         `/api/teacher/certificates/${certId}/approve/teacher/`,
         {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({approval: true}),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approval: true }),
         },
       );
       const text = await res.text();
@@ -145,209 +145,44 @@ export default function StudentCertsPage() {
   }, [selectedCourseId]);
 
   return (
-    // <div className="space-y-4">
-    //   <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-    //     <div>
-    //       <h1 className="text-lg sm:text-xl font-semibold text-slate-800">
-    //         Student Certificates
-    //       </h1>
-    //       <p className="text-sm text-slate-600">
-    //         Select a course to view enrolled students and approve certificates.
-    //       </p>
-    //     </div>
 
-    //     <div className="flex gap-2">
-    //       <Button variant="outline" onClick={loadCourses} disabled={loadingCourses}>
-    //         Refresh courses
-    //       </Button>
-    //       <Button
-    //         onClick={() => selectedCourseId && loadCompletedStudents(selectedCourseId)}
-    //         disabled={!selectedCourseId || loadingRows}
-    //       >
-    //         Refresh list
-    //       </Button>
-    //     </div>
-    //   </div>
 
-    //   {error ? (
-    //     <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
-    //       {error}
-    //     </div>
-    //   ) : null}
-
-    //   <div className="rounded-md border bg-white p-3">
-    //     <div className="text-sm font-medium text-slate-700 mb-2">Course</div>
-
-    //     {loadingCourses ? (
-    //       <div className="text-sm text-slate-600">Loading courses…</div>
-    //     ) : courses.length === 0 ? (
-    //       <div className="text-sm text-slate-600">No courses found.</div>
-    //     ) : (
-    //       <select
-    //         className="w-full sm:w-[420px] border rounded-md px-3 py-2 text-sm"
-    //         value={selectedCourseId ?? ""}
-    //         onChange={(e) => setSelectedCourseId(Number(e.target.value))}
-    //       >
-    //         {courses.map((c) => (
-    //           <option key={c.id} value={c.id}>
-    //             {c.name}
-    //             {c.subject ? ` • ${c.subject}` : ""}
-    //             {c.classroom ? ` • ${c.classroom}` : ""}
-    //           </option>
-    //         ))}
-    //       </select>
-    //     )}
-    //   </div>
-
-    //   <div className="rounded-md border bg-white p-3">
-    //     <div className="text-sm font-medium text-slate-700 mb-2">
-    //       Enrolled Students
-    //     </div>
-    //     {rows?.season ? (
-    //       <div className="text-xs text-slate-600">
-    //         <span className="font-semibold text-slate-700">Season:</span>{" "}
-    //         {rows.season.name} • {fmtDate(rows.season.start_at)} – {fmtDate(rows.season.end_at)}
-    //       </div>
-    //     ) : (
-    //       <div className="text-xs text-slate-500">Season: —</div>
-    //     )}
-    //     {loadingRows ? (
-    //       <div className="text-sm text-slate-600">Loading enrolled students…</div>
-    //     ) : !rows || !rows.results || rows.results.length === 0 ? (
-    //       <div className="text-sm text-slate-600">No enrolled students yet.</div>
-    //     ) : (
-    //       <div className="overflow-x-auto">
-    //         <table className="min-w-[900px] w-full border-collapse">
-    //           <thead>
-    //             <tr className="border-b">
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Student
-    //               </th>
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Email
-    //               </th>
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Progress
-    //               </th>
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Certificate
-    //               </th>
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Teacher
-    //               </th>
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Admin
-    //               </th>
-    //               <th className="text-left text-xs font-semibold text-slate-600 py-2 pr-3">
-    //                 Actions
-    //               </th>
-    //             </tr>
-    //           </thead>
-
-    //           <tbody>
-    //             {rows.results.map((r) => {
-    //               const cert = r.certificate;
-    //               return (
-    //                 <tr key={r.enrollment_id} className="border-b last:border-b-0">
-    //                   <td className="py-3 pr-3 text-sm text-slate-800">
-    //                     {r.student_name}
-    //                   </td>
-    //                   <td className="py-3 pr-3 text-sm text-slate-600">
-    //                     {r.student_email}
-    //                   </td>
-    //                   <td className="py-3 pr-3 text-sm text-slate-700">
-    //                     {r.progress_pct}%
-    //                   </td>
-
-    //                   <td className="py-3 pr-3 text-sm">
-    //                     {cert ? (
-    //                       <div>
-    //                         <div className="font-semibold text-slate-800">{cert.number}</div>
-    //                         <div className="text-xs text-slate-500">
-    //                           {cert.title}
-    //                         </div>
-    //                       </div>
-    //                     ) : (
-    //                       <span className="text-slate-500">No certificate</span>
-    //                     )}
-    //                   </td>
-
-    //                   <td className="py-3 pr-3 text-sm">
-    //                     {cert ? (cert.teacher_approved ? "✅ Approved" : "⏳ Pending") : "—"}
-    //                   </td>
-
-    //                   <td className="py-3 pr-3 text-sm">
-    //                     {cert ? (cert.admin_approved ? "✅ Approved" : "⏳ Pending") : "—"}
-    //                   </td>
-
-    //                   <td className="py-3 pr-3 text-sm">
-    //                     {!cert ? (
-    //                       <div className="flex flex-wrap gap-2">
-    //                         <Link
-    //                           className="inline-flex"
-    //                           href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}
-    //                         >
-    //                           <Button size="sm" variant="outline">View Progress</Button>
-    //                         </Link>
-    //                       </div>
-    //                     ) : (
-    //                       <div className="flex flex-wrap gap-2">
-    //                         <Button
-    //                           size="sm"
-    //                           variant="outline"
-    //                           disabled={busyCertId === cert.id || cert.teacher_approved}
-    //                           onClick={() => approveTeacher(cert.id)}
-    //                         >
-    //                           {cert.teacher_approved ? "Teacher Approved" : "Approve (Teacher)"}
-    //                         </Button>
-
-    //                         <Link
-    //                           className="inline-flex"
-    //                           href={`/teacher/student-progress/${selectedCourseId}/${r.student_id}`}
-    //                         >
-    //                           <Button size="sm" variant="outline">View Progress</Button>
-    //                         </Link>
-    //                       </div>
-    //                     )}
-    //                   </td>
-    //                 </tr>
-    //               );
-    //             })}
-    //           </tbody>
-    //         </table>
-    //       </div>
-    //     )}
-    //   </div>
-    // </div>
-
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-slate-800">
-            Student Certificates
-          </h1>
-          <p className="text-sm text-slate-600">
-            Select a course to view enrolled students and approve certificates.
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            onClick={loadCourses}
-            disabled={loadingCourses}
-            className="w-full sm:w-auto">
-            Refresh courses
-          </Button>
-          <Button
-            onClick={() =>
-              selectedCourseId && loadCompletedStudents(selectedCourseId)
-            }
-            disabled={!selectedCourseId || loadingRows}
-            className="w-full sm:w-auto">
-            Refresh list
-          </Button>
+    <div className="space-y-6 max-w-7xl mx-auto p-1 sm:p-2 animate-in fade-in duration-500">
+      {/* Premium Hero Header Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none mb-6">
+        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <span className="inline-flex items-center rounded-md bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
+              Certification Hall
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
+              Student Certificates
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+              Review completed course enrollment milestones, examine student progress percentages, approve certificates, and reward top academy achievements.
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+            <Button
+              variant="outline"
+              onClick={loadCourses}
+              disabled={loadingCourses}
+              className="backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/25 text-white font-bold rounded-xl shadow-md h-11 px-4 text-xs sm:text-sm">
+              Refresh courses
+            </Button>
+            <Button
+              onClick={() =>
+                selectedCourseId && loadCompletedStudents(selectedCourseId)
+              }
+              disabled={!selectedCourseId || loadingRows}
+              className="bg-[#EF7B55] hover:bg-[#d96a44] text-white font-bold rounded-xl shadow-md h-11 px-4 text-xs sm:text-sm">
+              Refresh list
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -358,7 +193,7 @@ export default function StudentCertsPage() {
       ) : null}
 
       {/* Course Selector */}
-      <div className="rounded-md border bg-white p-3">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-md rounded-2xl p-5 transition-all duration-300">
         <div className="text-sm font-medium text-slate-700 mb-2">Course</div>
 
         {loadingCourses ? (
@@ -382,7 +217,7 @@ export default function StudentCertsPage() {
       </div>
 
       {/* Enrolled Students Section */}
-      <div className="rounded-md border bg-white p-3">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/60 shadow-lg shadow-slate-100/40 dark:shadow-none rounded-2xl p-6 transition-all duration-300">
         <div className="text-sm font-medium text-slate-700 mb-2">
           Enrolled Students
         </div>

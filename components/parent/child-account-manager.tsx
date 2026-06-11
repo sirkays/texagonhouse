@@ -72,6 +72,15 @@ export default function ChildAccountManager() {
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  // Update Profile states
+  const [editChild, setEditChild] = useState<any | null>(null);
+  const [editFullName, setEditFullName] = useState("");
+  const [editDob, setEditDob] = useState<Date | undefined>(undefined);
+  const [editGender, setEditGender] = useState("");
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
   // ✅ Inline Add Child states
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addFullName, setAddFullName] = useState("");
@@ -245,6 +254,67 @@ export default function ChildAccountManager() {
     } catch (err: any) {
       setResetError(err.message || "An error occurred while resetting the password");
       setIsUpdatingPassword(false);
+    }
+  };
+
+  const openUpdateProfileDialog = (child: any) => {
+    setEditChild(child);
+    setEditFullName(child.name || "");
+    setEditDob(child.dob ? new Date(child.dob) : undefined);
+    setEditGender(child.gender || "");
+    setUpdateError(null);
+    setUpdateSuccess(null);
+    setIsUpdatingProfile(false);
+  };
+
+  const closeUpdateProfileDialog = () => {
+    if (isUpdatingProfile) return;
+    setEditChild(null);
+  };
+
+  const submitProfileUpdate = async () => {
+    if (isUpdatingProfile) return;
+    setUpdateError(null);
+    setUpdateSuccess(null);
+
+    if (!editFullName.trim()) {
+      setUpdateError("Full name is required.");
+      return;
+    }
+    if (!editDob) {
+      setUpdateError("Date of birth is required.");
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+
+    try {
+      const res = await fetch("/api/parent/managechildren/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          childId: editChild.id,
+          fullName: editFullName.trim(),
+          dob: format(editDob, "yyyy-MM-dd"),
+          gender: editGender,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to update profile.");
+      }
+
+      setUpdateSuccess(data.detail || "Profile updated successfully.");
+      await fetchChildren();
+
+      setTimeout(() => {
+        setIsUpdatingProfile(false);
+        closeUpdateProfileDialog();
+      }, 1500);
+    } catch (err: any) {
+      setUpdateError(err.message || "An error occurred while updating profile.");
+      setIsUpdatingProfile(false);
     }
   };
 
@@ -885,15 +955,26 @@ export default function ChildAccountManager() {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openResetDialog(child.id)}
-                  className="w-full sm:w-auto"
-                >
-                  <Key className="h-4 w-4 mr-2" />
-                  Reset Password
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openUpdateProfileDialog(child)}
+                    className="w-full sm:w-auto"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Update Profile
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openResetDialog(child.id)}
+                    className="w-full sm:w-auto"
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    Reset Password
+                  </Button>
+                </div>
               </div>
             </CardHeader>
 
@@ -1073,6 +1154,108 @@ export default function ChildAccountManager() {
                 </span>
               ) : (
                 "Update Password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Profile Dialog */}
+      <Dialog
+        open={editChild !== null}
+        onOpenChange={(open) => (!open ? closeUpdateProfileDialog() : null)}
+      >
+        <DialogContent className="w-[95vw] max-w-[480px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Update Child Profile</DialogTitle>
+            <DialogDescription>Update the profile details for this child account.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-fullname">Full Name</Label>
+              <Input
+                id="edit-fullname"
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                placeholder="e.g. John Doe"
+                disabled={isUpdatingProfile}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date of Birth</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={isUpdatingProfile}
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editDob ? format(editDob, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editDob}
+                    onSelect={setEditDob}
+                    captionLayout="dropdown"
+                    disabled={(date) => date > new Date()}
+                    startMonth={new Date(1990, 0)}
+                    endMonth={new Date(new Date().getFullYear(), 11)}
+                    autoFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Gender</Label>
+              <Select
+                value={editGender}
+                onValueChange={setEditGender}
+                disabled={isUpdatingProfile}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {updateError && <p className="text-sm text-red-600">{updateError}</p>}
+            {updateSuccess && (
+              <p className="text-sm text-green-700">{updateSuccess}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeUpdateProfileDialog}
+              disabled={isUpdatingProfile}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              onClick={submitProfileUpdate}
+              disabled={!!updateSuccess || isUpdatingProfile}
+              className="min-w-[150px]"
+            >
+              {isUpdatingProfile ? (
+                <span className="flex items-center gap-2">
+                  <Spinner className="h-4 w-4" />
+                  Updating...
+                </span>
+              ) : (
+                "Update Profile"
               )}
             </Button>
           </DialogFooter>

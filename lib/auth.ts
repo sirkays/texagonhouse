@@ -7,7 +7,7 @@ import type {Session, User} from "next-auth";
 //const BASE_URL = "http://127.0.0.1:9098"
 const BASE_URL = process.env.BASE_URL;
 const API_KEY =
-  process.env.STORE_API_KEY || "nQtqkj8a.TWzuxiAAwrlsUXO8yJm2FPFWbEc5Gb7c";
+  process.env.STORE_API_KEY || "WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8";
 
 const headers = (sessionToken?: string) => ({
   Authorization: `Api-Key ${API_KEY}`,
@@ -29,6 +29,55 @@ export const authOptions: NextAuthOptions = {
         },
       },
       async authorize(credentials) {
+        // Support token-based auto-login
+        const token = (credentials as any)?.token;
+        if (credentials?.email && token) {
+          try {
+            // Step 2: Post-login check directly
+            const url = new URL(`${BASE_URL}/accounts/api/post-login/`);
+            const response = await fetch(url, {
+              method: "GET",
+              headers: headers(token),
+            });
+
+            const rawPostLogin = await response.text();
+            let data;
+            try {
+              data = JSON.parse(rawPostLogin);
+            } catch {
+              throw new Error(
+                `Invalid post-login response: ${rawPostLogin.slice(0, 100)}...`,
+              );
+            }
+
+            if (
+              !response.ok ||
+              data.detail !== "User access granted" ||
+              !data.role
+            ) {
+              throw new Error(data.detail || "User access not granted");
+            }
+
+            return {
+              id: data.org_membership_pk || credentials.email,
+              email: credentials.email,
+              name: data.username || credentials.email.split("@")[0],
+              role: data.role,
+              sessionToken: token,
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+              isGenerated: data.is_generated || false,
+              hasAdminAccess: data.has_admin_access || false,
+              hasNickname: data.has_nickname || false,
+              nickname: data.nickname || null,
+              username: data.username || null,
+            };
+          } catch (err) {
+            const errorMessage =
+              err instanceof Error ? err.message : "Token authentication failed";
+            throw new Error(errorMessage);
+          }
+        }
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }

@@ -57,7 +57,6 @@ import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 import { monokai } from "@uiw/codemirror-theme-monokai";
 import { githubLight } from "@uiw/codemirror-theme-github";
-import { indentUnit } from "@codemirror/language";
 
 import {
   Folder,
@@ -82,6 +81,7 @@ import { FilesSidebar } from "./FilesSidebar";
 import { SubmissionsSidebar } from "./SubmissionsSidebar";
 import { SearchSidebar } from "./SearchSidebar";
 import { SettingsSidebar } from "./SettingsSidebar";
+import { useCourseAccess } from "@/providers/CourseAccessProvider";
 
 const codeMirrorExtensions = {
   javascript: [javascript()],
@@ -95,6 +95,14 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024;
 export function CodeEditor() {
   // ─── Theme ──────────────────────────────────────────────────────────────
   const { theme, isDark, toggleTheme, t } = useTheme();
+  const { hasModuleAccess } = useCourseAccess();
+
+  const isLessonAccessible = (lessonId: string | number | undefined | null) => {
+    if (!lessonId) return true;
+    const lesson = lessons.find((l) => String(l.id) === String(lessonId));
+    if (!lesson) return true;
+    return hasModuleAccess(lesson.module);
+  };
 
   // ─── Tabs (replaces all per-language state) ─────────────────────────────
   const {
@@ -200,6 +208,7 @@ export function CodeEditor() {
     new Set()
   );
   const [isSubmittingEditor, setIsSubmittingEditor] = useState(false);
+  const isDraftLessonLocked = submitDraftLesson ? !isLessonAccessible(submitDraftLesson) : false;
 
   // Stdin panel
   const [pythonInputPrompts, setPythonInputPrompts] = useState<string[]>([]);
@@ -495,6 +504,7 @@ export function CodeEditor() {
           id: l && l.id != null ? String(l.id) : "",
           title:
             l?.title || l?.name || l?.topic || l?.label || `Lesson ${l?.id ?? "?"}`,
+          module: l?.module,
         }))
         .filter((l) => l.id);
       setLessons(mapped);
@@ -822,6 +832,10 @@ export function CodeEditor() {
 
   const handleEditorSubmitClick = () => {
     if (!activeTab) return;
+    if (activeTab.lessonId && !isLessonAccessible(activeTab.lessonId)) {
+      showCustomAlert("Course access has expired. Please renew your subscription");
+      return;
+    }
     if (activeTab.submissionId) {
       // Quick "update in place" path
       handleQuickUpdateSubmission();
@@ -832,6 +846,10 @@ export function CodeEditor() {
 
   const handleQuickUpdateSubmission = async () => {
     if (!activeTab || !activeTab.submissionId) return;
+    if (activeTab.lessonId && !isLessonAccessible(activeTab.lessonId)) {
+      showCustomAlert("Course access has expired. Please renew your subscription");
+      return;
+    }
     if (isSubmittingEditor) return;
     const title = (activeTab.submissionTitle || activeTab.title || "").trim();
     if (!title) return showCustomAlert("Submission Title is required");
@@ -1871,6 +1889,7 @@ export function CodeEditor() {
                       fetchSubmissionDetail={fetchSubmissionDetail}
                       onComment={addComment}
                       showCustomAlert={showCustomAlert}
+                      isLessonAccessible={isLessonAccessible}
                       t={t}
                     />
                   )}
@@ -1978,27 +1997,24 @@ export function CodeEditor() {
                     <span className="ide-mono">
                       {(tab.title || "untitled").slice(0, 22)}.{ext}
                     </span>
-                    {dirty ? (
-                      <span className="dirty-dot" />
-                    ) : (
-                      <button
-                        className="file-tab-close"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (dirty) {
-                            showCustomConfirm(
-                              `Close ${tab.title}? You have unsaved changes.`,
-                              async () => closeTab(tab.id)
-                            );
-                          } else {
-                            closeTab(tab.id);
-                          }
-                        }}
-                        title="Close tab"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
+                    {dirty && <span className="dirty-dot" />}
+                    <button
+                      className="file-tab-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (dirty) {
+                          showCustomConfirm(
+                            `Close ${tab.title}? You have unsaved changes.`,
+                            async () => closeTab(tab.id)
+                          );
+                        } else {
+                          closeTab(tab.id);
+                        }
+                      }}
+                      title="Close tab"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
                 );
               })}
@@ -2186,6 +2202,7 @@ export function CodeEditor() {
                     onSubmitCreateFolder={submitCreateFolder}
                     newFileFolderId={newFileFolderId}
                     onCreateNewFile={createNewFileWithLang}
+                    isDraftLessonLocked={isDraftLessonLocked}
                   />
                 )}
 
@@ -2257,7 +2274,6 @@ export function CodeEditor() {
                         value={activeTab.code}
                         extensions={[
                           ...(codeMirrorExtensions[activeTab.language] as any),
-                          indentUnit.of(INDENT_BY_LANG[activeTab.language].unit),
                           EditorView.lineWrapping,
                           EditorView.updateListener.of((v) => {
                             if (v.selectionSet) {
@@ -2740,6 +2756,7 @@ function InlinePanelContent(props: any) {
     onSubmitCreateFolder,
     newFileFolderId,
     onCreateNewFile,
+    isDraftLessonLocked,
   } = props;
 
   return (
@@ -2913,6 +2930,11 @@ function InlinePanelContent(props: any) {
                 </option>
               ))}
             </select>
+            {isDraftLessonLocked && (
+              <div style={{ gridColumn: "2 / -1", color: "#EF4444", fontSize: 11, marginTop: 4 }}>
+                Course access has expired. Please renew your subscription
+              </div>
+            )}
           </div>
           <div>
             <div
@@ -3049,7 +3071,8 @@ function InlinePanelContent(props: any) {
                   !submitDraftTitle.trim() ||
                   !submitDraftLesson ||
                   submitSelectedTabIds.size === 0 ||
-                  isSubmittingEditor
+                  isSubmittingEditor ||
+                  isDraftLessonLocked
                 }
               >
                 {isSubmittingEditor ? (

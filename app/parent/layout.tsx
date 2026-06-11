@@ -87,6 +87,13 @@ const menuItems = [
     id: "payments",
   },
   {
+    title: "Reports",
+    path: "/parent/reports",
+    icon: FileText,
+    description: "View your children's reports",
+    id: "reports",
+  },
+  {
     title: "Profile Settings",
     path: "/profile",
     icon: Settings,
@@ -120,7 +127,7 @@ function SidebarMenuContent() {
               <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === item.path}
+                  isActive={item.path === "/parent/reports" ? pathname.startsWith("/parent/reports") : pathname === item.path}
                   className={`
                     py-5
                     hover:bg-[#F797713a]

@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchStudentCertificates, type CertificateListItem } from "@/lib/certificates-api";
 import { CertificateCard } from "@/components/student/certificate-card";
 import { Button } from "@/components/ui/button";
+import { useStudentTheme } from "@/components/student/useStudentTheme";
 
 export default function StudentCertificatesPage() {
+  const { theme } = useStudentTheme();
+  const isAero = theme === "aero-premium";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<CertificateListItem[]>([]);
@@ -45,13 +48,21 @@ export default function StudentCertificatesPage() {
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">My Certificates</h1>
-            <p className="text-muted-foreground mt-1">{countText}</p>
+            <h1 className={isAero 
+              ? "text-2xl font-black bg-gradient-to-r from-slate-900 via-slate-800 to-[#EF7B55] bg-clip-text text-transparent dark:from-white dark:to-orange-200"
+              : "text-2xl font-bold text-foreground"
+            }>
+              My Certificates
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm font-medium">{countText}</p>
           </div>
 
           <Button
             variant="outline"
-            className="bg-transparent"
+            className={isAero
+              ? "border-[#EF7B55] text-[#EF7B55] hover:bg-[#EF7B55] hover:text-white rounded-xl shadow-sm font-bold bg-white/60 backdrop-blur-sm transition-all duration-300"
+              : "bg-transparent"
+            }
             onClick={() => window.location.reload()}
           >
             Refresh
