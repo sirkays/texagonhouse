@@ -42,6 +42,7 @@ export default function TeacherAssignmentsPage() {
   const [dueDate, setDueDate] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -414,6 +415,107 @@ export default function TeacherAssignmentsPage() {
     }
   };
 
+  /**
+   * Export ALL submissions for the selected assignment as a rich CSV.
+   * Fetches every page so pagination is not a limitation.
+   */
+  const handleExportSubmissions = async () => {
+    if (!selectedAssignment) return;
+    setIsExportingCSV(true);
+    try {
+      // Fetch all submissions (large page_size to get everything in one shot)
+      let url = `/api/submissions/by-assignment/${selectedAssignment.id}?page=1&page_size=10000`;
+      if (selectedClassroom) url += `&classroom=${encodeURIComponent(selectedClassroom)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch submissions");
+      const data = await res.json();
+      const allSubs: any[] = data.results || data || [];
+
+      if (allSubs.length === 0) {
+        alert("No submissions found to export.");
+        setIsExportingCSV(false);
+        return;
+      }
+
+      // Helper: escape a value for CSV
+      const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+      const now = new Date().toLocaleString();
+      const graded = allSubs.filter(s => s.score != null).length;
+      const pending = allSubs.length - graded;
+      const avgScore = graded > 0
+        ? (allSubs.filter(s => s.score != null).reduce((sum, s) => sum + Number(s.score), 0) / graded).toFixed(2)
+        : "N/A";
+      const classLabel = selectedClassroom
+        ? classrooms.find(c => String(c.id) === selectedClassroom)?.name ?? selectedClassroom
+        : "All Classes";
+
+      const lines: string[] = [];
+
+      // -- Report header
+      lines.push(`"ASSIGNMENT SUBMISSIONS EXPORT - TEXAGON ACADEMY"`);
+      lines.push(`"Generated:",${esc(now)}`);
+      lines.push(`"Assignment:",${esc(selectedAssignment.title)}`);
+      lines.push(`"Class Filter:",${esc(classLabel)}`);
+      if (selectedAssignment.due_at) {
+        lines.push(`"Due Date:",${esc(new Date(selectedAssignment.due_at).toLocaleDateString())}`);
+      }
+      lines.push("");
+
+      // -- Summary statistics
+      lines.push(`"SUMMARY"`);
+      lines.push(["Total Submissions", "Graded", "Pending", "Average Score"].map(esc).join(","));
+      lines.push([allSubs.length, graded, pending, avgScore].map(esc).join(","));
+      lines.push("");
+
+      // -- Column headers
+      lines.push(`"INDIVIDUAL SUBMISSIONS"`);
+      lines.push(
+        ["#", "Student Name", "Submitted At", "Score (/ 100)", "Grade", "Status", "Feedback"]
+          .map(esc).join(",")
+      );
+
+      // -- One row per submission
+      allSubs.forEach((sub, idx) => {
+        const score = sub.score != null ? Number(sub.score) : null;
+        const grade =
+          score == null ? "N/A"
+          : score >= 90 ? "A"
+          : score >= 80 ? "B"
+          : score >= 70 ? "C"
+          : score >= 50 ? "D"
+          : "F";
+        const status = score != null ? "Graded" : "Pending";
+        lines.push(
+          [
+            idx + 1,
+            sub.student_name || `Student #${sub.student}`,
+            sub.submitted_at ? new Date(sub.submitted_at).toLocaleString() : "",
+            score != null ? score : "",
+            grade,
+            status,
+            sub.feedback || "",
+          ].map(esc).join(",")
+        );
+      });
+
+      const safeTitle = (selectedAssignment.title as string).replace(/[^a-z0-9]/gi, "_");
+      const dateTag = new Date().toISOString().slice(0, 10);
+      const blob = new Blob(["\uFEFF", lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${safeTitle}_submissions_${dateTag}.csv`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("CSV export error:", err);
+      alert("Export failed. Please try again.");
+    } finally {
+      setIsExportingCSV(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 flex justify-center"><Spinner size="lg" className="text-[#EF7B55]" /></div>;
   }
@@ -734,7 +836,27 @@ export default function TeacherAssignmentsPage() {
               <h1 className="text-2xl font-bold text-slate-800">Student Submissions</h1>
               <p className="text-sm text-slate-500">{selectedAssignment.title}</p>
             </div>
-            <span className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-[#EF7B55] rounded-full">{totalSubmissions} submitted</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-[#EF7B55] rounded-full">{totalSubmissions} submitted</span>
+              <Button
+                onClick={handleExportSubmissions}
+                disabled={isExportingCSV || subLoading || totalSubmissions === 0}
+                size="sm"
+                className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 rounded-xl text-xs whitespace-nowrap"
+              >
+                {isExportingCSV ? (
+                  <>
+                    <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    Export CSV
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

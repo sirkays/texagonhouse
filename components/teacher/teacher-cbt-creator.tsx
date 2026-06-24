@@ -1953,9 +1953,19 @@ export function TeacherCBTCreator() {
   /**
    * Export a SINGLE student's performance as a rich CSV.
    * Sections: metadata, summary row, then per-question answer breakdown.
+   * Fetches the test from the API if it is not already in the in-memory list
+   * (e.g. when the user is on the Student Performance tab without having
+   * visited the Manage tab first, or the test is on a different page).
    */
-  const exportToCSV = (performance: StudentPerformance) => {
-    const test = tests.find((t) => t.id === performance.testId);
+  const exportToCSV = async (performance: StudentPerformance) => {
+    // Try the in-memory list first; fall back to a direct API call.
+    let test: CBTTest | undefined | null = tests.find(
+      (t) => t.id === performance.testId
+    );
+    if (!test && performance.testId) {
+      test = await fetchTestById(performance.testId);
+    }
+
     const testTitle = test?.title ?? performance.testTitle ?? "Unknown Test";
     const testDate = test?.start_at
       ? new Date(test.start_at).toLocaleDateString()
@@ -1976,7 +1986,7 @@ export function TeacherCBTCreator() {
     const lines: string[] = [];
 
     // ── Section 1: Report metadata
-    lines.push(`"STUDENT PERFORMANCE REPORT – TEXAGON ACADEMY"`);
+    lines.push(`"STUDENT PERFORMANCE REPORT - TEXAGON ACADEMY"`);
     lines.push(`"Generated:",${csvEsc(now)}`);
     lines.push(`"Test Title:",${csvEsc(testTitle)}`);
     lines.push(`"Test Date:",${csvEsc(testDate)}`);
@@ -2059,30 +2069,32 @@ export function TeacherCBTCreator() {
   /**
    * Bulk export: fetches ALL pages (respecting current filters) and writes
    * a single rich CSV with one row per student + a summary header.
+   * Pre-fetches ALL tests (unpaginated) into a Map so that every row
+   * can reliably resolve its test's date and duration.
    */
   const exportAllToCSV = async () => {
     setIsExportingCSV(true);
     try {
-      // Fetch all records (large limit to minimise requests)
-      const params = new URLSearchParams();
-      if (studentFilter) params.append("student_filter", studentFilter);
+      // 1. Fetch all performance records
+      const perfParams = new URLSearchParams();
+      if (studentFilter) perfParams.append("student_filter", studentFilter);
       if (selectedTestFilter && selectedTestFilter !== "all")
-        params.append("test_id", selectedTestFilter);
-      params.append("sort_field", sortField);
-      params.append("sort_order", sortOrder);
-      params.append("page", "1");
-      params.append("limit", "10000"); // pull everything
+        perfParams.append("test_id", selectedTestFilter);
+      perfParams.append("sort_field", sortField);
+      perfParams.append("sort_order", sortOrder);
+      perfParams.append("page", "1");
+      perfParams.append("limit", "10000");
 
-      const res = await fetch(
-        `/api/teacher/performance-list?${params.toString()}`
+      const perfRes = await fetch(
+        `/api/teacher/performance-list?${perfParams.toString()}`
       );
-      if (!res.ok) {
+      if (!perfRes.ok) {
         console.error("Failed to fetch all performances for CSV export");
         setIsExportingCSV(false);
         return;
       }
-      const data = await res.json();
-      const allPerformances: StudentPerformance[] = data.performances || [];
+      const perfData = await perfRes.json();
+      const allPerformances: StudentPerformance[] = perfData.performances || [];
 
       if (allPerformances.length === 0) {
         alert("No student records found with the current filters.");
@@ -2090,7 +2102,29 @@ export function TeacherCBTCreator() {
         return;
       }
 
-      // Calculate aggregate stats
+      // 2. Pre-fetch ALL tests (large limit) so we can resolve date/duration
+      //    for every row without relying on the paginated `tests` state.
+      const testRes = await fetch(
+        `/api/teacher/assessments/tests?page=1&limit=10000`
+      );
+      const testLookup = new Map<string, CBTTest>();
+      if (testRes.ok) {
+        const testData = await testRes.json();
+        (testData.tests || []).forEach((t: any) => {
+          testLookup.set(String(t.id), {
+            ...t,
+            duration: t.duration_minutes ?? t.duration ?? 0,
+            total_marks: Number(t.total_marks) || 0,
+            start_at: t.start_at || "",
+          } as CBTTest);
+        });
+      }
+      // Also seed from in-memory `tests` list as a fallback
+      tests.forEach((t) => {
+        if (!testLookup.has(String(t.id))) testLookup.set(String(t.id), t);
+      });
+
+      // 3. Calculate aggregate stats
       const totalStudents = allPerformances.length;
       const avgScore =
         allPerformances.reduce((s, p) => s + p.percentage, 0) / totalStudents;
@@ -2105,22 +2139,20 @@ export function TeacherCBTCreator() {
       const now = new Date().toLocaleString();
       const filterLabel =
         selectedTestFilter && selectedTestFilter !== "all"
-          ? tests.find((t) => t.id === selectedTestFilter)?.title ?? "Filtered"
+          ? (testLookup.get(selectedTestFilter)?.title ?? "Filtered Test")
           : "All Tests";
 
       const lines: string[] = [];
 
-      // ── Report header
-      lines.push(`"STUDENT SCORES EXPORT – TEXAGON ACADEMY"`);
+      // -- Report header
+      lines.push(`"STUDENT SCORES EXPORT - TEXAGON ACADEMY"`);
       lines.push(`"Generated:",${csvEsc(now)}`);
-      lines.push(`"Filter – Test:",${csvEsc(filterLabel)}`);
-      lines.push(
-        `"Filter – Student:",${csvEsc(studentFilter || "(none)")}`
-      );
+      lines.push(`"Filter - Test:",${csvEsc(filterLabel)}`);
+      lines.push(`"Filter - Student:",${csvEsc(studentFilter || "(none)")}`);
       lines.push(`"Sort By:",${csvEsc(sortField)} (${csvEsc(sortOrder)})`);
       lines.push("");
 
-      // ── Summary statistics
+      // -- Summary statistics
       lines.push(`"SUMMARY STATISTICS"`);
       lines.push(
         ["Total Students", "Passed", "Failed", "Pass Rate (%)", "Avg Score (%)", "Avg Completion (mins)"]
@@ -2141,7 +2173,7 @@ export function TeacherCBTCreator() {
       );
       lines.push("");
 
-      // ── Column headers for student rows
+      // -- Column headers
       lines.push(`"INDIVIDUAL STUDENT RESULTS"`);
       lines.push(
         [
@@ -2165,26 +2197,18 @@ export function TeacherCBTCreator() {
           .join(",")
       );
 
-      // ── One row per student
+      // -- One row per student
       allPerformances.forEach((p, idx) => {
-        const test = tests.find((t) => t.id === p.testId);
+        const test = testLookup.get(String(p.testId));
         const testTitle = test?.title ?? p.testTitle ?? "Unknown Test";
         const testDate = test?.start_at
           ? new Date(test.start_at).toLocaleDateString()
           : "N/A";
-        const duration = test?.duration ?? "N/A";
+        const duration = test?.duration != null ? test.duration : "N/A";
         const totalMarks = p.totalMarks || test?.total_marks || 0;
         const pct = p.percentage ?? 0;
         const grade =
-          pct >= 90
-            ? "A"
-            : pct >= 80
-            ? "B"
-            : pct >= 70
-            ? "C"
-            : pct >= 50
-            ? "D"
-            : "F";
+          pct >= 90 ? "A" : pct >= 80 ? "B" : pct >= 70 ? "C" : pct >= 50 ? "D" : "F";
 
         lines.push(
           [
@@ -2202,9 +2226,7 @@ export function TeacherCBTCreator() {
             grade,
             p.status,
             p.completionTime,
-            p.submittedAt
-              ? new Date(p.submittedAt).toLocaleString()
-              : "",
+            p.submittedAt ? new Date(p.submittedAt).toLocaleString() : "",
           ]
             .map(csvEsc)
             .join(",")

@@ -7,10 +7,10 @@ function safeJson(text: string) {
   try { return JSON.parse(text); } catch { return null; }
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   noStore();
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const page = searchParams.get("page") || "1";
     const page_size = searchParams.get("page_size") || "10";
