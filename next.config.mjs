@@ -1,5 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/login',
+        permanent: false,
+      },
+    ];
+  },
   output: "standalone",
   // basePath: "/texagon", // 👈 your repo name
   // assetPrefix: "/texagon/",

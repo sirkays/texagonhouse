@@ -19,6 +19,7 @@ import {
   Award,
   FileText,
   Puzzle, // ⬅️ NEW: icon for Scratch Studio (block-puzzle feel)
+  User, // For nickname modal
 } from "lucide-react";
 import {
   Sidebar,
@@ -36,6 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +53,7 @@ import { usePathname } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
 import { signOut, useSession } from "next-auth/react";
 import { useNotificationStore } from "../stores/notificationStore";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { StudentThemeProvider, useStudentTheme } from "@/components/student/useStudentTheme";
 import { CourseAccessProvider } from "@/providers/CourseAccessProvider";
 
@@ -200,12 +202,83 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
   const [isNavigating, setIsNavigating] = useState(false);
   const { theme } = useStudentTheme();
   const isAero = theme === "aero-premium";
+  const { update } = useSession();
+
+  // Nickname Modal State
+  // dismissedRef tracks whether the user has skipped the modal in this session.
+  // Using a ref (not state) so setting it never triggers a re-render / effect loop.
+  const dismissedRef = useRef(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [newNickname, setNewNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [nicknameLoading, setNicknameLoading] = useState(false);
 
   const isFullBleed = FULL_BLEED_ROUTES.some((p) => pathname?.startsWith(p));
 
   useEffect(() => {
     setIsNavigating(false);
   }, [pathname]);
+
+  // Single effect that decides whether to show the nickname modal.
+  // We only depend on `status` and `session` — NOT on `showNicknameModal`,
+  // so clicking Skip (which sets showNicknameModal=false) never re-triggers this.
+  useEffect(() => {
+    if (status !== "authenticated" || session?.user?.role !== "student") return;
+    const hasNickname = (session.user as any).hasNickname;
+    if (hasNickname) return; // already has a nickname — never show
+
+    // Check sessionStorage once (synchronous, no race condition)
+    if (!dismissedRef.current && typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("nicknameModalDismissed");
+      if (stored === "true") {
+        dismissedRef.current = true;
+      }
+    }
+
+    if (!dismissedRef.current) {
+      setShowNicknameModal(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session]);
+
+  const handleNicknameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNickname.trim()) return;
+
+    setNicknameLoading(true);
+    setNicknameError("");
+
+    try {
+      const response = await fetch("/api/set-nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: newNickname }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to set nickname");
+      }
+
+      setShowNicknameModal(false);
+      await update({ nickname: newNickname, hasNickname: true });
+    } catch (err: any) {
+      setNicknameError(err.message || "An error occurred");
+    } finally {
+      setNicknameLoading(false);
+    }
+  };
+
+  const handleSkipNickname = () => {
+    // Mark as dismissed synchronously BEFORE hiding the modal,
+    // so any subsequent effect run sees dismissedRef.current = true.
+    dismissedRef.current = true;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("nicknameModalDismissed", "true");
+    }
+    setShowNicknameModal(false);
+  };
 
   if (status === "loading") {
     return (
@@ -376,6 +449,70 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </div>
+
+        {showNicknameModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <div className="bg-white p-8 rounded-2xl max-w-md w-full shadow-2xl border border-orange-100 animate-in fade-in zoom-in duration-300">
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                  <User className="text-orange-600 w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Choose a Nickname</h2>
+                <p className="text-gray-500 mt-2">
+                  You haven't set up a unique nickname yet. Setting one up allows you to log in easily without typing your full email!
+                </p>
+              </div>
+
+              <form onSubmit={handleNicknameSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Unique Nickname
+                  </label>
+                  <Input
+                    type="text"
+                    value={newNickname}
+                    onChange={(e) => setNewNickname(e.target.value.replace(/\s/g, ""))}
+                    placeholder="e.g. techwiz_24"
+                    className="h-12 border-gray-300 focus:ring-orange-500 focus:border-orange-500 rounded-xl"
+                    required
+                    disabled={nicknameLoading}
+                    autoFocus
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">
+                    No spaces allowed • Min 3 characters
+                  </p>
+                </div>
+
+                {nicknameError && (
+                  <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg">
+                    {nicknameError}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 pt-2">
+                  <Button
+                    type="submit"
+                    variant="gradient"
+                    className="h-12 text-lg font-bold shadow-lg shadow-orange-200"
+                    disabled={nicknameLoading || newNickname.length < 3}>
+                    {nicknameLoading ? (
+                      <Spinner size="sm" className="text-white" />
+                    ) : (
+                      "Save & Continue"
+                    )}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={handleSkipNickname}
+                    className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors py-2"
+                    disabled={nicknameLoading}>
+                    I'll do it later
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </LoadingContext.Provider>
     </SidebarProvider>
   );

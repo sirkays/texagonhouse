@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function ChangePassword() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   const [email, setEmail] = useState<string>("");
@@ -140,6 +140,8 @@ export default function ChangePassword() {
       }
 
       // Normal success redirect
+      await update({ isGenerated: false });
+
       if (session.user.role == "student") {
         router.push("/student");
       } else if (session.user.role == "parent") {

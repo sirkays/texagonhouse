@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+import { normalizeMedia } from "@/lib/utils";
 
 export async function PUT(
   req: Request,
@@ -114,6 +115,7 @@ export async function PUT(
                   : q.type === "true-false"
                   ? false
                   : ""),
+              image: q.image ? normalizeMedia(q.image) : null,
             }))
           : [],
       },

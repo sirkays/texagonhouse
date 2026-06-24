@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+import { normalizeMedia } from "@/lib/utils";
 
 export async function GET(
   req: Request,
@@ -106,6 +107,7 @@ export async function GET(
                   : q.type === "short-answer"
                   ? ""
                   : ""),
+              image: q.image ? normalizeMedia(q.image) : null,
             }))
           : [],
       },

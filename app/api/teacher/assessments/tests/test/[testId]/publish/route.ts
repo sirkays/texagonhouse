@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+import { normalizeMedia } from "@/lib/utils";
 
 function safeJsonParse<T = unknown>(text: string): T | null {
   try {
@@ -189,6 +190,7 @@ export async function POST(
                     : q?.type === "short-answer"
                     ? ""
                     : ""),
+                image: q?.image ? normalizeMedia(q.image) : null,
               }))
             : [],
         }),

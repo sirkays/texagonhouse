@@ -30,6 +30,11 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  UserMinus,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Info,
 } from "lucide-react";
 import { StudentModal } from "@/components/admin/modals/student-modal";
 import { DeleteConfirmationModal } from "@/components/admin/modals/delete-confirmation-modal";
@@ -45,6 +50,30 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+interface DeEnrollDetail {
+  student_id: number;
+  name: string | null;
+  status: "de_enrolled" | "blocked" | "not_found" | "not_enrolled";
+  reasons: string[];
+}
+
+interface DeEnrollResult {
+  course_name: string;
+  de_enrolled: number;
+  blocked: number;
+  not_enrolled: number;
+  not_found: number;
+  details: DeEnrollDetail[];
+}
 
 export default function StudentsPage() {
   const { toast } = useToast();
@@ -75,6 +104,17 @@ export default function StudentsPage() {
   const [assignMode, setAssignMode] = useState<"selected" | "classroom">("selected");
   const [assignClassroomId, setAssignClassroomId] = useState<string>("");
 
+  // ── de-enroll panel state ───────────────────────────────────
+  const [showDeEnrollPanel, setShowDeEnrollPanel] = useState(false);
+  const [deEnrollMode, setDeEnrollMode] = useState<"selected" | "classroom">("selected");
+  const [allCourses, setAllCourses] = useState<any[]>([]);
+  const [isLoadingAllCourses, setIsLoadingAllCourses] = useState(false);
+  const [deEnrollCourseId, setDeEnrollCourseId] = useState<string>("");
+  const [deEnrollClassroomId, setDeEnrollClassroomId] = useState<string>("");
+  const [isDeEnrolling, setIsDeEnrolling] = useState(false);
+  const [deEnrollResults, setDeEnrollResults] = useState<DeEnrollResult | null>(null);
+  const [showDeEnrollResults, setShowDeEnrollResults] = useState(false);
+
   /* ── debounce ── */
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -84,7 +124,7 @@ export default function StudentsPage() {
   useEffect(() => { fetchClassrooms(); }, []);
   useEffect(() => { loadStudents(); }, [debouncedSearch, filterClassroom, filterStatus]);
 
-  // clear selections when panel closes
+  // clear selections when assign panel closes
   useEffect(() => {
     if (!showAssignPanel) {
       setSelectedStudentIds(new Set());
@@ -94,10 +134,35 @@ export default function StudentsPage() {
     }
   }, [showAssignPanel]);
 
-  // load public courses when panel opens
+  // clear selections when de-enroll panel closes
+  useEffect(() => {
+    if (!showDeEnrollPanel) {
+      setSelectedStudentIds(new Set());
+      setDeEnrollCourseId("");
+      setDeEnrollMode("selected");
+      setDeEnrollClassroomId("");
+    }
+  }, [showDeEnrollPanel]);
+
+  // load public courses when assign panel opens
   useEffect(() => {
     if (showAssignPanel && publicCourses.length === 0) loadPublicCourses();
   }, [showAssignPanel]);
+
+  // load all courses when de-enroll panel opens
+  useEffect(() => {
+    if (showDeEnrollPanel && allCourses.length === 0) loadAllCourses();
+  }, [showDeEnrollPanel]);
+
+  // only one panel open at a time
+  const openAssignPanel = () => {
+    setShowDeEnrollPanel(false);
+    setShowAssignPanel(v => !v);
+  };
+  const openDeEnrollPanel = () => {
+    setShowAssignPanel(false);
+    setShowDeEnrollPanel(v => !v);
+  };
 
   /* ── API helpers ── */
   const fetchStudents = async (q: string, classroom: string, status: string) => {
@@ -131,13 +196,27 @@ export default function StudentsPage() {
       const res = await fetch("/api/admin/courses?course_type=public");
       if (!res.ok) throw new Error("Failed to load courses");
       const data = await res.json();
-      // accept array or paginated {results:[...]}
       const courses = Array.isArray(data) ? data : (data.results ?? []);
       setPublicCourses(courses.filter((c: any) => c.course_type === "public" || !c.course_type));
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setIsLoadingCourses(false);
+    }
+  };
+
+  const loadAllCourses = async () => {
+    setIsLoadingAllCourses(true);
+    try {
+      const res = await fetch("/api/admin/courses");
+      if (!res.ok) throw new Error("Failed to load courses");
+      const data = await res.json();
+      const courses = Array.isArray(data) ? data : (data.results ?? []);
+      setAllCourses(courses);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setIsLoadingAllCourses(false);
     }
   };
 
@@ -271,6 +350,53 @@ export default function StudentsPage() {
     }
   };
 
+  /* ── de-enroll ── */
+  const handleDeEnroll = async () => {
+    if (!deEnrollCourseId) {
+      toast({ title: "Select a course", description: "Please choose a course first.", variant: "destructive" });
+      return;
+    }
+    setIsDeEnrolling(true);
+    try {
+      let res: Response;
+      if (deEnrollMode === "classroom") {
+        if (!deEnrollClassroomId) {
+          toast({ title: "Select a classroom", description: "Please choose a classroom.", variant: "destructive" });
+          setIsDeEnrolling(false);
+          return;
+        }
+        res = await fetch(`/api/admin/courses/${deEnrollCourseId}/de-enroll-classroom`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ classroom_id: parseInt(deEnrollClassroomId) }),
+        });
+      } else {
+        if (selectedStudentIds.size === 0) {
+          toast({ title: "No students selected", description: "Check at least one student.", variant: "destructive" });
+          setIsDeEnrolling(false);
+          return;
+        }
+        res = await fetch(`/api/admin/courses/${deEnrollCourseId}/bulk-de-enroll`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ student_ids: Array.from(selectedStudentIds) }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "De-enrollment failed");
+
+      setDeEnrollResults(data as DeEnrollResult);
+      setShowDeEnrollResults(true);
+      // Reload student list in case enrollments changed
+      loadStudents();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setIsDeEnrolling(false);
+    }
+  };
+
   /* ── skeleton ── */
   function StudentRowSkeleton() {
     return (
@@ -291,6 +417,100 @@ export default function StudentsPage() {
     );
   }
 
+  /* ── De-Enroll Results Modal ── */
+  function DeEnrollResultsModal() {
+    if (!deEnrollResults) return null;
+    const { course_name, de_enrolled, blocked, not_enrolled, not_found, details } = deEnrollResults;
+    return (
+      <Dialog open={showDeEnrollResults} onOpenChange={setShowDeEnrollResults}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserMinus className="h-5 w-5 text-orange-500" />
+              De-Enrollment Results — {course_name}
+            </DialogTitle>
+            <DialogDescription>
+              Summary of the de-enrollment operation.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Summary badges */}
+          <div className="flex flex-wrap gap-3 py-2">
+            <div className="flex items-center gap-1.5 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 px-3 py-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-semibold text-green-700 dark:text-green-400">{de_enrolled} de-enrolled</span>
+            </div>
+            {blocked > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">{blocked} blocked</span>
+              </div>
+            )}
+            {not_enrolled > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-3 py-2">
+                <Info className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">{not_enrolled} not enrolled</span>
+              </div>
+            )}
+            {not_found > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 px-3 py-2">
+                <XCircle className="h-4 w-4 text-red-600" />
+                <span className="text-sm font-semibold text-red-700 dark:text-red-400">{not_found} not found</span>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Detail rows */}
+          <div className="space-y-2">
+            {details.map((d, i) => (
+              <div
+                key={i}
+                className={`flex items-start justify-between gap-3 p-3 rounded-lg border text-sm ${
+                  d.status === "de_enrolled"
+                    ? "bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800"
+                    : d.status === "blocked"
+                    ? "bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800"
+                    : d.status === "not_enrolled"
+                    ? "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800"
+                    : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {d.status === "de_enrolled" && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
+                  {d.status === "blocked" && <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />}
+                  {d.status === "not_enrolled" && <Info className="h-4 w-4 text-blue-600 shrink-0" />}
+                  {d.status === "not_found" && <XCircle className="h-4 w-4 text-red-600 shrink-0" />}
+                  <span className="font-medium truncate">{d.name || `Student #${d.student_id}`}</span>
+                </div>
+                <div className="text-right shrink-0">
+                  {d.status === "de_enrolled" && <span className="text-green-700 dark:text-green-400 font-medium">De-enrolled</span>}
+                  {d.status === "not_enrolled" && <span className="text-blue-700 dark:text-blue-400">Not enrolled</span>}
+                  {d.status === "not_found" && <span className="text-red-700 dark:text-red-400">Not found</span>}
+                  {d.status === "blocked" && (
+                    <div className="text-orange-700 dark:text-orange-400">
+                      <p className="font-medium">Blocked</p>
+                      {d.reasons.map((r, ri) => (
+                        <p key={ri} className="text-xs opacity-80">• {r}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2">
+            <Button className="w-full" onClick={() => { setShowDeEnrollResults(false); setShowDeEnrollPanel(false); }}>
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   /* ── UI ── */
   return (
     <>
@@ -308,11 +528,20 @@ export default function StudentsPage() {
             <Button
               variant={showAssignPanel ? "secondary" : "outline"}
               className="w-full sm:w-auto"
-              onClick={() => setShowAssignPanel(v => !v)}
+              onClick={openAssignPanel}
             >
               <BookOpen className="mr-2 h-4 w-4" />
               {showAssignPanel ? "Hide Assign Panel" : "Assign Course"}
               {showAssignPanel ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
+            </Button>
+            <Button
+              variant={showDeEnrollPanel ? "destructive" : "outline"}
+              className="w-full sm:w-auto"
+              onClick={openDeEnrollPanel}
+            >
+              <UserMinus className="mr-2 h-4 w-4" />
+              {showDeEnrollPanel ? "Hide De-enroll Panel" : "De-enroll from Course"}
+              {showDeEnrollPanel ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
             </Button>
             <Button className="w-full sm:w-auto" onClick={() => setIsAddModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />Add Student
@@ -469,6 +698,131 @@ export default function StudentsPage() {
           </Card>
         )}
 
+        {/* ── De-Enroll Panel ───────────────────────────────── */}
+        {showDeEnrollPanel && (
+          <Card className="border-destructive/40 bg-destructive/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <UserMinus className="h-4 w-4 text-destructive" />
+                    De-enroll from Course
+                  </CardTitle>
+                  <CardDescription className="mt-0.5">
+                    Remove students from a course. Blocked if they have CBT, assignment, or code submissions.
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowDeEnrollPanel(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Warning note */}
+              <div className="flex items-start gap-2 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 px-3 py-2.5">
+                <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-orange-700 dark:text-orange-400">
+                  Students who have submitted a CBT test, assignment, or code project for this course will be <strong>blocked</strong> from de-enrollment.
+                </p>
+              </div>
+
+              {/* Mode tabs */}
+              <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+                <button
+                  className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${deEnrollMode === "selected" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setDeEnrollMode("selected")}
+                >
+                  <CheckSquare className="inline h-3.5 w-3.5 mr-1.5" />Selected Students
+                </button>
+                <button
+                  className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${deEnrollMode === "classroom" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setDeEnrollMode("classroom")}
+                >
+                  <Users className="inline h-3.5 w-3.5 mr-1.5" />Entire Classroom
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                {/* Course picker */}
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-sm font-medium">Course</label>
+                  <Select value={deEnrollCourseId} onValueChange={setDeEnrollCourseId} disabled={isLoadingAllCourses}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isLoadingAllCourses ? "Loading courses…" : "Select a course"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allCourses.length === 0 && !isLoadingAllCourses && (
+                        <div className="p-3 text-sm text-muted-foreground text-center">No courses found</div>
+                      )}
+                      {allCourses.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name} {c.subject ? `— ${c.subject}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Classroom picker (classroom mode) */}
+                {deEnrollMode === "classroom" && (
+                  <div className="flex-1 space-y-1.5">
+                    <label className="text-sm font-medium">Classroom</label>
+                    <Select value={deEnrollClassroomId} onValueChange={setDeEnrollClassroomId}>
+                      <SelectTrigger><SelectValue placeholder="Select classroom" /></SelectTrigger>
+                      <SelectContent>
+                        {classrooms.map(c => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <Button
+                  variant="destructive"
+                  onClick={handleDeEnroll}
+                  disabled={
+                    isDeEnrolling ||
+                    !deEnrollCourseId ||
+                    (deEnrollMode === "selected" && selectedStudentIds.size === 0) ||
+                    (deEnrollMode === "classroom" && !deEnrollClassroomId)
+                  }
+                  className="sm:self-end"
+                >
+                  {isDeEnrolling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserMinus className="mr-2 h-4 w-4" />}
+                  {isDeEnrolling ? "Processing…" : "De-enroll"}
+                </Button>
+              </div>
+
+              {/* Selection status (selected mode) */}
+              {deEnrollMode === "selected" && (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground pt-1">
+                  <span className="font-medium text-foreground">{selectedStudentIds.size}</span> student{selectedStudentIds.size !== 1 ? "s" : ""} selected
+                  {selectedStudentIds.size > 0 && (
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={clearSelection}>
+                      <X className="h-3 w-3 mr-1" />Clear
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={selectAllVisible}>
+                    <CheckSquare className="h-3 w-3 mr-1" />Select all visible ({students.length})
+                  </Button>
+                  {filterClassroom !== "all" && (
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => selectAllInClassroom(filterClassroom)}>
+                      <Users className="h-3 w-3 mr-1" />Select all in "{filterClassroom}"
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {deEnrollMode === "classroom" && (
+                <p className="text-sm text-muted-foreground">
+                  All students in the selected classroom will be processed. Students with existing submissions will be skipped and shown in the results.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Students */}
         <Card>
           <CardHeader>
@@ -481,10 +835,15 @@ export default function StudentsPage() {
               students.map(student => (
                 <div
                   key={student.id}
-                  className={`grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-3 p-4 border rounded-lg items-center bg-card text-card-foreground shadow-sm w-full max-w-full transition-colors ${showAssignPanel && assignMode === "selected" && selectedStudentIds.has(student.id) ? "border-primary/60 bg-primary/5" : ""}`}
+                  className={`grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-3 p-4 border rounded-lg items-center bg-card text-card-foreground shadow-sm w-full max-w-full transition-colors ${
+                    (showAssignPanel && assignMode === "selected" && selectedStudentIds.has(student.id)) ||
+                    (showDeEnrollPanel && deEnrollMode === "selected" && selectedStudentIds.has(student.id))
+                      ? "border-primary/60 bg-primary/5"
+                      : ""
+                  }`}
                 >
-                  {/* Checkbox (only in assign-selected mode) */}
-                  {showAssignPanel && assignMode === "selected" && (
+                  {/* Checkbox (shown in assign-selected or de-enroll-selected mode) */}
+                  {((showAssignPanel && assignMode === "selected") || (showDeEnrollPanel && deEnrollMode === "selected")) && (
                     <Checkbox
                       id={`select-student-${student.id}`}
                       checked={selectedStudentIds.has(student.id)}
@@ -546,6 +905,7 @@ export default function StudentsPage() {
         onConfirm={handleDeleteStudent}
         loading={isDeleting}
       />
+      <DeEnrollResultsModal />
     </>
   );
 }

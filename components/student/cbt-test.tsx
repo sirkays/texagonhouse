@@ -203,6 +203,7 @@ const mapQuestions = (list: any[]) =>
           text: c.text,
         })),
     points: q.points,
+    image: q.image || null,
   }));
 
 function buildAnswersPayload(questions: any[], answers: Record<number, any>): any[] {
@@ -2622,6 +2623,16 @@ export function CBTTest() {
 
               <CardContent className="space-y-6">
                 <p className="text-lg">{currentQ?.question}</p>
+
+                {currentQ?.image && (
+                  <div className="relative w-full max-w-xl h-64 border border-slate-200/40 rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center p-2">
+                    <img
+                      src={currentQ.image}
+                      alt="Question illustration"
+                      className="max-h-full max-w-full object-contain rounded-lg"
+                    />
+                  </div>
+                )}
 
                 {currentQ?.type === "single-choice" ||
                   currentQ?.type === "true-false" ? (

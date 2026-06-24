@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+import { normalizeMedia } from "@/lib/utils";
 
 export async function POST(
   req: Request,
@@ -122,6 +123,7 @@ export async function POST(
                   : q.type === "true-false"
                   ? false
                   : ""),
+              image: q.image ? normalizeMedia(q.image) : null,
             }))
           : [],
       },
@@ -304,6 +306,7 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
                     : q.type === "true-false"
                     ? false
                     : ""),
+                image: q.image ? normalizeMedia(q.image) : null,
               }))
             : [],
         },
@@ -326,6 +329,7 @@ export async function PUT(req: Request, { params }: { params: { path: string[] }
               : data.question?.type === "true-false"
               ? false
               : ""),
+          image: data.question?.image ? normalizeMedia(data.question.image) : null,
         },
         message: data.message || "Question updated successfully.",
       };

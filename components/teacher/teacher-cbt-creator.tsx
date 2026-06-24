@@ -55,6 +55,8 @@ import {
   ClipboardList,
   BarChart3,
   GraduationCap,
+  Download,
+  FileDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -117,6 +119,7 @@ interface Question {
   points: number;
   explanation?: string;
   difficulty?: "Easy" | "Medium" | "Hard";
+  image?: string | File | null;
 }
 interface Course {
   id: number;
@@ -536,6 +539,7 @@ export function TeacherCBTCreator() {
     useState<PerformanceSummary | null>(null);
   const [loadingPerformances, setLoadingPerformances] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
   // --- Excel: columns we support ---
   type ExcelRow = {
     type?: string;
@@ -1498,24 +1502,33 @@ export function TeacherCBTCreator() {
           questionEndpoint = `/api/teacher/assessments/tests/test/${updatedTestId}/questions/${question.id}/update`;
           questionMethod = "PUT";
         }
+        const formData = new FormData();
+        formData.append("type", question.type);
+        formData.append("question", question.question);
+        formData.append("options", JSON.stringify(question.options || []));
+
+        let correctAnswer = "";
+        if (question.type === "single-choice") {
+          correctAnswer = (Number(question.correctAnswer) || 0).toString();
+        } else if (question.type === "true-false") {
+          correctAnswer = (question.correctAnswer === "true" || question.correctAnswer === true).toString();
+        } else {
+          correctAnswer = (question.correctAnswer as string)?.toString() || "";
+        }
+        formData.append("correctAnswer", correctAnswer);
+        formData.append("points", question.points.toString());
+        formData.append("explanation", question.explanation || "");
+        formData.append("difficulty", question.difficulty || "Medium");
+
+        if (question.image instanceof File) {
+          formData.append("image", question.image);
+        } else if (question.image === null) {
+          formData.append("clear_image", "true");
+        }
+
         const questionResponse = await fetch(questionEndpoint, {
           method: questionMethod,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: question.type,
-            question: question.question,
-            options: question.options || [],
-            correctAnswer:
-              question.type === "single-choice"
-                ? Number(question.correctAnswer) || 0
-                : question.type === "true-false"
-                  ? question.correctAnswer === "true" ||
-                  question.correctAnswer === true
-                  : (question.correctAnswer as string)?.toString() || "",
-            points: question.points,
-            explanation: question.explanation || "",
-            difficulty: question.difficulty || "Medium",
-          }),
+          body: formData,
         });
         if (!questionResponse.ok) {
           const questionData = await questionResponse.json();
@@ -1530,6 +1543,7 @@ export function TeacherCBTCreator() {
             ...question,
             id: questionData.question.id,
             correctAnswer: questionData.question.correctAnswer,
+            image: questionData.question.image,
           };
         }
       }
@@ -1932,24 +1946,286 @@ export function TeacherCBTCreator() {
   const handlePerformancePageChange = (newPage: number) => {
     setPerformancePagination((prev) => ({ ...prev, page: newPage }));
   };
+  /** ── CSV helpers ─────────────────────────────────────────────────── */
+  /** Escape a value for CSV: wrap in quotes, double-up internal quotes */
+  const csvEsc = (val: any) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+
+  /**
+   * Export a SINGLE student's performance as a rich CSV.
+   * Sections: metadata, summary row, then per-question answer breakdown.
+   */
   const exportToCSV = (performance: StudentPerformance) => {
     const test = tests.find((t) => t.id === performance.testId);
-    if (!test) return;
-    let csvContent =
-      "Student Name,Student ID,Email,Class,Test Title,Date,Duration,Total Questions,Passing Score,Total Score,Percentage,Status\n";
-    csvContent += `"${performance.studentName}","${performance.studentId}","${performance.email
-      }","${performance.classGrade}","${test.title}","${test.start_at ? new Date(test.start_at).toLocaleDateString() : "N/A"
-      }","${test.duration} minutes",${test.questionsCount},${(test.total_marks || 0) * 0.7
-      },${performance.score},${performance.percentage},"${performance.status
-      }"\n\n`;
-    csvContent += "Question,Selected Option,Correct Option,Status\n";
-    (performance.answers || []).forEach((answer: any) => {
-      csvContent += `"${String(answer.question || "").replace(/"/g, '""')}","${answer.selected ?? ""
-        }","${answer.correct ?? ""}","${answer.status ?? ""}"\n`;
+    const testTitle = test?.title ?? performance.testTitle ?? "Unknown Test";
+    const testDate = test?.start_at
+      ? new Date(test.start_at).toLocaleDateString()
+      : "N/A";
+    const duration = test ? `${test.duration} min` : "N/A";
+    const totalQuestions = test?.questionsCount ?? "N/A";
+    const totalMarks = performance.totalMarks || test?.total_marks || 0;
+    const passingScore =
+      totalMarks > 0 ? `${((totalMarks * 0.5) as number).toFixed(1)}` : "N/A";
+
+    const now = new Date().toLocaleString();
+    const grade = performance.percentage >= 70
+      ? performance.percentage >= 80
+        ? performance.percentage >= 90 ? "A" : "B"
+        : "C"
+      : performance.percentage >= 50 ? "D" : "F";
+
+    const lines: string[] = [];
+
+    // ── Section 1: Report metadata
+    lines.push(`"STUDENT PERFORMANCE REPORT – TEXAGON ACADEMY"`);
+    lines.push(`"Generated:",${csvEsc(now)}`);
+    lines.push(`"Test Title:",${csvEsc(testTitle)}`);
+    lines.push(`"Test Date:",${csvEsc(testDate)}`);
+    lines.push(`"Duration:",${csvEsc(duration)}`);
+    lines.push(`"Total Questions:",${csvEsc(totalQuestions)}`);
+    lines.push(`"Total Marks:",${csvEsc(totalMarks)}`);
+    lines.push(`"Passing Score (50%):",${csvEsc(passingScore)}`);
+    lines.push("");
+
+    // ── Section 2: Student summary
+    lines.push(
+      [
+        "Student Name",
+        "Student ID",
+        "Email",
+        "Class / Grade",
+        "Score",
+        "Total Marks",
+        "Percentage (%)",
+        "Grade",
+        "Status",
+        "Completion Time (mins)",
+        "Submitted At",
+      ]
+        .map(csvEsc)
+        .join(",")
+    );
+    lines.push(
+      [
+        performance.studentName,
+        performance.studentId,
+        performance.email,
+        performance.classGrade,
+        performance.score,
+        totalMarks,
+        `${performance.percentage.toFixed(2)}%`,
+        grade,
+        performance.status,
+        performance.completionTime,
+        performance.submittedAt
+          ? new Date(performance.submittedAt).toLocaleString()
+          : "",
+      ]
+        .map(csvEsc)
+        .join(",")
+    );
+    lines.push("");
+
+    // ── Section 3: Answer breakdown
+    if (performance.answers && performance.answers.length > 0) {
+      lines.push(`"ANSWER BREAKDOWN"`);
+      lines.push(
+        ["#", "Question", "Student's Answer", "Correct Answer", "Result"]
+          .map(csvEsc)
+          .join(",")
+      );
+      performance.answers.forEach((ans: any, i: number) => {
+        lines.push(
+          [
+            i + 1,
+            ans.question ?? "",
+            ans.selected ?? "",
+            ans.correct ?? "",
+            ans.status ?? "",
+          ]
+            .map(csvEsc)
+            .join(",")
+        );
+      });
+    }
+
+    const blob = new Blob(["\uFEFF", lines.join("\n")], {
+      type: "text/csv;charset=utf-8;",
     });
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `${performance.studentName}_${test.title}_performance.csv`);
+    const safeName = performance.studentName.replace(/[^a-z0-9]/gi, "_");
+    const safeTest = testTitle.replace(/[^a-z0-9]/gi, "_");
+    saveAs(blob, `${safeName}_${safeTest}_performance.csv`);
   };
+
+  /**
+   * Bulk export: fetches ALL pages (respecting current filters) and writes
+   * a single rich CSV with one row per student + a summary header.
+   */
+  const exportAllToCSV = async () => {
+    setIsExportingCSV(true);
+    try {
+      // Fetch all records (large limit to minimise requests)
+      const params = new URLSearchParams();
+      if (studentFilter) params.append("student_filter", studentFilter);
+      if (selectedTestFilter && selectedTestFilter !== "all")
+        params.append("test_id", selectedTestFilter);
+      params.append("sort_field", sortField);
+      params.append("sort_order", sortOrder);
+      params.append("page", "1");
+      params.append("limit", "10000"); // pull everything
+
+      const res = await fetch(
+        `/api/teacher/performance-list?${params.toString()}`
+      );
+      if (!res.ok) {
+        console.error("Failed to fetch all performances for CSV export");
+        setIsExportingCSV(false);
+        return;
+      }
+      const data = await res.json();
+      const allPerformances: StudentPerformance[] = data.performances || [];
+
+      if (allPerformances.length === 0) {
+        alert("No student records found with the current filters.");
+        setIsExportingCSV(false);
+        return;
+      }
+
+      // Calculate aggregate stats
+      const totalStudents = allPerformances.length;
+      const avgScore =
+        allPerformances.reduce((s, p) => s + p.percentage, 0) / totalStudents;
+      const passed = allPerformances.filter(
+        (p) => p.status === "Passed"
+      ).length;
+      const passRate = ((passed / totalStudents) * 100).toFixed(2);
+      const avgTime =
+        allPerformances.reduce((s, p) => s + p.completionTime, 0) /
+        totalStudents;
+
+      const now = new Date().toLocaleString();
+      const filterLabel =
+        selectedTestFilter && selectedTestFilter !== "all"
+          ? tests.find((t) => t.id === selectedTestFilter)?.title ?? "Filtered"
+          : "All Tests";
+
+      const lines: string[] = [];
+
+      // ── Report header
+      lines.push(`"STUDENT SCORES EXPORT – TEXAGON ACADEMY"`);
+      lines.push(`"Generated:",${csvEsc(now)}`);
+      lines.push(`"Filter – Test:",${csvEsc(filterLabel)}`);
+      lines.push(
+        `"Filter – Student:",${csvEsc(studentFilter || "(none)")}`
+      );
+      lines.push(`"Sort By:",${csvEsc(sortField)} (${csvEsc(sortOrder)})`);
+      lines.push("");
+
+      // ── Summary statistics
+      lines.push(`"SUMMARY STATISTICS"`);
+      lines.push(
+        ["Total Students", "Passed", "Failed", "Pass Rate (%)", "Avg Score (%)", "Avg Completion (mins)"]
+          .map(csvEsc)
+          .join(",")
+      );
+      lines.push(
+        [
+          totalStudents,
+          passed,
+          totalStudents - passed,
+          `${passRate}%`,
+          `${avgScore.toFixed(2)}%`,
+          `${avgTime.toFixed(1)}`,
+        ]
+          .map(csvEsc)
+          .join(",")
+      );
+      lines.push("");
+
+      // ── Column headers for student rows
+      lines.push(`"INDIVIDUAL STUDENT RESULTS"`);
+      lines.push(
+        [
+          "#",
+          "Student Name",
+          "Student ID",
+          "Email",
+          "Class / Grade",
+          "Test Title",
+          "Test Date",
+          "Duration (mins)",
+          "Score",
+          "Total Marks",
+          "Percentage (%)",
+          "Grade",
+          "Status",
+          "Completion Time (mins)",
+          "Submitted At",
+        ]
+          .map(csvEsc)
+          .join(",")
+      );
+
+      // ── One row per student
+      allPerformances.forEach((p, idx) => {
+        const test = tests.find((t) => t.id === p.testId);
+        const testTitle = test?.title ?? p.testTitle ?? "Unknown Test";
+        const testDate = test?.start_at
+          ? new Date(test.start_at).toLocaleDateString()
+          : "N/A";
+        const duration = test?.duration ?? "N/A";
+        const totalMarks = p.totalMarks || test?.total_marks || 0;
+        const pct = p.percentage ?? 0;
+        const grade =
+          pct >= 90
+            ? "A"
+            : pct >= 80
+            ? "B"
+            : pct >= 70
+            ? "C"
+            : pct >= 50
+            ? "D"
+            : "F";
+
+        lines.push(
+          [
+            idx + 1,
+            p.studentName,
+            p.studentId,
+            p.email,
+            p.classGrade,
+            testTitle,
+            testDate,
+            duration,
+            p.score,
+            totalMarks,
+            `${pct.toFixed(2)}%`,
+            grade,
+            p.status,
+            p.completionTime,
+            p.submittedAt
+              ? new Date(p.submittedAt).toLocaleString()
+              : "",
+          ]
+            .map(csvEsc)
+            .join(",")
+        );
+      });
+
+      const dateTag = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 16);
+      const blob = new Blob(["\uFEFF", lines.join("\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      saveAs(blob, `student_scores_export_${dateTag}.csv`);
+    } catch (err) {
+      console.error("CSV export error:", err);
+    } finally {
+      setIsExportingCSV(false);
+    }
+  };
+
   const exportToPDF = (performance: StudentPerformance) => {
     const test = tests.find((t) => t.id === performance.testId);
     if (!test) return;
@@ -2617,6 +2893,50 @@ export function TeacherCBTCreator() {
                           <Maximize className="h-4 w-4" />
                         </Button>
                       </div>
+                      <div className="space-y-2">
+                        <Label>Question Image (Optional)</Label>
+                        {editingQuestion.image ? (
+                          <div className="space-y-2">
+                            <div className="relative w-full max-w-xs h-40 border border-slate-200/40 rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center p-2">
+                              <img
+                                src={
+                                  editingQuestion.image instanceof File
+                                    ? URL.createObjectURL(editingQuestion.image)
+                                    : editingQuestion.image
+                                }
+                                alt="Question preview"
+                                className="max-h-full max-w-full object-contain rounded-lg"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-2 right-2 h-7 w-7 rounded-lg"
+                                onClick={() => {
+                                  updateQuestion(editingQuestion.id, { image: null });
+                                }}
+                                disabled={isSaving}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  updateQuestion(editingQuestion.id, { image: file });
+                                }
+                              }}
+                              disabled={isSaving}
+                              className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                            />
+                          </div>
+                        )}
+                      </div>
                       {editingQuestion.type === "single-choice" && (
                         <div className="space-y-3">
                           <Label>Answer Options</Label>
@@ -3025,11 +3345,31 @@ export function TeacherCBTCreator() {
           </TabsContent>
           {/* ----------------------- Student Performance ------------------------ */}
           <TabsContent value="student-performance" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold">Student Performance</h2>
-              <p className="text-muted-foreground">
-                View individual student performance across tests
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">Student Performance</h2>
+                <p className="text-muted-foreground">
+                  View individual student performance across tests
+                </p>
+              </div>
+              <Button
+                id="export-all-csv-btn"
+                onClick={exportAllToCSV}
+                disabled={isExportingCSV || loadingPerformances}
+                className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap"
+              >
+                {isExportingCSV ? (
+                  <>
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                    Exporting…
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    Export All to CSV
+                  </>
+                )}
+              </Button>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <div className="flex-1 w-full sm:w-auto">
@@ -3187,7 +3527,19 @@ export function TeacherCBTCreator() {
                                 ).toLocaleString()}
                               </span>
                             </div>
-                            <div className="flex justify-end pt-3">
+                            <div className="flex justify-end gap-2 pt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  exportToCSV(performance);
+                                }}
+                                title="Download CSV for this student"
+                              >
+                                <FileDown className="h-4 w-4 mr-1" />
+                                CSV
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -3288,17 +3640,31 @@ export function TeacherCBTCreator() {
                                 })}
                               </TableCell>
                               <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    router.push(
-                                      `/teacher/student-performance/${performance.id}`,
-                                    );
-                                  }}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      exportToCSV(performance);
+                                    }}
+                                    title="Download CSV for this student"
+                                    className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  >
+                                    <FileDown className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      router.push(
+                                        `/teacher/student-performance/${performance.id}`,
+                                      );
+                                    }}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}

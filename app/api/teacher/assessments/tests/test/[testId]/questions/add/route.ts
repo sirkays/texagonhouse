@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+import { normalizeMedia } from "@/lib/utils";
 
 const NO_STORE_HEADERS = {
   "Content-Type": "application/json",
@@ -25,33 +26,60 @@ export async function POST(
   const endpoint = `/assessments/api/teacher/tests/${params.testId}/questions/add/`;
 
   try {
-    const body = await req.json();
+    let processedBody: any;
+    const contentType = req.headers.get("content-type") || "";
+    const isMultipart = contentType.includes("multipart/form-data");
 
-    // Validate and transform request body
-    const processedBody = {
-      type: body.type || "",
-      question: body.question || "",
-      options: body.options || [],
-      correctAnswer:
-        body.correctAnswer ??
-        (body.type === "multiple-choice"
-          ? 0
-          : body.type === "true-false"
-          ? false
-          : body.type === "short-answer"
-          ? ""
-          : ""),
-      points: body.points || 0,
-      explanation: body.explanation || "",
-      difficulty: body.difficulty || "Medium",
-    };
+    if (isMultipart) {
+      const formData = await req.formData();
+      const nextFormData = new FormData();
+      
+      nextFormData.append("type", (formData.get("type") || "").toString());
+      nextFormData.append("question", (formData.get("question") || "").toString());
+      
+      const optionsStr = formData.get("options");
+      if (optionsStr) {
+        nextFormData.append("options", optionsStr);
+      }
+      
+      nextFormData.append("correctAnswer", (formData.get("correctAnswer") ?? "").toString());
+      nextFormData.append("points", (formData.get("points") || "1").toString());
+      nextFormData.append("explanation", (formData.get("explanation") || "").toString());
+      nextFormData.append("difficulty", (formData.get("difficulty") || "Medium").toString());
+      
+      const imageFile = formData.get("image");
+      if (imageFile instanceof File) {
+        nextFormData.append("image", imageFile);
+      }
+
+      processedBody = nextFormData;
+    } else {
+      const body = await req.json();
+      processedBody = JSON.stringify({
+        type: body.type || "",
+        question: body.question || "",
+        options: body.options || [],
+        correctAnswer:
+          body.correctAnswer ??
+          (body.type === "multiple-choice"
+            ? 0
+            : body.type === "true-false"
+            ? false
+            : body.type === "short-answer"
+            ? ""
+            : ""),
+        points: body.points || 0,
+        explanation: body.explanation || "",
+        difficulty: body.difficulty || "Medium",
+      });
+    }
 
     const { response, text, setCookie } = await djangoFetch(endpoint, {
       method: "POST",
-      body: JSON.stringify(processedBody),
+      body: processedBody,
     });
 
-    const contentType = response.headers.get("content-type") || "";
+    const responseContentType = response.headers.get("content-type") || "";
 
     if (!response.ok) {
       console.error(
@@ -92,8 +120,8 @@ export async function POST(
       return attachSetCookie(res, setCookie);
     }
 
-    if (!contentType.includes("application/json")) {
-      console.error("[QuestionAddAPI] Non-JSON response received:", contentType);
+    if (!responseContentType.includes("application/json")) {
+      console.error("[QuestionAddAPI] Non-JSON response received:", responseContentType);
       const res = NextResponse.json(
         { error: "Invalid response format, expected JSON" },
         {
@@ -137,6 +165,7 @@ export async function POST(
             : data?.question?.type === "short-answer"
             ? ""
             : ""),
+        image: data?.question?.image ? normalizeMedia(data.question.image) : null,
       },
       message: data?.message || "Question added successfully.",
     };

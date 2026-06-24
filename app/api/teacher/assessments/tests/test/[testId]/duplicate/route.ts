@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { djangoFetch } from "@/app/api/_lib/proxy";
+import { normalizeMedia } from "@/lib/utils";
 
 const NO_STORE_HEADERS = {
   "Content-Type": "application/json",
@@ -145,6 +146,7 @@ export async function POST(
                   : q?.type === "short-answer"
                   ? ""
                   : ""),
+              image: q?.image ? normalizeMedia(q.image) : null,
             }))
           : [],
       },

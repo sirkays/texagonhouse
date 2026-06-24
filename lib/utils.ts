@@ -25,3 +25,12 @@ export async function fetcher(url: string, options?: RequestInit) {
     throw new Error((await res.json()).error || "API request failed");
   return res.json();
 }
+
+const BACKEND_URL = process.env.BASE_URL || "https://texagon-backend.onrender.com";
+
+export function normalizeMedia(media: string | null | undefined): string | null {
+  if (!media) return null;
+  if (media.startsWith("http")) return media;
+  const cleaned = media.replace(/^\/*(?:media\/)+|\/+$/g, "");
+  return `${BACKEND_URL}/media/${cleaned}`;
+}
