@@ -9,28 +9,14 @@ import { Maximize, Minimize, RefreshCw, Info } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 
 /**
- * Scratch Studio
- * ---------------
- * Embeds the Scratch Foundation's official hosted build of scratch-gui.
- *
- * This is Plan B: instead of building scratch-gui ourselves and serving
- * it from public/scratch-editor/, we iframe the pre-built version that
- * Scratch Foundation hosts on GitHub Pages. Same editor, zero build
- * pain, comes with the trade-off that we depend on their uptime.
- *
- * Why this works when TurboWarp's editor didn't: TurboWarp has client-
- * side anti-embed detection (it checks `window.top !== window` and
- * shows the "Invalid TurboWarp Embed" page). Scratch Foundation's
- * GitHub Pages build does not — it's just the raw scratch-gui editor.
- *
- * Scope: play / experiment only. Students can use the editor's built-in
- * "Save to your computer" menu to download .sb3 files locally. No LMS-
- * side persistence.
+ * Scratch Studio — Student Page
+ * --------------------------------
+ * Embeds the self-hosted Scratch GUI build (`public/scratch-editor`).
+ * This provides the full Scratch experience (multiple sprites, asset library)
+ * directly within the LMS without X-Frame-Options blocking or CORS errors.
  */
 
-// Scratch Foundation's official hosted build.
-// If they ever change this URL, update here.
-const SCRATCH_EDITOR_URL = "https://scratchfoundation.github.io/scratch-gui/#editor";
+const SCRATCH_EDITOR_URL = "/scratch-editor/index.html";
 
 export default function StudentScratchPage() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -39,14 +25,9 @@ export default function StudentScratchPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [isUIVisible, setIsUIVisible] = useState(true);
-
-    // Bumping `reloadKey` remounts the iframe — cleanest way to fully
-    // reset it in React.
     const [reloadKey, setReloadKey] = useState(0);
 
-    // Loader safety net: hide the spinner after 25s even if onLoad
-    // misfires. Scratch is a big bundle and GitHub Pages can be slow
-    // on first load from regions far from their CDN.
+    // Loader safety net
     useEffect(() => {
         const t = window.setTimeout(() => setIsLoading(false), 25000);
         return () => window.clearTimeout(t);
@@ -152,16 +133,7 @@ export default function StudentScratchPage() {
                     ref={iframeRef}
                     src={SCRATCH_EDITOR_URL}
                     title="Scratch Studio"
-                    // Full feature set Scratch needs:
-                    //  - fullscreen: stage fullscreen button
-                    //  - autoplay: sound playback
-                    //  - clipboard-*: copy/paste blocks
-                    //  - gamepad: gamepad extension
-                    //  - microphone/camera: video sensing extension
                     allow="fullscreen; autoplay; clipboard-read; clipboard-write; gamepad; microphone; camera"
-                    // Sandbox intentionally omitted. Scratch needs full script
-                    // execution and same-origin-ish privileges to function. The
-                    // iframe target is GitHub Pages, a trusted host.
                     onLoad={() => setIsLoading(false)}
                     className="h-full w-full border-0"
                     referrerPolicy="no-referrer-when-downgrade"

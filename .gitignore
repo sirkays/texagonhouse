@@ -10,6 +10,7 @@
 # production
 /build
 
+/scratch-gui-build
 # debug
 npm-debug.log*
 yarn-debug.log*

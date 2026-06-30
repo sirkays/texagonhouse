@@ -11,14 +11,12 @@ import { useSidebar } from "@/components/ui/sidebar";
 /**
  * Scratch Studio — Teacher Dashboard
  * ------------------------------------
- * Embeds the Scratch Foundation's official hosted build of scratch-gui.
- * Teachers can use this to demo/prepare Scratch projects for students.
- *
- * Focus mode hides the teacher layout header and closes the sidebar so
- * the editor fills the entire viewport.
+ * Embeds the self-hosted Scratch GUI build (`public/scratch-editor`).
+ * This provides the full Scratch experience (multiple sprites, asset library)
+ * directly within the LMS without X-Frame-Options blocking or CORS errors.
  */
 
-const SCRATCH_EDITOR_URL = "https://scratchfoundation.github.io/scratch-gui/#editor";
+const SCRATCH_EDITOR_URL = "/scratch-editor/index.html";
 
 export default function TeacherScratchPage() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
