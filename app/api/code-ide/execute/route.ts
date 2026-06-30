@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-RapidAPI-Key": "9cae9ff707msh2dd984c089547f8p107c63jsna2570bd08e21",
+          "X-RapidAPI-Key": process.env.RAPID_API_KEY || "",
           "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
         },
         body: JSON.stringify({

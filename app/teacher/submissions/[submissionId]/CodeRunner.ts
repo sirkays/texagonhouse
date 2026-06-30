@@ -302,18 +302,22 @@ export function useCodeRunner(
   const [ready] = useState({ pyodide: true, cheerpj: true, emception: true });
 
   const runWithJudge0 = async (code: string, judgeId: number, stdin: string) => {
-    const res = await fetch(
-      "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-RapidAPI-Key": "9cae9ff707msh2dd984c089547f8p107c63jsna2570bd08e21",
-          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-        },
-        body: JSON.stringify({ source_code: code, language_id: judgeId, stdin }),
-      }
-    );
+    const res = await fetch("/api/code-ide/execute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        provider: "judge0",
+        source_code: code,
+        language_id: judgeId,
+        stdin,
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(`Execution failed (${res.status}): ${errBody}`);
+    }
     const result = await res.json();
     if (result.status?.id === 3) setOutput(result.stdout || "Success (no output)");
     else if (result.status?.id === 6) setOutput(`Compilation Error:\n${result.compile_output || result.stderr}`);
