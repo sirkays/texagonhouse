@@ -30,7 +30,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 
 // Scratch Foundation's official hosted build.
 // If they ever change this URL, update here.
-const SCRATCH_EDITOR_URL = "https://scratchfoundation.github.io/scratch-gui/";
+const SCRATCH_EDITOR_URL = "https://scratchfoundation.github.io/scratch-gui/#editor";
 
 export default function StudentScratchPage() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);

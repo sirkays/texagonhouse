@@ -18,7 +18,7 @@ import { useSidebar } from "@/components/ui/sidebar";
  * the editor fills the entire viewport.
  */
 
-const SCRATCH_EDITOR_URL = "https://scratchfoundation.github.io/scratch-gui/";
+const SCRATCH_EDITOR_URL = "https://scratchfoundation.github.io/scratch-gui/#editor";
 
 export default function TeacherScratchPage() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
