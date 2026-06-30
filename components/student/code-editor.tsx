@@ -1176,7 +1176,70 @@ export function CodeEditor() {
         setOutput(run.stdout || "Code executed successfully (no output)");
         if (run.code === 0) pushToast("Code executed successfully", "success");
       }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        throw new Error("Piston execution timed out via proxy.");
+      }
+      throw err;
     } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const executeWithPistonDirect = async (
+    codeToRun: string,
+    lang: LangKey,
+    stdin: string
+  ) => {
+    const pistonLang = PISTON_LANG_MAP[lang];
+    if (!pistonLang) throw new Error(`Piston does not support ${lang}`);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const res = await fetch("https://emkc.org/api/v2/piston/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          language: pistonLang.language,
+          version: pistonLang.version,
+          files: [{ name: `main.${LANGUAGES[lang].ext}`, content: codeToRun }],
+          stdin: stdin || "",
+          run_timeout: 10000,
+        }),
+      });
+
+      const result = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const msg = result?.message || `Piston direct API error (${res.status})`;
+        throw new Error(msg);
+      }
+
+      const run = result?.run;
+      if (!run) throw new Error("No run result from Piston direct API");
+
+      if (run.signal === "SIGKILL" || run.code === 137) {
+        setOutput(
+          "Time Limit Exceeded — your code took too long or used too much memory."
+        );
+      } else if (run.stderr && run.code !== 0) {
+        setOutput(`Error:\n${run.stderr}`);
+      } else {
+        setOutput(run.stdout || "Code executed successfully (no output)");
+        if (run.code === 0) pushToast("Code executed successfully", "success");
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        throw new Error("Piston direct execution timed out.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };    } finally {
       clearTimeout(timeout);
     }
   };
@@ -1234,19 +1297,29 @@ export function CodeEditor() {
     const cfg = LANGUAGES[lang];
     let lastError: Error | null = null;
 
-    // Attempt 1: Piston API (free, reliable)
+    // Attempt 1: Piston API via Proxy (free, reliable but server IP can be rate-limited)
     if (PISTON_LANG_MAP[lang]) {
       try {
         await executeWithPiston(codeToRun, lang, stdin);
         return; // success
       } catch (err: any) {
         // eslint-disable-next-line no-console
-        console.warn("[IDE] Piston execution failed, trying Judge0:", err?.message);
+        console.warn("[IDE] Piston proxy execution failed, trying Piston direct:", err?.message);
+        lastError = err;
+      }
+
+      // Attempt 1.5: Piston API Direct (bypasses server rate limits, uses client IP)
+      try {
+        await executeWithPistonDirect(codeToRun, lang, stdin);
+        return; // success
+      } catch (err: any) {
+        // eslint-disable-next-line no-console
+        console.warn("[IDE] Piston direct execution also failed, trying Judge0:", err?.message);
         lastError = err;
       }
     }
 
-    // Attempt 2: Judge0 API (RapidAPI key)
+    // Attempt 2: Judge0 API (RapidAPI key - limited daily quota)
     if (cfg.judgeId) {
       try {
         await executeWithJudge0(codeToRun, cfg.judgeId, stdin);

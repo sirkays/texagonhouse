@@ -207,9 +207,9 @@ export function CourseModal({
 }: CourseModalProps) {
   const [formData, setFormData] = useState({
     name: "",
-    subject: "",
-    teacher: "",
-    classroom: "",
+    subject_id: "",
+    teacher_id: "",
+    classroom_id: "",
     description: "",
     status: "active",
   });
@@ -217,24 +217,42 @@ export function CourseModal({
   // Sync state with props when modal opens or course changes
   useEffect(() => {
     if (open) {
+      // When editing, resolve display names back to IDs
+      const subjectMatch = options.subjects.find((s) => s.name === course?.subject);
+      const teacherMatch = options.teachers.find((t) => t.name === course?.teacher);
+      const classroomMatch = options.classrooms.find((c) => c.name === course?.classroom);
+
       setFormData({
         name: course?.name || "",
-        subject: course?.subject || "",
-        teacher: course?.teacher || "",
-        classroom: course?.classroom || "",
+        subject_id: subjectMatch ? String(subjectMatch.id) : "",
+        teacher_id: teacherMatch ? String(teacherMatch.id) : "",
+        classroom_id: classroomMatch ? String(classroomMatch.id) : "",
         description: course?.description || "",
         status: course?.status || "active",
       });
     }
-  }, [course, open]);
+  }, [course, open, options]);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const saveData = {
+
+    // Client-side validation for required fields
+    const newErrors: Record<string, string> = {};
+    if (!formData.subject_id) newErrors.subject_id = "Subject is required.";
+    if (!formData.teacher_id) newErrors.teacher_id = "Teacher is required.";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+
+    const saveData: Record<string, any> = {
       name: formData.name,
-      subject: formData.subject,
-      classroom: formData.classroom || null,
-      teacher: formData.teacher,
+      subject_id: Number(formData.subject_id),
+      teacher_id: Number(formData.teacher_id),
+      classroom_id: formData.classroom_id ? Number(formData.classroom_id) : null,
       description: formData.description || undefined,
       is_active: formData.status === "active",
     };
@@ -271,30 +289,32 @@ export function CourseModal({
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject *</Label>
                 <Select
-                  value={formData.subject}
-                  onValueChange={(value) =>
-                    setFormData({...formData, subject: value})
-                  }
-                  disabled={loading} // Disable select
+                  value={formData.subject_id}
+                  onValueChange={(value) => {
+                    setFormData({...formData, subject_id: value});
+                    setErrors((prev) => { const { subject_id, ...rest } = prev; return rest; });
+                  }}
+                  disabled={loading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
                     {options.subjects.map((sub) => (
-                      <SelectItem key={sub.id} value={sub.name}>
+                      <SelectItem key={sub.id} value={String(sub.id)}>
                         {sub.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.subject_id && <p className="text-sm text-red-500">{errors.subject_id}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="classroom">Classroom <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Select
-                  value={formData.classroom}
+                  value={formData.classroom_id}
                   onValueChange={(value) =>
-                    setFormData({...formData, classroom: value === "__none__" ? "" : value})
+                    setFormData({...formData, classroom_id: value === "__none__" ? "" : value})
                   }
                   disabled={loading} // Disable select
                 >
@@ -304,7 +324,7 @@ export function CourseModal({
                   <SelectContent>
                     <SelectItem value="__none__">— No Classroom —</SelectItem>
                     {options.classrooms.map((cls) => (
-                      <SelectItem key={cls.id} value={cls.name}>
+                      <SelectItem key={cls.id} value={String(cls.id)}>
                         {cls.name}
                       </SelectItem>
                     ))}
@@ -316,23 +336,25 @@ export function CourseModal({
               <div className="space-y-2">
                 <Label htmlFor="teacher">Teacher *</Label>
                 <Select
-                  value={formData.teacher}
-                  onValueChange={(value) =>
-                    setFormData({...formData, teacher: value})
-                  }
-                  disabled={loading} // Disable select
+                  value={formData.teacher_id}
+                  onValueChange={(value) => {
+                    setFormData({...formData, teacher_id: value});
+                    setErrors((prev) => { const { teacher_id, ...rest } = prev; return rest; });
+                  }}
+                  disabled={loading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select teacher" />
                   </SelectTrigger>
                   <SelectContent>
                     {options.teachers.map((tch) => (
-                      <SelectItem key={tch.id} value={tch.name}>
+                      <SelectItem key={tch.id} value={String(tch.id)}>
                         {tch.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.teacher_id && <p className="text-sm text-red-500">{errors.teacher_id}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status *</Label>

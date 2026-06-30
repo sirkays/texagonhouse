@@ -250,7 +250,7 @@ export default function CoursesPage() {
         const errData = await res.json();
         toast({
           title: "Error",
-          description: errData.detail || "Failed to save course.",
+          description: errData.error || errData.detail || "Failed to save course.",
           variant: "destructive",
         });
         // Do NOT close modal on error
