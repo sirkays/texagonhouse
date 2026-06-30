@@ -1239,9 +1239,6 @@ export function CodeEditor() {
     } finally {
       clearTimeout(timeout);
     }
-  };    } finally {
-      clearTimeout(timeout);
-    }
   };
 
 
