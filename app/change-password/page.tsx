@@ -29,14 +29,42 @@ export default function ChangePassword() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [skipping, setSkipping] = useState(false);
 
   const sessionToken = useMemo(() => session?.user?.sessionToken ?? null, [session?.user?.sessionToken]);
+
+  // Dismiss the password change prompt on mount so the user is never
+  // redirected here again, even if they don't actually change their password.
+  useEffect(() => {
+    if (status === "authenticated" && sessionToken) {
+      fetch("/api/dismiss-password-change", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
+      })
+        .then(() => update({ isGenerated: false }))
+        .catch((err) => console.error("Failed to dismiss password prompt:", err));
+    }
+  }, [status, sessionToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (session?.user?.email) {
       setEmail(session.user.email);
     }
   }, [session?.user?.email]);
+
+  const redirectToDashboard = () => {
+    const role = session?.user?.role;
+    const rolePaths: Record<string, string> = {
+      student: "/student",
+      parent: "/parent",
+      teacher: "/teacher",
+      admin: "/admin",
+    };
+    window.location.href = rolePaths[role || ""] || "/login";
+  };
 
   const validateEmailFormat = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -142,15 +170,7 @@ export default function ChangePassword() {
       // Normal success redirect
       await update({ isGenerated: false });
 
-      if (session.user.role == "student") {
-        router.push("/student");
-      } else if (session.user.role == "parent") {
-        router.push("/parent");
-      } else if (session.user.role == "teacher") {
-        router.push("/teacher");
-      } else {
-        router.push("/admin");
-      }
+      redirectToDashboard();
     } catch (err) {
       console.log("Password change error:", err);
       setError("An unexpected error occurred. Please try again later.");
@@ -349,6 +369,20 @@ export default function ChangePassword() {
               </>
             )}
           </form>
+
+          <div className="flex items-center justify-center" style={{ marginTop: "19px" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setSkipping(true);
+                redirectToDashboard();
+              }}
+              disabled={skipping}
+              className="text-sm text-blue-600 hover:underline focus:outline-none disabled:opacity-50"
+            >
+              {skipping ? "Redirecting…" : "Skip for now"}
+            </button>
+          </div>
         </div>
       </div>
 

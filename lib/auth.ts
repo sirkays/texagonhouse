@@ -181,6 +181,7 @@ export const authOptions: NextAuthOptions = {
         if (session.nickname !== undefined) token.nickname = session.nickname;
         if (session.hasNickname !== undefined) token.hasNickname = session.hasNickname;
         if (session.name !== undefined) token.name = session.name;
+        if (session.isGenerated !== undefined) token.isGenerated = session.isGenerated;
       }
       if (user) {
         token.id = (user as any).id;
