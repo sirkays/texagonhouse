@@ -43,7 +43,10 @@ export function useFetchInterceptor() {
           ? input.toString()
           : input.url;
 
-      const isApiCall = url.startsWith("/api/") || url.includes("/api/");
+      // Only treat relative /api/ calls as local API calls.
+      // External URLs (e.g. https://emkc.org/api/v2/piston/execute) must NOT
+      // trigger the session-expiry logout flow.
+      const isApiCall = url.startsWith("/api/") || (url.includes("/api/") && !url.startsWith("http"));
       // Don't intercept auth endpoints themselves
       const isAuthCall = url.includes("/api/auth/");
       // Don't intercept code execution proxy — upstream 401s are provider
