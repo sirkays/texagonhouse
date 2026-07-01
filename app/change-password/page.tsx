@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
@@ -35,8 +35,11 @@ export default function ChangePassword() {
 
   // Dismiss the password change prompt on mount so the user is never
   // redirected here again, even if they don't actually change their password.
+  const dismissedRef = useRef(false);
   useEffect(() => {
+    if (dismissedRef.current) return;
     if (status === "authenticated" && sessionToken) {
+      dismissedRef.current = true;
       fetch("/api/dismiss-password-change", {
         method: "POST",
         headers: {
