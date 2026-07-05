@@ -132,6 +132,7 @@ const navigation = [
     path: "/admin/gamification",
   },
   { title: "Certificate", icon: Award, id: "cert", path: "/admin/certificate" },
+  { title: "Manual Certs", icon: Award, id: "manual-cert", path: "/admin/manual-certificates" },
   { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
   { title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store" },
   { title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports" },
