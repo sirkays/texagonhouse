@@ -149,6 +149,12 @@ const navigation = [
     id: "student-devices",
     path: "/admin/student-devices",
   },
+  {
+    title: "Assessment Overview",
+    icon: BarChart3,
+    id: "assessment-overview",
+    path: "/admin/assessment-overview",
+  },
 ];
 
 const LoadingContext = createContext<{

@@ -21,6 +21,7 @@ import {
   Laptop,
   Award,
   ClipboardCheck,
+  ClipboardList,
   ArrowLeftRight,
   Eye,
   EyeOff,
@@ -136,6 +137,12 @@ const menuItems = [
     icon: FileText,
     id: "assignments",
     path: "/teacher/assignments",
+  },
+  {
+    title: "Off-Practical Work",
+    icon: ClipboardList,
+    id: "off-practical-work",
+    path: "/teacher/off-practical-work",
   },
   {
     title: "Scratch Studio",
