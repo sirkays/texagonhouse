@@ -12,6 +12,13 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Upload,
   Printer,
   AlertCircle,
@@ -21,41 +28,44 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import Image from "next/image";
+
+type TemplateType = "techxagon" | "akure";
 
 type ManualCertificate = {
   id: number;
   student_name: string;
   course_name: string;
   school_name: string;
+  template: TemplateType;
   number: string;
   created_at: string;
   issued_by: string;
 };
 
+const TEMPLATE_LABELS: Record<TemplateType, string> = {
+  techxagon: "Techxagon (Completion)",
+  akure: "Akure (Achievement)",
+};
+
 /* ───────────────────────────────────────────────────────────
-   Certificate Preview Component — uses certificate.png
-   as background with details overlaid at correct positions
+   Techxagon Certificate Preview — certificate.png
    ─────────────────────────────────────────────────────────── */
-function CertificatePreview({
-  cert,
-}: {
-  cert: ManualCertificate;
-}) {
+function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
   return (
     <div className="relative w-full aspect-[1260/820] select-none">
-      {/* Background image — the actual Techxagon certificate */}
       <Image
         src="/certificate.png"
         fill
         className="object-contain"
-        alt="Certificate background"
+        alt="Techxagon Certificate"
         priority
       />
 
-      {/* Student Name — positioned between "This is to certify that" and "has successfully completed" */}
+      {/* Student Name */}
       <div
         className="absolute flex items-center justify-center"
         style={{ top: "37%", left: "35%", right: "8%", height: "12%" }}
@@ -74,7 +84,7 @@ function CertificatePreview({
         </p>
       </div>
 
-      {/* Course Name — positioned below "has successfully completed the program" */}
+      {/* Course Name */}
       <div
         className="absolute flex items-start justify-center"
         style={{ top: "57%", left: "35%", right: "8%", height: "10%" }}
@@ -92,7 +102,7 @@ function CertificatePreview({
         </p>
       </div>
 
-      {/* School Name — if provided, below the course name */}
+      {/* School Name */}
       {cert.school_name && (
         <div
           className="absolute flex items-start justify-center"
@@ -116,6 +126,125 @@ function CertificatePreview({
 }
 
 /* ───────────────────────────────────────────────────────────
+   Akure Certificate Preview — akure_cert_image.png
+   With CEO + FEO signatures
+   ─────────────────────────────────────────────────────────── */
+function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
+  return (
+    <div className="relative w-full aspect-[1260/880] select-none">
+      <Image
+        src="/akure_cert_image.png"
+        fill
+        className="object-contain"
+        alt="Akure Certificate of Achievement"
+        priority
+      />
+
+      {/* Student Name — on the line below "THIS CERTIFICATE IS PROUDLY PRESENTED TO" */}
+      <div
+        className="absolute flex items-center justify-start"
+        style={{ top: "35%", left: "3%", right: "40%", height: "14%" }}
+      >
+        <p
+          className="w-full"
+          style={{
+            fontFamily: "'Dancing Script', 'Brush Script MT', cursive",
+            fontSize: "clamp(0.7rem, 3vw, 2.5rem)",
+            lineHeight: "1.1",
+            color: "#000000",
+            fontWeight: 400,
+            textAlign: "center",
+          }}
+        >
+          {cert.student_name}
+        </p>
+      </div>
+
+      {/* Course Name — elegant certificate typography below the name underline */}
+      <div
+        className="absolute flex flex-col items-center justify-start"
+        style={{ top: "49%", left: "1%", right: "40%", height: "14%" }}
+      >
+        {/* Thin decorative rule */}
+        <div style={{
+          width: "38%",
+          height: "1px",
+          background: "linear-gradient(to right, transparent, #b5561a, transparent)",
+          marginBottom: "clamp(2px, 0.6vw, 6px)",
+        }} />
+
+        {/* Intro phrase — light italic serif */}
+        <p style={{
+          fontFamily: "'Georgia', 'Times New Roman', serif",
+          fontSize: "clamp(0.55rem, 1.6vw, 1.15rem)",
+          fontStyle: "italic",
+          fontWeight: 400,
+          letterSpacing: "0.12em",
+          color: "#6b3a1f",
+          textAlign: "center",
+          margin: 0,
+          lineHeight: 1.3,
+        }}>
+          for successfully completing
+        </p>
+
+        {/* Course name — bold uppercase with tracking */}
+        <p style={{
+          fontFamily: "'Georgia', 'Times New Roman', serif",
+          fontSize: "clamp(0.7rem, 2.2vw, 1.65rem)",
+          fontWeight: 700,
+          letterSpacing: "0.18em",
+          color: "#1a1a1a",
+          textAlign: "center",
+          textTransform: "uppercase",
+          margin: "clamp(1px, 0.3vw, 4px) 0 0",
+          lineHeight: 1.25,
+          paddingLeft: "0.05em",
+        }}>
+          {cert.course_name}
+        </p>
+      </div>
+
+      {/* CEO Signature — above "CEO TECHXAGON ACADEMY" */}
+      <div
+        className="absolute"
+        style={{ bottom: "25%", left: "9%", width: "16%", height: "12%" }}
+      >
+        <Image
+          src="/ceo.png"
+          fill
+          className="object-contain"
+          alt="CEO Signature"
+        />
+      </div>
+
+      {/* FEO Signature — above "FORCE EDUCATION OFFICER" */}
+      <div
+        className="absolute"
+        style={{ bottom: "25%", left: "48%", width: "16%", height: "12%" }}
+      >
+        <Image
+          src="/feo.png"
+          fill
+          className="object-contain"
+          alt="FEO Signature"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────
+   Unified Certificate Preview — picks the right template
+   ─────────────────────────────────────────────────────────── */
+function CertificatePreview({ cert }: { cert: ManualCertificate }) {
+  if (cert.template === "akure") {
+    return <AkureCertPreview cert={cert} />;
+  }
+  return <TechxagonCertPreview cert={cert} />;
+}
+
+/* ───────────────────────────────────────────────────────────
    Main Page Component
    ─────────────────────────────────────────────────────────── */
 export default function ManualCertificatePage() {
@@ -123,9 +252,11 @@ export default function ManualCertificatePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [certificates, setCertificates] = useState<ManualCertificate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<TemplateType>("techxagon");
   const { toast } = useToast();
 
-  // Preview state — when set, full-page preview is shown
+  // Preview state
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const fetchCertificates = async () => {
@@ -165,6 +296,7 @@ export default function ManualCertificatePage() {
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("template", selectedTemplate);
 
     try {
       const res = await fetch("/api/admin/certificates/manual-upload", {
@@ -222,7 +354,7 @@ export default function ManualCertificatePage() {
 
     return (
       <div className="min-h-[80vh] flex flex-col">
-        {/* Top bar — hidden in print */}
+        {/* Top bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 print:hidden">
           <Button
             variant="ghost"
@@ -234,7 +366,6 @@ export default function ManualCertificatePage() {
           </Button>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Navigate between certificates */}
             <Button
               variant="outline"
               size="sm"
@@ -262,7 +393,7 @@ export default function ManualCertificatePage() {
           </div>
         </div>
 
-        {/* Certificate details bar — hidden in print */}
+        {/* Certificate details bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6 mb-4 px-1 print:hidden">
           <div>
             <span className="text-xs text-muted-foreground">Student</span>
@@ -284,14 +415,35 @@ export default function ManualCertificatePage() {
             <span className="text-xs text-muted-foreground">Cert No</span>
             <p className="text-sm font-mono">{previewCert.number}</p>
           </div>
+          <div>
+            <span className="text-xs text-muted-foreground">Template</span>
+            <Badge variant="secondary" className="block mt-0.5">
+              {TEMPLATE_LABELS[previewCert.template] || previewCert.template}
+            </Badge>
+          </div>
         </div>
 
-        {/* The certificate itself — fills the available width responsively */}
-        <div className="flex-1 flex items-start justify-center">
-          <div className="w-full max-w-5xl">
+        {/* The certificate itself — use full available width */}
+        <div className="flex-1 flex items-start justify-center overflow-x-auto">
+          <div id="cert-print-area" className="w-full">
             <CertificatePreview cert={previewCert} />
           </div>
         </div>
+
+        {/* Global print override — hide sidebar/header added by layout */}
+        <style>{`
+          @media print {
+            body * { visibility: hidden; }
+            #cert-print-area, #cert-print-area * { visibility: visible; }
+            #cert-print-area {
+              position: fixed;
+              top: 0; left: 0;
+              width: 100vw;
+              margin: 0;
+              padding: 0;
+            }
+          }
+        `}</style>
       </div>
     );
   }
@@ -352,28 +504,95 @@ export default function ManualCertificatePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+          <div className="space-y-4">
+            {/* Template Selector */}
             <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="excel">Excel File</Label>
-              <Input
-                id="excel"
-                type="file"
-                accept=".xlsx, .xls"
-                onChange={handleFileChange}
-              />
+              <Label htmlFor="template-select">Certificate Template</Label>
+              <Select
+                value={selectedTemplate}
+                onValueChange={(v) => setSelectedTemplate(v as TemplateType)}
+              >
+                <SelectTrigger id="template-select" className="w-full">
+                  <SelectValue placeholder="Select a template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="techxagon">
+                    Techxagon — Certificate of Completion
+                  </SelectItem>
+                  <SelectItem value="akure">
+                    Akure — Certificate of Achievement
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Button
-              onClick={handleUpload}
-              disabled={!file || isUploading}
-            >
-              {isUploading ? (
-                "Uploading..."
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" /> Upload
-                </>
-              )}
-            </Button>
+
+            {/* Template Preview Thumbnails */}
+            <div className="flex gap-4 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate("techxagon")}
+                className={`relative w-48 aspect-[3/2] rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedTemplate === "techxagon"
+                    ? "border-[#EF7B55] ring-2 ring-[#EF7B55]/30"
+                    : "border-border hover:border-muted-foreground/50"
+                }`}
+              >
+                <Image
+                  src="/certificate.png"
+                  fill
+                  className="object-contain"
+                  alt="Techxagon Template"
+                />
+                {selectedTemplate === "techxagon" && (
+                  <div className="absolute top-1 right-1 bg-[#EF7B55] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                    Selected
+                  </div>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate("akure")}
+                className={`relative w-48 aspect-[3/2] rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedTemplate === "akure"
+                    ? "border-[#EF7B55] ring-2 ring-[#EF7B55]/30"
+                    : "border-border hover:border-muted-foreground/50"
+                }`}
+              >
+                <Image
+                  src="/akure_cert_image.png"
+                  fill
+                  className="object-contain"
+                  alt="Akure Template"
+                />
+                {selectedTemplate === "akure" && (
+                  <div className="absolute top-1 right-1 bg-[#EF7B55] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                    Selected
+                  </div>
+                )}
+              </button>
+            </div>
+
+            {/* File + Upload */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Label htmlFor="excel">Excel File</Label>
+                <Input
+                  id="excel"
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={handleFileChange}
+                />
+              </div>
+              <Button onClick={handleUpload} disabled={!file || isUploading}>
+                {isUploading ? (
+                  "Uploading..."
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" /> Upload &amp; Generate
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -397,9 +616,21 @@ export default function ManualCertificatePage() {
             {certificates.map((cert, idx) => (
               <Card key={cert.id} className="overflow-hidden">
                 <CardHeader className="p-4 pb-2 bg-muted/10 border-b">
-                  <CardTitle className="text-base truncate">
-                    {cert.student_name}
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base truncate">
+                      {cert.student_name}
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className={
+                        cert.template === "akure"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-orange-50 text-orange-700 border-orange-200"
+                      }
+                    >
+                      {cert.template === "akure" ? "Akure" : "Techxagon"}
+                    </Badge>
+                  </div>
                   <CardDescription className="text-xs truncate">
                     {cert.number} •{" "}
                     {new Date(cert.created_at).toLocaleDateString()}

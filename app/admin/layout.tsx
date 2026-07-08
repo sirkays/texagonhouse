@@ -133,6 +133,7 @@ const navigation = [
   },
   { title: "Certificate", icon: Award, id: "cert", path: "/admin/certificate" },
   { title: "Manual Certs", icon: Award, id: "manual-cert", path: "/admin/manual-certificates" },
+  { title: "Cert Requests", icon: Award, id: "cert-requests", path: "/admin/certificate-requests" },
   { title: "Settings", icon: Settings, id: "settings", path: "/admin/settings" },
   { title: "Store", icon: ShoppingCart, id: "store", path: "/admin/store" },
   { title: "Reports", icon: BarChart3, id: "reports", path: "/admin/reports" },
@@ -417,7 +418,7 @@ export default function DashboardLayout({
     <SidebarProvider className="bg-white">
       <LoadingContext.Provider value={{ setIsNavigating }}>
         <div className="flex min-h-screen w-full font-sans">
-          <Sidebar className="">
+          <Sidebar className="print:hidden">
             <SidebarHeader className="bg-[#EF7B55] py-5">
               <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
                 <Image
@@ -484,7 +485,7 @@ export default function DashboardLayout({
           </Sidebar>
 
           <div className="flex-1 flex flex-col">
-            <header className="sticky top-0 z-50 py-4">
+            <header className="sticky top-0 z-50 py-4 print:hidden">
               <style jsx>{`
                 header {
                   background: rgba(
@@ -526,7 +527,7 @@ export default function DashboardLayout({
               </div>
             </header>
 
-            <main className="flex-1 p-3 sm:p-6">
+            <main className="flex-1 p-3 sm:p-6 print:p-0">
               {isNavigating ? <PageLoader /> : children}
             </main>
           </div>

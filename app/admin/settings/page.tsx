@@ -581,6 +581,26 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const handleTogglePublicCertRequest = async (checked: boolean) => {
+    if (!org) return;
+    setOrgSaving(true);
+    try {
+      const res = await fetch(`/api/admin/settings/organization?org_id=${org.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow_public_cert_request: checked }),
+      });
+      if (!res.ok) throw new Error("Failed to update settings");
+      const updatedOrg = await res.json();
+      setOrg(updatedOrg);
+      toast?.({title: "Settings updated successfully"});
+    } catch (e: any) {
+      toast?.({title: "Error", description: e?.message || "Failed to update settings"});
+    } finally {
+      setOrgSaving(false);
+    }
+  };
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -884,18 +904,33 @@ export default function AdminSettingsPage() {
             <Spinner size="sm" />
           </div>
         ) : org ? (
-          <div className="flex items-center justify-between border rounded-xl p-4 bg-slate-50/50">
-            <div>
-              <div className="text-sm font-medium text-slate-800">Allow Expired/Unsubscribed Student Logins</div>
-              <div className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
-                If enabled, students whose subscriptions have expired or who have no active subscription will still be allowed to log in. Their access will be restricted to courses with General Activation active.
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border rounded-xl p-4 bg-slate-50/50">
+              <div>
+                <div className="text-sm font-medium text-slate-800">Allow Expired/Unsubscribed Student Logins</div>
+                <div className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+                  If enabled, students whose subscriptions have expired or who have no active subscription will still be allowed to log in. Their access will be restricted to courses with General Activation active.
+                </div>
               </div>
+              <Switch
+                disabled={orgSaving}
+                checked={!!org.allow_unsubscribed_users}
+                onCheckedChange={handleToggleAllowUnsubscribed}
+              />
             </div>
-            <Switch
-              disabled={orgSaving}
-              checked={!!org.allow_unsubscribed_users}
-              onCheckedChange={handleToggleAllowUnsubscribed}
-            />
+            <div className="flex items-center justify-between border rounded-xl p-4 bg-slate-50/50">
+              <div>
+                <div className="text-sm font-medium text-slate-800">Allow Public Certificate Requests</div>
+                <div className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+                  When enabled, your organisation will appear in the public certificate request portal. Students who participated in your courses outside the LMS can request their certificate without an account.
+                </div>
+              </div>
+              <Switch
+                disabled={orgSaving}
+                checked={!!org.allow_public_cert_request}
+                onCheckedChange={handleTogglePublicCertRequest}
+              />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Failed to load organization settings.</p>

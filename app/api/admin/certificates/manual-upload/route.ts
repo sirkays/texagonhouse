@@ -13,6 +13,11 @@ export async function POST(request: Request) {
     const backendFormData = new FormData();
     backendFormData.append("file", file);
 
+    const template = formData.get("template");
+    if (template) {
+      backendFormData.append("template", template);
+    }
+
     const { response, text, setCookie } = await djangoFetch(
       "/academics/api/certificates/manual-upload/",
       {
