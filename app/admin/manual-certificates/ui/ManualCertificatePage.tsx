@@ -29,6 +29,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import Image from "next/image";
@@ -256,6 +257,8 @@ export default function ManualCertificatePage() {
     useState<TemplateType>("techxagon");
   const { toast } = useToast();
 
+  const [selectedCerts, setSelectedCerts] = useState<number[]>([]);
+
   // Preview state
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -269,6 +272,7 @@ export default function ManualCertificatePage() {
           data.error || data.detail || "Failed to fetch certificates"
         );
       setCertificates(data.results || []);
+      setSelectedCerts([]);
     } catch (err: any) {
       toast({
         title: "Error",
@@ -433,14 +437,19 @@ export default function ManualCertificatePage() {
         {/* Global print override — hide sidebar/header added by layout */}
         <style>{`
           @media print {
+            @page { margin: 0; size: landscape; }
             body * { visibility: hidden; }
             #cert-print-area, #cert-print-area * { visibility: visible; }
             #cert-print-area {
               position: fixed;
               top: 0; left: 0;
               width: 100vw;
+              height: 100vh;
               margin: 0;
               padding: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
             }
           }
         `}</style>
@@ -475,10 +484,10 @@ export default function ManualCertificatePage() {
           <Button
             onClick={() => window.print()}
             variant="outline"
-            disabled={certificates.length === 0}
+            disabled={selectedCerts.length === 0}
           >
             <Printer className="w-4 h-4 mr-2" />
-            Print All
+            Print Selected ({selectedCerts.length})
           </Button>
         </div>
       </div>
@@ -598,10 +607,34 @@ export default function ManualCertificatePage() {
       </Card>
 
       {/* Generated Certificates List */}
+      {/* Generated Certificates List */}
       <div className="print:hidden">
-        <h2 className="text-lg font-semibold text-foreground mb-4">
-          Previously Generated
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">
+            Previously Generated
+          </h2>
+          {certificates.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={
+                  selectedCerts.length > 0 &&
+                  selectedCerts.length === certificates.length
+                }
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedCerts(certificates.map((c) => c.id));
+                  } else {
+                    setSelectedCerts([]);
+                  }
+                }}
+              />
+              <Label htmlFor="select-all" className="cursor-pointer">
+                Select All
+              </Label>
+            </div>
+          )}
+        </div>
         {isLoading ? (
           <div className="text-muted-foreground text-sm">
             Loading certificates...
@@ -617,9 +650,23 @@ export default function ManualCertificatePage() {
               <Card key={cert.id} className="overflow-hidden">
                 <CardHeader className="p-4 pb-2 bg-muted/10 border-b">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base truncate">
-                      {cert.student_name}
-                    </CardTitle>
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Checkbox
+                        checked={selectedCerts.includes(cert.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedCerts((prev) => [...prev, cert.id]);
+                          } else {
+                            setSelectedCerts((prev) =>
+                              prev.filter((id) => id !== cert.id)
+                            );
+                          }
+                        }}
+                      />
+                      <CardTitle className="text-base truncate">
+                        {cert.student_name}
+                      </CardTitle>
+                    </div>
                     <Badge
                       variant="outline"
                       className={
@@ -665,14 +712,32 @@ export default function ManualCertificatePage() {
       </div>
 
       {/* Print-only layout */}
-      <div className="hidden print:block print:w-full">
-        {certificates.map((cert, index) => (
+      {/* Print-only layout */}
+      <div className="hidden print:block print:w-full" id="batch-print-area">
+        <style>{`
+          @media print {
+            @page { margin: 0; size: landscape; }
+            body * { visibility: hidden; }
+            #batch-print-area, #batch-print-area * { visibility: visible; }
+            #batch-print-area {
+              position: absolute;
+              top: 0; left: 0;
+              width: 100vw;
+              margin: 0;
+              padding: 0;
+            }
+          }
+        `}</style>
+        {certificates
+          .filter((cert) => selectedCerts.includes(cert.id))
+          .map((cert, index, array) => (
           <div
             key={cert.id}
-            className="w-full flex items-center justify-center"
+            className="w-full flex items-center justify-center overflow-hidden"
             style={{
-              pageBreakAfter:
-                index === certificates.length - 1 ? "auto" : "always",
+              height: "100vh",
+              pageBreakAfter: index === array.length - 1 ? "auto" : "always",
+              pageBreakInside: "avoid",
             }}
           >
             <CertificatePreview cert={cert} />

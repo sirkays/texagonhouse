@@ -6,6 +6,7 @@ import {
   TestTube2, Code2, FileText, ClipboardList, Star,
   TrendingUp, Award, Filter, RefreshCw, Download,
   CheckCircle2, AlertCircle, Minus, X, ChevronDown, ChevronUp,
+  Settings,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ interface StudentRow {
   opw_avg: number | null;
   opw_count: number;
   overall_avg: number | null;
+  grade_scale: { a: number, b: number, c: number, d: number };
 }
 
 interface Summary {
@@ -61,17 +63,17 @@ interface Course {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function grade(pct: number | null): { label: string; color: string; bg: string } {
+function grade(pct: number | null, scale: { a: number, b: number, c: number, d: number } = { a: 90, b: 80, c: 70, d: 50 }): { label: string; color: string; bg: string } {
   if (pct === null) return { label: "—", color: "text-slate-400", bg: "bg-slate-100" };
-  if (pct >= 90) return { label: "A", color: "text-emerald-700", bg: "bg-emerald-100" };
-  if (pct >= 80) return { label: "B", color: "text-blue-700", bg: "bg-blue-100" };
-  if (pct >= 70) return { label: "C", color: "text-amber-700", bg: "bg-amber-100" };
-  if (pct >= 50) return { label: "D", color: "text-orange-700", bg: "bg-orange-100" };
+  if (pct >= scale.a) return { label: "A", color: "text-emerald-700", bg: "bg-emerald-100" };
+  if (pct >= scale.b) return { label: "B", color: "text-blue-700", bg: "bg-blue-100" };
+  if (pct >= scale.c) return { label: "C", color: "text-amber-700", bg: "bg-amber-100" };
+  if (pct >= scale.d) return { label: "D", color: "text-orange-700", bg: "bg-orange-100" };
   return { label: "F", color: "text-red-700", bg: "bg-red-100" };
 }
 
-function ScorePill({ value, count, label }: { value: number | null; count: number; label: string }) {
-  const g = grade(value);
+function ScorePill({ value, count, label, scale }: { value: number | null; count: number; label: string; scale?: { a: number, b: number, c: number, d: number } }) {
+  const g = grade(value, scale);
   if (count === 0) return (
     <div className="flex flex-col items-center gap-0.5">
       <span className="text-[11px] font-medium text-slate-300">—</span>
@@ -86,18 +88,20 @@ function ScorePill({ value, count, label }: { value: number | null; count: numbe
   );
 }
 
-function OverallRing({ value }: { value: number | null }) {
-  const g = grade(value);
+function OverallRing({ value, scale }: { value: number | null; scale?: { a: number, b: number, c: number, d: number } }) {
+  const g = grade(value, scale);
   const radius = 16;
   const circ = 2 * Math.PI * radius;
   const pct = value ?? 0;
   const dash = (pct / 100) * circ;
+  
+  const sc = scale ?? { a: 90, b: 80, c: 70, d: 50 };
 
   const ringColor = value === null ? "#e2e8f0"
-    : pct >= 90 ? "#10b981"
-    : pct >= 80 ? "#3b82f6"
-    : pct >= 70 ? "#f59e0b"
-    : pct >= 50 ? "#f97316"
+    : pct >= sc.a ? "#10b981"
+    : pct >= sc.b ? "#3b82f6"
+    : pct >= sc.c ? "#f59e0b"
+    : pct >= sc.d ? "#f97316"
     : "#ef4444";
 
   return (
@@ -263,9 +267,14 @@ export default function AssessmentOverviewPage() {
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               Assessment Overview
             </h1>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-xl">
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-xl pb-2">
               Unified view of every student's performance across CBT tests, Code IDE projects, assignment submissions, and off-practical work — with a weighted overall score.
             </p>
+            <div className="flex items-center gap-3">
+              <Button onClick={() => window.location.href = "/admin/assessment-configs"} className="bg-white/10 hover:bg-white/20 text-white font-medium border border-white/20 shadow-sm rounded-xl h-10 px-5 transition-colors">
+                <Settings className="w-4 h-4 mr-2" /> Manage Configurations
+              </Button>
+            </div>
           </div>
 
           {/* Platform-wide stat */}
@@ -410,7 +419,7 @@ export default function AssessmentOverviewPage() {
                 </tr>
               ) : (
                 rows.map((student, idx) => {
-                  const g = grade(student.overall_avg);
+                  const g = grade(student.overall_avg, student.grade_scale);
                   return (
                     <tr key={student.student_id} className={`hover:bg-orange-50/30 transition-colors duration-150 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`}>
                       {/* Student info */}
@@ -428,31 +437,31 @@ export default function AssessmentOverviewPage() {
 
                       {/* CBT */}
                       <td className="py-3 px-3 text-center">
-                        <ScorePill value={student.cbt_avg} count={student.cbt_count} label="CBT" />
+                        <ScorePill value={student.cbt_avg} count={student.cbt_count} label="CBT" scale={student.grade_scale} />
                         <p className="text-[9px] text-slate-400 mt-0.5">{student.cbt_count} attempt{student.cbt_count !== 1 ? "s" : ""}</p>
                       </td>
 
                       {/* Code IDE */}
                       <td className="py-3 px-3 text-center">
-                        <ScorePill value={student.code_avg} count={student.code_count} label="Code" />
+                        <ScorePill value={student.code_avg} count={student.code_count} label="Code" scale={student.grade_scale} />
                         <p className="text-[9px] text-slate-400 mt-0.5">{student.code_count} project{student.code_count !== 1 ? "s" : ""}</p>
                       </td>
 
                       {/* Assignments */}
                       <td className="py-3 px-3 text-center">
-                        <ScorePill value={student.assignment_avg} count={student.assignment_count} label="Assign" />
+                        <ScorePill value={student.assignment_avg} count={student.assignment_count} label="Assign" scale={student.grade_scale} />
                         <p className="text-[9px] text-slate-400 mt-0.5">{student.assignment_count} submission{student.assignment_count !== 1 ? "s" : ""}</p>
                       </td>
 
                       {/* OPW */}
                       <td className="py-3 px-3 text-center">
-                        <ScorePill value={student.opw_avg} count={student.opw_count} label="OPW" />
+                        <ScorePill value={student.opw_avg} count={student.opw_count} label="OPW" scale={student.grade_scale} />
                         <p className="text-[9px] text-slate-400 mt-0.5">{student.opw_count} record{student.opw_count !== 1 ? "s" : ""}</p>
                       </td>
 
                       {/* Overall */}
                       <td className="py-3 px-4 text-center">
-                        <OverallRing value={student.overall_avg} />
+                        <OverallRing value={student.overall_avg} scale={student.grade_scale} />
                       </td>
                     </tr>
                   );
@@ -491,7 +500,7 @@ export default function AssessmentOverviewPage() {
 
       {/* ── Grade Key ── */}
       <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Grade Scale</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Default Grade Scale (may vary per student)</p>
         <div className="flex flex-wrap gap-3">
           {[
             { label: "A — Excellent", range: "90–100%", color: "text-emerald-700 bg-emerald-100" },

@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -227,6 +229,9 @@ export default function CertificateRequestsPage() {
   // Preview — full-screen overlay
   const [previewTarget, setPreviewTarget] = useState<CertRequest | null>(null);
 
+  // Selected requests for batch printing
+  const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
+
   const fetchRequests = async (filter = statusFilter) => {
     setLoading(true);
     try {
@@ -250,6 +255,7 @@ export default function CertificateRequestsPage() {
   const handleFilterChange = (val: string) => {
     setStatusFilter(val);
     fetchRequests(val);
+    setSelectedRequests([]);
   };
 
   const handleApprove = async () => {
@@ -304,6 +310,8 @@ export default function CertificateRequestsPage() {
   const pending  = requests.filter((r) => r.status === "pending").length;
   const approved = requests.filter((r) => r.status === "approved").length;
   const rejected = requests.filter((r) => r.status === "rejected").length;
+
+  const approvableRequests = requests.filter((r) => r.status === "approved" && r.certificate);
 
   /* ── Full-screen Certificate Preview ── */
   if (previewTarget) {
@@ -362,9 +370,19 @@ export default function CertificateRequestsPage() {
             Review and approve public certificate requests from students.
           </p>
         </div>
-        <Button variant="outline" onClick={() => fetchRequests()} size="sm">
-          <RefreshCw className="w-4 h-4 mr-2" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2 print:hidden">
+          <Button variant="outline" onClick={() => fetchRequests()} size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+          <Button
+            onClick={() => window.print()}
+            variant="outline"
+            size="sm"
+            disabled={selectedRequests.length === 0}
+          >
+            <Printer className="w-4 h-4 mr-2" /> Print Selected ({selectedRequests.length})
+          </Button>
+        </div>
       </div>
 
       {/* Stats strip */}
@@ -382,20 +400,38 @@ export default function CertificateRequestsPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex items-center gap-3">
-        <Select value={statusFilter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_FILTER_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-sm text-muted-foreground">
-          {requests.length} request{requests.length !== 1 ? "s" : ""}
-        </span>
+      <div className="flex items-center justify-between mb-2 print:hidden">
+        <div className="flex items-center gap-3">
+          <Select value={statusFilter} onValueChange={handleFilterChange}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTER_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">
+            {requests.length} request{requests.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        
+        {approvableRequests.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="select-all"
+              checked={selectedRequests.length > 0 && selectedRequests.length === approvableRequests.length}
+              onCheckedChange={(checked) => {
+                if (checked) setSelectedRequests(approvableRequests.map(r => r.id));
+                else setSelectedRequests([]);
+              }}
+            />
+            <Label htmlFor="select-all" className="cursor-pointer">
+              Select All Approved
+            </Label>
+          </div>
+        )}
       </div>
 
       {/* List */}
@@ -412,9 +448,21 @@ export default function CertificateRequestsPage() {
             <Card key={req.id} className="overflow-hidden hover:shadow-md transition-shadow">
               <CardHeader className="p-4 pb-2 bg-muted/10 border-b">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <CardTitle className="text-base truncate">{req.student_name}</CardTitle>
-                    <CardDescription className="text-xs truncate mt-0.5">{req.access_id}</CardDescription>
+                  <div className="min-w-0 flex items-start gap-2">
+                    {req.status === "approved" && req.certificate && (
+                      <Checkbox
+                        className="mt-1"
+                        checked={selectedRequests.includes(req.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) setSelectedRequests((prev) => [...prev, req.id]);
+                          else setSelectedRequests((prev) => prev.filter((id) => id !== req.id));
+                        }}
+                      />
+                    )}
+                    <div>
+                      <CardTitle className="text-base truncate">{req.student_name}</CardTitle>
+                      <CardDescription className="text-xs truncate mt-0.5">{req.access_id}</CardDescription>
+                    </div>
                   </div>
                   <StatusBadge status={req.status} />
                 </div>
@@ -594,6 +642,39 @@ export default function CertificateRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Batch Print Layout */}
+      <div className="hidden print:block print:w-full" id="batch-print-area">
+        <style>{`
+          @media print {
+            @page { margin: 0; size: landscape; }
+            body * { visibility: hidden; }
+            #batch-print-area, #batch-print-area * { visibility: visible; }
+            #batch-print-area {
+              position: absolute;
+              top: 0; left: 0;
+              width: 100vw;
+              margin: 0;
+              padding: 0;
+            }
+          }
+        `}</style>
+        {requests
+          .filter((req) => selectedRequests.includes(req.id))
+          .map((req, index, array) => (
+          <div
+            key={req.id}
+            className="w-full flex items-center justify-center overflow-hidden"
+            style={{
+              height: "100vh",
+              pageBreakAfter: index === array.length - 1 ? "auto" : "always",
+              pageBreakInside: "avoid",
+            }}
+          >
+            <CertPreview req={req} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
