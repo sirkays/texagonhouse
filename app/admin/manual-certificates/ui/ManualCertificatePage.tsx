@@ -103,22 +103,25 @@ function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
         </p>
       </div>
 
-      {/* School Name */}
+      {/* Center Name */}
       {cert.school_name && (
         <div
-          className="absolute flex items-start justify-center"
-          style={{ top: "63%", left: "35%", right: "8%", height: "6%" }}
+          className="absolute flex items-center justify-center"
+          style={{ bottom: "5%", left: "35%", right: "8%", height: "6%" }}
         >
           <p
-            className="text-center w-full"
             style={{
-              fontSize: "clamp(0.4rem, 1.3vw, 0.9rem)",
-              lineHeight: "1.4",
-              color: "#333333",
+              fontFamily: "'Georgia', 'Times New Roman', serif",
+              fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
+              color: "#1a1a1a",
               fontWeight: 700,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              textAlign: "center",
             }}
           >
-            at {cert.school_name}
+            <span style={{ opacity: 0.7, fontWeight: 600, marginRight: "0.2em" }}>CENTER:</span>
+            {cert.school_name}
           </p>
         </div>
       )}
@@ -231,6 +234,29 @@ function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
           alt="FEO Signature"
         />
       </div>
+
+      {/* Center Name */}
+      {cert.school_name && (
+        <div
+          className="absolute flex items-center justify-center"
+          style={{ bottom: "5%", left: "3%", right: "40%", height: "6%" }}
+        >
+          <p
+            style={{
+              fontFamily: "'Georgia', 'Times New Roman', serif",
+              fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
+              color: "#1a1a1a",
+              fontWeight: 700,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              textAlign: "center",
+            }}
+          >
+            <span style={{ opacity: 0.7, fontWeight: 600, marginRight: "0.2em" }}>CENTER:</span>
+            {cert.school_name}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
