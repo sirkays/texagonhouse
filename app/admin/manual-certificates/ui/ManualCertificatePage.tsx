@@ -107,7 +107,7 @@ function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
       {cert.school_name && (
         <div
           className="absolute flex items-center justify-center"
-          style={{ bottom: "5%", left: "35%", right: "8%", height: "6%" }}
+          style={{ bottom: "10%", left: "35%", right: "8%", height: "6%" }}
         >
           <p
             style={{
@@ -239,7 +239,7 @@ function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
       {cert.school_name && (
         <div
           className="absolute flex items-center justify-center"
-          style={{ bottom: "5%", left: "3%", right: "40%", height: "6%" }}
+          style={{ bottom: "10%", left: "3%", right: "40%", height: "6%" }}
         >
           <p
             style={{

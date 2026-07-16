@@ -102,7 +102,7 @@ function TechxagonPreview({ req }: { req: CertRequest }) {
       {/* Center Name */}
       {req.certificate?.school_name && (
         <div className="absolute flex items-center justify-center"
-          style={{ bottom: "5%", left: "35%", right: "8%", height: "6%" }}>
+          style={{ bottom: "10%", left: "35%", right: "8%", height: "6%" }}>
           <p style={{
             fontFamily: "'Georgia', 'Times New Roman', serif",
             fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
@@ -189,7 +189,7 @@ function AkurePreview({ req }: { req: CertRequest }) {
       {/* Center Name */}
       {req.certificate?.school_name && (
         <div className="absolute flex items-center justify-center"
-          style={{ bottom: "5%", left: "3%", right: "40%", height: "6%" }}>
+          style={{ bottom: "10%", left: "3%", right: "40%", height: "6%" }}>
           <p style={{
             fontFamily: "'Georgia', 'Times New Roman', serif",
             fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
