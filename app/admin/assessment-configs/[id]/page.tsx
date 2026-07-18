@@ -41,6 +41,7 @@ export default function AssessmentConfigFormPage() {
   });
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState<string>("");
 
   const fetchConfig = useCallback(async () => {
     if (isNew) return;
@@ -64,10 +65,12 @@ export default function AssessmentConfigFormPage() {
   }, [fetchConfig]);
 
   const handleSave = async () => {
-    if (!formData.name) {
-      toast({ title: "Validation Error", description: "Name is required.", variant: "destructive" });
+    if (!formData.name?.trim()) {
+      setNameError("Please enter a configuration name.");
+      toast({ title: "Validation Error", description: "Configuration name is required.", variant: "destructive" });
       return;
     }
+    setNameError("");
     setSaving(true);
     try {
       const method = isNew ? "POST" : "PATCH";
@@ -127,10 +130,18 @@ export default function AssessmentConfigFormPage() {
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Configuration Name</label>
             <Input
               value={formData.name || ""}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              onChange={e => {
+                setFormData({ ...formData, name: e.target.value });
+                if (e.target.value.trim()) setNameError("");
+              }}
               placeholder="e.g. Standard 2026 Grade Scale"
-              className="h-12 text-lg font-medium"
+              className={`h-12 text-lg font-medium ${nameError ? "border-red-500 focus-visible:ring-red-400" : ""}`}
             />
+            {nameError && (
+              <p className="text-sm text-red-500 font-medium mt-1 flex items-center gap-1">
+                <span>⚠</span> {nameError}
+              </p>
+            )}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
