@@ -96,6 +96,12 @@ export default function OffPracticalWorkPage() {
   const [formDate, setFormDate] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dirtyCount, setDirtyCount] = useState(0);
+
+  // Excel
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Score entry state
   const [scoreTab, setScoreTab] = useState<ScoreTab>("classroom");
@@ -107,7 +113,6 @@ export default function OffPracticalWorkPage() {
   const [searchStudents, setSearchStudents] = useState<StudentScore[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [isExporting, setIsExporting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -343,22 +348,61 @@ export default function OffPracticalWorkPage() {
     } catch (e) { console.error(e); }
   };
 
-  const handleExport = async () => {
+  const handleExportExcel = async () => {
     if (!selectedOPW) return;
     setIsExporting(true);
     try {
-      const res = await fetch(`/api/opw/works/${selectedOPW.id}/export`);
+      const res = await fetch(`/api/teacher/offline-work/${selectedOPW.id}/export-excel`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `OPW_${selectedOPW.title.replace(/\s+/g, "_")}.csv`;
+        const filenameMatch = res.headers.get('content-disposition')?.match(/filename="(.+)"/);
+        a.download = filenameMatch ? filenameMatch[1] : `OPW_Scores_${selectedOPW.title.replace(/\s+/g, "_")}.xlsx`;
         a.click();
         URL.revokeObjectURL(url);
+      } else {
+        alert("Failed to export Excel file");
       }
     } catch (e) { console.error(e); }
     finally { setIsExporting(false); }
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedOPW) return;
+    
+    setIsImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const res = await fetch(`/api/teacher/offline-work/${selectedOPW.id}/import-excel`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        // Refresh
+        fetchOPWList();
+        if (scoreTab === "classroom") {
+          fetchStudents(selectedOPW.id, pagination.page, selectedClassroom);
+        } else {
+          fetchSearch(selectedOPW.id, searchQuery);
+        }
+      } else {
+        alert(`Failed to import: ${data.error || "Unknown error"}\n${data.errors ? JSON.stringify(data.errors) : ""}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error importing Excel file");
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   // Search debounce
@@ -717,10 +761,21 @@ export default function OffPracticalWorkPage() {
             <p className="text-sm text-slate-500">{selectedOPW.course_name} · Max score: <strong>{selectedOPW.max_score}</strong></p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button onClick={handleExport} disabled={isExporting} size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs">
+            <Button onClick={handleExportExcel} disabled={isExporting || isImporting} size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs">
               {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              Export CSV
+              Excel Template
             </Button>
+            <Button onClick={() => fileInputRef.current?.click()} disabled={isExporting || isImporting} size="sm" variant="outline" className="gap-1.5 font-semibold rounded-xl text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+              {isImporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              Upload Excel
+            </Button>
+            <input 
+              type="file" 
+              accept=".xlsx" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleImportExcel} 
+            />
           </div>
         </div>
 

@@ -66,8 +66,26 @@ type CertRequest = {
   certificate: CertificateData | null;
 };
 
+type LayoutConfig = {
+  top: string;
+  left: string;
+  fontSize: string;
+  fontFamily: string;
+  color: string;
+};
+
+type TemplateConfig = {
+  course_name: LayoutConfig;
+  center_name: LayoutConfig;
+};
+
+type GlobalLayoutConfig = {
+  techxagon: TemplateConfig;
+  akure: TemplateConfig;
+};
+
 /* ─── Cert Preview Components ──────────────────────────────── */
-function TechxagonPreview({ req }: { req: CertRequest }) {
+function TechxagonPreview({ req, layoutConfig }: { req: CertRequest; layoutConfig?: TemplateConfig | null }) {
   return (
     <div className="relative w-full aspect-[1260/820] select-none">
       <Image src="/certificate.png" fill className="object-contain" alt="Techxagon Certificate" priority />
@@ -88,13 +106,33 @@ function TechxagonPreview({ req }: { req: CertRequest }) {
 
       {/* Course Name */}
       <div className="absolute flex items-start justify-center"
-        style={{ top: "57%", left: "35%", right: "8%", height: "10%" }}>
-        <p className="text-center w-full" style={{
-          fontSize: "clamp(0.45rem, 1.6vw, 1.1rem)",
-          lineHeight: "1.4",
-          color: "#000000",
-          fontWeight: 800,
-        }}>
+        style={
+          layoutConfig?.course_name
+            ? {
+                top: layoutConfig.course_name.top,
+                left: layoutConfig.course_name.left,
+                transform: "translate(-50%, -50%)",
+                whiteSpace: "nowrap"
+              }
+            : { top: "57%", left: "35%", right: "8%", height: "10%" }
+        }>
+        <p className="text-center w-full" style={
+          layoutConfig?.course_name
+            ? {
+                fontSize: layoutConfig.course_name.fontSize,
+                fontFamily: layoutConfig.course_name.fontFamily,
+                color: layoutConfig.course_name.color,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+              }
+            : {
+                fontSize: "clamp(0.45rem, 1.6vw, 1.1rem)",
+                lineHeight: "1.4",
+                color: "#000000",
+                fontWeight: 800,
+              }
+        }>
           {req.course_name}
         </p>
       </div>
@@ -102,16 +140,36 @@ function TechxagonPreview({ req }: { req: CertRequest }) {
       {/* Center Name */}
       {req.certificate?.school_name && (
         <div className="absolute flex items-center justify-center"
-          style={{ bottom: "10%", left: "35%", right: "8%", height: "6%" }}>
-          <p style={{
-            fontFamily: "'Georgia', 'Times New Roman', serif",
-            fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
-            color: "#1a1a1a",
-            fontWeight: 700,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            textAlign: "center",
-          }}>
+          style={
+            layoutConfig?.center_name
+              ? {
+                  top: layoutConfig.center_name.top,
+                  left: layoutConfig.center_name.left,
+                  transform: "translate(-50%, -50%)",
+                  whiteSpace: "nowrap"
+                }
+              : { bottom: "10%", left: "35%", right: "8%", height: "6%" }
+          }>
+          <p style={
+            layoutConfig?.center_name
+              ? {
+                  fontSize: layoutConfig.center_name.fontSize,
+                  fontFamily: layoutConfig.center_name.fontFamily,
+                  color: layoutConfig.center_name.color,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                }
+              : {
+                  fontFamily: "'Georgia', 'Times New Roman', serif",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
+                  color: "#1a1a1a",
+                  fontWeight: 700,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  textAlign: "center",
+                }
+          }>
             <span style={{ opacity: 0.7, fontWeight: 600, marginRight: "0.2em" }}>CENTER:</span>
             {req.certificate.school_name}
           </p>
@@ -121,7 +179,7 @@ function TechxagonPreview({ req }: { req: CertRequest }) {
   );
 }
 
-function AkurePreview({ req }: { req: CertRequest }) {
+function AkurePreview({ req, layoutConfig }: { req: CertRequest; layoutConfig?: TemplateConfig | null }) {
   return (
     <div className="relative w-full aspect-[1260/880] select-none">
       <Image src="/akure_cert_image.png" fill className="object-contain" alt="Akure Certificate" priority />
@@ -143,7 +201,16 @@ function AkurePreview({ req }: { req: CertRequest }) {
 
       {/* Course Name — elegant typography */}
       <div className="absolute flex flex-col items-center justify-start"
-        style={{ top: "49%", left: "1%", right: "40%", height: "14%" }}>
+        style={
+          layoutConfig?.course_name
+            ? {
+                top: layoutConfig.course_name.top,
+                left: layoutConfig.course_name.left,
+                transform: "translate(-50%, -50%)",
+                whiteSpace: "nowrap"
+              }
+            : { top: "49%", left: "1%", right: "40%", height: "14%" }
+        }>
         <div style={{
           width: "38%", height: "1px",
           background: "linear-gradient(to right, transparent, #b5561a, transparent)",
@@ -162,17 +229,31 @@ function AkurePreview({ req }: { req: CertRequest }) {
         }}>
           for successfully completing
         </p>
-        <p style={{
-          fontFamily: "'Georgia', 'Times New Roman', serif",
-          fontSize: "clamp(0.7rem, 2.2vw, 1.65rem)",
-          fontWeight: 700,
-          letterSpacing: "0.18em",
-          color: "#1a1a1a",
-          textAlign: "center",
-          textTransform: "uppercase",
-          margin: "clamp(1px, 0.3vw, 4px) 0 0",
-          lineHeight: 1.25,
-        }}>
+        <p style={
+          layoutConfig?.course_name
+            ? {
+                fontSize: layoutConfig.course_name.fontSize,
+                fontFamily: layoutConfig.course_name.fontFamily,
+                color: layoutConfig.course_name.color,
+                fontWeight: 700,
+                letterSpacing: "0.18em",
+                textAlign: "center",
+                textTransform: "uppercase",
+                margin: "clamp(1px, 0.3vw, 4px) 0 0",
+                lineHeight: 1.25,
+              }
+            : {
+                fontFamily: "'Georgia', 'Times New Roman', serif",
+                fontSize: "clamp(0.7rem, 2.2vw, 1.65rem)",
+                fontWeight: 700,
+                letterSpacing: "0.18em",
+                color: "#1a1a1a",
+                textAlign: "center",
+                textTransform: "uppercase",
+                margin: "clamp(1px, 0.3vw, 4px) 0 0",
+                lineHeight: 1.25,
+              }
+        }>
           {req.course_name}
         </p>
       </div>
@@ -189,16 +270,36 @@ function AkurePreview({ req }: { req: CertRequest }) {
       {/* Center Name */}
       {req.certificate?.school_name && (
         <div className="absolute flex items-center justify-center"
-          style={{ bottom: "10%", left: "3%", right: "40%", height: "6%" }}>
-          <p style={{
-            fontFamily: "'Georgia', 'Times New Roman', serif",
-            fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
-            color: "#1a1a1a",
-            fontWeight: 700,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            textAlign: "center",
-          }}>
+          style={
+            layoutConfig?.center_name
+              ? {
+                  top: layoutConfig.center_name.top,
+                  left: layoutConfig.center_name.left,
+                  transform: "translate(-50%, -50%)",
+                  whiteSpace: "nowrap"
+                }
+              : { bottom: "10%", left: "3%", right: "40%", height: "6%" }
+          }>
+          <p style={
+            layoutConfig?.center_name
+              ? {
+                  fontSize: layoutConfig.center_name.fontSize,
+                  fontFamily: layoutConfig.center_name.fontFamily,
+                  color: layoutConfig.center_name.color,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                }
+              : {
+                  fontFamily: "'Georgia', 'Times New Roman', serif",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
+                  color: "#1a1a1a",
+                  fontWeight: 700,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  textAlign: "center",
+                }
+          }>
             <span style={{ opacity: 0.7, fontWeight: 600, marginRight: "0.2em" }}>CENTER:</span>
             {req.certificate.school_name}
           </p>
@@ -208,9 +309,9 @@ function AkurePreview({ req }: { req: CertRequest }) {
   );
 }
 
-function CertPreview({ req }: { req: CertRequest }) {
-  if (req.certificate?.template === "akure") return <AkurePreview req={req} />;
-  return <TechxagonPreview req={req} />;
+function CertPreview({ req, layoutConfig }: { req: CertRequest; layoutConfig?: GlobalLayoutConfig | null }) {
+  if (req.certificate?.template === "akure") return <AkurePreview req={req} layoutConfig={layoutConfig?.akure} />;
+  return <TechxagonPreview req={req} layoutConfig={layoutConfig?.techxagon} />;
 }
 
 /* ─── Status Badge ─────────────────────────────────────────── */
@@ -255,6 +356,21 @@ export default function CertificateRequestsPage() {
   // Selected requests for batch printing
   const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
 
+  // Layout Config
+  const [layoutConfig, setLayoutConfig] = useState<GlobalLayoutConfig | null>(null);
+
+  const fetchLayoutConfig = async () => {
+    try {
+      const res = await fetch("/api/admin/certificates/layout/");
+      const data = await res.json();
+      if (data.certificate_layout) {
+        setLayoutConfig(data.certificate_layout);
+      }
+    } catch (err) {
+      console.error("Failed to load layout settings", err);
+    }
+  };
+
   const fetchRequests = async (filter = statusFilter) => {
     setLoading(true);
     try {
@@ -273,7 +389,10 @@ export default function CertificateRequestsPage() {
     }
   };
 
-  useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => { 
+    fetchRequests(); 
+    fetchLayoutConfig();
+  }, []);
 
   const handleFilterChange = (val: string) => {
     setStatusFilter(val);
@@ -365,7 +484,7 @@ export default function CertificateRequestsPage() {
         {/* Certificate */}
         <div id="cert-print-area" className="flex-1 flex items-start justify-center p-6">
           <div className="w-full max-w-5xl">
-            <CertPreview req={previewTarget} />
+            <CertPreview req={previewTarget} layoutConfig={layoutConfig} />
           </div>
         </div>
 
@@ -694,7 +813,7 @@ export default function CertificateRequestsPage() {
               pageBreakInside: "avoid",
             }}
           >
-            <CertPreview req={req} />
+            <CertPreview req={req} layoutConfig={layoutConfig} />
           </div>
         ))}
       </div>

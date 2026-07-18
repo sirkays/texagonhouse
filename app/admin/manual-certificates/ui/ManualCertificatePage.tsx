@@ -36,6 +36,24 @@ import Image from "next/image";
 
 type TemplateType = "techxagon" | "akure";
 
+type LayoutConfig = {
+  top: string;
+  left: string;
+  fontSize: string;
+  fontFamily: string;
+  color: string;
+};
+
+type TemplateConfig = {
+  course_name: LayoutConfig;
+  center_name: LayoutConfig;
+};
+
+type GlobalLayoutConfig = {
+  techxagon: TemplateConfig;
+  akure: TemplateConfig;
+};
+
 type ManualCertificate = {
   id: number;
   student_name: string;
@@ -55,7 +73,7 @@ const TEMPLATE_LABELS: Record<TemplateType, string> = {
 /* ───────────────────────────────────────────────────────────
    Techxagon Certificate Preview — certificate.png
    ─────────────────────────────────────────────────────────── */
-function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
+function TechxagonCertPreview({ cert, layoutConfig }: { cert: ManualCertificate; layoutConfig?: TemplateConfig | null }) {
   return (
     <div className="relative w-full aspect-[1260/820] select-none">
       <Image
@@ -88,16 +106,36 @@ function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
       {/* Course Name */}
       <div
         className="absolute flex items-start justify-center"
-        style={{ top: "57%", left: "35%", right: "8%", height: "10%" }}
+        style={
+          layoutConfig?.course_name
+            ? {
+                top: layoutConfig.course_name.top,
+                left: layoutConfig.course_name.left,
+                transform: "translate(-50%, -50%)",
+                whiteSpace: "nowrap"
+              }
+            : { top: "57%", left: "35%", right: "8%", height: "10%" }
+        }
       >
         <p
           className="text-center w-full"
-          style={{
-            fontSize: "clamp(0.45rem, 1.6vw, 1.1rem)",
-            lineHeight: "1.4",
-            color: "#000000",
-            fontWeight: 800,
-          }}
+          style={
+            layoutConfig?.course_name
+              ? {
+                  fontSize: layoutConfig.course_name.fontSize,
+                  fontFamily: layoutConfig.course_name.fontFamily,
+                  color: layoutConfig.course_name.color,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                }
+              : {
+                  fontSize: "clamp(0.45rem, 1.6vw, 1.1rem)",
+                  lineHeight: "1.4",
+                  color: "#000000",
+                  fontWeight: 800,
+                }
+          }
         >
           {cert.course_name}
         </p>
@@ -107,18 +145,38 @@ function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
       {cert.school_name && (
         <div
           className="absolute flex items-center justify-center"
-          style={{ bottom: "10%", left: "35%", right: "8%", height: "6%" }}
+          style={
+            layoutConfig?.center_name
+              ? {
+                  top: layoutConfig.center_name.top,
+                  left: layoutConfig.center_name.left,
+                  transform: "translate(-50%, -50%)",
+                  whiteSpace: "nowrap"
+                }
+              : { bottom: "10%", left: "35%", right: "8%", height: "6%" }
+          }
         >
           <p
-            style={{
-              fontFamily: "'Georgia', 'Times New Roman', serif",
-              fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
-              color: "#1a1a1a",
-              fontWeight: 700,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              textAlign: "center",
-            }}
+            style={
+              layoutConfig?.center_name
+                ? {
+                    fontSize: layoutConfig.center_name.fontSize,
+                    fontFamily: layoutConfig.center_name.fontFamily,
+                    color: layoutConfig.center_name.color,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.15em",
+                  }
+                : {
+                    fontFamily: "'Georgia', 'Times New Roman', serif",
+                    fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
+                    color: "#1a1a1a",
+                    fontWeight: 700,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                  }
+            }
           >
             <span style={{ opacity: 0.7, fontWeight: 600, marginRight: "0.2em" }}>CENTER:</span>
             {cert.school_name}
@@ -133,7 +191,7 @@ function TechxagonCertPreview({ cert }: { cert: ManualCertificate }) {
    Akure Certificate Preview — akure_cert_image.png
    With CEO + FEO signatures
    ─────────────────────────────────────────────────────────── */
-function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
+function AkureCertPreview({ cert, layoutConfig }: { cert: ManualCertificate; layoutConfig?: TemplateConfig | null }) {
   return (
     <div className="relative w-full aspect-[1260/880] select-none">
       <Image
@@ -167,7 +225,16 @@ function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
       {/* Course Name — elegant certificate typography below the name underline */}
       <div
         className="absolute flex flex-col items-center justify-start"
-        style={{ top: "49%", left: "1%", right: "40%", height: "14%" }}
+        style={
+          layoutConfig?.course_name
+            ? {
+                top: layoutConfig.course_name.top,
+                left: layoutConfig.course_name.left,
+                transform: "translate(-50%, -50%)",
+                whiteSpace: "nowrap"
+              }
+            : { top: "49%", left: "1%", right: "40%", height: "14%" }
+        }
       >
         {/* Thin decorative rule */}
         <div style={{
@@ -193,18 +260,33 @@ function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
         </p>
 
         {/* Course name — bold uppercase with tracking */}
-        <p style={{
-          fontFamily: "'Georgia', 'Times New Roman', serif",
-          fontSize: "clamp(0.7rem, 2.2vw, 1.65rem)",
-          fontWeight: 700,
-          letterSpacing: "0.18em",
-          color: "#1a1a1a",
-          textAlign: "center",
-          textTransform: "uppercase",
-          margin: "clamp(1px, 0.3vw, 4px) 0 0",
-          lineHeight: 1.25,
-          paddingLeft: "0.05em",
-        }}>
+        <p style={
+          layoutConfig?.course_name
+            ? {
+                fontSize: layoutConfig.course_name.fontSize,
+                fontFamily: layoutConfig.course_name.fontFamily,
+                color: layoutConfig.course_name.color,
+                fontWeight: 700,
+                letterSpacing: "0.18em",
+                textAlign: "center",
+                textTransform: "uppercase",
+                margin: "clamp(1px, 0.3vw, 4px) 0 0",
+                lineHeight: 1.25,
+                paddingLeft: "0.05em",
+              }
+            : {
+                fontFamily: "'Georgia', 'Times New Roman', serif",
+                fontSize: "clamp(0.7rem, 2.2vw, 1.65rem)",
+                fontWeight: 700,
+                letterSpacing: "0.18em",
+                color: "#1a1a1a",
+                textAlign: "center",
+                textTransform: "uppercase",
+                margin: "clamp(1px, 0.3vw, 4px) 0 0",
+                lineHeight: 1.25,
+                paddingLeft: "0.05em",
+              }
+        }>
           {cert.course_name}
         </p>
       </div>
@@ -239,18 +321,38 @@ function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
       {cert.school_name && (
         <div
           className="absolute flex items-center justify-center"
-          style={{ bottom: "10%", left: "3%", right: "40%", height: "6%" }}
+          style={
+            layoutConfig?.center_name
+              ? {
+                  top: layoutConfig.center_name.top,
+                  left: layoutConfig.center_name.left,
+                  transform: "translate(-50%, -50%)",
+                  whiteSpace: "nowrap"
+                }
+              : { bottom: "10%", left: "3%", right: "40%", height: "6%" }
+          }
         >
           <p
-            style={{
-              fontFamily: "'Georgia', 'Times New Roman', serif",
-              fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
-              color: "#1a1a1a",
-              fontWeight: 700,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              textAlign: "center",
-            }}
+            style={
+              layoutConfig?.center_name
+                ? {
+                    fontSize: layoutConfig.center_name.fontSize,
+                    fontFamily: layoutConfig.center_name.fontFamily,
+                    color: layoutConfig.center_name.color,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.15em",
+                  }
+                : {
+                    fontFamily: "'Georgia', 'Times New Roman', serif",
+                    fontSize: "clamp(0.85rem, 1.8vw, 1.3rem)",
+                    color: "#1a1a1a",
+                    fontWeight: 700,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                  }
+            }
           >
             <span style={{ opacity: 0.7, fontWeight: 600, marginRight: "0.2em" }}>CENTER:</span>
             {cert.school_name}
@@ -264,11 +366,11 @@ function AkureCertPreview({ cert }: { cert: ManualCertificate }) {
 /* ───────────────────────────────────────────────────────────
    Unified Certificate Preview — picks the right template
    ─────────────────────────────────────────────────────────── */
-function CertificatePreview({ cert }: { cert: ManualCertificate }) {
+function CertificatePreview({ cert, layoutConfig }: { cert: ManualCertificate; layoutConfig?: GlobalLayoutConfig | null }) {
   if (cert.template === "akure") {
-    return <AkureCertPreview cert={cert} />;
+    return <AkureCertPreview cert={cert} layoutConfig={layoutConfig?.akure} />;
   }
-  return <TechxagonCertPreview cert={cert} />;
+  return <TechxagonCertPreview cert={cert} layoutConfig={layoutConfig?.techxagon} />;
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -284,6 +386,7 @@ export default function ManualCertificatePage() {
   const { toast } = useToast();
 
   const [selectedCerts, setSelectedCerts] = useState<number[]>([]);
+  const [layoutConfig, setLayoutConfig] = useState<GlobalLayoutConfig | null>(null);
 
   // Preview state
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -312,7 +415,20 @@ export default function ManualCertificatePage() {
 
   useEffect(() => {
     fetchCertificates();
+    fetchLayoutConfig();
   }, []);
+
+  const fetchLayoutConfig = async () => {
+    try {
+      const res = await fetch("/api/admin/certificates/layout/");
+      const data = await res.json();
+      if (data.certificate_layout) {
+        setLayoutConfig(data.certificate_layout);
+      }
+    } catch (err) {
+      console.error("Failed to load layout settings", err);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -456,7 +572,7 @@ export default function ManualCertificatePage() {
         {/* The certificate itself — use full available width */}
         <div className="flex-1 flex items-start justify-center overflow-x-auto">
           <div id="cert-print-area" className="w-full">
-            <CertificatePreview cert={previewCert} />
+            <CertificatePreview cert={previewCert} layoutConfig={layoutConfig} />
           </div>
         </div>
 
@@ -766,7 +882,7 @@ export default function ManualCertificatePage() {
               pageBreakInside: "avoid",
             }}
           >
-            <CertificatePreview cert={cert} />
+            <CertificatePreview cert={cert} layoutConfig={layoutConfig} />
           </div>
         ))}
       </div>
