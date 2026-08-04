@@ -15,6 +15,7 @@ import {
 type ChildInfo = { id: number; name: string; admission_no: string; classroom: string };
 type StudentScore = { score: string; total: string; status: string };
 type CodingScore = { score: string; feedback: string; project_title: string; status: string };
+type OfflineScore = { score: string; max_score: string; feedback: string; status: string };
 
 type ReportData = {
   id: number;
@@ -28,6 +29,7 @@ type ReportData = {
   published_at: string;
   cbt_items: { test_title: string; total_marks: string }[];
   coding_items: { lesson_title: string }[];
+  offline_items?: { opw_title: string; max_score: string }[];
   activities: { title: string; description: string; activity_date: string }[];
   videos: { title: string; video_url: string; video_file: string | null }[];
   student_data?: {
@@ -36,6 +38,7 @@ type ReportData = {
     classroom: string;
     cbt_scores: Record<string, StudentScore>;
     coding_scores: Record<string, CodingScore>;
+    offline_scores?: Record<string, OfflineScore>;
     teacher_remark: string;
   };
   linked_children?: ChildInfo[];
@@ -405,6 +408,37 @@ function ReportDetailContent({ token }: { token: string }) {
                     </span>
                   </div>
                   {sc.score !== "0" && <p className="text-2xl font-bold text-slate-800">{sc.score} <span className="text-xs font-normal text-slate-400">points</span></p>}
+                  {sc.feedback && <p className="text-xs text-slate-500 mt-2 italic border-l-2 border-[#EF7B55]/30 pl-2">&ldquo;{sc.feedback}&rdquo;</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Off-Practical Work */}
+      {sd && report.offline_items && report.offline_items.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#EF7B55]" /> Off-Practical Work
+            </h2>
+            <span className="text-xs text-slate-400">{report.offline_items.length} item{report.offline_items.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {report.offline_items.map((item, i) => {
+              const offEntries = sd.offline_scores ? Object.entries(sd.offline_scores) : [];
+              const key = String(offEntries[i]?.[0]);
+              const sc = (sd.offline_scores && sd.offline_scores[key]) || { score: "0", max_score: item.max_score, feedback: "", status: "not_graded" };
+              return (
+                <div key={i} className="border border-slate-100 rounded-xl p-4 hover:shadow-md transition-shadow hover:border-[#EF7B55]/20">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-sm font-semibold text-slate-700">{item.opw_title}</p>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ml-2 ${sc.status === "graded" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
+                      {sc.status === "graded" ? "Graded" : "Not Graded"}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-800">{sc.score} <span className="text-xs font-normal text-slate-400">/ {sc.max_score || item.max_score} marks</span></p>
                   {sc.feedback && <p className="text-xs text-slate-500 mt-2 italic border-l-2 border-[#EF7B55]/30 pl-2">&ldquo;{sc.feedback}&rdquo;</p>}
                 </div>
               );

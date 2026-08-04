@@ -9,6 +9,7 @@ type Report = { id: number; title: string; status: string; recipient_mode: strin
 type CourseOption = { id: number; name: string };
 type TestOption = { id: number; title: string; total_marks: string; visibility: string };
 type LessonOption = { id: number; name: string; module_name: string };
+type OfflineOption = { id: number; title: string; max_score: string; assessment_type: string };
 type StudentOption = { id: number; name: string; admission_no: string; classroom: string };
 type VideoEntry = { title: string; video_url: string; uploading: boolean; fileName: string | null; error: string | null };
 
@@ -223,6 +224,7 @@ function CreateReportView({ courses, onClose, onCreated }: { courses: CourseOpti
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [selectedTests, setSelectedTests] = useState<number[]>([]);
   const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
+  const [selectedOfflineWorks, setSelectedOfflineWorks] = useState<number[]>([]);
   const [activities, setActivities] = useState<{ title: string; description: string; activity_date: string }[]>([]);
   const [videos, setVideos] = useState<VideoEntry[]>([]);
   const [periodStart, setPeriodStart] = useState("");
@@ -230,6 +232,7 @@ function CreateReportView({ courses, onClose, onCreated }: { courses: CourseOpti
 
   const [tests, setTests] = useState<TestOption[]>([]);
   const [lessons, setLessons] = useState<LessonOption[]>([]);
+  const [offlineWorks, setOfflineWorks] = useState<OfflineOption[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -239,7 +242,7 @@ function CreateReportView({ courses, onClose, onCreated }: { courses: CourseOpti
     setDataLoading(true);
     fetch(`/api/teacher/reports/student-data?course_id=${courseId}`)
       .then(r => r.json())
-      .then(d => { setTests(d.tests || []); setLessons(d.lessons || []); setStudents(d.students || []); })
+      .then(d => { setTests(d.tests || []); setLessons(d.lessons || []); setOfflineWorks(d.offline_works || []); setStudents(d.students || []); })
       .catch(() => { })
       .finally(() => setDataLoading(false));
   }, [courseId]);
@@ -252,6 +255,7 @@ function CreateReportView({ courses, onClose, onCreated }: { courses: CourseOpti
         course_id: courseId, title, description, recipient_mode: recipientMode,
         student_ids: recipientMode === "selected" ? selectedStudents : [],
         cbt_test_ids: selectedTests, coding_lesson_ids: selectedLessons,
+        offline_work_ids: selectedOfflineWorks,
         activities,
         videos: videos.filter(v => v.video_url && v.title).map(v => ({ title: v.title, video_url: v.video_url })),
         period_start: periodStart || null, period_end: periodEnd || null,
@@ -388,6 +392,19 @@ function CreateReportView({ courses, onClose, onCreated }: { courses: CourseOpti
                     <input type="checkbox" checked={selectedLessons.includes(l.id)} onChange={() => toggleItem(selectedLessons, setSelectedLessons, l.id)} className="accent-[#EF7B55]" />
                     <span className="text-sm text-slate-700 flex-1">{l.name}</span>
                     <span className="text-xs text-slate-400">{l.module_name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {/* Off-Practical Work */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2"><FileText className="w-4 h-4 text-[#EF7B55]" /> Off-Practical Work ({selectedOfflineWorks.length} selected)</h3>
+              <div className="max-h-44 overflow-y-auto border rounded-lg p-2 space-y-1">
+                {dataLoading ? <p className="text-xs text-slate-400 p-2">Loading...</p> : offlineWorks.length === 0 ? <p className="text-xs text-slate-400 p-2">No off-practical work found</p> : offlineWorks.map(o => (
+                  <label key={o.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                    <input type="checkbox" checked={selectedOfflineWorks.includes(o.id)} onChange={() => toggleItem(selectedOfflineWorks, setSelectedOfflineWorks, o.id)} className="accent-[#EF7B55]" />
+                    <span className="text-sm text-slate-700 flex-1">{o.title}</span>
+                    <span className="text-xs text-slate-400 font-medium capitalize">{o.assessment_type} · {o.max_score} marks</span>
                   </label>
                 ))}
               </div>

@@ -153,6 +153,28 @@ export default function ReportPreviewPage() {
           </section>
         )}
 
+        {/* Off-Practical Work */}
+        {data.offline_items && data.offline_items.length > 0 && (
+          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#EF7B55]" /> Included Off-Practical Work
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {data.offline_items.map((item: any) => (
+                <div key={item.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/40 flex items-center justify-between shadow-sm">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm text-slate-800 truncate">{item.opw_title}</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Off-Practical Assessment</p>
+                  </div>
+                  <span className="text-xs font-bold text-[#EF7B55] bg-orange-50 border border-orange-100/50 px-2.5 py-1 rounded-full shrink-0">
+                    {item.max_score} Marks
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Activities */}
         {data.activities && data.activities.length > 0 && (
           <section>
