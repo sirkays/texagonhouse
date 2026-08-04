@@ -2,6 +2,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
+
+const HomePage = dynamic(() => import("@/app/main/home/page"), { ssr: false });
 import {
   Video,
   Wifi,
@@ -382,6 +385,21 @@ function SummaryTile({
 
 /* -------------------- Main page component -------------------- */
 export default function LiveSessionsPage() {
+  const [videoProvider, setVideoProvider] = useState<"konnect" | "live" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/org/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.video_conferencing === "live") {
+          setVideoProvider("live");
+        } else {
+          setVideoProvider("konnect");
+        }
+      })
+      .catch(() => setVideoProvider("konnect"));
+  }, []);
+
   // API data
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
@@ -424,6 +442,18 @@ export default function LiveSessionsPage() {
   const roomNameRequired = roomName.trim().length > 0;
   const courseRequired = addCourseIds.size > 0; // "course_name required" => at least 1 course selected
   const canStart = roomNameRequired && courseRequired && !startLoading;
+
+  if (videoProvider === null) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] text-slate-500">
+        <Loader2 className="animate-spin mr-2 text-[#EF7B55]" size={20} /> Loading settings...
+      </div>
+    );
+  }
+
+  if (videoProvider === "live") {
+    return <HomePage />;
+  }
 
   /* ---------- Fetch teacher's courses on mount ---------- */
   useEffect(() => {

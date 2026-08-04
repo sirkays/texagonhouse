@@ -28,6 +28,18 @@ const HomePage = () => {
     [session?.user?.sessionToken]
   );
 
+  // Check if org uses konnect and redirect if so
+  useEffect(() => {
+    fetch("/api/org/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.video_conferencing === "konnect" && session?.user?.role) {
+          router.replace(`/${session.user.role}/live-sessions`);
+        }
+      })
+      .catch(() => {});
+  }, [session?.user?.role, router]);
+
   // Fetch meetings directly
   useEffect(() => {
     const fetchMeetings = async () => {

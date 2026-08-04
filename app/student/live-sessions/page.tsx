@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Radio, Video, Clock, X } from "lucide-react";
 import { useStudentTheme } from "@/components/student/useStudentTheme";
+import dynamic from "next/dynamic";
+
+const HomePage = dynamic(() => import("@/app/main/home/page"), { ssr: false });
 
 interface Room {
   id: number;
@@ -16,6 +19,21 @@ interface Room {
 }
 
 export default function StudentLiveSessions() {
+  const [videoProvider, setVideoProvider] = useState<"konnect" | "live" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/org/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.video_conferencing === "live") {
+          setVideoProvider("live");
+        } else {
+          setVideoProvider("konnect");
+        }
+      })
+      .catch(() => setVideoProvider("konnect"));
+  }, []);
+
   const { theme } = useStudentTheme();
   const isAero = theme === "aero-premium";
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -108,6 +126,18 @@ export default function StudentLiveSessions() {
         />
       </div>
     );
+  }
+
+  if (videoProvider === null) {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-slate-500">
+        <Loader2 className="animate-spin mr-2" /> Loading sessions...
+      </div>
+    );
+  }
+
+  if (videoProvider === "live") {
+    return <HomePage />;
   }
 
   // Loading

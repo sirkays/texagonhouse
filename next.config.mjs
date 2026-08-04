@@ -21,11 +21,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: ["@stream-io/video-react-sdk", "@mediapipe/tasks-vision"],
   experimental: {
     optimizePackageImports: [
       "lucide-react",
       "recharts",
-      "@stream-io/video-react-sdk",
       "date-fns"
     ],
   },
