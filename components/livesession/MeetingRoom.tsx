@@ -623,41 +623,42 @@ const MeetingRoom = () => {
   return (
     <section className="relative h-screen w-full overflow-hidden bg-gradient-to-br from-slate-950 via-zinc-950 to-slate-950 text-white flex flex-col">
       {/* Top Header Bar */}
-      <header className="relative z-20 w-full px-4 sm:px-6 py-3.5 flex items-center justify-between backdrop-blur-xl bg-slate-950/70 border-b border-white/10">
+      <header className="relative z-20 w-full px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between backdrop-blur-xl bg-slate-950/70 border-b border-white/10 gap-2">
         {/* Left: Brand & Live Indicator */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider shrink-0">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-500 animate-ping" />
             <span>LIVE</span>
           </div>
-          <div className="hidden sm:block h-4 w-px bg-white/15" />
-          <h1 className="text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
+          <div className="hidden sm:block h-4 w-px bg-white/15 shrink-0" />
+          <h1 className="hidden sm:block text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
             Techxagon Meeting Room
           </h1>
         </div>
 
         {/* Center: Security Badge (Desktop) */}
-        <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-400">
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-400 shrink-0">
           <span className="text-emerald-400 font-bold">✓</span>
           <span>End-to-End Encrypted Session</span>
         </div>
 
         {/* Right: Invite & Participants Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <Button
             onClick={() =>
               navigator.clipboard
                 .writeText(window.location.href)
                 .then(() => toast.success("Invite link copied to clipboard!"))
             }
-            className="bg-white/10 hover:bg-white/20 text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer"
+            className="bg-white/10 hover:bg-white/20 text-white border border-white/15 rounded-xl px-2.5 sm:px-3.5 py-2 text-xs sm:text-sm font-medium transition flex items-center gap-1.5 sm:gap-2 cursor-pointer"
           >
-            <span>Invite</span>
+            <Send size={14} className="sm:hidden" />
+            <span className="hidden sm:inline">Invite</span>
           </Button>
 
           <button
             onClick={() => setShowParticipants((prev) => !prev)}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
               showParticipants
                 ? "bg-[#EF7B55] border-[#EF7B55] text-white"
                 : "bg-white/10 hover:bg-white/20 border-white/15 text-white"
