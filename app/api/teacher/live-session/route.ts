@@ -58,14 +58,23 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const processedBody = {
-      course_id: Number.parseInt(body.course_id) || 0,
+    const isPublic = body.is_public === true;
+    const courseId = body.course_id ? Number.parseInt(body.course_id) : null;
+
+    const processedBody: Record<string, any> = {
       title: body.title || "Untitled Session",
       scheduled_at: body.scheduled_at || new Date().toISOString(),
       duration_minutes: Number.parseInt(body.duration_minutes) || 60,
       join_url: body.join_url || "",
       meta: body.meta || {},
+      session_type: body.session_type || "default",
+      is_public: isPublic,
     };
+
+    // Only include course_id if it's a valid number (required for private, optional for public)
+    if (courseId) {
+      processedBody.course_id = courseId;
+    }
 
     const { response, text, setCookie } = await djangoFetch(
       "/live/api/create-live-session/",

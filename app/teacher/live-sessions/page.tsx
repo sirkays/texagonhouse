@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 
 const HomePage = dynamic(() => import("@/app/main/home/page"), { ssr: false });
 import {
@@ -385,6 +386,7 @@ function SummaryTile({
 
 /* -------------------- Main page component -------------------- */
 export default function LiveSessionsPage() {
+  const router = useRouter();
   const [videoProvider, setVideoProvider] = useState<"konnect" | "live" | null>(null);
 
   useEffect(() => {
@@ -399,6 +401,12 @@ export default function LiveSessionsPage() {
       })
       .catch(() => setVideoProvider("konnect"));
   }, []);
+
+  useEffect(() => {
+    if (videoProvider === "live") {
+      router.push("/main/home");
+    }
+  }, [videoProvider, router]);
 
   // API data
   const [courses, setCourses] = useState<Course[]>([]);
@@ -452,7 +460,11 @@ export default function LiveSessionsPage() {
   }
 
   if (videoProvider === "live") {
-    return <HomePage />;
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] text-slate-500">
+        <Loader2 className="animate-spin mr-2 text-[#EF7B55]" size={20} /> Redirecting to Live Sessions...
+      </div>
+    );
   }
 
   /* ---------- Fetch teacher's courses on mount ---------- */

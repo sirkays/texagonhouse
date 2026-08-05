@@ -17,14 +17,27 @@ export const useGetCallById = (id: string | string[]) => {
       return;
     }
 
-    try {
-      const activeCall = client.call("default", callId);
-      setCall(activeCall);
-    } catch (error: any) {
-      console.error("[useGetCallById] Error initializing call:", error);
-    } finally {
-      setIsCallLoading(false);
-    }
+    const loadCall = async () => {
+      try {
+        // Try "default" (SFU) first
+        const defaultCall = client.call("default", callId);
+        await defaultCall.getOrCreate();
+        setCall(defaultCall);
+      } catch {
+        try {
+          // Fallback to "livestream" type
+          const livestreamCall = client.call("livestream", callId);
+          await livestreamCall.getOrCreate();
+          setCall(livestreamCall);
+        } catch (error: any) {
+          console.error("[useGetCallById] Error initializing call:", error);
+        }
+      } finally {
+        setIsCallLoading(false);
+      }
+    };
+
+    loadCall();
   }, [client, id]);
 
   return {call, isCallLoading};

@@ -238,13 +238,13 @@ const MeetingSetup = ({
           <Button
             className="w-full bg-gradient-to-r from-[#EF7B55] to-[#f9926b] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 text-base cursor-pointer"
             onClick={async () => {
-              await call.join();
               try {
+                await call.join();
                 await call.updateCallMembers({
                   update_members: [{ user_id: String(session.user?.id) }],
-                });
-              } catch {
-                // non-fatal
+                }).catch(() => {});
+              } catch (joinErr) {
+                console.warn("[MeetingSetup] Non-fatal join notice:", joinErr);
               }
               setIsSetupComplete(true);
             }}

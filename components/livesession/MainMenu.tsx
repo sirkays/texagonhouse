@@ -5,14 +5,6 @@ import {useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 // import MenuItemCard from "./MenuItemCard";
 import {Button} from "../ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../ui/dialog";
 import {Textarea} from "../ui/textarea";
 import {useEffect, useMemo, useState} from "react";
 import {Input} from "../ui/input";
@@ -24,7 +16,7 @@ import {toast} from "sonner";
 import DateAndTime from "./DateAndTime";
 import Image from "next/image";
 import {Spinner} from "../ui/spinner";
-import {PlusCircle, Users, CalendarDays, Trash2} from "lucide-react";
+import {PlusCircle, Users, CalendarDays, Trash2, Radio, Monitor, ArrowLeft, Globe, Lock} from "lucide-react";
 
 interface Course {
   id: number | string;
@@ -56,6 +48,8 @@ const initialValues = {
   courseId: null as number | null,
   title: "",
   duration: 60,
+  sessionType: "default" as "default" | "livestream",
+  meetingAccess: "private" as "public" | "private",
 };
 
 const MenuItemCard = ({title, Icon, color}: MenuItemCardProps) => {
@@ -101,9 +95,7 @@ const MainMenu = () => {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isNewMeetingOpen, setIsNewMeetingOpen] = useState(false);
-  const [isJoinMeetingOpen, setIsJoinMeetingOpen] = useState(false);
-  const [isScheduleMeetingOpen, setIsScheduleMeetingOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"newMeeting" | "joinMeeting" | "scheduleMeeting" | null>(null);
 
   // Fetch courses from the endpoint
   useEffect(() => {
@@ -156,11 +148,26 @@ const MainMenu = () => {
       return router.push("/login");
 
     const currentMeetingState = meetingState;
+    const isPublic = values.meetingAccess === "public";
 
     try {
-      if (!values.dateTime || !values.courseId || !values.title) {
+      if (!values.dateTime || !values.title) {
         toast.error(
-          "Please provide all required fields: date, course, and title",
+          "Please provide all required fields: date and title",
+          {
+            duration: 3000,
+            className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
+          },
+        );
+        setIsCreatingMeeting(false);
+        setMeetingState(undefined);
+        return;
+      }
+
+      // Course is required for private meetings
+      if (!isPublic && !values.courseId) {
+        toast.error(
+          "Please select a course for private meetings",
           {
             duration: 3000,
             className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
@@ -176,9 +183,11 @@ const MainMenu = () => {
         values.dateTime.toISOString() || new Date(Date.now()).toISOString();
       const description = values.description || "No Description";
 
-      // 1. Create Stream call via server action (REST API - bypasses browser WebSocket initial connection failures)
+      const callType = values.sessionType || "default";
+
+      // 1. Create Stream call via server action (REST API)
       try {
-        await createStreamCallServer(id, startsAt, description);
+        await createStreamCallServer(id, startsAt, description, callType, isPublic);
       } catch (srvErr) {
         console.warn("[MainMenu] Server call creation error:", srvErr);
       }
@@ -186,14 +195,16 @@ const MainMenu = () => {
       // 2. Try frontend Stream client initialization if client exists
       if (client) {
         try {
-          const call = client.call("default", id);
+          const call = client.call(callType, id);
           if (call) {
             await call.getOrCreate({
               data: {
                 starts_at: startsAt,
                 custom: {
                   description,
+                  is_public: isPublic,
                 },
+                settings_override: { backstage: { enabled: false } },
               },
             });
           }
@@ -203,18 +214,24 @@ const MainMenu = () => {
       }
 
       // API call to create live session
+      const bodyData: any = {
+        title: values.title,
+        scheduled_at: startsAt,
+        duration_minutes: values.duration,
+        join_url: `meeting/${id}`,
+        session_type: callType,
+        is_public: isPublic,
+      };
+      if (!isPublic && values.courseId) {
+        bodyData.course_id = values.courseId;
+      }
+
       const response = await fetch("/api/teacher/live-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          course_id: values.courseId,
-          title: values.title,
-          scheduled_at: startsAt,
-          duration_minutes: values.duration,
-          join_url: `main/meeting/${id}`,
-        }),
+        body: JSON.stringify(bodyData),
       });
 
       if (!response.ok) {
@@ -232,8 +249,7 @@ const MainMenu = () => {
         }
       }
 
-      setIsNewMeetingOpen(false);
-      setIsScheduleMeetingOpen(false);
+      setActiveView(null);
       setMeetingState(undefined);
       setValues(initialValues);
 
@@ -242,7 +258,7 @@ const MainMenu = () => {
           duration: 3000,
           className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
         });
-        router.push(`/main/meeting/${id}`);
+        router.push(`/meeting/${id}`);
       }
 
       if (currentMeetingState === "Schedule") {
@@ -281,12 +297,10 @@ const MainMenu = () => {
     } else if (values.link.includes("/main/meeting/")) {
       meetingPath = values.link;
     } else {
-      meetingPath = `/main/meeting/${values.link}`;
+      meetingPath = `/meeting/${values.link}`;
     }
 
-    setIsJoinMeetingOpen(false);
-    router.push(meetingPath);
-
+    setActiveView(null);
     router.push(meetingPath);
     toast.success("Joining meeting...", {
       duration: 3000,
@@ -427,233 +441,345 @@ const MainMenu = () => {
   const isTeacher = session.user.role === "teacher";
 
   return (
-    <div>
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
-        {/* Next Meeting */}
-        <div className="flex flex-col gap-3 items-center justify-center md:items-start menu-item-card">
-          {isLoading ? (
-            <p>Loading meetings...</p>
-          ) : nearestUpcomingMeeting ? (
-            <>
-              <h2
-                className="w-full max-w-[300px] sm:max-w-[273px] rounded-2xl p-3 sm:p-4 text-center text-sm sm:text-base font-light
-                bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800">
-                Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
-              </h2>
+    <div className="min-h-[60vh]">
+      {/* ========================================
+          DEFAULT VIEW: Card Grid + Upcoming
+          ======================================== */}
+      {activeView === null && (
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
+          {/* Next Meeting */}
+          <div className="flex flex-col gap-3 items-center justify-center md:items-start menu-item-card">
+            {isLoading ? (
+              <p>Loading meetings...</p>
+            ) : nearestUpcomingMeeting ? (
+              <>
+                <h2
+                  className="w-full max-w-[300px] sm:max-w-[273px] rounded-2xl p-3 sm:p-4 text-center text-sm sm:text-base font-light
+                  bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800">
+                  Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
+                </h2>
 
-              <div className="flex gap-2 sm:gap-3">
-                {nearestUpcomingMeeting.join_url &&
-                  (isTeacher ? (
-                    <a
-                      href="/main/home/upcoming"
-                      className="text-[#f7b55] hover:text-[#e0a94d] text-sm sm:text-base font-medium">
-                      View More
-                    </a>
-                  ) : (
-                    <a
-                      href="/main/home/upcoming"
-                      className="text-[#f7b55] hover:text-[#e0a94d] text-sm sm:text-base font-medium">
-                      Join Meeting
-                    </a>
-                  ))}
+                <div className="flex gap-2 sm:gap-3">
+                  {nearestUpcomingMeeting.join_url &&
+                    (isTeacher ? (
+                      <a
+                        href="/main/home/upcoming"
+                        className="text-[#f7b55] hover:text-[#e0a94d] text-sm sm:text-base font-medium">
+                        View More
+                      </a>
+                    ) : (
+                      <a
+                        href="/main/home/upcoming"
+                        className="text-[#f7b55] hover:text-[#e0a94d] text-sm sm:text-base font-medium">
+                        Join Meeting
+                      </a>
+                    ))}
 
-                <button
-                  onClick={() => {
-                    handleDeleteMeeting();
-                  }}
-                  disabled={isDeleting}
-                  className="bg-transparent flex text-destructive items-center gap-2 py-0 text-sm sm:text-base">
-                  {isDeleting ? (
-                    <>
-                      <Spinner size="sm" className="text-destructive" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 size={16} className="text-[#f7b55]" /> Delete
-                    </>
-                  )}
-                </button>
-              </div>
-            </>
-          ) : (
-            <p>No upcoming meetings</p>
+                  <button
+                    onClick={() => {
+                      handleDeleteMeeting();
+                    }}
+                    disabled={isDeleting}
+                    className="bg-transparent flex text-destructive items-center gap-2 py-0 text-sm sm:text-base">
+                    {isDeleting ? (
+                      <>
+                        <Spinner size="sm" className="text-destructive" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={16} className="text-[#f7b55]" /> Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p>No upcoming meetings</p>
+            )}
+          </div>
+
+          {/* 1. Instant New Meeting Card */}
+          {isTeacher && (
+            <div onClick={() => { setActiveView("newMeeting"); setValues(initialValues); }}>
+              <MenuItemCard
+                title="New Meeting"
+                Icon={PlusCircle}
+                color="#EF7B55"
+              />
+            </div>
           )}
-        </div>
 
-        {/* 1. Instant New Meeting */}
-        {isTeacher && (
-          <Dialog open={isNewMeetingOpen} onOpenChange={setIsNewMeetingOpen}>
-            <DialogTrigger asChild>
-              <div>
-                <MenuItemCard
-                  title="New Meeting"
-                  Icon={PlusCircle}
-                  color="#EF7B55"
+          {/* 2. Join Meeting Card */}
+          <div onClick={() => { setActiveView("joinMeeting"); setValues(initialValues); }}>
+            <MenuItemCard title="Join Meeting" Icon={Users} color="#55C1EF" />
+          </div>
+
+          {/* 3. Schedule Meeting Card */}
+          {isTeacher && (
+            <div onClick={() => { setActiveView("scheduleMeeting"); setValues(initialValues); }}>
+              <MenuItemCard
+                title="Schedule Meeting"
+                Icon={CalendarDays}
+                color="#4F46E5"
+              />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ========================================
+          NEW MEETING FORM (Inline Page)
+          ======================================== */}
+      {activeView === "newMeeting" && (
+        <div className="px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-[#EF7B55] to-[#f98a66] p-6 sm:p-8 text-white">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setActiveView(null); setValues(initialValues); }}
+                  className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors cursor-pointer"
+                  title="Back to Live Sessions"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                    Start an Instant Meeting 🤝
+                  </h2>
+                  <p className="text-orange-50/90 text-xs sm:text-sm mt-0.5">
+                    Fill in the session details to jump right in
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Form Body */}
+            <div className="p-6 sm:p-8 space-y-5">
+              {/* Meeting Title */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Meeting Title <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g., Python Advanced Q&A"
+                  value={values.title}
+                  onChange={(e) =>
+                    setValues({ ...values, title: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
                 />
               </div>
-            </DialogTrigger>
 
-            <DialogContent className="bg-white text-slate-900 w-[95vw] sm:w-full max-w-[520px] rounded-3xl shadow-2xl p-0 flex flex-col overflow-hidden border border-slate-100">
-              {/* Header Banner */}
-              <div className="bg-gradient-to-r from-[#EF7B55] to-[#f98a66] p-6 text-white shrink-0 relative">
-                <DialogHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white">
-                      <PlusCircle className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <DialogTitle className="text-xl font-extrabold text-white text-left">
-                        Start an Instant Meeting 🤝
-                      </DialogTitle>
-                      <DialogDescription className="text-orange-50/90 text-xs sm:text-sm text-left mt-0.5">
-                        Fill in the session details to jump right in
-                      </DialogDescription>
-                    </div>
-                  </div>
-                </DialogHeader>
-              </div>
-
-              {/* Scrollable Form Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {/* Meeting Title */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Meeting Title <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="e.g., Python Advanced Q&A"
-                    value={values.title}
-                    onChange={(e) =>
-                      setValues({ ...values, title: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
-                  />
-                </div>
-
-                {/* Course */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Course <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={values.courseId || ""}
-                    onChange={(e) =>
-                      setValues({
-                        ...values,
-                        courseId: Number(e.target.value),
-                      })
-                    }
-                    className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
-                    required
+              {/* Meeting Access */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Meeting Access
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, meetingAccess: "private" })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.meetingAccess === "private"
+                        ? "border-slate-700 bg-slate-700/10 shadow-md shadow-slate-700/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
                   >
-                    <option value="" disabled>
-                      Select a course
-                    </option>
-                    {courses.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.name} ({course.classroom})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Description
-                  </label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Optional meeting goals or context..."
-                    value={values.description}
-                    onChange={(e) =>
-                      setValues({
-                        ...values,
-                        description: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
-                  />
-                </div>
-
-                {/* Duration */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Duration (Minutes)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="60"
-                    value={values.duration}
-                    onChange={(e) =>
-                      setValues({
-                        ...values,
-                        duration: parseInt(e.target.value) || 60,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Action Footer */}
-              <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
-                <Button
-                  className={`w-full bg-gradient-to-r from-[#EF7B55] to-[#f98a66] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
-                    isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                  onClick={() => {
-                    setIsCreatingMeeting(true);
-                    setMeetingState("Instant");
-                  }}
-                  disabled={isCreatingMeeting}
-                >
-                  {isCreatingMeeting ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Spinner size="sm" />
-                      <span>Creating Meeting...</span>
+                    <Lock size={20} className={values.meetingAccess === "private" ? "text-slate-700" : "text-slate-400"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.meetingAccess === "private" ? "text-slate-700" : "text-slate-500"}`}>Private</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Account required</p>
                     </div>
-                  ) : (
-                    "Create & Join Instant Meeting"
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* 2. Join Meeting */}
-        <Dialog open={isJoinMeetingOpen} onOpenChange={setIsJoinMeetingOpen}>
-          <DialogTrigger asChild>
-            <div>
-              <MenuItemCard title="Join Meeting" Icon={Users} color="#55C1EF" />
-            </div>
-          </DialogTrigger>
-
-          <DialogContent className="bg-white text-slate-900 w-[95vw] sm:w-full max-w-[480px] rounded-3xl shadow-2xl p-0 flex flex-col overflow-hidden border border-slate-100">
-            {/* Header Banner */}
-            <div className="bg-gradient-to-r from-sky-500 to-blue-600 p-6 text-white shrink-0">
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-xl font-extrabold text-white text-left">
-                      Join a Meeting 🚀
-                    </DialogTitle>
-                    <DialogDescription className="text-sky-50/90 text-xs sm:text-sm text-left mt-0.5">
-                      Enter the meeting link or ID provided by your host
-                    </DialogDescription>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, meetingAccess: "public", courseId: null })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.meetingAccess === "public"
+                        ? "border-emerald-500 bg-emerald-500/10 shadow-md shadow-emerald-500/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
+                  >
+                    <Globe size={20} className={values.meetingAccess === "public" ? "text-emerald-500" : "text-slate-400"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.meetingAccess === "public" ? "text-emerald-500" : "text-slate-500"}`}>Public</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Anyone can join</p>
+                    </div>
+                  </button>
                 </div>
-              </DialogHeader>
+                {values.meetingAccess === "public" && (
+                  <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                    <Globe size={12} />
+                    Anyone with the meeting link can join without an account
+                  </p>
+                )}
+              </div>
+
+              {/* Course (hidden for public meetings) */}
+              {values.meetingAccess === "private" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Course <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={values.courseId || ""}
+                  onChange={(e) =>
+                    setValues({
+                      ...values,
+                      courseId: Number(e.target.value),
+                    })
+                  }
+                  className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
+                  required
+                >
+                  <option value="" disabled>
+                    Select a course
+                  </option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name} ({course.classroom})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              )}
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Description
+                </label>
+                <Textarea
+                  rows={3}
+                  placeholder="Optional meeting goals or context..."
+                  value={values.description}
+                  onChange={(e) =>
+                    setValues({
+                      ...values,
+                      description: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
+                />
+              </div>
+
+              {/* Duration */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Duration (Minutes)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="60"
+                  value={values.duration}
+                  onChange={(e) =>
+                    setValues({
+                      ...values,
+                      duration: parseInt(e.target.value) || 60,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
+                />
+              </div>
+
+              {/* Session Type */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Session Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, sessionType: "default" })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.sessionType === "default"
+                        ? "border-[#EF7B55] bg-[#EF7B55]/10 shadow-md shadow-[#EF7B55]/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
+                  >
+                    <Users size={22} className={values.sessionType === "default" ? "text-[#EF7B55]" : "text-slate-500"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.sessionType === "default" ? "text-[#EF7B55]" : "text-slate-700"}`}>Group Session</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Camera & mic for all (≤25)</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, sessionType: "livestream" })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.sessionType === "livestream"
+                        ? "border-rose-500 bg-rose-500/10 shadow-md shadow-rose-500/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
+                  >
+                    <Radio size={22} className={values.sessionType === "livestream" ? "text-rose-500" : "text-slate-500"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.sessionType === "livestream" ? "text-rose-500" : "text-slate-700"}`}>Live Class</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Broadcast + chat (25–10K+)</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Footer */}
+            <div className="p-5 sm:p-6 border-t border-slate-100 bg-slate-50/50">
+              <Button
+                className={`w-full bg-gradient-to-r from-[#EF7B55] to-[#f98a66] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
+                  isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                onClick={() => {
+                  setIsCreatingMeeting(true);
+                  setMeetingState("Instant");
+                }}
+                disabled={isCreatingMeeting}
+              >
+                {isCreatingMeeting ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Spinner size="sm" />
+                    <span>Creating Meeting...</span>
+                  </div>
+                ) : (
+                  "Create & Join Instant Meeting"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================
+          JOIN MEETING FORM (Inline Page)
+          ======================================== */}
+      {activeView === "joinMeeting" && (
+        <div className="px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-sky-500 to-blue-600 p-6 sm:p-8 text-white">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setActiveView(null); setValues(initialValues); }}
+                  className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors cursor-pointer"
+                  title="Back to Live Sessions"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                    Join a Meeting 🚀
+                  </h2>
+                  <p className="text-sky-50/90 text-xs sm:text-sm mt-0.5">
+                    Enter the meeting link or ID provided by your host
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-6 sm:p-8 space-y-5">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   Meeting Link or ID
@@ -669,7 +795,7 @@ const MainMenu = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
+            <div className="p-5 sm:p-6 border-t border-slate-100 bg-slate-50/50">
               <Button
                 className={`w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-sky-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
                   isJoining ? "opacity-60 cursor-not-allowed" : ""
@@ -690,171 +816,252 @@ const MainMenu = () => {
                 )}
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
+      )}
 
-        {/* 3. Schedule Meeting */}
-        {isTeacher && (
-          <Dialog open={isScheduleMeetingOpen} onOpenChange={setIsScheduleMeetingOpen}>
-            <DialogTrigger asChild>
-              <div>
-                <MenuItemCard
-                  title="Schedule Meeting"
-                  Icon={CalendarDays}
-                  color="#4F46E5"
+      {/* ========================================
+          SCHEDULE MEETING FORM (Inline Page)
+          ======================================== */}
+      {activeView === "scheduleMeeting" && (
+        <div className="px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 sm:p-8 text-white">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setActiveView(null); setValues(initialValues); }}
+                  className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors cursor-pointer"
+                  title="Back to Live Sessions"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                    Schedule a Future Session 📅
+                  </h2>
+                  <p className="text-indigo-50/90 text-xs sm:text-sm mt-0.5">
+                    Set date and details for an upcoming live class
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 sm:p-8 space-y-5">
+              {/* Meeting Title */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Meeting Title <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g., Weekly Live Revision"
+                  value={values.title}
+                  onChange={(e) =>
+                    setValues({ ...values, title: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
                 />
               </div>
-            </DialogTrigger>
 
-            <DialogContent className="bg-white text-slate-900 w-[95vw] sm:w-full max-w-[520px] rounded-3xl shadow-2xl p-0 flex flex-col overflow-hidden border border-slate-100">
-              {/* Header Banner */}
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white shrink-0">
-                <DialogHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white">
-                      <CalendarDays className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <DialogTitle className="text-xl font-extrabold text-white text-left">
-                        Schedule a Future Session 📅
-                      </DialogTitle>
-                      <DialogDescription className="text-indigo-50/90 text-xs sm:text-sm text-left mt-0.5">
-                        Set date and details for an upcoming live class
-                      </DialogDescription>
-                    </div>
-                  </div>
-                </DialogHeader>
-              </div>
-
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {/* Meeting Title */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Meeting Title <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="e.g., Weekly Live Revision"
-                    value={values.title}
-                    onChange={(e) =>
-                      setValues({ ...values, title: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
-                  />
-                </div>
-
-                {/* Course */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Course <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={values.courseId || ""}
-                    onChange={(e) =>
-                      setValues({
-                        ...values,
-                        courseId: Number(e.target.value),
-                      })
-                    }
-                    className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
-                    required
+              {/* Meeting Access */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Meeting Access
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, meetingAccess: "private" })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.meetingAccess === "private"
+                        ? "border-slate-700 bg-slate-700/10 shadow-md shadow-slate-700/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
                   >
-                    <option value="" disabled>
-                      Select a course
-                    </option>
-                    {courses.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.name} ({course.classroom})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Description
-                  </label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Add agenda or details..."
-                    value={values.description}
-                    onChange={(e) =>
-                      setValues({
-                        ...values,
-                        description: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
-                  />
-                </div>
-
-                {/* Date & Time */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
-                    Select Date & Time <span className="text-red-500">*</span>
-                  </label>
-                  <DatePicker
-                    preventOpenOnFocus
-                    selected={values.dateTime}
-                    onChange={(date) => setValues({ ...values, dateTime: date! })}
-                    showTimeSelect
-                    timeIntervals={15}
-                    timeCaption="Time"
-                    dateFormat="MMMM d, yyyy h:mm aa"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
-                  />
-                </div>
-
-                {/* Duration */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Duration (Minutes)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="60"
-                    value={values.duration}
-                    onChange={(e) =>
-                      setValues({
-                        ...values,
-                        duration: parseInt(e.target.value) || 60,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Action Footer */}
-              <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
-                <Button
-                  className={`w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
-                    isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                  onClick={() => {
-                    setIsCreatingMeeting(true);
-                    setMeetingState("Schedule");
-                  }}
-                  disabled={isCreatingMeeting}
-                >
-                  {isCreatingMeeting ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Spinner size="sm" />
-                      <span>Scheduling Meeting...</span>
+                    <Lock size={20} className={values.meetingAccess === "private" ? "text-slate-700" : "text-slate-400"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.meetingAccess === "private" ? "text-slate-700" : "text-slate-500"}`}>Private</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Account required</p>
                     </div>
-                  ) : (
-                    "Schedule Live Session"
-                  )}
-                </Button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, meetingAccess: "public", courseId: null })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.meetingAccess === "public"
+                        ? "border-emerald-500 bg-emerald-500/10 shadow-md shadow-emerald-500/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
+                  >
+                    <Globe size={20} className={values.meetingAccess === "public" ? "text-emerald-500" : "text-slate-400"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.meetingAccess === "public" ? "text-emerald-500" : "text-slate-500"}`}>Public</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Anyone can join</p>
+                    </div>
+                  </button>
+                </div>
+                {values.meetingAccess === "public" && (
+                  <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                    <Globe size={12} />
+                    Anyone with the meeting link can join without an account
+                  </p>
+                )}
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </section>
+
+              {/* Course (hidden for public meetings) */}
+              {values.meetingAccess === "private" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Course <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={values.courseId || ""}
+                  onChange={(e) =>
+                    setValues({
+                      ...values,
+                      courseId: Number(e.target.value),
+                    })
+                  }
+                  className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
+                  required
+                >
+                  <option value="" disabled>
+                    Select a course
+                  </option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name} ({course.classroom})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              )}
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Description
+                </label>
+                <Textarea
+                  rows={3}
+                  placeholder="Add agenda or details..."
+                  value={values.description}
+                  onChange={(e) =>
+                    setValues({
+                      ...values,
+                      description: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
+                />
+              </div>
+
+              {/* Date & Time */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
+                  Select Date & Time <span className="text-red-500">*</span>
+                </label>
+                <DatePicker
+                  preventOpenOnFocus
+                  selected={values.dateTime}
+                  onChange={(date) => setValues({ ...values, dateTime: date! })}
+                  showTimeSelect
+                  timeIntervals={15}
+                  timeCaption="Time"
+                  dateFormat="MMMM d, yyyy h:mm aa"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
+                />
+              </div>
+
+              {/* Duration */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Duration (Minutes)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="60"
+                  value={values.duration}
+                  onChange={(e) =>
+                    setValues({
+                      ...values,
+                      duration: parseInt(e.target.value) || 60,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
+                />
+              </div>
+
+              {/* Session Type */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Session Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, sessionType: "default" })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.sessionType === "default"
+                        ? "border-indigo-600 bg-indigo-600/10 shadow-md shadow-indigo-600/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
+                  >
+                    <Users size={22} className={values.sessionType === "default" ? "text-indigo-600" : "text-slate-500"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.sessionType === "default" ? "text-indigo-600" : "text-slate-700"}`}>Group Session</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Camera & mic for all (≤25)</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, sessionType: "livestream" })}
+                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      values.sessionType === "livestream"
+                        ? "border-rose-500 bg-rose-500/10 shadow-md shadow-rose-500/10"
+                        : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                    }`}
+                  >
+                    <Radio size={22} className={values.sessionType === "livestream" ? "text-rose-500" : "text-slate-500"} />
+                    <div className="text-center">
+                      <p className={`text-xs font-bold ${values.sessionType === "livestream" ? "text-rose-500" : "text-slate-700"}`}>Live Class</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Broadcast + chat (25–10K+)</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Footer */}
+            <div className="p-5 sm:p-6 border-t border-slate-100 bg-slate-50/50">
+              <Button
+                className={`w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
+                  isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                onClick={() => {
+                  setIsCreatingMeeting(true);
+                  setMeetingState("Schedule");
+                }}
+                disabled={isCreatingMeeting}
+              >
+                {isCreatingMeeting ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Spinner size="sm" />
+                    <span>Scheduling Meeting...</span>
+                  </div>
+                ) : (
+                  "Schedule Live Session"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default MainMenu;
+

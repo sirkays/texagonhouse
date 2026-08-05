@@ -271,15 +271,34 @@ import {
   Monitor,
   PhoneOff,
   Smile,
+  MessageCircle,
+  Send,
 } from "lucide-react";
 import {Spinner} from "../ui/spinner";
 
 type CallLayoutType = "grid" | "speaker-left" | "speaker-right";
 
+interface FloatingReaction {
+  id: string;
+  emoji: string;
+  x: number;
+}
+
+interface ChatMessage {
+  id: string;
+  sender: string;
+  text: string;
+  timestamp: Date;
+}
+
 const MeetingRoom = () => {
   const [layout, setLayout] = useState<CallLayoutType>("speaker-left");
   const [showParticipants, setShowParticipants] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [groupSize, setGroupSize] = useState(4);
+  const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
 
   const router = useRouter();
   const pathname = usePathname();
@@ -292,16 +311,27 @@ const MeetingRoom = () => {
     useHasOngoingScreenShare,
     useMicrophoneState,
     useCameraState,
+    useLocalParticipant,
+    useHasPermissions,
   } = useCallStateHooks();
   const call = useCall();
   const callingState = useCallCallingState();
   const participantCount = useParticipantCount?.() || 0;
+  const localParticipant = useLocalParticipant();
 
-  const {isMuted: isMicMuted} = useMicrophoneState();
-  const {isMuted: isCamMuted} = useCameraState();
+  const {isMuted: isMicMuted, isEnabled: isMicEnabled} = useMicrophoneState();
+  const {isMuted: isCamMuted, isEnabled: isCamEnabled} = useCameraState();
+  const isMicOff = isMicMuted || isMicEnabled === false;
+  const isCamOff = isCamMuted || isCamEnabled === false;
   const {status: screenShareStatus} = useScreenShareState();
   const isScreenSharing = screenShareStatus === "enabled";
   const someoneSharing = useHasOngoingScreenShare();
+
+  const hasMicPermission = useHasPermissions("send-audio");
+  const hasCamPermission = useHasPermissions("send-video");
+  const hasScreenSharePermission = useHasPermissions("screen-share");
+
+  const isHost = session?.user?.role === "teacher" || session?.user?.role === "admin";
 
   // Helper to determine dashboard path based on role
   const getDashboardPath = () => {
@@ -344,7 +374,7 @@ const MeetingRoom = () => {
     }
   };
 
-  // Send Reaction Emoji
+  // Send Reaction Emoji with floating animation
   const handleSendReaction = async (emoji: string) => {
     if (!call) return;
     try {
@@ -352,9 +382,39 @@ const MeetingRoom = () => {
         type: "reaction",
         emoji: {unicode: emoji},
       });
-      toast.success(`Reaction ${emoji} sent`, {duration: 1500});
+      // Add floating reaction
+      const id = crypto.randomUUID();
+      const x = 20 + Math.random() * 60; // random horizontal position 20-80%
+      setFloatingReactions((prev) => [...prev, { id, emoji, x }]);
+      // Remove after animation completes
+      setTimeout(() => {
+        setFloatingReactions((prev) => prev.filter((r) => r.id !== id));
+      }, 2500);
     } catch (err) {
       console.error("Error sending reaction:", err);
+    }
+  };
+
+  // Send chat message
+  const handleSendChat = () => {
+    if (!chatInput.trim()) return;
+    
+    // Resolve user name: Check NextAuth session first, then Stream localParticipant name, fallback to "Guest"
+    const userName = session?.user?.name || localParticipant?.name || localParticipant?.user?.name || "Guest";
+    const textToSend = chatInput.trim();
+    setChatInput("");
+    
+    // Send via call custom events if available (Stream broadcasts to all clients including sender)
+    if (call) {
+      try {
+        call.sendCustomEvent({
+          type: "chat_message",
+          sender: userName,
+          text: textToSend,
+        });
+      } catch (err) {
+        console.error("Failed to send chat:", err);
+      }
     }
   };
 
@@ -371,6 +431,11 @@ const MeetingRoom = () => {
       } catch (err) {
         console.error("Error during leave cleanup:", err);
       }
+    }
+    try {
+      sessionStorage.clear();
+    } catch {
+      // non-fatal
     }
     router.push(getDashboardPath());
   };
@@ -447,23 +512,109 @@ const MeetingRoom = () => {
     }
   }, [layout, groupSize, participantCount, someoneSharing]);
 
+  // Listen for incoming custom chat events
+  useEffect(() => {
+    if (!call) return;
+    const handler = (event: any) => {
+      if (event.custom?.type === "chat_message") {
+        const incoming: ChatMessage = {
+          id: crypto.randomUUID(),
+          sender: event.custom.sender || "Unknown",
+          text: event.custom.text || "",
+          timestamp: new Date(),
+        };
+        setChatMessages((prev) => [...prev, incoming]);
+      }
+    };
+    call.on("custom", handler);
+    return () => {
+      call.off("custom", handler);
+    };
+  }, [call]);
+
+  // Restore chat messages from sessionStorage on mount
+  useEffect(() => {
+    if (!call?.id) return;
+    try {
+      const stored = sessionStorage.getItem(`techxagon_chat_${call.id}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setChatMessages(parsed.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          })));
+        }
+      }
+    } catch {
+      // non-fatal
+    }
+  }, [call?.id]);
+
+  // Save chat messages to sessionStorage on change
+  useEffect(() => {
+    if (!call?.id || chatMessages.length === 0) return;
+    try {
+      sessionStorage.setItem(`techxagon_chat_${call.id}`, JSON.stringify(chatMessages));
+    } catch {
+      // non-fatal
+    }
+  }, [chatMessages, call?.id]);
+
+  // Listen for incoming reactions from other participants
+  useEffect(() => {
+    if (!call) return;
+    const handler = (event: any) => {
+      const emoji = event.reaction?.emoji?.unicode;
+      if (emoji) {
+        const id = crypto.randomUUID();
+        const x = 20 + Math.random() * 60;
+        setFloatingReactions((prev) => [...prev, { id, emoji, x }]);
+        setTimeout(() => {
+          setFloatingReactions((prev) => prev.filter((r) => r.id !== id));
+        }, 2500);
+      }
+    };
+    call.on("call.reaction_new", handler);
+    return () => {
+      call.off("call.reaction_new", handler);
+    };
+  }, [call]);
+
+  // Clean up camera & mic hardware when unmounting (turns off laptop camera light)
+  useEffect(() => {
+    return () => {
+      if (call) {
+        call.camera.disable().catch(() => {});
+        call.microphone.disable().catch(() => {});
+      }
+    };
+  }, [call]);
+
+  // Prevent ghost participants on reload/close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Synchronously notify Stream that the user is leaving to prevent ghost participants
+      if (call) {
+        call.leave().catch(() => {});
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [call]);
+
   // Loading / auth checks
   if (status === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-[#0f1117]">
         <Spinner size="lg" />
       </div>
     );
   }
 
-  if (!session?.user) {
-    router.push(`/auth/signin?next=${encodeURIComponent(pathname)}`);
-    return null;
-  }
-
   if (callingState !== CallingState.JOINED) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-[#0f1117]">
         <Spinner size="lg" />
       </div>
     );
@@ -521,20 +672,53 @@ const MeetingRoom = () => {
         </div>
       </header>
 
-      {/* Main Video Stage — flex-1 fills remaining height, pb-28 clears the dock */}
+      {/* Main Video Stage */}
       <div className="flex-1 min-h-0 w-full flex items-stretch justify-center p-2 sm:p-3 pb-28">
         <div className="w-full max-w-[1440px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/60 backdrop-blur-md">
           <CallLayout />
         </div>
       </div>
 
-      {/* Slide-over Participants Drawer — fixed to header bottom, ends at dock */}
+      {/* ── Floating Reactions Overlay ── */}
+      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+        {floatingReactions.map((r) => (
+          <div
+            key={r.id}
+            className="absolute bottom-32 text-4xl sm:text-5xl"
+            style={{
+              left: `${r.x}%`,
+              animation: "floatUp 2.5s ease-out forwards",
+            }}
+          >
+            {r.emoji}
+          </div>
+        ))}
+      </div>
+
+      {/* Inline CSS for float animation */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes floatUp {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: translateY(-200px) scale(1.2);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-400px) scale(0.8);
+          }
+        }
+      `}} />
+
+      {/* Slide-over Participants Drawer */}
       <div
         className={`fixed top-[57px] right-0 bottom-24 w-[min(320px,90vw)] sm:w-80 bg-zinc-950/96 border-l border-white/10 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
           showParticipants ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Drawer Header */}
         <div className="flex-none p-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-[#EF7B55]" />
@@ -542,14 +726,79 @@ const MeetingRoom = () => {
           </div>
           <button
             onClick={() => setShowParticipants(false)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition text-sm"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition text-sm cursor-pointer"
           >
             ✕
           </button>
         </div>
-        {/* Scrollable list — takes remaining height */}
         <div className="flex-1 min-h-0 overflow-y-auto p-2">
           <CallParticipantsList onClose={() => setShowParticipants(false)} />
+        </div>
+      </div>
+
+      {/* ── Chat Drawer ── */}
+      <div
+        className={`fixed top-[57px] right-0 bottom-24 w-[min(360px,90vw)] sm:w-[380px] bg-zinc-950/96 border-l border-white/10 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
+          showChat ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Chat Header */}
+        <div className="flex-none p-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-[#EF7B55]" />
+            <h2 className="font-bold text-white text-sm">Meeting Chat</h2>
+          </div>
+          <button
+            onClick={() => setShowChat(false)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition text-sm cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Chat Messages */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+          {chatMessages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-2">
+              <MessageCircle className="w-8 h-8 opacity-30" />
+              <p className="text-xs">No messages yet. Say hello! 👋</p>
+            </div>
+          ) : (
+            chatMessages.map((msg) => (
+              <div key={msg.id} className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#EF7B55]">{msg.sender}</span>
+                  <span className="text-[10px] text-zinc-600">
+                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <p className="text-sm text-zinc-200 bg-white/5 rounded-xl px-3 py-2">
+                  {msg.text}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Chat Input */}
+        <div className="flex-none p-3 border-t border-white/10">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
+              placeholder="Type a message..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-[#EF7B55]/50 focus:ring-1 focus:ring-[#EF7B55]/20 transition"
+            />
+            <button
+              onClick={handleSendChat}
+              disabled={!chatInput.trim()}
+              className="p-2.5 rounded-xl bg-[#EF7B55] hover:bg-[#e0663f] text-white transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Send size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -558,61 +807,67 @@ const MeetingRoom = () => {
         <div className="flex items-center gap-1.5 sm:gap-2 backdrop-blur-2xl bg-zinc-950/95 border border-white/12 shadow-2xl rounded-2xl px-3 sm:px-4 py-2.5 max-w-[calc(100vw-24px)] overflow-x-auto">
 
           {/* ── Microphone ── */}
-          <button
-            onClick={() => call?.microphone.toggle()}
-            title={isMicMuted ? "Unmute" : "Mute"}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer shrink-0 min-w-[52px] ${
-              isMicMuted
-                ? "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/40"
-                : "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25"
-            }`}
-          >
-            {isMicMuted ? <MicOff size={18} /> : <Mic size={18} />}
-            <span className="text-[9px] font-semibold leading-none">
-              {isMicMuted ? "Muted" : "Mic On"}
-            </span>
-          </button>
+          {hasMicPermission && (
+            <button
+              onClick={() => call?.microphone.toggle()}
+              title={isMicOff ? "Unmute" : "Mute"}
+              className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+                isMicOff
+                  ? "bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/20"
+                  : "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:shadow-emerald-500/20"
+              }`}
+            >
+              {isMicOff ? <MicOff size={20} strokeWidth={2.5} /> : <Mic size={20} strokeWidth={2.5} />}
+              <span className="text-[10px] font-bold tracking-wide">
+                {isMicOff ? "Muted" : "Mic"}
+              </span>
+            </button>
+          )}
 
           {/* ── Camera ── */}
-          <button
-            onClick={() => call?.camera.toggle()}
-            title={isCamMuted ? "Start Camera" : "Stop Camera"}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer shrink-0 min-w-[52px] ${
-              isCamMuted
-                ? "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/40"
-                : "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25"
-            }`}
-          >
-            {isCamMuted ? <VideoOff size={18} /> : <Video size={18} />}
-            <span className="text-[9px] font-semibold leading-none">
-              {isCamMuted ? "Cam Off" : "Cam On"}
-            </span>
-          </button>
+          {hasCamPermission && (
+            <button
+              onClick={() => call?.camera.toggle()}
+              title={isCamOff ? "Start Camera" : "Stop Camera"}
+              className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+                isCamOff
+                  ? "bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/20"
+                  : "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:shadow-emerald-500/20"
+              }`}
+            >
+              {isCamOff ? <VideoOff size={20} strokeWidth={2.5} /> : <Video size={20} strokeWidth={2.5} />}
+              <span className="text-[10px] font-bold tracking-wide">
+                {isCamOff ? "Stopped" : "Cam"}
+              </span>
+            </button>
+          )}
 
           {/* ── Screen Share (desktop only) ── */}
-          <button
-            onClick={handleScreenShare}
-            title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
-            className={`hidden sm:flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer shrink-0 min-w-[52px] ${
-              isScreenSharing
-                ? "bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/40"
-                : "bg-white/8 hover:bg-white/14 text-zinc-300 border border-white/10"
-            }`}
-          >
-            <Monitor size={18} />
-            <span className="text-[9px] font-semibold leading-none">
-              {isScreenSharing ? "Sharing" : "Share"}
-            </span>
-          </button>
+          {hasScreenSharePermission && (
+            <button
+              onClick={handleScreenShare}
+              title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+              className={`hidden sm:flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+                isScreenSharing
+                  ? "bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/40 border border-sky-400"
+                  : "bg-white/5 hover:bg-white/15 text-zinc-300 border border-white/10 hover:shadow-white/10"
+              }`}
+            >
+              <Monitor size={20} strokeWidth={2.5} />
+              <span className="text-[10px] font-bold tracking-wide">
+                {isScreenSharing ? "Sharing" : "Share"}
+              </span>
+            </button>
+          )}
 
           {/* ── Reactions ── */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl bg-white/8 hover:bg-white/14 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer shrink-0 min-w-[52px]"
+              className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg hover:shadow-white/10"
               title="Send Reaction"
             >
-              <Smile size={18} />
-              <span className="text-[9px] font-semibold leading-none">React</span>
+              <Smile size={20} strokeWidth={2.5} />
+              <span className="text-[10px] font-bold tracking-wide">React</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="border border-white/15 bg-zinc-900/98 backdrop-blur-xl text-white rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1 max-w-[200px]">
               {["👍", "👏", "❤️", "🎉", "✋", "🔥"].map((emoji) => (
@@ -626,6 +881,51 @@ const MeetingRoom = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* ── Chat ── */}
+          <button
+            onClick={() => { setShowChat((prev) => !prev); if (showParticipants) setShowParticipants(false); }}
+            title="Chat"
+            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+              showChat
+                ? "bg-[#EF7B55] hover:bg-[#e0663f] border border-[#EF7B55] text-white shadow-[#EF7B55]/30"
+                : "bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white hover:shadow-white/10"
+            }`}
+          >
+            <MessageCircle size={20} strokeWidth={2.5} />
+            <span className="text-[10px] font-bold tracking-wide">Chat</span>
+          </button>
+
+          {/* ── Host Tools (Mute All & Stop Video) ── */}
+          {isHost && (
+            <>
+              <div className="h-8 w-px bg-white/10 mx-1 shrink-0" />
+              <button
+                onClick={() => {
+                  call?.muteAllUsers('audio').then(() => {
+                    toast.success("Muted all participants");
+                  });
+                }}
+                title="Mute All Guests"
+                className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/20"
+              >
+                <MicOff size={20} strokeWidth={2.5} />
+                <span className="text-[10px] font-bold tracking-wide">Mute All</span>
+              </button>
+              <button
+                onClick={() => {
+                  call?.muteAllUsers('video').then(() => {
+                    toast.success("Stopped video for all participants");
+                  });
+                }}
+                title="Stop Video for All Guests"
+                className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-red-500/20"
+              >
+                <VideoOff size={20} strokeWidth={2.5} />
+                <span className="text-[10px] font-bold tracking-wide">Stop All</span>
+              </button>
+            </>
+          )}
 
           {/* Divider */}
           <div className="h-8 w-px bg-white/10 mx-0.5 shrink-0" />
